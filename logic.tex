@@ -1,0 +1,85 @@
+\documentclass{article}
+
+\author{Akihisa Yamada}
+\title{Logic}
+
+\usepackage{amsmath,amsthm,proof}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+
+\makeatletter
+
+\def\tp@#1#2{\@ifnextchar[{\tp@@{#1}{#2}}{\tp@@@{#1}{#2}}}
+\def\tp@@#1#2[#3]#4{#3#1\def\mid{\mathrel{#3|}}#4#3#2}
+\def\tp@@@#1#2#3{\bgroup\left#1\def\mid{\;\middle|\;}#3\right#2\egroup}
+\def\pa{\tp@()}
+\def\tp{\tp@\langle\rangle}
+\def\set{\tp@\{\}}
+\def\br{\tp@[]}
+\def\bbr{\tp@\llbracket\rrbracket}
+\def\floor{\tp@\lfloor\rfloor}
+\def\sz{\tp@||}
+\let\ls=\pa
+
+\makeatother
+
+\newcommand\imp{\rightarrow}
+\newcommand\true{\mathtt{true}}
+\newcommand\false{\mathtt{false}}
+\newcommand\Prop{\mathtt{Prop}}
+\newcommand\cF{\mathcal{F}}
+\newcommand\Rule{\textrm{Rule}}
+\newcommand\Term[1]{\mathcal{T}(#1)}
+
+\begin{document}
+\maketitle
+
+\begin{definition}
+$\Term\cF$ is
+$v \in \cF$,
+or $s\,t$ for $s, t \in \Term\cF$,
+or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
+\end{definition}
+
+if $s : \Prop$ then $(\forall x.\ s) : \Prop$
+
+\[
+	\infer{\psi}{\phi & \phi \imp \psi}
+\]
+\[
+	\infer{\forall x.\ \phi}{\phi} \text{\quad if $x$ is free in }\phi
+\]
+\[
+	\infer{\phi(x\mapsto t)}{\forall x.\ \phi}
+\]
+
+\[
+\forall \phi.\ \phi \imp \phi
+\]
+\[
+\forall \phi,\psi.\ \phi \imp (\psi \imp \phi)
+\]
+\[
+\forall \phi,\psi,\tau.\ (\phi \imp \psi \imp \tau) \imp (\psi \imp \phi \imp \tau)
+\]
+\[
+\forall f,g,s,t.\ f = g \imp s = t \imp f\,s = g\,t
+\]
+
+
+\[
+	\infer{a \imp (a\imp b) \imp b}{
+		\infer{a \imp (a\imp b)\imp a}{
+			\infer{a \imp a}{}
+		} &
+		\infer{(a \imp (a\imp b)\imp a) \imp a \imp (a\imp b) \imp b}{
+			\infer{a \imp (a\imp b) \imp b}{
+				\infer{(a\imp b)\imp a \imp b}{}
+			}
+		}
+	}
+\]
+
+\end{document}
