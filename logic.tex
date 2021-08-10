@@ -8,6 +8,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
+\newtheorem{example}{Example}
 
 \makeatletter
 
@@ -25,7 +26,7 @@
 
 \makeatother
 
-\newcommand\imp{\rightarrow}
+\newcommand\imp{\Rightarrow}
 \newcommand\true{\mathtt{true}}
 \newcommand\false{\mathtt{false}}
 \newcommand\Prop{\mathtt{Prop}}
@@ -43,8 +44,7 @@ or $s\,t$ for $s, t \in \Term\cF$,
 or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
 \end{definition}
 
-if $s : \Prop$ then $(\forall x.\ s) : \Prop$
-
+\begin{definition}[minimal inference rules]
 \[
 	\infer{\psi}{\phi & \phi \imp \psi}
 \]
@@ -54,7 +54,9 @@ if $s : \Prop$ then $(\forall x.\ s) : \Prop$
 \[
 	\infer{\phi(x\mapsto t)}{\forall x.\ \phi}
 \]
+\end{definition}
 
+\begin{definition}[axioms]
 \[
 \forall \phi.\ \phi \imp \phi
 \]
@@ -64,11 +66,9 @@ if $s : \Prop$ then $(\forall x.\ s) : \Prop$
 \[
 \forall \phi,\psi,\tau.\ (\phi \imp \psi \imp \tau) \imp (\psi \imp \phi \imp \tau)
 \]
-\[
-\forall f,g,s,t.\ f = g \imp s = t \imp f\,s = g\,t
-\]
+\end{definition}
 
-
+\begin{example}
 \[
 	\infer{a \imp (a\imp b) \imp b}{
 		\infer{a \imp (a\imp b)\imp a}{
@@ -81,5 +81,18 @@ if $s : \Prop$ then $(\forall x.\ s) : \Prop$
 		}
 	}
 \]
+\end{example}
+
+\[
+\forall f,g,s,t.\ f = g \imp s = t \imp f\,s = g\,t
+\]
+
+\[
+\forall \phi,\psi.\ \phi \wedge \psi = (\forall \tau.\ (\phi \imp \psi \imp \tau) \imp \tau)
+\]
+
+if $s : \Prop$ then $(\forall x.\ s) : \Prop$
+
+
 
 \end{document}
