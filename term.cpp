@@ -96,11 +96,12 @@ public:
 	Type type() const {
 		return _type;
 	}
-	Term& operator=(Term other) {
-		char temp[sizeof *this];
-		memcpy(temp,this,sizeof *this);
-		memcpy(this,&other,sizeof *this);
-		memcpy(&other,temp,sizeof *this);
+	Term& operator=(Term const& other) {
+		Term temp1 = other;// copy other
+		char temp2[sizeof *this];
+		memcpy(temp2,this,sizeof *this);// remember old this
+		memcpy(this,&temp1,sizeof *this);// new this is the copy
+		memcpy(&temp1,temp2,sizeof *this);// temp1 is old this, to be destructed
 		return *this;
 	}
 	/**
@@ -263,7 +264,6 @@ private:
 	vector<Term> _assms;
 	map<string, Term const> _thms; // table of theorems
 	Ctxt() : name("root"), parent(NULL) {};// for building the root context
-	Ctxt(Ctxt const&) = default; // do not copy
 	Ctxt(char const* name, Ctxt const* parent) : name(name), parent(parent) {}
 	Term _thm(char const* name) const;
 	static void* _root_init;
@@ -316,7 +316,7 @@ public:
 };
 
 Ctxt const* Ctxt::fixes(char const* sym) const {
-	if( _syms.find(sym) != _syms.end() ) {
+	if( _syms.find(sym) != _syms.end() ) {// already fixed
 		return this;
 	}
 	if( parent == NULL ) {
@@ -347,7 +347,7 @@ ostream& operator<<(ostream& os, Ctxt const& ctxt) {
 	} else {
 		os << "ctxt {" << endl;
 	}
-	for( auto sym : ctxt.syms() ) {
+	for( auto sym : ctxt.sym_list() ) {
 		os << "  sym " << sym << endl;
 	}
 	for( auto assm : ctxt.assms() ) {
@@ -364,31 +364,19 @@ Ctxt Ctxt::root() {
 	return Ctxt().fix("⟹").fix("∀").fix("∧");
 }
 
-Term const IMP = Term("⟹");
-Term const ALL = Term("∀");
-Term const AND = Term("∧");
-
-Term operator>>=(Term const& l, Term const& r) {
-	return IMP(l)(r);
-}
-Term operator&(Term const& l, Term const& r) {
-	return AND(l)(r);
-}
-
 class Thm : public Term {
 public:
+	Thm& operator=(Thm const& other) {
+		_ctxt = other._ctxt;
+		this->Term::operator=(other);
+		return *this;
+	}
 	/**
 	 * @brief The context the theorem is from
 	 */
-	Ctxt const* const ctxt;
-private:
-	/**
-	 * @brief Trusted construction of Thm. This being private is crucial.
-	 */
-	Thm(Ctxt const* ctxt, Term const& claim) : ctxt(ctxt), Term(claim) {}
-	Thm() = delete;
-	Thm* operator&() = delete;
-public:
+	Ctxt const* ctxt() const {
+		return _ctxt;
+	}
 	/**
 	 * @brief forall elimination. This theorem must be of form ∀x. P(x).
 	 * @return Thm P(t)
@@ -410,6 +398,14 @@ public:
 	 * and assumptions are made into implication.
 	 */
 	Thm lift() const;
+private:
+	Ctxt const* _ctxt;
+	/**
+	 * @brief Trusted construction of Thm. This being private is crucial.
+	 */
+	Thm(Ctxt const* ctxt, Term const& claim) : _ctxt(ctxt), Term(claim) {}
+	Thm() = delete;
+	Thm* operator&() = delete;
 	friend Thm Ctxt::thm(char const* name) const;
 };
 /**
@@ -429,66 +425,127 @@ Thm Ctxt::thm(char const* name) const {
 	return Thm(this,_thm(name));
 }
 Ctxt& Ctxt::claim(char const* name, Thm const& thm) {
-	if( thm.ctxt != this ) {
+	if( thm.ctxt() != this ) {
 		throw WrongContext();
 	}
 	_thms.insert({name,thm});
 	return *this;
 }
 
+Term const IMP = Term("⟹");
+
+Term operator>>=(Term const& l, Term const& r) {
+	return IMP(l)(r);
+}
+
+Term const ALL = Term("∀");
+
+Term operator%=(char const* var, Term const& body) {
+	return ALL(var /= body);
+}
+
 Thm Thm::of(Term const& t) const {
 	if( type() != APP || fun() != ALL || arg().type() != ABS ) {
 		throw MalformedInstantiation();
 	}
-	return Thm(ctxt,arg().body().subst(arg().var(),t));
+	return Thm(_ctxt,arg().body().subst(arg().var(),t));
 }
 
 Thm Thm::OF(Thm const& t) const {
-	if( t.ctxt != ctxt ) {
+	if( t._ctxt != _ctxt ) {
 		throw WrongContext();
 	}
 	if( type() != APP || fun().type() != APP || fun().fun() != IMP || fun().arg() != t ) {
 		throw MalformedDischarge();
 	}
-	return Thm(ctxt,arg());
+	return Thm(_ctxt,arg());
 }
 
 Thm Thm::lift() const {
-	if( ctxt == NULL ) {
+	if( _ctxt == NULL ) {
 		return *this;
 	}
 	Term claim = *this;
-	auto const& assms = ctxt->assms();
+	auto const& assms = _ctxt->assms();
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
 		Term next = *it >>= claim;
 		claim = next;
 	}
-	auto const& syms = ctxt->sym_list();
+	auto const& syms = _ctxt->sym_list();
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
-		claim = ALL(it->c_str() /= claim);
+		claim = it->c_str() %= claim;
 	}
-	return Thm(ctxt->parent,claim);
+	return Thm(_ctxt->parent,claim);
 }
 
 ostream& operator<<(ostream& os, Thm const& t) {
-	if( t.ctxt->name != NULL ) {
-		os << "(in " << t.ctxt->name << ") ";
+	if( t.ctxt()->name != NULL ) {
+		os << "(in " << t.ctxt()->name << ") ";
 	}
 	return os << (Term const)t;
 }
 
+Term const EQ = Term("=");
+
+Term operator^(Term const& l, Term const& r) {
+	return EQ(l)(r);
+}
+
+Term const AND = Term("∧");
+
+Term operator&&(Term const& l, Term const& r) {
+	return AND(l)(r);
+}
+
+Term const DEFINED = Term("defined");
+
+/*
+Ctxt definitional = equational.branch().
+	assume("defined.defined",DEFINED(DEFINED)).
+	assume("IMP.defined",DEFINED(IMP)).
+	assume("ALL.defined",DEFINED(ALL)).
+	assume("EQ.defined",DEFINED(EQ));
+*/
+
 int main() {
-	Ctxt root = Ctxt::root();
+	Term x = Term("x");
+	Term y = Term("y");
+	Term z = Term("z");
+	Term f = Term("f");
+	Term g = Term("g");
+	Ctxt root = Ctxt::root().
+		assume("AND.intro", "x" %= "y" %= (x >>= y >>= x && y)).
+		assume("AND.elim", "x" %= "y" %= (x && y) >>= "z" %= (x >>= y >>= z) >>= z).
+		assume("EQ.refl", "x" %= x ^ x).
+		assume("EQ.trans", "x" %= "y" %= "z" %= x ^ y >>= y ^ z >>= x ^ z).
+		assume("EQ.sym", "x" %= "y" %= x ^ y >>= y ^ x).
+		assume("EQ.cong", "f" %= "g" %= "x" %= "y" %= f ^ g >>= x ^ y >>= f(x) ^ g(y));
+
+
 	Ctxt local = root.branch();
-	local.assume("p",Term("P"));
-	Thm p = local.thm("p");
-	cout << p << endl;
-	Thm p2 = p.lift();
-	root.claim("refl",p2);
-	cout << root << endl;
-	local.assume("pq",Term("P")>>=Term("Q"));
+	Term P = Term("P");
+	Term Q = Term("Q");
+	local.assume("p",P);
+	root.claim("refl",local.thm("p").lift());
+	local.assume("pq",P>>=Q);
 	cout << local << endl;
 	Thm mp = local.thm("pq").OF(local.thm("p")).lift();
 	root.claim("mp",mp);
 	cout << root << endl;
+	Ctxt local2 = root.branch();
+	local2.assume("p_pq", P && (P >>= Q));
+	Thm t = local2.thm("AND.elim");
+	cout << t << endl;
+	t = t.of(P);
+	cout << t << endl;
+	t = t.of(P >>= Q);
+	cout << t << endl;
+	t = t.OF(local2.thm("p_pq"));
+	cout << t << endl;
+	t = t.of(Q);
+	cout << t << endl;
+	t = t.OF(local2.thm("mp").of(P).of(Q));
+	cout << t << endl;
+	root.claim("mp2",t.lift());
+	cout << root.thm("mp2")<<endl;
 }
