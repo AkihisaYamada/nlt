@@ -9,6 +9,7 @@
 #include<set>
 #include<exception>
 #include<functional>
+#include<iostream>
 
 using namespace std;
 
@@ -58,7 +59,7 @@ public:
 	}
 };
 
-
+class UnexpectedTerm : public exception {};
 class MalformedInstantiation : public exception {};
 class MalformedDischarge : public exception {};
 class TheoremNotFound : public exception {};
@@ -78,6 +79,7 @@ typedef set<char const*,LessCstr> Syms;
 class Term {
 	struct App;
 	struct Abs;
+	struct Fix;
 	class VarMaker {
 		static vector<char const*> vec;
 		unsigned int nest;
@@ -95,18 +97,20 @@ class Term {
 		}
 	};
 public:
-	typedef enum { SYM, APP, ABS } Type;
+	typedef enum { SYM, APP, ABS, FIX } Type;
 private:
 	Type _type;
 	union Union {
 		char const* sym;
 		Ref<App const> app;
 		Ref<Abs const> abs;
+		Ref<Fix const> fix;
 		Union() {}
 		~Union() {}
 		Union(char const* sym) : sym(sym) {}
 		Union(Ref<App const> const& app) : app(app) {}
 		Union(Ref<Abs const> const& abs) : abs(abs) {}
+		Union(Ref<Fix const> const& fix) : fix(fix) {}
 	} _un;
 	Term() = delete; // uninitialized constructor is not allowed
 	Term* operator&() { // making pointer is private
@@ -114,6 +118,7 @@ private:
 	}
 	Term(Term const& fun, Term const& arg); // application
 	Term(char const* var, Term const& body); // abstraction
+	Term(char const* binder, Term const& val, void*); // binder
 public:
 	Term(char const* sym) : _type(SYM), _un(sym) {} // symbol
 	Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
@@ -134,14 +139,15 @@ public:
 	friend Term operator/=(char const* var, Term const& body) {
 		return Term(var,body);
 	}
-	char const* sym() const {
-		assert( _type == SYM );
-		return _un.sym;
+	friend Term operator/(char const* binder, Term const& val) {
+		return Term(binder,val,NULL);
 	}
-	Term const& fun() const;
-	Term const& arg() const;
-	char const* var() const;
-	Term const& body() const;
+	char const* const* sym() const {
+		return _type == SYM ? &_un.sym : NULL;
+	}
+	App const* app() const;
+	Abs const* abs() const;
+	Fix const* fix() const;
 	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
@@ -182,39 +188,29 @@ struct Term::Abs {
 	Term const body;
 };
 
+struct Term::Fix {
+	char const* const var;
+	Term const val;
+};
+
 inline Term::Term(Term const& fun, Term const& arg) : _type(APP), _un(App{fun,arg}) {}
 
 inline Term::Term(char const* var, Term const& body) : _type(ABS), _un(Abs{var,body}) {};
 
-inline Term const& Term::fun() const {
-	assert( _type == APP );
-	return _un.app->fun;
+inline Term::Term(char const* var, Term const& val, void* _) : _type(FIX), _un(Fix{var,val}) {};
+
+inline Term::App const* Term::app() const {
+	return _type == APP ? &*_un.app : NULL;
 }
-inline Term const& Term::arg() const {
-	assert( _type == APP );
-	return _un.app->arg;
+inline Term::Abs const* Term::abs() const {
+	return _type == ABS ? &*_un.abs : NULL;
 }
-inline char const* Term::var() const {
-	assert( _type == ABS );
-	return _un.abs->var;
-}
-inline Term const& Term::body() const {
-	assert( _type == ABS );
-	return _un.abs->body;
+inline Term::Fix const* Term::fix() const {
+	return _type == FIX ? &*_un.fix : NULL;
 }
 inline char const* rename_sym(Renaming const& map, char const* sym) {
 	auto it = map.find(sym);
-	if( it == map.end() ) {
-		return sym;
-	}
-	return it->second;
-}
-inline Term subst_sym(Subst const& map, char const* sym) {
-	auto it = map.find(sym);
-	if( it == map.end() ) {
-		return Term(sym);
-	}
-	return it->second;
+	return it == map.end() ? sym : it->second;
 }
 
 class Ctxt {
@@ -342,5 +338,9 @@ inline Term operator>>=(Term const& l, Term const& r) {
 inline Term operator%=(char const* var, Term const& body) {
 	return ALL(var /= body);
 }
+
+ostream& operator<<(ostream& os, Term const& t);
+ostream& operator<<(ostream& os, Ctxt const& ctxt);
+ostream& operator<<(ostream& os, Thm const& t);
 
 #endif
