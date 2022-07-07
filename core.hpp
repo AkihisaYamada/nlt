@@ -153,15 +153,15 @@ public:
 		_iter_syms(bsyms,bsym,fsym);
 	}
 	Syms fsyms() const;
-	Term subst(Subst const& map, function<bool(char const*)> const& fixed) const {
-		Subst _map = map;
-		return _subst(_map,fixed,VarMaker());
+	Term subst(char const* var, Term const& val, function<bool(char const*)> const& fixed) const {
+		Renaming ren;
+		return _subst(var,val,ren,fixed,VarMaker());
 	}
 private:
 	Union _copy_un() const;
 	bool _eq(Term const& r, Renaming& lmap, Renaming& rmap, VarMaker vars) const;// equality test
 	void _iter_syms(Syms& bsyms, function<void(char const*)> const&, function<void(char const*)> const&) const;
-	Term _subst(Subst& map, function<bool(char const*)> const& fixed, VarMaker vars) const;
+	Term _subst(char const* var, Term const& val, Renaming& ren, function<bool(char const*)> const& fixed, VarMaker vars) const;
 
 	friend bool operator==(Term const& l, Term const& r) {
 		Renaming lmap, rmap;

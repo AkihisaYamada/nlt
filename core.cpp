@@ -79,30 +79,38 @@ Syms Term::fsyms() const {
 	return ret;
 }
 
-Term Term::_subst(Subst& map, function<bool(char const*)> const& fixed, VarMaker vars) const {
+Term Term::_subst(
+	char const* x,
+	Term const& val,
+	Renaming& ren,
+	function<bool(char const*)> const& fixed,
+	VarMaker vars
+) const {
 	switch(_type) {
-		case SYM:
-			return subst_sym(map,sym());
-		case APP:
-			return fun()._subst(map,fixed,vars)(arg()._subst(map,fixed,vars));
-		case ABS: {
-			// if the bound variable is fixed, rename to a fresh one.
-			char const* newvar = fixed(var()) ? vars.make() : var();
-			// check if the bound variable is in the domain of substitution.
-			auto it = map.find(var());
-			if( it == map.end() ) {// if not, easy.
-				map.insert({var(),Term(newvar)});
-				Term ret = newvar /= body()._subst(map,fixed,vars);
-				map.erase(var());
-				return ret;
+		case SYM: {
+			if( strcmp(x,sym()) == 0 ) {
+				return val;
 			}
-			// otherwise, replace the assignment
-			Term old = it->second;
-			map.erase(it);// `[key] = val` requires default constructor
-			map.insert({var(),Term(newvar)});
-			Term ret = newvar /= body()._subst(map,fixed,vars);
-			map.erase(var());
-			map.insert({var(),old});
+			auto it = ren.find(sym());
+			if( it == ren.end() ) {
+				return *this;
+			}
+			return Term(it->second);
+		}
+		case APP:
+			return fun()._subst(x,val,ren,fixed,vars)(arg()._subst(x,val,ren,fixed,vars));
+		case ABS: {
+			if( var() == x ) {// the variable is captured. Just apply necessary renaming.
+				return x /= body()._subst(x,Term(x),ren,fixed,vars);
+			}
+			// if the bound variable is fixed, rename to a fresh one.
+			bool must_rename = fixed(var());
+			char const* newvar = must_rename ? vars.make() : var();
+			if( must_rename ) {
+				ren.insert({var(),newvar});
+			}
+			Term ret = newvar /= body()._subst(x,val,ren,fixed,vars);
+			ren.erase(var());
 			return ret;
 		}
 		default: assert(false);
@@ -171,7 +179,7 @@ Thm Thm::of(Term const& t) const {
 		throw MalformedInstantiation();
 	}
 	return Thm(_ctxt,arg().body().
-		subst({{arg().var(),t}}, [&](char const* sym){ return _ctxt->fixes(sym); }));
+		subst(arg().var(), t, [&](char const* sym){ return _ctxt->fixes(sym); }));
 }
 
 Thm Thm::OF(Thm const& t) const {

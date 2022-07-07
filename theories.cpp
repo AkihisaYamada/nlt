@@ -10,6 +10,7 @@ ostream& operator<<(ostream& os, Term const& t) {
 		return os << '(' << t.fun() << ' ' << t.arg() << ')';
 	case Term::ABS:
 		return os << t.var() << ". " << t.body();
+	default: assert(false);
 	}
 };
 
@@ -41,6 +42,9 @@ ostream& operator<<(ostream& os, Thm const& t) {
 
 Term const EQ = Term("=");
 Term const AND = Term("∧");
+Term const OR = Term("∨");
+Term const EX = Term("∃");
+Term const DEFINED = Term("defined");
 
 static Term const x = Term("x");
 static Term const y = Term("y");
@@ -84,7 +88,8 @@ Theories::Theories() :
 	cout << equational << endl;
 
 	conjunctive.
-		assume("AND.def", "P" %= "Q" %= (P && Q) ^ ("R" %= (P >>= Q >>= R) >>= R));
+		assume("AND.def", "P" %= "Q" %= (P && Q) ^ ("R" %= (P >>= Q >>= R) >>= R)).
+		assume("OR.def", "P" %= "Q" %= (P || Q) ^ ("R" %= (P >>= R) >>= (Q >>= R) >>= R));
 	{	Ctxt local = conjunctive.branch().fix("P").fix("Q");
 		Thm t = local.thm("EQ.prop1").of(P&&Q).of("R" %= (P >>= Q >>= R) >>= R);
 		Thm t2 = local.thm("AND.def").of(P).of(Q);
@@ -131,7 +136,6 @@ Theories::Theories() :
 	}
 }
 
-Term const DEFINED = Term("defined");
 
 /*
 Ctxt definitional = equational.branch().
