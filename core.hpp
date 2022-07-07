@@ -32,24 +32,17 @@ class Ref {
 public:
 	Ref(T const& body) : ptr(new Body(body)) {}
 	Ref(Ref const& org) : ptr(org.ptr) {
-		if( ptr != NULL ) {
-			ptr->nref++;
-		}
+		ptr->nref++;
 	}
 	Ref(Ref&& org) : ptr(org.ptr) {
 		org.ptr = NULL;
 	}
 	~Ref() {
-		if( ptr != NULL ) {
-			if( ptr->nref == 0 ) {
-				delete ptr;
-			} else {
-				ptr->nref--;
-			}
+		if( ptr->nref == 0 ) {
+			delete ptr;
+		} else {
+			ptr->nref--;
 		}
-	}
-	bool isNULL() const {
-		return ptr == NULL;
 	}
 	T& operator*() const {
 		return ptr->body;
