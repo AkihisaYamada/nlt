@@ -1,0 +1,6 @@
+*.o
+*.exe
+*.stackdump
+*.aux
+*.synctex.gz
+*.bbl
