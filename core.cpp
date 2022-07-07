@@ -4,6 +4,17 @@ using namespace std;
 
 vector<char const*> Term::VarMaker::vec;
 
+char const* Term::VarMaker::make() {
+	auto pre = nest;
+	nest++;
+	if( pre < vec.size() ) {
+		return vec[pre];
+	}
+	char const* name = (new string("_" + to_string(nest)))->c_str();
+	vec.push_back(name);
+	return name;
+}
+
 Term& Term::operator=(Term const& other) {
 	Term temp1 = other;// copy other
 	char temp2[sizeof *this];

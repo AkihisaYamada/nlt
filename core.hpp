@@ -78,20 +78,9 @@ class Term {
 		unsigned int nest;
 	public:
 		VarMaker() : nest(0) {}
-		char const* make() {
-			auto pre = nest;
-			nest++;
-			if( pre < vec.size() ) {
-				return vec[pre];
-			}
-			char const* name = (new string("_" + to_string(nest)))->c_str();
-			vec.push_back(name);
-			return name;
-		}
+		char const* make();
 	};
-public:
 	typedef enum { SYM, APP, ABS, FIX } Type;
-private:
 	Type _type;
 	union Union {
 		char const* sym;
@@ -116,9 +105,6 @@ public:
 	Term(char const* sym) : _type(SYM), _un(sym) {} // symbol
 	Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
 	~Term();
-	Type type() const {
-		return _type;
-	}
 	Term& operator=(Term const& other);
 	/**
 	 * @brief application

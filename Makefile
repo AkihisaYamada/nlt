@@ -1,4 +1,4 @@
-OBJS=core.o theories.o test.o
+OBJS=core.o print.o theories.o test.o
 CPP=g++ -g -std=c++20
 DEPS=$(OBJS:%.o=%.d)
 
