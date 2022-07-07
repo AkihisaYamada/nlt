@@ -4,11 +4,21 @@ using namespace std;
 
 vector<char const*> Term::VarMaker::vec;
 
+Term& Term::operator=(Term const& other) {
+	Term temp1 = other;// copy other
+	char temp2[sizeof *this];
+	memcpy(temp2,this,sizeof *this);// remember old this
+	memcpy(this,&temp1,sizeof *this);// new this is the copy
+	memcpy(&temp1,temp2,sizeof *this);// temp1 is old this, to be destructed
+	return *this;
+}
+
 Term::Union Term::_copy_un() const {
 	switch(_type) {
 		case SYM: return Union(_un.sym);
 		case APP: return Union(_un.app);
 		case ABS: return Union(_un.abs);
+		default: assert(false);
 	}
 }
 
@@ -17,6 +27,7 @@ Term::~Term() {
 	case APP: _un.app.~Ref(); break;
 	case ABS: _un.abs.~Ref(); break;
 	case SYM: break;
+	default: assert(false);
 	}
 }
 
@@ -37,10 +48,11 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 			rmap.insert({other.var(),fresh});
 			return body()._eq(other.body(),lmap,rmap,vars);
 		}
+		default: assert(false);
 	}
 }
 
-void Term::_iter_syms(Syms& bsyms, function<void(char const*)> bsym, function<void(char const*)> fsym) const {
+void Term::_iter_syms(Syms& bsyms, function<void(char const*)> const& bsym, function<void(char const*)> const& fsym) const {
 	switch(_type) {
 		case SYM:
 			if( bsyms.find(sym()) == bsyms.end() ) {
@@ -57,6 +69,7 @@ void Term::_iter_syms(Syms& bsyms, function<void(char const*)> bsym, function<vo
 			bsyms.insert(var());
 			body()._iter_syms(bsyms,bsym,fsym);
 			return;
+		default: assert(false);
 	}
 }
 
@@ -66,56 +79,48 @@ Syms Term::fsyms() const {
 	return ret;
 }
 
-Term Term::_subst(Subst& map, Syms const& csyms, VarMaker vars) const {
+Term Term::_subst(Subst& map, function<bool(char const*)> const& fixed, VarMaker vars) const {
 	switch(_type) {
 		case SYM:
 			return subst_sym(map,sym());
 		case APP:
-			return fun()._subst(map,csyms,vars)(arg()._subst(map,csyms,vars));
+			return fun()._subst(map,fixed,vars)(arg()._subst(map,fixed,vars));
 		case ABS: {
-			char const* newvar =
-				csyms.find(var()) == csyms.end() ? var() : vars.make();
+			// if the bound variable is fixed, rename to a fresh one.
+			char const* newvar = fixed(var()) ? vars.make() : var();
+			// check if the bound variable is in the domain of substitution.
 			auto it = map.find(var());
-			if( it != map.end() ) {
-				Term old = it->second;
-				map.erase(it);// `[key] = val` requires default constructor
+			if( it == map.end() ) {// if not, easy.
 				map.insert({var(),Term(newvar)});
-				Term ret = newvar /= body()._subst(map,csyms,vars);
+				Term ret = newvar /= body()._subst(map,fixed,vars);
 				map.erase(var());
-				map.insert({var(),old});
 				return ret;
 			}
+			// otherwise, replace the assignment
+			Term old = it->second;
+			map.erase(it);// `[key] = val` requires default constructor
 			map.insert({var(),Term(newvar)});
-			Term ret = newvar /= body()._subst(map,csyms,vars);
+			Term ret = newvar /= body()._subst(map,fixed,vars);
 			map.erase(var());
+			map.insert({var(),old});
 			return ret;
 		}
+		default: assert(false);
 	}
 }
 
-ostream& operator<<(ostream& os, Term const& t) {
-	switch(t.type()) {
-	case Term::SYM:
-		return os << t.sym();
-	case Term::APP:
-		return os << '(' << t.fun() << ' ' << t.arg() << ')';
-	case Term::ABS:
-		return os << t.var() << ". " << t.body();
-	}
-};
-
-Ctxt const* Ctxt::fixes(char const* sym) const {
-	if( _syms.find(sym) != _syms.end() ) {// already fixed
-		return this;
+bool Ctxt::fixes(char const* sym) const {
+	if( _syms.find(sym) != _syms.end() ) {
+		return true;
 	}
 	if( parent == NULL ) {
-		return NULL;
+		return false;
 	}
 	return parent->fixes(sym);
 }
 
 Ctxt& Ctxt::fix(char const* sym) {
-	if( fixes(sym) == NULL ) {
+	if( !fixes(sym) ) {
 		_syms.insert(sym);
 		_sym_list.push_back(sym);
 	}
@@ -130,25 +135,6 @@ Ctxt& Ctxt::assume(char const* name, Term const& assm) {
 	_assms.push_back(assm);
 	_thms.insert({name,assm});
 	return *this;
-}
-
-ostream& operator<<(ostream& os, Ctxt const& ctxt) {
-	if( ctxt.name != NULL ) {
-		os << "ctxt " << ctxt.name << " {" << endl;
-	} else {
-		os << "ctxt {" << endl;
-	}
-	for( auto sym : ctxt.sym_list() ) {
-		os << "  sym " << sym << endl;
-	}
-	for( auto assm : ctxt.assms() ) {
-		os << "  assm " << assm << endl;
-	}
-	for( auto thm : ctxt.thms() ) {
-		os << "  thm " << thm.first << ": " << thm.second << endl;
-	}
-	os << "}" << endl;
-	return os;
 }
 
 Ctxt::Ctxt(char const* name) : name(name), parent(NULL) {
@@ -184,7 +170,8 @@ Thm Thm::of(Term const& t) const {
 	if( type() != APP || fun() != ALL || arg().type() != ABS ) {
 		throw MalformedInstantiation();
 	}
-	return Thm(_ctxt,arg().body().subst({{arg().var(),t}},_ctxt->syms()));
+	return Thm(_ctxt,arg().body().
+		subst({{arg().var(),t}}, [&](char const* sym){ return _ctxt->fixes(sym); }));
 }
 
 Thm Thm::OF(Thm const& t) const {
@@ -212,11 +199,4 @@ Thm Thm::lift() const {
 		claim = *it %= claim;
 	}
 	return Thm(_ctxt->parent,claim);
-}
-
-ostream& operator<<(ostream& os, Thm const& t) {
-	if( t.ctxt()->name != NULL ) {
-		os << "(in " << t.ctxt()->name << ") ";
-	}
-	return os << (Term const)t;
 }

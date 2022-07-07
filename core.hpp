@@ -7,11 +7,16 @@
 #include<string>
 #include<vector>
 #include<set>
-#include<iostream>
-#include <exception>
-#include <functional>
+#include<exception>
+#include<functional>
 
 using namespace std;
+
+struct LessCstr {
+	bool operator()(char const* l, char const* r) const {
+		return strcmp(l,r) < 0;
+	}
+};
 
 template<class T>
 class Ref {
@@ -53,15 +58,18 @@ public:
 	}
 };
 
+
+class MalformedInstantiation : public exception {};
+class MalformedDischarge : public exception {};
+class TheoremNotFound : public exception {};
+class WrongContext : public exception {};
+
 class Term;
 class Ctxt;
 class Thm;
 
-struct LessCstr {
-	bool operator()(char const* l, char const* r) const {
-		return strcmp(l,r) < 0;
-	}
-};
+extern Term const IMP;
+extern Term const ALL;
 
 typedef map<char const*, Term, LessCstr> Subst;
 typedef map<char const*, char const* const, LessCstr> Renaming;
@@ -113,14 +121,7 @@ public:
 	Type type() const {
 		return _type;
 	}
-	Term& operator=(Term const& other) {
-		Term temp1 = other;// copy other
-		char temp2[sizeof *this];
-		memcpy(temp2,this,sizeof *this);// remember old this
-		memcpy(this,&temp1,sizeof *this);// new this is the copy
-		memcpy(&temp1,temp2,sizeof *this);// temp1 is old this, to be destructed
-		return *this;
-	}
+	Term& operator=(Term const& other);
 	/**
 	 * @brief application
 	 */
@@ -147,20 +148,20 @@ public:
 	 * @param bsym applied on bound symbols
 	 * @param fsym applied on free symbols
 	 */
-	void iter_syms(function<void(char const*)> bsym, function<void(char const*)> fsym) const {
+	void iter_syms(function<void(char const*)> const& bsym, function<void(char const*)> const& fsym) const {
 		Syms bsyms;
 		_iter_syms(bsyms,bsym,fsym);
 	}
 	Syms fsyms() const;
-	Term subst(Subst const& map, Syms const& csyms) const {
+	Term subst(Subst const& map, function<bool(char const*)> const& fixed) const {
 		Subst _map = map;
-		return _subst(_map,csyms,VarMaker());
+		return _subst(_map,fixed,VarMaker());
 	}
 private:
 	Union _copy_un() const;
 	bool _eq(Term const& r, Renaming& lmap, Renaming& rmap, VarMaker vars) const;// equality test
-	void _iter_syms(Syms& bsyms, function<void(char const*)>, function<void(char const*)>) const;
-	Term _subst(Subst& map, Syms const& csyms, VarMaker vars) const;
+	void _iter_syms(Syms& bsyms, function<void(char const*)> const&, function<void(char const*)> const&) const;
+	Term _subst(Subst& map, function<bool(char const*)> const& fixed, VarMaker vars) const;
 
 	friend bool operator==(Term const& l, Term const& r) {
 		Renaming lmap, rmap;
@@ -216,17 +217,15 @@ inline Term subst_sym(Subst const& map, char const* sym) {
 	return it->second;
 }
 
-class MalformedInstantiation : public exception {};
-class MalformedDischarge : public exception {};
-class TheoremNotFound : public exception {};
-class WrongContext : public exception {};
-class InvalidForAll : public exception {};
-
 class Ctxt {
 private:
+	/**
+	 * @brief The set of fixed symbols in the context or ancestors.
+	 * 
+	 */
 	Syms _syms;
 	/**
-	 * @brief This vector contains permanent pointers to symbol names.
+	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
 	 */
 	vector<char const*> _sym_list;
 	vector<Term> _assms;
@@ -256,7 +255,11 @@ public:
 		return _thms;
 	}
 	/**
-	 * @brief Fixes a symbol in the context.
+	 * @brief tests if a symbol is fixed.
+	 */
+	bool fixes(char const* sym) const;
+	/**
+	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
 	Ctxt& fix(char const* sym);
 	/**
@@ -269,16 +272,16 @@ public:
 	 */
 	Ctxt& claim(char const* name, Thm const& thm);
 	/**
-	 * @brief Tests if a symbol is fixed in the context.
-	 * @return NULL if the symbol is not fixed.
-	 * @return pointer to the context which fixes the symbol.
-	 */
-	Ctxt const* fixes(char const* sym) const;
-	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
 	Thm thm(char const* name) const;
+	/**
+	 * @brief Creates a child context.
+	 * 
+	 * @param name optional name
+	 * @return the child Ctxt.
+	 */
 	Ctxt branch(char const* name = NULL) const {
 		return Ctxt(name,this);
 	}
@@ -332,20 +335,12 @@ inline Thm Ctxt::thm(char const* name) const {
 	return Thm(this,_thm(name));
 }
 
-extern Term const IMP;
-
 inline Term operator>>=(Term const& l, Term const& r) {
 	return IMP(l)(r);
 }
 
-extern Term const ALL;
-
 inline Term operator%=(char const* var, Term const& body) {
 	return ALL(var /= body);
 }
-
-ostream& operator<<(ostream& os, Term const& t);
-ostream& operator<<(ostream& os, Ctxt const& ctxt);
-ostream& operator<<(ostream& os, Thm const& t);
 
 #endif

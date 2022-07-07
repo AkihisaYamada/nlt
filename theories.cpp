@@ -2,6 +2,43 @@
 
 using namespace std;
 
+ostream& operator<<(ostream& os, Term const& t) {
+	switch(t.type()) {
+	case Term::SYM:
+		return os << t.sym();
+	case Term::APP:
+		return os << '(' << t.fun() << ' ' << t.arg() << ')';
+	case Term::ABS:
+		return os << t.var() << ". " << t.body();
+	}
+};
+
+ostream& operator<<(ostream& os, Ctxt const& ctxt) {
+	if( ctxt.name != NULL ) {
+		os << "ctxt " << ctxt.name << " {" << endl;
+	} else {
+		os << "ctxt {" << endl;
+	}
+	for( auto sym : ctxt.sym_list() ) {
+		os << "  sym " << sym << endl;
+	}
+	for( auto assm : ctxt.assms() ) {
+		os << "  assm " << assm << endl;
+	}
+	for( auto thm : ctxt.thms() ) {
+		os << "  thm " << thm.first << ": " << thm.second << endl;
+	}
+	os << "}" << endl;
+	return os;
+}
+
+ostream& operator<<(ostream& os, Thm const& t) {
+	if( t.ctxt()->name != NULL ) {
+		os << "(in " << t.ctxt()->name << ") ";
+	}
+	return os << (Term const)t;
+}
+
 Term const EQ = Term("=");
 Term const AND = Term("∧");
 
@@ -37,8 +74,10 @@ Theories::Theories() :
 		Thm t = local.thm("EQ.sym");
 		t = t.of(P);
 		t = t.of(Q).OF(local.thm("PQ"));
+		cout << t << endl;
 		Thm t2 = local.thm("EQ.prop1").of(Q);
 		t2 = t2.of(P);
+		cout << t2 << endl;
 		t2 = t2.OF(t);
 		equational.claim("EQ.prop2",t2.lift());
 	}
