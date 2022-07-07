@@ -2,17 +2,18 @@
 
 using namespace std;
 
-vector<char const*> Term::VarMaker::vec;
+vector<string_view> Term::VarMaker::vec;
 
-char const* Term::VarMaker::make() {
+string_view Term::VarMaker::make() {
 	auto pre = nest;
 	nest++;
 	if( pre < vec.size() ) {
 		return vec[pre];
 	}
-	char const* name = (new string("_" + to_string(nest)))->c_str();
-	vec.push_back(name);
-	return name;
+	// permanently allocate a string.
+	string const* name = new string("_" + to_string(nest));
+	vec.push_back(*name);
+	return vec.back();
 }
 
 Term& Term::operator=(Term const& other) {
@@ -29,17 +30,17 @@ Term::Union Term::_copy_un() const {
 		case SYM: return Union(_un.sym);
 		case APP: return Union(_un.app);
 		case ABS: return Union(_un.abs);
-		case FIX: return Union(_un.fix);
+		case BIND: return Union(_un.fix);
 		default: assert(false);
 	}
 }
 
 Term::~Term() {
 	switch(_type) {
+	case SYM: _un.sym.~Ref(); break;
 	case APP: _un.app.~Ref(); break;
 	case ABS: _un.abs.~Ref(); break;
-	case FIX: _un.abs.~Ref(); break;
-	case SYM: break;
+	case BIND: _un.abs.~Ref(); break;
 	default: assert(false);
 	}
 }
@@ -49,8 +50,10 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 		return false;
 	}
 	switch(_type) {
-		case SYM:
-			return strcmp(rename_sym(lmap,_un.sym), rename_sym(rmap,other._un.sym)) == 0;
+		case SYM: {
+			auto l = *_un.sym, r = *other._un.sym;
+			return rename_sym(lmap,l) == rename_sym(rmap,r);
+		}
 		case APP: {
 			auto l = *_un.app, r = *other._un.app;
 			return l.fun._eq(r.fun,lmap,rmap,vars) && l.arg._eq(r.arg,lmap,rmap,vars);
@@ -58,28 +61,28 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 		case ABS: {
 			auto l = *_un.abs, r = *other._un.abs;
 			// replace the bound variables with fresh one and compare
-			char const* fresh = vars.make();
+			string_view fresh = vars.make();
 			lmap.insert({l.var,fresh});
 			rmap.insert({r.var,fresh});
 			return l.body._eq(r.body,lmap,rmap,vars);
 		}
-		case FIX: {
+		case BIND: {
 			auto l = *_un.fix, r = *other._un.fix;
-			return strcmp(rename_sym(lmap,l.var), rename_sym(rmap,r.var)) == 0 &&
+			return rename_sym(lmap,l.var) == rename_sym(rmap,r.var) &&
 				l.val._eq(r.val,lmap,rmap,vars);
 		}
 		default: assert(false);
 	}
 }
 
-void Term::_iter_syms(Syms& bsyms, function<void(char const*)> const& bsym, function<void(char const*)> const& fsym) const {
+void Term::_iter_syms(Syms& bsyms, function<void(string_view)> const& bsym, function<void(string_view)> const& fsym) const {
 	switch(_type) {
 		case SYM: {
-			auto x = _un.sym;
-			if( bsyms.find(x) == bsyms.end() ) {
-				fsym(x);
-			} else {
+			auto x = *_un.sym;
+			if( bsyms.contains(x) ) {
 				bsym(x);
+			} else {
+				fsym(x);
 			}
 			return;
 		}
@@ -93,14 +96,15 @@ void Term::_iter_syms(Syms& bsyms, function<void(char const*)> const& bsym, func
 			auto x = *_un.abs;
 			bsyms.insert(x.var);
 			x.body._iter_syms(bsyms,bsym,fsym);
+			bsyms.erase(x.var);
 			return;
 		}
-		case FIX: {
+		case BIND: {
 			auto x = *_un.fix;
-			if( bsyms.find(x.var) == bsyms.end() ) {
-				fsym(x.var);
-			} else {
+			if( bsyms.contains(x.var) ) {
 				bsym(x.var);
+			} else {
+				fsym(x.var);
 			}
 			x.val._iter_syms(bsyms,bsym,fsym);
 			return;
@@ -111,28 +115,25 @@ void Term::_iter_syms(Syms& bsyms, function<void(char const*)> const& bsym, func
 
 Syms Term::fsyms() const {
 	Syms bsyms, ret;
-	_iter_syms(bsyms,[](char const*){},[&ret](char const* fsym){ret.insert(fsym);});
+	_iter_syms(bsyms,[](string_view){},[&ret](string_view fsym){ret.insert(fsym);});
 	return ret;
 }
 
 Term Term::_subst(
-	char const* x,
+	string_view x,
 	Term const& val,
 	Renaming& ren,
-	function<bool(char const*)> const& fixed,
+	Syms const& fixed,
 	VarMaker vars
 ) const {
 	switch(_type) {
 		case SYM: {
-			auto s = _un.sym;
-			if( strcmp(x,s) == 0 ) {
+			auto s = *_un.sym;
+			if( x == s ) {
 				return val;
 			}
 			auto it = ren.find(s);
-			if( it == ren.end() ) {
-				return *this;
-			}
-			return Term(it->second);
+			return it == ren.end() ? *this : Term(it->second);
 		}
 		case APP: {
 			auto s = *_un.app;
@@ -140,12 +141,12 @@ Term Term::_subst(
 		}
 		case ABS: {
 			auto s = *_un.abs;
-			if( strcmp(s.var, x) == 0 ) {// the variable is captured. Just apply necessary renaming.
+			if( s.var == x ) {// the variable is captured. Just apply necessary renaming.
 				return x /= s.body._subst(x,Term(x),ren,fixed,vars);
 			}
 			// if the bound variable is fixed, rename to a fresh one.
-			bool must_rename = fixed(s.var);
-			char const* newvar = must_rename ? vars.make() : s.var;
+			bool must_rename = fixed.contains(s.var);
+			string_view newvar = must_rename ? vars.make() : s.var;
 			if( must_rename ) {
 				ren.insert({s.var,newvar});
 			}
@@ -153,17 +154,17 @@ Term Term::_subst(
 			ren.erase(s.var);
 			return ret;
 		}
-		case FIX: {
+		case BIND: {
 			auto s = *_un.fix;
 			Term newval = s.val._subst(x,val,ren,fixed,vars);
-			if( strcmp(s.var,x) == 0 ) {
+			if( s.var == x ) {
 				switch(val._type) {
 					case SYM: {
-						return val._un.sym / newval;
+						return *val._un.sym / newval;
 					}
 					case ABS: {
 						auto a = *val._un.abs;
-						return a.body.subst(a.var,newval,fixed);
+						return a.body.subst(a.var,newval);
 					}
 					default:
 						throw UnexpectedTerm();
@@ -175,17 +176,12 @@ Term Term::_subst(
 	}
 }
 
-bool Ctxt::fixes(char const* sym) const {
-	if( _syms.find(sym) != _syms.end() ) {
-		return true;
-	}
-	if( parent == NULL ) {
-		return false;
-	}
-	return parent->fixes(sym);
+bool Ctxt::fixes(string_view sym) const {
+	return _syms.find(sym) != _syms.end() ||
+		parent != NULL && parent->fixes(sym);
 }
 
-Ctxt& Ctxt::fix(char const* sym) {
+Ctxt& Ctxt::fix(string_view sym) {
 	if( !fixes(sym) ) {
 		_syms.insert(sym);
 		_sym_list.push_back(sym);
@@ -193,17 +189,17 @@ Ctxt& Ctxt::fix(char const* sym) {
 	return *this;
 }
 
-Ctxt& Ctxt::assume(char const* name, Term const& assm) {
+Ctxt& Ctxt::assume(string_view name, Term const& assm) {
 	assm.iter_syms(
-		[](char const* sym){},// do nothing on bound ones
-		[this](char const* sym){ this->fix(sym); }// fix free symbols
+		[](string_view sym){},// do nothing on bound ones
+		[this](string_view sym){ this->fix(sym); }// fix free symbols
 	);
 	_assms.push_back(assm);
 	_thms.insert({name,assm});
 	return *this;
 }
 
-Ctxt::Ctxt(char const* name) : name(name), parent(NULL) {
+Ctxt::Ctxt(string_view name) : name(name), parent(NULL) {
 	fix("⟹");
 	fix("∀");
 }
@@ -211,7 +207,7 @@ Ctxt::Ctxt(char const* name) : name(name), parent(NULL) {
 /**
  * @brief Obtains the claim of a theorem, accessible from the context.
  */
-Term Ctxt::_thm(char const* name) const {
+Term Ctxt::_thm(string_view name) const {
 	auto const& it = _thms.find(name);
 	if( it == _thms.end() ) {
 		if( parent == NULL ) {
@@ -221,7 +217,7 @@ Term Ctxt::_thm(char const* name) const {
 	}
 	return it->second;
 }
-Ctxt& Ctxt::claim(char const* name, Thm const& thm) {
+Ctxt& Ctxt::claim(string_view name, Thm const& thm) {
 	if( thm.ctxt() != this ) {
 		throw WrongContext();
 	}
@@ -237,8 +233,7 @@ Thm Thm::of(Term const& t) const {
 	if( a != NULL && a->fun == ALL ) {
 		auto b = a->arg.abs();
 		if( b != NULL ) {
-			return Thm(_ctxt,b->body.
-				subst(b->var, t, [&](char const* sym){ return _ctxt->fixes(sym); }));
+			return Thm(_ctxt,b->body.subst(b->var,t));
 		}
 	}
 	cerr << "ERROR: Instantiating " << *this << endl;

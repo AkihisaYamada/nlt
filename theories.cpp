@@ -21,7 +21,7 @@ static Term const alpha = Term("α");
 Theories::Theories() :
 	root(Ctxt("root")),
 	equational(root.branch("equational")),
-	logical(equational.branch("conjunctive")
+	logical(equational.branch("logical")
 ) {
 	{	Ctxt local = root.branch().assume("p",P);
 		root.claim("IMP.refl",local.thm("p").lift());
@@ -43,6 +43,7 @@ Theories::Theories() :
 		t = t.of(Q).OF(local.thm("PQ"));
 		cout << t << endl;
 		Thm t2 = local.thm("EQ.prop1").of(Q);
+		cout << t2 << endl;
 		t2 = t2.of(P);
 		cout << t2 << endl;
 		t2 = t2.OF(t);

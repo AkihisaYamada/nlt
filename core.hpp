@@ -13,11 +13,6 @@
 
 using namespace std;
 
-struct LessCstr {
-	bool operator()(char const* l, char const* r) const {
-		return strcmp(l,r) < 0;
-	}
-};
 
 template<class T>
 class Ref {
@@ -44,6 +39,9 @@ public:
 			ptr->nref--;
 		}
 	}
+	operator T*() const {
+		return &ptr->body;
+	}
 	T& operator*() const {
 		return ptr->body;
 	}
@@ -65,45 +63,50 @@ class Thm;
 extern Term const IMP;
 extern Term const ALL;
 
-typedef map<char const*, Term, LessCstr> Subst;
-typedef map<char const*, char const* const, LessCstr> Renaming;
-typedef set<char const*,LessCstr> Syms;
+typedef map<string_view,string_view> Renaming;
+typedef set<string_view> Syms;
+
+ostream& operator<<(ostream& os, Syms const& syms);
 
 class Term {
+	struct VarMaker {
+		static vector<string_view> vec;
+		unsigned int nest;
+		VarMaker() : nest(0) {}
+		string_view make();
+	};
+	enum { SYM, APP, ABS, BIND } _type;
 	struct App;
 	struct Abs;
-	struct Fix;
-	class VarMaker {
-		static vector<char const*> vec;
-		unsigned int nest;
-	public:
-		VarMaker() : nest(0) {}
-		char const* make();
-	};
-	typedef enum { SYM, APP, ABS, FIX } Type;
-	Type _type;
+	struct Bind;
 	union Union {
-		char const* sym;
+		Ref<string const> sym;
 		Ref<App const> app;
 		Ref<Abs const> abs;
-		Ref<Fix const> fix;
+		Ref<Bind const> fix;
 		Union() {}
 		~Union() {}
-		Union(char const* sym) : sym(sym) {}
+		Union(Ref<string const> sym) : sym(sym) {}
 		Union(Ref<App const> const& app) : app(app) {}
 		Union(Ref<Abs const> const& abs) : abs(abs) {}
-		Union(Ref<Fix const> const& fix) : fix(fix) {}
+		Union(Ref<Bind const> const& fix) : fix(fix) {}
 	} _un;
 	Term() = delete; // uninitialized constructor is not allowed
 	Term* operator&() { // making pointer is private
 		return this;
 	}
 	Term(Term const& fun, Term const& arg); // application
-	Term(char const* var, Term const& body); // abstraction
-	Term(char const* binder, Term const& val, void*); // binder
+	Term(string_view var, Term const& body); // abstraction
+	Term(string_view binder, Term const& val, void*); // binding
 public:
-	Term(char const* sym) : _type(SYM), _un(sym) {} // symbol
+	/**
+	 * @brief Constructs a symbol term
+	 */
+	Term(string_view sym) : _type(SYM), _un(string(sym)) {}
 	Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
+	/**
+	 * @brief Do not explicitly call destructor!
+	 */
 	~Term();
 	Term& operator=(Term const& other);
 	/**
@@ -115,38 +118,38 @@ public:
 	/**
 	 * @brief abstraction
 	 */
-	friend Term operator/=(char const* var, Term const& body) {
+	friend Term operator/=(string_view var, Term const& body) {
 		return Term(var,body);
 	}
-	friend Term operator/(char const* binder, Term const& val) {
+	friend Term operator/(string_view binder, Term const& val) {
 		return Term(binder,val,NULL);
 	}
-	char const* const* sym() const {
-		return _type == SYM ? &_un.sym : NULL;
+	string const* sym() const {
+		return _type == SYM ? &*_un.sym : NULL;
 	}
 	App const* app() const;
 	Abs const* abs() const;
-	Fix const* fix() const;
+	Bind const* fix() const;
 	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
 	 * @param bsym applied on bound symbols
 	 * @param fsym applied on free symbols
 	 */
-	void iter_syms(function<void(char const*)> const& bsym, function<void(char const*)> const& fsym) const {
+	void iter_syms(function<void(string_view)> const& bsym, function<void(string_view)> const& fsym) const {
 		Syms bsyms;
 		_iter_syms(bsyms,bsym,fsym);
 	}
 	Syms fsyms() const;
-	Term subst(char const* var, Term const& val, function<bool(char const*)> const& fixed) const {
+	Term subst(string_view var, Term const& val) const {
 		Renaming ren;
-		return _subst(var,val,ren,fixed,VarMaker());
+		return _subst(var,val,ren,val.fsyms(),VarMaker());
 	}
 private:
 	Union _copy_un() const;
 	bool _eq(Term const& r, Renaming& lmap, Renaming& rmap, VarMaker vars) const;// equality test
-	void _iter_syms(Syms& bsyms, function<void(char const*)> const&, function<void(char const*)> const&) const;
-	Term _subst(char const* var, Term const& val, Renaming& ren, function<bool(char const*)> const& fixed, VarMaker vars) const;
+	void _iter_syms(Syms& bsyms, function<void(string_view)> const&, function<void(string_view)> const&) const;
+	Term _subst(string_view var, Term const& val, Renaming& ren, Syms const& fixed, VarMaker vars) const;
 
 	friend bool operator==(Term const& l, Term const& r) {
 		Renaming lmap, rmap;
@@ -158,25 +161,25 @@ inline bool operator!=(Term const& l, Term const& r) {
 }
 
 struct Term::App {
-	Term const fun;
-	Term const arg;
+	Term fun;
+	Term arg;
 };
 
 struct Term::Abs {
-	char const* const var;
-	Term const body;
+	string var;
+	Term body;
 };
 
-struct Term::Fix {
-	char const* const var;
-	Term const val;
+struct Term::Bind {
+	string var;
+	Term val;
 };
 
 inline Term::Term(Term const& fun, Term const& arg) : _type(APP), _un(App{fun,arg}) {}
 
-inline Term::Term(char const* var, Term const& body) : _type(ABS), _un(Abs{var,body}) {};
+inline Term::Term(string_view var, Term const& body) : _type(ABS), _un(Abs{string(var),body}) {};
 
-inline Term::Term(char const* var, Term const& val, void* _) : _type(FIX), _un(Fix{var,val}) {};
+inline Term::Term(string_view var, Term const& val, void* _) : _type(BIND), _un(Bind{string(var),val}) {};
 
 inline Term::App const* Term::app() const {
 	return _type == APP ? &*_un.app : NULL;
@@ -184,10 +187,10 @@ inline Term::App const* Term::app() const {
 inline Term::Abs const* Term::abs() const {
 	return _type == ABS ? &*_un.abs : NULL;
 }
-inline Term::Fix const* Term::fix() const {
-	return _type == FIX ? &*_un.fix : NULL;
+inline Term::Bind const* Term::fix() const {
+	return _type == BIND ? &*_un.fix : NULL;
 }
-inline char const* rename_sym(Renaming const& map, char const* sym) {
+inline string_view rename_sym(Renaming const& map, string_view sym) {
 	auto it = map.find(sym);
 	return it == map.end() ? sym : it->second;
 }
@@ -202,22 +205,22 @@ private:
 	/**
 	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
 	 */
-	vector<char const*> _sym_list;
+	vector<string_view> _sym_list;
 	vector<Term> _assms;
-	map<char const*, Term const, LessCstr> _thms; // table of theorems
-	Ctxt(char const* name, Ctxt const* parent) : name(name), parent(parent) {}
-	Term _thm(char const* name) const;
+	map<string_view, Term const> _thms; // table of theorems
+	Ctxt(string_view name, Ctxt const* parent) : name(name), parent(parent) {}
+	Term _thm(string_view name) const;
 public:
-	char const* const name;
+	string_view const name;
 	Ctxt const* const parent;
 	/**
 	 * @brief The root Ctxt
 	 */
-	Ctxt(char const* name);
+	Ctxt(string_view name);
 	Syms const syms() const {
 		return _syms;
 	}
-	vector<char const*> const sym_list() const {
+	vector<string_view> const sym_list() const {
 		return _sym_list;
 	}
 	/**
@@ -226,38 +229,38 @@ public:
 	vector<Term> const assms() const {
 		return _assms;
 	}
-	map<char const*, Term const, LessCstr> thms() const {
+	map<string_view, Term const> thms() const {
 		return _thms;
 	}
 	/**
 	 * @brief tests if a symbol is fixed.
 	 */
-	bool fixes(char const* sym) const;
+	bool fixes(string_view sym) const;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
-	Ctxt& fix(char const* sym);
+	Ctxt& fix(string_view sym);
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Ctxt& assume(char const* name, Term const& assm);
+	Ctxt& assume(string_view name, Term const& assm);
 	/**
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */
-	Ctxt& claim(char const* name, Thm const& thm);
+	Ctxt& claim(string_view name, Thm const& thm);
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
-	Thm thm(char const* name) const;
+	Thm thm(string_view name) const;
 	/**
 	 * @brief Creates a child context.
 	 * 
 	 * @param name optional name
 	 * @return the child Ctxt.
 	 */
-	Ctxt branch(char const* name = NULL) const {
+	Ctxt branch(string_view name = "") const {
 		return Ctxt(name,this);
 	}
 };
@@ -304,9 +307,9 @@ private:
 	Thm(Ctxt const* ctxt, Term const& claim) : _ctxt(ctxt), Term(claim) {}
 	Thm() = delete;
 	Thm* operator&() = delete;
-	friend Thm Ctxt::thm(char const* name) const;
+	friend Thm Ctxt::thm(string_view name) const;
 };
-inline Thm Ctxt::thm(char const* name) const {
+inline Thm Ctxt::thm(string_view name) const {
 	return Thm(this,_thm(name));
 }
 
@@ -314,7 +317,7 @@ inline Term operator>>=(Term const& l, Term const& r) {
 	return IMP(l)(r);
 }
 
-inline Term operator%=(char const* var, Term const& body) {
+inline Term operator%=(string_view var, Term const& body) {
 	return ALL(var /= body);
 }
 
