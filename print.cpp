@@ -43,7 +43,7 @@ ostream& operator<<(ostream& os, Term const& t) {
 };
 
 ostream& operator<<(ostream& os, Ctxt const& ctxt) {
-	os << "ctxt " << ctxt.name << " {" << endl;
+	os << "ctxt " << ctxt.name() << " {" << endl;
 	for( auto sym : ctxt.sym_list() ) {
 		os << "  sym " << sym << endl;
 	}
@@ -58,8 +58,8 @@ ostream& operator<<(ostream& os, Ctxt const& ctxt) {
 }
 
 ostream& operator<<(ostream& os, Thm const& t) {
-	if( t.ctxt()->name != "" ) {
-		os << "(in " << t.ctxt()->name << ") ";
+	if( t.ctxt().name() != "" ) {
+		os << "(in " << t.ctxt().name() << ") ";
 	}
 	return os << (Term const)t;
 }

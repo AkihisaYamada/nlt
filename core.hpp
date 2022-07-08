@@ -10,11 +10,14 @@
 #include<exception>
 #include<functional>
 #include<iostream>
+#include<optional>
 
 using namespace std;
 
+template<typename T>
+class RefNull;
 
-template<class T>
+template<typename T>
 class Ref {
 	struct Body {
 		unsigned int nref;
@@ -22,15 +25,13 @@ class Ref {
 		Body() = delete;
 		Body(T const& body) : nref(0), body(body) {}
 	};
-	Body* const ptr;
-	Ref() = delete;
+	Body* ptr;
+	Ref() {}
+	Ref(Body* ptr) : ptr(ptr) {}
 public:
 	Ref(T const& body) : ptr(new Body(body)) {}
 	Ref(Ref const& org) : ptr(org.ptr) {
 		ptr->nref++;
-	}
-	Ref(Ref&& org) : ptr(org.ptr) {
-		org.ptr = NULL;
 	}
 	~Ref() {
 		if( ptr->nref == 0 ) {
@@ -38,6 +39,12 @@ public:
 		} else {
 			ptr->nref--;
 		}
+	}
+	Ref& operator=(Ref const& other) {
+		this->~Ref<T>();
+		ptr = other.ptr;
+		ptr->nref++;
+		return *this;
 	}
 	operator T*() const {
 		return &ptr->body;
@@ -47,6 +54,28 @@ public:
 	}
 	T* operator->() const {
 		return &ptr->body;
+	}
+	friend RefNull<T>;
+};
+
+template<typename T>
+class RefNull : public Ref<T> {
+public:
+	RefNull() : Ref<T>(NULL) {}
+	RefNull(T const& body) : Ref<T>(body) {}
+	RefNull(RefNull const& org) {
+		this->ptr = org.ptr;
+		if( this->ptr != NULL ) {
+			this->ptr->nref++;
+		}
+	}
+	operator bool() const {
+		return this->ptr != NULL;
+	}
+	~RefNull() {
+		if( this->ptr == NULL ) {
+			return;
+		}
 	}
 };
 
@@ -197,41 +226,23 @@ inline string_view rename_sym(Renaming const& map, string_view sym) {
 
 class Ctxt {
 private:
-	/**
-	 * @brief The set of fixed symbols in the context or ancestors.
-	 * 
-	 */
-	Syms _syms;
-	/**
-	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
-	 */
-	vector<string_view> _sym_list;
-	vector<Term> _assms;
-	map<string_view, Term const> _thms; // table of theorems
-	Ctxt(string_view name, Ctxt const* parent) : name(name), parent(parent) {}
-	Term _thm(string_view name) const;
+	struct Body;
+	Ref<Body> _ref;
 public:
-	string_view const name;
-	Ctxt const* const parent;
 	/**
 	 * @brief The root Ctxt
 	 */
 	Ctxt(string_view name);
-	Syms const syms() const {
-		return _syms;
-	}
-	vector<string_view> const sym_list() const {
-		return _sym_list;
-	}
+	Ctxt(Ctxt const& other) : _ref(other._ref) {}
+	Syms const syms() const;
+	vector<string_view> const sym_list() const;
+	optional<Ctxt> const& parent() const;
+	string_view name() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
-	vector<Term> const assms() const {
-		return _assms;
-	}
-	map<string_view, Term const> thms() const {
-		return _thms;
-	}
+	vector<Term> const assms() const;
+	map<string_view, Term const> const thms() const;
 	/**
 	 * @brief tests if a symbol is fixed.
 	 */
@@ -239,16 +250,16 @@ public:
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
-	Ctxt& fix(string_view sym);
+	Ctxt const& fix(string_view sym) const;
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Ctxt& assume(string_view name, Term const& assm);
+	Ctxt const& assume(string_view name, Term const& assm) const;
 	/**
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */
-	Ctxt& claim(string_view name, Thm const& thm);
+	Ctxt const& claim(string_view name, Thm const& thm) const;
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
@@ -260,10 +271,64 @@ public:
 	 * @param name optional name
 	 * @return the child Ctxt.
 	 */
-	Ctxt branch(string_view name = "") const {
-		return Ctxt(name,this);
-	}
+	Ctxt branch(string_view name = "") const;
+	friend bool operator==(Ctxt const& l, Ctxt const& r);
+private:
+	Ctxt(string_view name, Ctxt const& parent);
+	Term _thm(string_view name) const;
+	void _claim(string_view name, Ctxt const& other, Term& stmt) const;
 };
+
+struct Ctxt::Body {
+	string_view name;
+	/**
+	 * @brief Parent context. Since option class of C++20 doesn't work well,
+	 * root has itself as the parent.
+	 */
+	optional<Ctxt> parent;
+	/**
+	 * @brief The set of fixed symbols in the context or ancestors.
+	 */
+	Syms syms;
+	/**
+	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
+	 */
+	vector<string_view> sym_list;
+	vector<Term> assms;
+	map<string_view, Term const> thms; // table of theorems
+};
+
+inline Ctxt::Ctxt(string_view name, Ctxt const& parent) : _ref(Ref(Ctxt::Body{name,optional(parent)})) {}
+
+inline string_view Ctxt::name() const {
+	return _ref->name;
+}
+
+inline Syms const Ctxt::syms() const {
+	return _ref->syms;
+}
+inline vector<string_view> const Ctxt::sym_list() const {
+	return _ref->sym_list;
+}
+inline optional<Ctxt> const& Ctxt::parent() const {
+	return _ref->parent;
+}
+inline vector<Term> const Ctxt::assms() const {
+	return _ref->assms;
+}
+inline map<string_view, Term const> const Ctxt::thms() const {
+	return _ref->thms;
+}
+inline Ctxt Ctxt::branch(string_view name) const {
+	return Ctxt(name,*this);
+}
+inline bool operator==(Ctxt const& l, Ctxt const& r) {
+	return l._ref == r._ref;
+}
+
+inline bool operator!=(Ctxt const& l, Ctxt const& r) {
+	return !(l == r);
+}
 
 class Thm : public Term {
 public:
@@ -275,7 +340,7 @@ public:
 	/**
 	 * @brief The context the theorem is from
 	 */
-	Ctxt const* ctxt() const {
+	Ctxt const& ctxt() const {
 		return _ctxt;
 	}
 	/**
@@ -300,17 +365,22 @@ public:
 	 */
 	Thm lift() const;
 private:
-	Ctxt const* _ctxt;
+	Ctxt _ctxt;
 	/**
 	 * @brief Trusted construction of Thm. This being private is crucial.
 	 */
-	Thm(Ctxt const* ctxt, Term const& claim) : _ctxt(ctxt), Term(claim) {}
+	Thm(Ctxt const& ctxt, Term const& claim) : _ctxt(ctxt), Term(claim) {}
 	Thm() = delete;
 	Thm* operator&() = delete;
 	friend Thm Ctxt::thm(string_view name) const;
 };
 inline Thm Ctxt::thm(string_view name) const {
-	return Thm(this,_thm(name));
+	return Thm(*this,_thm(name));
+}
+inline Ctxt const& Ctxt::claim(string_view name, Thm const& thm) const {
+	Term stmt = thm;
+	_claim(name,thm.ctxt(),stmt);
+	return *this;
 }
 
 inline Term operator>>=(Term const& l, Term const& r) {

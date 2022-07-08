@@ -19,14 +19,14 @@ static Term const R = Term("R");
 static Term const alpha = Term("α");
 
 Theories::Theories() :
-	root(Ctxt("root")),
+	root("root"),
 	equational(root.branch("equational")),
 	logical(equational.branch("logical")
 ) {
 	{	Ctxt local = root.branch().assume("p",P);
-		root.claim("IMP.refl",local.thm("p").lift());
+		root.claim("IMP.refl",local.thm("p"));
 		local.assume("pq",P>>=Q);
-		root.claim("mp",local.thm("pq").OF(local.thm("p")).lift());
+		root.claim("mp",local.thm("pq").OF(local.thm("p")));
 	}
 	cout << root << endl;
 
@@ -47,7 +47,7 @@ Theories::Theories() :
 		t2 = t2.of(P);
 		cout << t2 << endl;
 		t2 = t2.OF(t);
-		equational.claim("EQ.prop2",t2.lift());
+		equational.claim("EQ.prop2",t2);
 	}
 	cout << equational << endl;
 
@@ -59,14 +59,13 @@ Theories::Theories() :
 		Thm t = local.thm("EQ.prop1").of(P&&Q).of("R" %= (P >>= Q >>= R) >>= R);
 		Thm t2 = local.thm("AND.def").of(P).of(Q);
 		t = t.OF(t2);
-		logical.claim("AND.elim", t.lift());
+		logical.claim("AND.elim", t);
 	}
 	{	Ctxt local = logical.branch().assume("P",P).assume("Q",Q);
 		{	Ctxt local2 = local.branch().fix("R").assume("PQR",P>>=Q>>=R);
 			local.claim("rhs",
 				local2.thm("PQR").OF(local2.thm("P")).
-				OF(local2.thm("Q")).
-				lift()
+				OF(local2.thm("Q"))
 			);
 		}
 		Thm t = local.thm("EQ.prop2");
@@ -74,7 +73,7 @@ Theories::Theories() :
 		t = t.of("R" %= (P >>= Q >>= R) >>= R);
 		t = t.OF(local.thm("AND.def").of(P).of(Q));
 		t = t.OF(local.thm("rhs"));
-		logical.claim("AND.intro",t.lift());
+		logical.claim("AND.intro",t);
 	}
 	{	Ctxt local = logical.branch().
 			assume("Px", P(x));
@@ -95,11 +94,11 @@ Theories::Theories() :
 			Thm t3 = local2.thm("*");
 			t3 = t3.of(x).OF(local2.thm("Px"));
 			cout << t3 << endl;
-			local.claim("1",t3.lift());
+			local.claim("1",t3);
 		}
 		t2 = t2.OF(local.thm("1"));
 		cout << t2 << endl;
-		logical.claim("EX.intro",t2.lift());
+		logical.claim("EX.intro",t2);
 	}
 	{	Ctxt local = logical.branch();
 		local.assume("p_pq", P && (P >>= Q));
@@ -109,7 +108,7 @@ Theories::Theories() :
 		t = t.OF(local.thm("p_pq"));
 		t = t.of(Q);
 		t = t.OF(local.thm("mp").of(P).of(Q));
-		logical.claim("mp2",t.lift());
+		logical.claim("mp2",t);
 	}
 	cout << logical << endl;
 }

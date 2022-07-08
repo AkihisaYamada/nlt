@@ -176,64 +176,58 @@ Term Term::_subst(
 	}
 }
 
-bool Ctxt::fixes(string_view sym) const {
-	return _syms.find(sym) != _syms.end() ||
-		parent != NULL && parent->fixes(sym);
+Term const IMP = Term("⟹");
+Term const ALL = Term("∀");
+
+Ctxt::Ctxt(string_view name) : _ref(Body{name}) {
+	fix("⟹");
+	fix("∀");
 }
 
-Ctxt& Ctxt::fix(string_view sym) {
+bool Ctxt::fixes(string_view sym) const {
+	return syms().contains(sym) ||
+		parent() && parent()->fixes(sym);
+}
+
+Ctxt const& Ctxt::fix(string_view sym) const {
 	if( !fixes(sym) ) {
-		_syms.insert(sym);
-		_sym_list.push_back(sym);
+		_ref->syms.insert(sym);
+		_ref->sym_list.push_back(sym);
 	}
 	return *this;
 }
 
-Ctxt& Ctxt::assume(string_view name, Term const& assm) {
+Ctxt const& Ctxt::assume(string_view name, Term const& assm) const {
 	assm.iter_syms(
 		[](string_view sym){},// do nothing on bound ones
 		[this](string_view sym){ this->fix(sym); }// fix free symbols
 	);
-	_assms.push_back(assm);
-	_thms.insert({name,assm});
+	_ref->assms.push_back(assm);
+	_ref->thms.insert({name,assm});
 	return *this;
-}
-
-Ctxt::Ctxt(string_view name) : name(name), parent(NULL) {
-	fix("⟹");
-	fix("∀");
 }
 
 /**
  * @brief Obtains the claim of a theorem, accessible from the context.
  */
 Term Ctxt::_thm(string_view name) const {
-	auto const& it = _thms.find(name);
-	if( it == _thms.end() ) {
-		if( parent == NULL ) {
+	auto const& it = _ref->thms.find(name);
+	if( it == _ref->thms.end() ) {
+		if( !_ref->parent ) {
+			cerr << "ERROR: No thm \"" << name << "\" found" << endl;
 			throw TheoremNotFound();
 		}
-		return parent->_thm(name);
+		return _ref->parent->_thm(name);
 	}
 	return it->second;
 }
-Ctxt& Ctxt::claim(string_view name, Thm const& thm) {
-	if( thm.ctxt() != this ) {
-		throw WrongContext();
-	}
-	_thms.insert({name,thm});
-	return *this;
-}
-
-Term const IMP = Term("⟹");
-Term const ALL = Term("∀");
 
 Thm Thm::of(Term const& t) const {
 	auto a = app();
 	if( a != NULL && a->fun == ALL ) {
 		auto b = a->arg.abs();
 		if( b != NULL ) {
-			return Thm(_ctxt,b->body.subst(b->var,t));
+			return Thm(ctxt(),b->body.subst(b->var,t));
 		}
 	}
 	cerr << "ERROR: Instantiating " << *this << endl;
@@ -241,7 +235,7 @@ Thm Thm::of(Term const& t) const {
 }
 
 Thm Thm::OF(Thm const& t) const {
-	if( t._ctxt != _ctxt ) {
+	if( t.ctxt() != ctxt() ) {
 		cerr << "ERROR: Discharging with wrong contexts " << *this << endl;
 		throw WrongContext();
 	}
@@ -249,27 +243,29 @@ Thm Thm::OF(Thm const& t) const {
 	if( a != NULL ) {
 		auto b = a->fun.app();
 		if( b != NULL && b->fun == IMP && b->arg == t ) {
-			return Thm(_ctxt,a->arg);
+			return Thm(ctxt(),a->arg);
 		}
 	}
 	cerr << "ERROR: Discharging\n\t" << *this << endl << "\nwith\t" << t << endl;
 	throw MalformedDischarge();
 }
 
-Thm Thm::lift() const {
-	if( _ctxt == NULL ) {
-		return *this;
+void Ctxt::_claim(string_view name, Ctxt const& other, Term& stmt) const {
+	if( other == *this ) {
+		_ref->thms.insert({name,stmt});
+		return;
 	}
-	Term claim = *this;
-	auto const& assms = _ctxt->assms();
+	if( !other.parent() ) {
+		throw WrongContext();
+	}
+	auto assms = other.assms();
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
-		Term next = *it >>= claim;
-		claim = next;
+		stmt = *it >>= stmt;
 	}
-	auto const& syms = _ctxt->sym_list();
+	auto syms = other.sym_list();
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
-		claim = *it %= claim;
+		stmt = *it %= stmt;
 	}
-	return Thm(_ctxt->parent,claim);
+	_claim(name,*other.parent(),stmt);
 }
 

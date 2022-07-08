@@ -3,8 +3,9 @@
 
 #include"core.hpp"
 
-struct Theories {
-	Ctxt root, equational, logical;
+class Theories {
+public:
+	Ctxt const root, equational, logical;
 	Theories();
 };
 
