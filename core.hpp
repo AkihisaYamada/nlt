@@ -79,12 +79,6 @@ public:
 	}
 };
 
-class UnexpectedTerm : public exception {};
-class MalformedInstantiation : public exception {};
-class MalformedDischarge : public exception {};
-class TheoremNotFound : public exception {};
-class WrongContext : public exception {};
-
 class Term;
 class Ctxt;
 class Thm;
@@ -92,8 +86,9 @@ class Thm;
 extern Term const IMP;
 extern Term const ALL;
 
-typedef map<string_view,string_view> Renaming;
-typedef set<string_view> Syms;
+typedef map<string,string,less<>> Renaming;
+typedef map<string,Term,less<>> TermMap;
+typedef set<string,less<>> Syms;
 
 ostream& operator<<(ostream& os, Syms const& syms);
 
@@ -235,14 +230,14 @@ public:
 	Ctxt(string_view name);
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Syms const syms() const;
-	vector<string_view> const sym_list() const;
+	vector<string> const sym_list() const;
 	optional<Ctxt> const& parent() const;
 	string_view name() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
 	vector<Term> const assms() const;
-	map<string_view, Term const> const thms() const;
+	TermMap const thms() const;
 	/**
 	 * @brief tests if a symbol is fixed.
 	 */
@@ -280,7 +275,7 @@ private:
 };
 
 struct Ctxt::Body {
-	string_view name;
+	string name;
 	/**
 	 * @brief Parent context. Since option class of C++20 doesn't work well,
 	 * root has itself as the parent.
@@ -293,12 +288,12 @@ struct Ctxt::Body {
 	/**
 	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
 	 */
-	vector<string_view> sym_list;
+	vector<string> sym_list;
 	vector<Term> assms;
-	map<string_view, Term const> thms; // table of theorems
+	TermMap thms; // table of theorems
 };
 
-inline Ctxt::Ctxt(string_view name, Ctxt const& parent) : _ref(Ref(Ctxt::Body{name,optional(parent)})) {}
+inline Ctxt::Ctxt(string_view name, Ctxt const& parent) : _ref(Ref(Ctxt::Body{string(name),optional(parent)})) {}
 
 inline string_view Ctxt::name() const {
 	return _ref->name;
@@ -307,7 +302,7 @@ inline string_view Ctxt::name() const {
 inline Syms const Ctxt::syms() const {
 	return _ref->syms;
 }
-inline vector<string_view> const Ctxt::sym_list() const {
+inline vector<string> const Ctxt::sym_list() const {
 	return _ref->sym_list;
 }
 inline optional<Ctxt> const& Ctxt::parent() const {
@@ -316,7 +311,7 @@ inline optional<Ctxt> const& Ctxt::parent() const {
 inline vector<Term> const Ctxt::assms() const {
 	return _ref->assms;
 }
-inline map<string_view, Term const> const Ctxt::thms() const {
+inline TermMap const Ctxt::thms() const {
 	return _ref->thms;
 }
 inline Ctxt Ctxt::branch(string_view name) const {
@@ -390,6 +385,24 @@ inline Term operator>>=(Term const& l, Term const& r) {
 inline Term operator%=(string_view var, Term const& body) {
 	return ALL(var /= body);
 }
+
+struct UnexpectedTerm : public exception {
+	Term term;
+	UnexpectedTerm(Term const& term) : term(term) {}
+};
+struct MalformedInstantiation : public exception {
+	Term all, arg;
+	MalformedInstantiation(Term const& all, Term const& arg) : all(all), arg(arg) {}
+};
+struct MalformedDischarge : public exception {
+	Term imp, arg;
+	MalformedDischarge(Term const& imp, Term const& arg) : imp(imp), arg(arg) {}
+};
+struct TheoremNotFound : public exception {
+	string name;
+	TheoremNotFound(string_view name) : name(name) {}
+};
+class WrongContext : public exception {};
 
 ostream& operator<<(ostream& os, Term const& t);
 ostream& operator<<(ostream& os, Ctxt const& ctxt);

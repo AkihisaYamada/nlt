@@ -62,8 +62,8 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 			auto l = *_un.abs, r = *other._un.abs;
 			// replace the bound variables with fresh one and compare
 			string_view fresh = vars.make();
-			lmap.insert({l.var,fresh});
-			rmap.insert({r.var,fresh});
+			lmap[l.var] = fresh;
+			rmap[r.var] = fresh;
 			return l.body._eq(r.body,lmap,rmap,vars);
 		}
 		case BIND: {
@@ -115,7 +115,7 @@ void Term::_iter_syms(Syms& bsyms, function<void(string_view)> const& bsym, func
 
 Syms Term::fsyms() const {
 	Syms bsyms, ret;
-	_iter_syms(bsyms,[](string_view){},[&ret](string_view fsym){ret.insert(fsym);});
+	_iter_syms(bsyms,[](string_view){},[&ret](string_view fsym){ret.insert(string(fsym));});
 	return ret;
 }
 
@@ -148,7 +148,7 @@ Term Term::_subst(
 			bool must_rename = fixed.contains(s.var);
 			string_view newvar = must_rename ? vars.make() : s.var;
 			if( must_rename ) {
-				ren.insert({s.var,newvar});
+				ren[s.var] = newvar;
 			}
 			Term ret = newvar /= s.body._subst(x,val,ren,fixed,vars);
 			ren.erase(s.var);
@@ -167,7 +167,7 @@ Term Term::_subst(
 						return a.body.subst(a.var,newval);
 					}
 					default:
-						throw UnexpectedTerm();
+						throw UnexpectedTerm(*this);
 				}
 			}
 			return s.var / newval;
@@ -179,7 +179,7 @@ Term Term::_subst(
 Term const IMP = Term("⟹");
 Term const ALL = Term("∀");
 
-Ctxt::Ctxt(string_view name) : _ref(Body{name}) {
+Ctxt::Ctxt(string_view name) : _ref(Body{string(name)}) {
 	fix("⟹");
 	fix("∀");
 }
@@ -191,8 +191,8 @@ bool Ctxt::fixes(string_view sym) const {
 
 Ctxt const& Ctxt::fix(string_view sym) const {
 	if( !fixes(sym) ) {
-		_ref->syms.insert(sym);
-		_ref->sym_list.push_back(sym);
+		_ref->syms.insert(string(sym));
+		_ref->sym_list.push_back(string(sym));
 	}
 	return *this;
 }
@@ -203,7 +203,7 @@ Ctxt const& Ctxt::assume(string_view name, Term const& assm) const {
 		[this](string_view sym){ this->fix(sym); }// fix free symbols
 	);
 	_ref->assms.push_back(assm);
-	_ref->thms.insert({name,assm});
+	_ref->thms.insert({string(name),assm});
 	return *this;
 }
 
@@ -215,7 +215,7 @@ Term Ctxt::_thm(string_view name) const {
 	if( it == _ref->thms.end() ) {
 		if( !_ref->parent ) {
 			cerr << "ERROR: No thm \"" << name << "\" found" << endl;
-			throw TheoremNotFound();
+			throw TheoremNotFound(name);
 		}
 		return _ref->parent->_thm(name);
 	}
@@ -230,8 +230,7 @@ Thm Thm::of(Term const& t) const {
 			return Thm(ctxt(),b->body.subst(b->var,t));
 		}
 	}
-	cerr << "ERROR: Instantiating " << *this << endl;
-	throw MalformedInstantiation();
+	throw MalformedInstantiation(*this,t);
 }
 
 Thm Thm::OF(Thm const& t) const {
@@ -246,13 +245,12 @@ Thm Thm::OF(Thm const& t) const {
 			return Thm(ctxt(),a->arg);
 		}
 	}
-	cerr << "ERROR: Discharging\n\t" << *this << endl << "\nwith\t" << t << endl;
-	throw MalformedDischarge();
+	throw MalformedDischarge(*this,t);
 }
 
 void Ctxt::_claim(string_view name, Ctxt const& other, Term& stmt) const {
 	if( other == *this ) {
-		_ref->thms.insert({name,stmt});
+		_ref->thms.insert({string(name),stmt});
 		return;
 	}
 	if( !other.parent() ) {

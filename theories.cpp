@@ -41,11 +41,8 @@ Theories::Theories() :
 		Thm t = local.thm("EQ.sym");
 		t = t.of(P);
 		t = t.of(Q).OF(local.thm("PQ"));
-		cout << t << endl;
 		Thm t2 = local.thm("EQ.prop1").of(Q);
-		cout << t2 << endl;
 		t2 = t2.of(P);
-		cout << t2 << endl;
 		t2 = t2.OF(t);
 		equational.claim("EQ.prop2",t2);
 	}
@@ -78,26 +75,19 @@ Theories::Theories() :
 	{	Ctxt local = logical.branch().
 			assume("Px", P(x));
 		Thm t = local.thm("EX.def");
-		cout << t << endl;
 		t = t.of("x" /= P(x));
-		cout << t << endl;
 		Thm t2 = local.thm("EQ.prop2");
-		cout << t2 << endl;
 		t2 = t2.of(t.app()->fun.app()->arg);
-		cout << t2 << endl;
 		t2 = t2.of(t.app()->arg);
-		cout << t2 << endl;
 		t2 = t2.OF(t);
 		cout << t2 << endl;
 		{	Ctxt local2 = local.branch().
 				assume("*", "z" %= P(z) >>= y);
 			Thm t3 = local2.thm("*");
 			t3 = t3.of(x).OF(local2.thm("Px"));
-			cout << t3 << endl;
 			local.claim("1",t3);
 		}
 		t2 = t2.OF(local.thm("1"));
-		cout << t2 << endl;
 		logical.claim("EX.intro",t2);
 	}
 	{	Ctxt local = logical.branch();
