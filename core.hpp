@@ -87,7 +87,7 @@ extern Term const IMP;
 extern Term const ALL;
 
 typedef map<string,string,less<>> Renaming;
-typedef map<string,Term,less<>> TermMap;
+typedef map<string,Term const,less<>> TermMap;
 typedef set<string,less<>> Syms;
 
 ostream& operator<<(ostream& os, Syms const& syms);
@@ -227,12 +227,11 @@ public:
 	/**
 	 * @brief The root Ctxt
 	 */
-	Ctxt(string_view name);
+	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Syms const syms() const;
 	vector<string> const sym_list() const;
 	optional<Ctxt> const& parent() const;
-	string_view name() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
@@ -262,20 +261,19 @@ public:
 	Thm thm(string_view name) const;
 	/**
 	 * @brief Creates a child context.
-	 * 
-	 * @param name optional name
-	 * @return the child Ctxt.
 	 */
-	Ctxt branch(string_view name = "") const;
+	Ctxt branch() const {
+		return Ctxt(optional(*this));
+	}
 	friend bool operator==(Ctxt const& l, Ctxt const& r);
 private:
-	Ctxt(string_view name, Ctxt const& parent);
+	Ctxt(optional<Ctxt> const& parent);
 	Term _thm(string_view name) const;
-	void _claim(string_view name, Ctxt const& other, Term& stmt) const;
+	void _add_thm(string_view name, Term const& stmt) const;
+	void _quantify_thm(Ctxt const& other, Term& stmt) const;
 };
 
 struct Ctxt::Body {
-	string name;
 	/**
 	 * @brief Parent context. Since option class of C++20 doesn't work well,
 	 * root has itself as the parent.
@@ -293,11 +291,7 @@ struct Ctxt::Body {
 	TermMap thms; // table of theorems
 };
 
-inline Ctxt::Ctxt(string_view name, Ctxt const& parent) : _ref(Ref(Ctxt::Body{string(name),optional(parent)})) {}
-
-inline string_view Ctxt::name() const {
-	return _ref->name;
-}
+inline Ctxt::Ctxt(optional<Ctxt> const& parent) : _ref(Ref(Ctxt::Body{parent})) {}
 
 inline Syms const Ctxt::syms() const {
 	return _ref->syms;
@@ -314,9 +308,12 @@ inline vector<Term> const Ctxt::assms() const {
 inline TermMap const Ctxt::thms() const {
 	return _ref->thms;
 }
-inline Ctxt Ctxt::branch(string_view name) const {
-	return Ctxt(name,*this);
+inline Ctxt const& Ctxt::assume(string_view name, Term const& assm) const {
+	_ref->assms.push_back(assm);
+	_add_thm(name,assm);
+	return *this;
 }
+
 inline bool operator==(Ctxt const& l, Ctxt const& r) {
 	return l._ref == r._ref;
 }
@@ -374,7 +371,8 @@ inline Thm Ctxt::thm(string_view name) const {
 }
 inline Ctxt const& Ctxt::claim(string_view name, Thm const& thm) const {
 	Term stmt = thm;
-	_claim(name,thm.ctxt(),stmt);
+	_quantify_thm(thm.ctxt(),stmt);
+	_add_thm(name,stmt);
 	return *this;
 }
 

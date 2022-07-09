@@ -5,6 +5,11 @@ show refl: ∀ P. P ⟹ P;
 	assume P: P;
 	by P;
 
+show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P
+	fix P Q;
+	assume P: P, Q: Q;
+	by P;
+
 show mp: ∀ P. ∀ Q. P ⟹ (P ⟹ Q) ⟹ Q;
 	assume P: P;
 	assume PQ: P ⟹ Q;
@@ -17,7 +22,7 @@ assume EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 assume EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
 assume EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 
-show EQ.arg_cong: ∀ f. ∀x. ∀y. x = y ⟹ f x = f y;
+show EQ.arg_cong: ∀ f. ∀ x. ∀ y. x = y ⟹ f x = f y;
 	fix f x y;
 	name ff: EQ.refl(f);
 	by EQ.cong(f,f,x,y)[ff];
@@ -28,7 +33,7 @@ show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 	name 1: EQ.sym(P,Q)[PQ];
 	by EQ.prop1(Q,P)[1];
 
-show IMP_ALL: ∀ α. ∀ P. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
+show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
 	assume 1: P ⟹ ∀ x. α[x];
 	show 2: ∀ x. P ⟹ α[x];
 		fix x;
@@ -53,10 +58,8 @@ show FALSE.elim: ∀ P. FALSE ⟹ P;
 	by 2[1](P);
 
 infix ∧ 36 35 36;
-infix ∨ 31 30 31;
 
 assume AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
-assume OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 
 {	fix P Q;
 	name 1: AND.def(P,Q);
@@ -68,6 +71,20 @@ assume OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 	name 2: 1(Q)[mp(P,Q)];
 	move mp2: 2;
 }
+
+infix ∨ 31 30 31;
+
+assume OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+
+show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
+	fix P Q;
+	assume P: P;
+	show 1: (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+		assume 2: P ⟹ R, _: Q ⟹	R;
+		by 2[P];
+	name 3: OR.def(P,Q);
+	by EQ.prop2(P ∨ Q, ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)[3,1];
+
 
 prefix ∃ 1 1;
 

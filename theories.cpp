@@ -19,9 +19,9 @@ static Term const R = Term("R");
 static Term const alpha = Term("α");
 
 Theories::Theories() :
-	root("root"),
-	equational(root.branch("equational")),
-	logical(equational.branch("logical")
+	root(),
+	equational(root.branch()),
+	logical(equational.branch()
 ) {
 	{	Ctxt local = root.branch().assume("p",P);
 		root.claim("IMP.refl",local.thm("p"));
@@ -80,7 +80,6 @@ Theories::Theories() :
 		t2 = t2.of(t.app()->fun.app()->arg);
 		t2 = t2.of(t.app()->arg);
 		t2 = t2.OF(t);
-		cout << t2 << endl;
 		{	Ctxt local2 = local.branch().
 				assume("*", "z" %= P(z) >>= y);
 			Thm t3 = local2.thm("*");

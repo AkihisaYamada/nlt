@@ -179,7 +179,7 @@ Term Term::_subst(
 Term const IMP = Term("⟹");
 Term const ALL = Term("∀");
 
-Ctxt::Ctxt(string_view name) : _ref(Body{string(name)}) {
+Ctxt::Ctxt() : _ref(Body{}) {
 	fix("⟹");
 	fix("∀");
 }
@@ -197,15 +197,14 @@ Ctxt const& Ctxt::fix(string_view sym) const {
 	return *this;
 }
 
-Ctxt const& Ctxt::assume(string_view name, Term const& assm) const {
-	assm.iter_syms(
+void Ctxt::_add_thm(string_view name, Term const& stmt) const {
+	stmt.iter_syms(
 		[](string_view sym){},// do nothing on bound ones
 		[this](string_view sym){ this->fix(sym); }// fix free symbols
 	);
-	_ref->assms.push_back(assm);
-	_ref->thms.insert({string(name),assm});
-	return *this;
+	_ref->thms.insert({string(name),stmt});
 }
+
 
 /**
  * @brief Obtains the claim of a theorem, accessible from the context.
@@ -214,7 +213,6 @@ Term Ctxt::_thm(string_view name) const {
 	auto const& it = _ref->thms.find(name);
 	if( it == _ref->thms.end() ) {
 		if( !_ref->parent ) {
-			cerr << "ERROR: No thm \"" << name << "\" found" << endl;
 			throw TheoremNotFound(name);
 		}
 		return _ref->parent->_thm(name);
@@ -235,7 +233,6 @@ Thm Thm::of(Term const& t) const {
 
 Thm Thm::OF(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
-		cerr << "ERROR: Discharging with wrong contexts " << *this << endl;
 		throw WrongContext();
 	}
 	auto a = app();
@@ -248,9 +245,8 @@ Thm Thm::OF(Thm const& t) const {
 	throw MalformedDischarge(*this,t);
 }
 
-void Ctxt::_claim(string_view name, Ctxt const& other, Term& stmt) const {
+void Ctxt::_quantify_thm(Ctxt const& other, Term& stmt) const {
 	if( other == *this ) {
-		_ref->thms.insert({string(name),stmt});
 		return;
 	}
 	if( !other.parent() ) {
@@ -264,6 +260,6 @@ void Ctxt::_claim(string_view name, Ctxt const& other, Term& stmt) const {
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = *it %= stmt;
 	}
-	_claim(name,*other.parent(),stmt);
+	_quantify_thm(*other.parent(),stmt);
 }
 

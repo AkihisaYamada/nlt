@@ -37,7 +37,7 @@ class Prover {
 	Ref<InfixTable> infixes;
 	optional<Thesis> thesis;
 public:
-	Prover() : lexer(Lexer(cin)), ctxt("root"), infixes({
+	Prover() : lexer(Lexer(cin)), ctxt(), infixes({
 		{",",{-1,-1,-2}},
 		{";",{-1,-1,-2}},
 	}), prefixes(PrefixTable()) {}
@@ -123,17 +123,17 @@ public:
 	}
 	function<ostream&(ostream&)> pretty_thm(Thm const& thm) const {
 		return [&](ostream& os) -> ostream& {
-			string_view name = thm.ctxt().name();
+/*			string_view name = thm.ctxt().name();
 			if( name != "" ) {
 				os << "(in " << name << ") ";
 			}
-			return os << pretty_term(thm);
+*/			return os << pretty_term(thm);
 		};
 	}
 
 	function<ostream&(ostream&)> pretty_ctxt(Ctxt const& ctxt) const {
 		return [&](ostream& os) -> ostream& {
-			os << "ctxt " << ctxt.name() << " {" << endl;
+			os << "ctxt {" << endl;
 			for( auto sym : ctxt.sym_list() ) {
 				os << "  sym " << sym << endl;
 			}
@@ -245,8 +245,7 @@ public:
 		}
 	}
 	void loop() {
-		try {
-		for(;;) {
+		for(;;) try {
 			cout << "> " << flush;
 			if( lexer->skips('{') ) {
 				cout << "Creating context." << endl;
@@ -264,12 +263,14 @@ public:
 					cout << "Fixed " << sym << endl;
 				}
 			} else if( lexer->skips("assume") ) {
-				string name = get_thm_name();
-				lexer->skip(':');
-				Term term = get_term(0).value();
+				do {
+					string name = get_thm_name();
+					lexer->skip(':');
+					Term term = get_term(0).value();
+					ctxt.assume(name,term);
+					cout << "Assumed " << name << ": " << pretty_term(term) << endl;
+				} while( lexer->skips(',') );
 				lexer->skip(';');
-				ctxt.assume(name,term);
-				cout << "Assumed " << name << ": " << pretty_term(term) << endl;
 			} else if( lexer->skips("thm") ) {
 				Thm thm = get_thm(ctxt);
 				lexer->skip(';');
@@ -294,19 +295,24 @@ public:
 			} else if( lexer->skips("show") ) {
 				string thm_name = get_thm_name();
 				lexer->skip(':');
-				Term thesis = get_term(0).value();
+				Term stmt = get_term(0).value();
 				lexer->skip(';');
-				Prover(*this,thm_name,thesis).loop();
-				cout << "Proved " << thm_name << ": " << pretty_thm(ctxt.thm(thm_name)) << endl;
+				cout << "Proving " << thm_name << ": " << pretty_term(stmt) << endl; 
+				Prover(*this,thm_name,stmt).loop();
 			} else if( lexer->skips("by") ) {
 				if( !thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
 				auto thm = thesis.value();
-				Ctxt target_ctxt = thm.ctxt;
-				target_ctxt.claim(thm.name,get_thm(ctxt));
+				thm.ctxt.claim(thm.name,get_thm(ctxt));
 				lexer->skip(';');
+				if( thm.ctxt.thm(thm.name) != thm.claim ) {
+					cerr << "ERROR: Proof doesn't match the claim." << endl;
+					cerr << "proved " << pretty_thm(thm.ctxt.thm(thm.name)) << endl;
+				} else {
+					cerr << "QED" << endl;
+				}
 				return;
 			} else if( lexer->skips("prefix") ) {
 				Term sym = Term(lexer->get_token());
@@ -326,11 +332,12 @@ public:
 			} else {
 				return;
 			}
-		}
 		} catch ( MalformedDischarge const& e ) {
 			cerr << "ERROR: Discharging\n\t" << pretty_term(e.imp) << endl << "\nwith\t" << pretty_term(e.arg) << endl;
 		} catch ( MalformedInstantiation const& e ) {
 			cerr << "ERROR: Instantiating\n\t" << pretty_term(e.all) << endl << "\nwith\t" << pretty_term(e.arg) << endl;
+		} catch ( TheoremNotFound const& e ) {
+			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
 		}
 	}
 };
