@@ -246,16 +246,13 @@ public:
 	}
 	void loop() {
 		try {
-		cout << "Entering ";
-		if( ctxt.name() == "" ) {
-			cout << "unnamed context." << endl;
-		} else {
-			cout << "context " << ctxt.name() << endl;
-		}
 		for(;;) {
 			cout << "> " << flush;
 			if( lexer->skips('{') ) {
+				cout << "Creating context." << endl;
 				Prover(*this).loop();
+				lexer->skip('}');
+				cout << "Left context." << endl;
 			} else if( lexer->skips("ctxt") ) {
 				lexer->skip(';');
 				cout << pretty_ctxt(ctxt) << endl;
@@ -300,7 +297,7 @@ public:
 				Term thesis = get_term(0).value();
 				lexer->skip(';');
 				Prover(*this,thm_name,thesis).loop();
-				cout << "theorem " << thm_name << pretty_thm(ctxt.thm(thm_name)) << endl;
+				cout << "Proved " << thm_name << ": " << pretty_thm(ctxt.thm(thm_name)) << endl;
 			} else if( lexer->skips("by") ) {
 				if( !thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -310,10 +307,6 @@ public:
 				Ctxt target_ctxt = thm.ctxt;
 				target_ctxt.claim(thm.name,get_thm(ctxt));
 				lexer->skip(';');
-				cout << "Leaving the proof context" << endl;
-				return;
-			} else if( lexer->skips('}') ) {
-				cout << "Leaving context " << ctxt.name() << endl;
 				return;
 			} else if( lexer->skips("prefix") ) {
 				Term sym = Term(lexer->get_token());
@@ -331,8 +324,7 @@ public:
 				lexer->skips(';');
 				cout << "New infix operator " << sym << endl;
 			} else {
-				cerr << "Unexpected " << lexer->peek_token() << endl;
-				throw SyntaxError();
+				return;
 			}
 		}
 		} catch ( MalformedDischarge const& e ) {
