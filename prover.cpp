@@ -6,9 +6,6 @@ using namespace std;
 
 class UnfinishedProof : std::exception {};
 
-Term const SEMICOLON = Term(";");
-Term const COMMA = Term(",");
-
 class Prover {
 	struct Thesis {
 		string_view name;
@@ -16,20 +13,23 @@ class Prover {
 		Term claim;
 	};
 	Ctxt ctxt;
+	bool own_syntax;
 	Ref<Syntax> syntax;
 	optional<Thesis> thesis;
 public:
-	Prover() {
+	Prover() : own_syntax(true) {
 		syntax->infix(",",-1,-1,-2).
 			infix(";",-1,-1,-2);
 	}
 	Prover(Prover const& parent, string_view name = "") :
 		ctxt(parent.ctxt.branch()),
 		syntax(parent.syntax),
+		own_syntax(false),
 		thesis(optional<Thesis>()) {}
 	Prover(Prover const& parent, string_view thm_name, Term const& claim) :
 		ctxt(parent.ctxt.branch()),
 		syntax(parent.syntax),
+		own_syntax(false),
 		thesis({thm_name,parent.ctxt,claim}) {}
 
 	void loop() {
@@ -106,16 +106,18 @@ public:
 				string_view sym = syntax->get_token();
 				int level = syntax->get_int();
 				int rlevel = syntax->get_int();
-				syntax->prefix(sym,level,rlevel);
 				syntax->skips(';');
+				_make_own_syntax();
+				syntax->prefix(sym,level,rlevel);
 				cout << "New prefix operator " << sym << endl;
 			} else if( syntax->skips("infix") ) {
 				string_view sym = syntax->get_token();
 				int level = syntax->get_int();
 				int llevel = syntax->get_int();
 				int rlevel = syntax->get_int();
-				syntax->infix(sym,level,llevel,rlevel);
 				syntax->skips(';');
+				_make_own_syntax();
+				syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
 			} else {
 				return;
@@ -126,6 +128,13 @@ public:
 			cerr << "ERROR: Instantiating\n\t" << syntax->pretty_term(e.all) << endl << "\nwith\t" << syntax->pretty_term(e.arg) << endl;
 		} catch ( TheoremNotFound const& e ) {
 			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
+		}
+	}
+private:
+	void _make_own_syntax() {
+		if( !own_syntax ) {
+			syntax = Ref(*syntax);
+			own_syntax = true;
 		}
 	}
 };
