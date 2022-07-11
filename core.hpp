@@ -22,13 +22,13 @@ class Ref {
 	struct Body {
 		unsigned int nref;
 		T body;
-		Body() = delete;
+		Body() : nref(0) {}
 		Body(T const& body) : nref(0), body(body) {}
 	};
 	Body* ptr;
-	Ref() {}
 	Ref(Body* ptr) : ptr(ptr) {}
 public:
+	Ref() : ptr(new Body()) {}
 	Ref(T const& body) : ptr(new Body(body)) {}
 	Ref(Ref const& org) : ptr(org.ptr) {
 		ptr->nref++;
@@ -56,27 +56,6 @@ public:
 		return &ptr->body;
 	}
 	friend RefNull<T>;
-};
-
-template<typename T>
-class RefNull : public Ref<T> {
-public:
-	RefNull() : Ref<T>(NULL) {}
-	RefNull(T const& body) : Ref<T>(body) {}
-	RefNull(RefNull const& org) {
-		this->ptr = org.ptr;
-		if( this->ptr != NULL ) {
-			this->ptr->nref++;
-		}
-	}
-	operator bool() const {
-		return this->ptr != NULL;
-	}
-	~RefNull() {
-		if( this->ptr == NULL ) {
-			return;
-		}
-	}
 };
 
 class Term;

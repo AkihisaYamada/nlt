@@ -5,7 +5,7 @@ show refl: ∀ P. P ⟹ P;
 	assume P: P;
 	by P;
 
-show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P
+show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P;
 	fix P Q;
 	assume P: P, Q: Q;
 	by P;
@@ -18,17 +18,47 @@ show mp: ∀ P. ∀ Q. P ⟹ (P ⟹ Q) ⟹ Q;
 infix = 50 50 50;
 
 assume EQ.refl: ∀ x. x = x;
-assume EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
-assume EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
-assume EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
+assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
+
+show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
+	fix x y;
+	assume xy: x = y;
+	name xx: EQ.refl(x);
+	by EQ.mono(z. z = x, x, y)[xy,xx];
+
+show EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
+	fix x y z;
+	assume xy: x = y;
+	assume yz: y = z;
+	name 1: EQ.mono(w. x = w, y, z)[yz];
+	by 1[xy];
 
 show EQ.arg_cong: ∀ f. ∀ x. ∀ y. x = y ⟹ f x = f y;
 	fix f x y;
-	name ff: EQ.refl(f);
-	by EQ.cong(f,f,x,y)[ff];
+	assume xy: x = y;
+	name 1: EQ.refl(f x);
+	by EQ.mono(z. f x = f z, x, y)[xy,1];
 
-assume EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
+show EQ.fun_cong: ∀ f. ∀ g. ∀ x. f = g ⟹ f x = g x;
+	fix f g x;
+	assume fg: f = g;
+	name 1: EQ.refl(f x);
+	by EQ.mono(h. f x = h x, f, g)[fg,1];
+
+show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
+	fix f g x y;
+	assume fg: f = g, xy: x = y;
+	show 1: f x = f y;
+		by EQ.arg_cong(f,x,y)[xy];
+	show 2: f y = g y;
+		by EQ.fun_cong(f,g,y)[fg];
+	by EQ.trans(f x, f y, g y)[1,2];
+
+show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
+	by EQ.mono(x. x);
+
 show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
+	fix P Q;
 	assume PQ: P = Q;
 	name 1: EQ.sym(P,Q)[PQ];
 	by EQ.prop1(Q,P)[1];

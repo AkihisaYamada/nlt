@@ -1,4 +1,4 @@
-OBJS=core.o print.o theories.o prover.o lexer.o
+OBJS=core.o print.o theories.o prover.o lexer.o syntax.o
 CPP=g++ -g -std=c++20 -Wfatal-errors
 DEPS=$(OBJS:%.o=%.d)
 
