@@ -209,12 +209,12 @@ public:
 	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Syms const syms() const;
-	vector<string> const sym_list() const;
+	vector<string> const& sym_list() const;
 	optional<Ctxt> const& parent() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
-	vector<Term> const assms() const;
+	vector<Term> const& assms() const;
 	TermMap const thms() const;
 	/**
 	 * @brief tests if a symbol is fixed.
@@ -275,13 +275,13 @@ inline Ctxt::Ctxt(optional<Ctxt> const& parent) : _ref(Ref(Ctxt::Body{parent})) 
 inline Syms const Ctxt::syms() const {
 	return _ref->syms;
 }
-inline vector<string> const Ctxt::sym_list() const {
+inline vector<string> const& Ctxt::sym_list() const {
 	return _ref->sym_list;
 }
 inline optional<Ctxt> const& Ctxt::parent() const {
 	return _ref->parent;
 }
-inline vector<Term> const Ctxt::assms() const {
+inline vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
 }
 inline TermMap const Ctxt::thms() const {
