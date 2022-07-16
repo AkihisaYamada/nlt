@@ -130,9 +130,9 @@ public:
 	string const* sym() const {
 		return _type == SYM ? &*_un.sym : NULL;
 	}
-	App const* app() const;
-	Abs const* abs() const;
-	Bind const* fix() const;
+	optional<App const&> app() const;
+	optional<Abs const&> abs() const;
+	optional<Bind const&> fix() const;
 	optional<pair<Term const&, Term const&>> imp() const;
 	optional<pair<string_view, Term const&>> all() const;
 	/**
@@ -186,14 +186,14 @@ inline Term::Term(string_view var, Term const& body) : _type(ABS), _un(Abs{strin
 
 inline Term::Term(string_view var, Term const& val, void* _) : _type(BIND), _un(Bind{string(var),val}) {};
 
-inline Term::App const* Term::app() const {
-	return _type == APP ? &*_un.app : NULL;
+inline optional<Term::App const&> Term::app() const {
+	return _type == APP ? *_un.app : optional<App const&>();
 }
-inline Term::Abs const* Term::abs() const {
-	return _type == ABS ? &*_un.abs : NULL;
+inline optional<Term::Abs const&> Term::abs() const {
+	return _type == ABS ? *_un.abs : optional<Abs const&>();
 }
-inline Term::Bind const* Term::fix() const {
-	return _type == BIND ? &*_un.fix : NULL;
+inline optional<Term::Bind const&> Term::fix() const {
+	return _type == BIND ? *_un.fix : optional<Bind const&>();
 }
 inline optional<pair<Term const&, Term const&>> Term::imp() const {
 	if( _type == APP ) {
@@ -201,7 +201,7 @@ inline optional<pair<Term const&, Term const&>> Term::imp() const {
 		if( app1.fun._type == APP ) {
 			auto& app2 = *app1.fun._un.app;
 			if( app2.fun == IMP ) {
-				return pair<Term const&, Term const&>({app2.arg, app1.arg});
+				return pair(app2.arg, app1.arg);
 			}
 		}
 	}
@@ -212,7 +212,7 @@ inline optional<pair<string_view,Term const&>> Term::all() const {
 		auto& app = *_un.app;
 		if( app.fun == ALL && app.arg._type == ABS ) {
 			auto& abs = *app.arg._un.abs;
-			return pair<string_view,Term const&>(abs.var,abs.body);
+			return pair(abs.var,abs.body);
 		}
 	}
 	return optional<pair<string_view,Term const&>>();
