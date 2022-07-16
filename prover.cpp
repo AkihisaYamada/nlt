@@ -44,21 +44,29 @@ public:
 				syntax->skip(';');
 				cout << syntax->pretty_ctxt(ctxt) << endl;
 			} else if( syntax->skips("fix") ) {
+				cout << "Fixing";
 				for(;;) {
 					if( syntax->skips(';') ) break;
 					string sym = syntax->get_token();
 					ctxt.fix(sym);
-					cout << "Fixed " << sym << endl;
+					cout << ' ' << sym << flush;
 				}
+				cout << ';' << endl;
 			} else if( syntax->skips("assume") ) {
-				do {
+				cout << "Assuming ";
+				for(;;) {
 					string name = syntax->get_thm_name();
 					syntax->skip(':');
 					Term term = syntax->get_term(0).value();
+					cout << name << ": " << syntax->pretty_term(term) << flush;
 					ctxt.assume(name,term);
-					cout << "Assumed " << name << ": " << syntax->pretty_term(term) << endl;
-				} while( syntax->skips(',') );
+					if( !syntax->skips(',') ) {
+						break;
+					}
+					cout << ", " << flush;
+				}
 				syntax->skip(';');
+				cout << ';' << endl;
 			} else if( syntax->skips("thm") ) {
 				Thm thm = syntax->get_thm(ctxt);
 				syntax->skip(';');

@@ -221,12 +221,9 @@ Term Ctxt::_thm(string_view name) const {
 }
 
 Thm Thm::of(Term const& t) const {
-	auto a = app();
-	if( a != NULL && a->fun == ALL ) {
-		auto b = a->arg.abs();
-		if( b != NULL ) {
-			return Thm(ctxt(),b->body.subst(b->var,t));
-		}
+	auto a = all();
+	if( a.has_value() ) {
+		return Thm(ctxt(),a->second.subst(a->first,t));
 	}
 	throw MalformedInstantiation(*this,t);
 }
@@ -235,12 +232,9 @@ Thm Thm::OF(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
-	auto a = app();
-	if( a != NULL ) {
-		auto b = a->fun.app();
-		if( b != NULL && b->fun == IMP && b->arg == t ) {
-			return Thm(ctxt(),a->arg);
-		}
+	auto a = imp();
+	if( a.has_value() && a->first == t ) {
+		return Thm(ctxt(),a->second);
 	}
 	throw MalformedDischarge(*this,t);
 }

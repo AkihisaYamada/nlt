@@ -133,6 +133,8 @@ public:
 	App const* app() const;
 	Abs const* abs() const;
 	Bind const* fix() const;
+	optional<pair<Term const&, Term const&>> imp() const;
+	optional<pair<string_view, Term const&>> all() const;
 	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
@@ -193,6 +195,30 @@ inline Term::Abs const* Term::abs() const {
 inline Term::Bind const* Term::fix() const {
 	return _type == BIND ? &*_un.fix : NULL;
 }
+inline optional<pair<Term const&, Term const&>> Term::imp() const {
+	if( _type == APP ) {
+		auto& app1 = *_un.app;
+		if( app1.fun._type == APP ) {
+			auto& app2 = *app1.fun._un.app;
+			if( app2.fun == IMP ) {
+				return pair<Term const&, Term const&>({app2.arg, app1.arg});
+			}
+		}
+	}
+	return optional<pair<Term const&, Term const&>>();
+}
+inline optional<pair<string_view,Term const&>> Term::all() const {
+	if( _type == APP ) {
+		auto& app = *_un.app;
+		if( app.fun == ALL && app.arg._type == ABS ) {
+			auto& abs = *app.arg._un.abs;
+			return pair<string_view,Term const&>(abs.var,abs.body);
+		}
+	}
+	return optional<pair<string_view,Term const&>>();
+}
+
+
 inline string_view rename_sym(Renaming const& map, string_view sym) {
 	auto it = map.find(sym);
 	return it == map.end() ? sym : it->second;
@@ -380,9 +406,5 @@ struct TheoremNotFound : public exception {
 	TheoremNotFound(string_view name) : name(name) {}
 };
 class WrongContext : public exception {};
-
-ostream& operator<<(ostream& os, Term const& t);
-ostream& operator<<(ostream& os, Ctxt const& ctxt);
-ostream& operator<<(ostream& os, Thm const& t);
 
 #endif
