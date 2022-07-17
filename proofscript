@@ -1,49 +1,55 @@
-prefix ∀ 1 1;
-infix ⟹ 1 2 1;
+prefix ∀ 0 0;
+infix ⟹ 1 0 0;
 
-show refl: ∀ P. P ⟹ P;
+show IMP.refl: ∀ P. P ⟹ P;
 	assume P: P;
 	by P;
 
-show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P;
-	fix P Q;
-	assume P: P, Q: Q;
-	by P;
+show IMP.trans: ∀ P. ∀ Q. ∀ R. (P ⟹ Q) ⟹ (Q ⟹ R) ⟹ P ⟹ R;
+	assume PQ: P ⟹ Q;
+	assume QR: Q ⟹ R;
+	assume P: P;
+	name Q: PQ[P];
+	by QR[Q];
 
 show mp: ∀ P. ∀ Q. P ⟹ (P ⟹ Q) ⟹ Q;
 	assume P: P;
 	assume PQ: P ⟹ Q;
 	by PQ[P];
 
+show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P;
+	fix P Q;
+	assume P: P, Q: Q;
+	by P;
+
 infix = 50 50 50;
 
 assume EQ.refl: ∀ x. x = x;
-assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
+assume EQ.mono: ∀ x. ∀ y. ∀ α. x = y ⟹ α[x] ⟹ α[y];
 
 show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
 	assume xy: x = y;
 	name xx: EQ.refl(x);
-	by EQ.mono(z. z = x, x, y)[xy,xx];
+	by EQ.mono(x, y, z. z = x)[xy,xx];
 
 show EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
 	fix x y z;
 	assume xy: x = y;
 	assume yz: y = z;
-	name 1: EQ.mono(w. x = w, y, z)[yz];
-	by 1[xy];
+	by EQ.mono(y, z, w. x = w)[yz,xy];
 
 show EQ.arg_cong: ∀ f. ∀ x. ∀ y. x = y ⟹ f x = f y;
 	fix f x y;
 	assume xy: x = y;
 	name 1: EQ.refl(f x);
-	by EQ.mono(z. f x = f z, x, y)[xy,1];
+	by EQ.mono(x, y, z. f x = f z)[xy,1];
 
 show EQ.fun_cong: ∀ f. ∀ g. ∀ x. f = g ⟹ f x = g x;
 	fix f g x;
 	assume fg: f = g;
 	name 1: EQ.refl(f x);
-	by EQ.mono(h. f x = h x, f, g)[fg,1];
+	by EQ.mono(f, g, h. f x = h x)[fg,1];
 
 show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 	fix f g x y;
@@ -55,7 +61,9 @@ show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 	by EQ.trans(f x, f y, g y)[1,2];
 
 show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
-	by EQ.mono(x. x);
+	fix P Q;
+	assume PQ: P = Q;
+	by EQ.mono(P, Q, x. x)[PQ];
 
 show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 	fix P Q;
@@ -75,7 +83,7 @@ fix TRUE;
 
 assume TRUE.def: TRUE = (∀ P. P ⟹ P);
 
-name TRUE.intro: EQ.prop2(TRUE, ∀ P. P ⟹ P)[TRUE.def, refl];
+name TRUE.intro: EQ.prop2(TRUE, ∀ P. P ⟹ P)[TRUE.def, IMP.refl];
 
 fix FALSE;
 
@@ -116,7 +124,7 @@ show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
 	by EQ.prop2(P ∨ Q, ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)[3,1];
 
 
-prefix ∃ 1 1;
+prefix ∃ 0 1;
 
 assume EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 

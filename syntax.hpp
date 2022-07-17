@@ -28,7 +28,7 @@ class Syntax : public Lexer {
 	InfixTable infixes;
 
 public:
-	Syntax() : Lexer(cin) {}
+	Syntax(istream& is) : Lexer(is) {}
 
 	Syntax& prefix(string_view sym, int level, int rlevel) {
 		prefixes.insert({string(sym),{level,rlevel}});

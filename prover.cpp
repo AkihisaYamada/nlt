@@ -1,5 +1,4 @@
-#include "theories.hpp"
-#include "syntax.hpp"
+#include <fstream>
 #include "syntax.hpp"
 
 using namespace std;
@@ -17,7 +16,7 @@ class Prover {
 	Ref<Syntax> syntax;
 	optional<Thesis> thesis;
 public:
-	Prover() : own_syntax(true) {
+	Prover(istream& is) : syntax(is), own_syntax(true) {
 		syntax->infix(",",-1,-1,-2).
 			infix(";",-1,-1,-2);
 	}
@@ -112,17 +111,17 @@ public:
 				return;
 			} else if( syntax->skips("prefix") ) {
 				string_view sym = syntax->get_token();
-				int level = syntax->get_int();
 				int rlevel = syntax->get_int();
+				int level = syntax->get_int();
 				syntax->skips(';');
 				_make_own_syntax();
 				syntax->prefix(sym,level,rlevel);
 				cout << "New prefix operator " << sym << endl;
 			} else if( syntax->skips("infix") ) {
 				string_view sym = syntax->get_token();
-				int level = syntax->get_int();
 				int llevel = syntax->get_int();
 				int rlevel = syntax->get_int();
+				int level = syntax->get_int();
 				syntax->skips(';');
 				_make_own_syntax();
 				syntax->infix(sym,level,llevel,rlevel);
@@ -148,8 +147,8 @@ private:
 };
 
 int main() {
-	Prover obj;
-	obj.loop();
+	fstream fs = fstream("proofscript");
+	Prover(fs).loop();
 	return 0;
 }
 

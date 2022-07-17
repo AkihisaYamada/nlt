@@ -1,22 +1,25 @@
-OBJS=core.o lexer.o syntax.o prover.o
+SRCS=core.cpp lexer.cpp syntax.cpp prover.cpp
 CPP=g++ -g -std=c++20 -Wfatal-errors
+BUILD=_build
+OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DEPS=$(OBJS:%.o=%.d)
 
 test.exe: ${OBJS}
 	${CPP} $^ -o $@
 
-test: test.exe
+test: test.exe proofscript
 	./test.exe
 
-%.d: %.cpp
-	${CPP} -MM $< > $@
+$(BUILD)/%.d: %.cpp
+	@mkdir -p $(@D)
+	(echo -n $(BUILD)/; ${CPP} -MM $<) > $@
 
-%.o: %.cpp
-	${CPP} -c $<
+$(BUILD)/%.o: %.cpp
+	${CPP} -c $< -o $@
 
 .PHONY: clean test
 
 clean:
-	rm -rf ${OBJS} ${DEPS}
+	rm -rf $(BUILD)
 
 -include ${DEPS}

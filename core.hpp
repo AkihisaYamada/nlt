@@ -101,6 +101,8 @@ class Term {
 	Term(Term const& fun, Term const& arg); // application
 	Term(string_view var, Term const& body); // abstraction
 	Term(string_view binder, Term const& val, void*); // binding
+	typedef pair<Term const&,Term const&> Pair;
+	typedef pair<string const&, Term const&> StrTerm;
 public:
 	/**
 	 * @brief Constructs a symbol term
@@ -127,14 +129,14 @@ public:
 	friend Term operator/(string_view binder, Term const& val) {
 		return Term(binder,val,NULL);
 	}
-	string const* sym() const {
-		return _type == SYM ? &*_un.sym : NULL;
+	optional<string_view> sym() const {
+		return _type == SYM ? *_un.sym : optional<string_view>();
 	}
-	optional<App const&> app() const;
-	optional<Abs const&> abs() const;
-	optional<Bind const&> fix() const;
-	optional<pair<Term const&, Term const&>> imp() const;
-	optional<pair<string_view, Term const&>> all() const;
+	optional<Pair> app() const;
+	optional<StrTerm> abs() const;
+	optional<StrTerm> fix() const;
+	optional<Pair> imp() const;
+	optional<StrTerm> all() const;
 	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
@@ -186,36 +188,36 @@ inline Term::Term(string_view var, Term const& body) : _type(ABS), _un(Abs{strin
 
 inline Term::Term(string_view var, Term const& val, void* _) : _type(BIND), _un(Bind{string(var),val}) {};
 
-inline optional<Term::App const&> Term::app() const {
-	return _type == APP ? *_un.app : optional<App const&>();
+inline optional<Term::Pair> Term::app() const {
+	return _type == APP ? Pair(_un.app->fun,_un.app->arg) : optional<Pair>();
 }
-inline optional<Term::Abs const&> Term::abs() const {
-	return _type == ABS ? *_un.abs : optional<Abs const&>();
+inline optional<Term::StrTerm> Term::abs() const {
+	return _type == ABS ? StrTerm(_un.abs->var,_un.abs->body) : optional<StrTerm>();
 }
-inline optional<Term::Bind const&> Term::fix() const {
-	return _type == BIND ? *_un.fix : optional<Bind const&>();
+inline optional<Term::StrTerm> Term::fix() const {
+	return _type == BIND ? StrTerm(_un.fix->var,_un.fix->val) : optional<StrTerm>();
 }
-inline optional<pair<Term const&, Term const&>> Term::imp() const {
+inline optional<Term::Pair> Term::imp() const {
 	if( _type == APP ) {
 		auto& app1 = *_un.app;
 		if( app1.fun._type == APP ) {
 			auto& app2 = *app1.fun._un.app;
 			if( app2.fun == IMP ) {
-				return pair(app2.arg, app1.arg);
+				return Pair(app2.arg,app1.arg);
 			}
 		}
 	}
-	return optional<pair<Term const&, Term const&>>();
+	return optional<Pair>();
 }
-inline optional<pair<string_view,Term const&>> Term::all() const {
+inline optional<Term::StrTerm> Term::all() const {
 	if( _type == APP ) {
 		auto& app = *_un.app;
 		if( app.fun == ALL && app.arg._type == ABS ) {
 			auto& abs = *app.arg._un.abs;
-			return pair(abs.var,abs.body);
+			return StrTerm(abs.var,abs.body);
 		}
 	}
-	return optional<pair<string_view,Term const&>>();
+	return optional<StrTerm>();
 }
 
 
