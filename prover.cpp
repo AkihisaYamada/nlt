@@ -7,7 +7,6 @@ class UnfinishedProof : std::exception {};
 
 class Prover {
 	struct Thesis {
-		string_view name;
 		Ctxt ctxt;
 		Term claim;
 	};
@@ -29,9 +28,9 @@ public:
 		ctxt(parent.ctxt.branch()),
 		syntax(parent.syntax),
 		own_syntax(false),
-		thesis({thm_name,parent.ctxt,claim}) {}
+		thesis({parent.ctxt,claim}) {}
 
-	void loop() {
+	optional<Thm> loop() {
 		for(;;) try {
 			cout << "> " << flush;
 			if( syntax->skips('{') ) {
@@ -79,7 +78,7 @@ public:
 				syntax->skip(':');
 				ctxt.claim(name,syntax->get_thm(ctxt));
 				syntax->skip(';');
-				cout << "lemma " << name << ": " << syntax->pretty_thm(ctxt.thm(name)) << endl;
+				cout << "lemma " << name << ": " << syntax->pretty_thm(ctxt.thm(name)) << ';' << endl;
 			} else if( syntax->skips("move") ) {
 				Ctxt pctxt = ctxt.parent().value();
 				string name = syntax->get_thm_name();
@@ -92,23 +91,51 @@ public:
 				syntax->skip(':');
 				Term stmt = syntax->get_term(0).value();
 				syntax->skip(';');
-				cout << "Proving " << thm_name << ": " << syntax->pretty_term(stmt) << endl; 
-				Prover(*this,thm_name,stmt).loop();
+				cout << "Proving " << thm_name << ": " << syntax->pretty_term(stmt) << endl;
+				auto const& prf = Prover(*this,thm_name,stmt).loop();
+				if( !prf.has_value() ) {
+					cout << "ERROR: Nothing proved." << endl;
+					throw UnfinishedProof();
+				}
+				Thm const& thm = prf->move(ctxt);
+				if( stmt != thm ) {
+					cout << "ERROR: Proof mismatch " << syntax->pretty_term(thm) << endl;
+					throw UnfinishedProof();
+				}
+				ctxt.claim(thm_name,thm);
+			} else if( syntax->skips("obtain") ) {
+				string sym = syntax->get_token();
+				syntax->skip("where");
+				string spec_name = syntax->get_thm_name();
+				syntax->skip(':');
+				Term spec = syntax->get_term(0).value();
+				syntax->skip(';');
+				auto const& pair = ctxt.obtain(sym,spec);
+				Term const& goal = pair.first;
+				Thm const& obtain_thm = pair.second;
+				cout << "Obtaining " << sym << " where " << spec_name << ": " << syntax->pretty_term(spec) << endl <<
+					"Proving " << syntax->pretty_term(goal) << endl;
+				auto const& prf = Prover(*this,"_obtain_goal",goal).loop();
+				if( !prf.has_value() ) {
+					cout << "ERROR: Nothing proved." << endl;
+					throw UnfinishedProof();
+				}
+				Thm goal_thm = prf->move(ctxt);
+				if( goal != goal_thm ) {
+					cout << "ERROR: Proof mismatch " << syntax->pretty_term(goal_thm) << endl;
+					throw UnfinishedProof();
+				}
+				Thm const& spec_thm = obtain_thm.OF(goal_thm);
+				ctxt.claim(spec_name,spec_thm);
+				cout << "Successfully obtained " << sym << endl;
 			} else if( syntax->skips("by") ) {
 				if( !thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
-				auto thm = thesis.value();
-				thm.ctxt.claim(thm.name,syntax->get_thm(ctxt));
+				Thm ret = syntax->get_thm(ctxt);
 				syntax->skip(';');
-				if( thm.ctxt.thm(thm.name) != thm.claim ) {
-					cerr << "ERROR: Proof doesn't match the claim." << endl;
-					cerr << "proved " << syntax->pretty_thm(thm.ctxt.thm(thm.name)) << endl;
-				} else {
-					cerr << "QED" << endl;
-				}
-				return;
+				return ret;
 			} else if( syntax->skips("prefix") ) {
 				string_view sym = syntax->get_token();
 				int rlevel = syntax->get_int();
@@ -127,14 +154,17 @@ public:
 				syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
 			} else {
-				return;
+				return optional<Thm>();
 			}
 		} catch ( MalformedDischarge const& e ) {
 			cerr << "ERROR: Discharging\n\t" << syntax->pretty_term(e.imp) << endl << "\nwith\t" << syntax->pretty_term(e.arg) << endl;
+			throw e;
 		} catch ( MalformedInstantiation const& e ) {
 			cerr << "ERROR: Instantiating\n\t" << syntax->pretty_term(e.all) << endl << "\nwith\t" << syntax->pretty_term(e.arg) << endl;
+			throw e;
 		} catch ( TheoremNotFound const& e ) {
 			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
+			throw e;
 		}
 	}
 private:
@@ -146,9 +176,15 @@ private:
 	}
 };
 
-int main() {
-	fstream fs = fstream("proofscript");
-	Prover(fs).loop();
+int main(int argc, char* argv[]) {
+	istream* pis;
+	if( argc == 1 ) {
+		pis = &cin;
+	} else if( argc == 2 ) {
+		pis = new fstream(argv[1]);
+	}
+	Prover prover = Prover(*pis);
+	prover.loop();
 	return 0;
 }
 

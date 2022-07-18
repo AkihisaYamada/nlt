@@ -79,21 +79,29 @@ show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
 		by 1[P](x);
 	by 2;
 
-fix TRUE;
-
-assume TRUE.def: TRUE = (∀ P. P ⟹ P);
+obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
+	fix thesis;
+	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
+	name 2: EQ.refl(∀ P. P ⟹ P);
+	by 1(∀ P. P ⟹ P)[2];
 
 name TRUE.intro: EQ.prop2(TRUE, ∀ P. P ⟹ P)[TRUE.def, IMP.refl];
 
-fix FALSE;
-
-assume FALSE.def: FALSE = (∀ P. P);
+obtain FALSE where FALSE.def: FALSE = (∀ P. P);
+	fix thesis;
+	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
+	name 2: EQ.refl(∀ P. P);
+	by 1(∀ P. P)[2];
 
 show FALSE.elim: ∀ P. FALSE ⟹ P;
 	fix P;
 	assume 1: FALSE;
 	name 2: EQ.prop1(FALSE, ∀ P. P)[FALSE.def];
 	by 2[1](P);
+
+prefix λ 0 0;
+
+assume ∀ α. ∀ s. λ α s = α[s];
 
 infix ∧ 36 35 36;
 

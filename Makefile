@@ -8,7 +8,7 @@ test.exe: ${OBJS}
 	${CPP} $^ -o $@
 
 test: test.exe proofscript
-	./test.exe
+	./test.exe < proofscript
 
 $(BUILD)/%.d: %.cpp
 	@mkdir -p $(@D)

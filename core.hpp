@@ -6,6 +6,7 @@
 #include<cstring>
 #include<string>
 #include<vector>
+#include<list>
 #include<set>
 #include<exception>
 #include<functional>
@@ -62,22 +63,27 @@ class Term;
 class Ctxt;
 class Thm;
 
+class VarMaker {
+	static vector<Ref<string const>> vec;
+	unsigned int nest;
+public:
+	VarMaker() : nest(0) {}
+	Ref<string const> make();
+};
+
+extern Ref<string const> const VOID_var;
+extern Ref<string const> const IMP_var;
+extern Ref<string const> const ALL_var;
 extern Term const IMP;
 extern Term const ALL;
 
-typedef map<string,string,less<>> Renaming;
+typedef map<string,Ref<string const>,less<>> Renaming;
 typedef map<string,Term const,less<>> TermMap;
 typedef set<string,less<>> Syms;
 
 ostream& operator<<(ostream& os, Syms const& syms);
 
 class Term {
-	struct VarMaker {
-		static vector<string_view> vec;
-		unsigned int nest;
-		VarMaker() : nest(0) {}
-		string_view make();
-	};
 	enum { SYM, APP, ABS, BIND } _type;
 	struct App;
 	struct Abs;
@@ -89,12 +95,11 @@ class Term {
 		Ref<Bind const> fix;
 		Union() {}
 		~Union() {}
-		Union(Ref<string const> sym) : sym(sym) {}
+		Union(Ref<string const> const& sym) : sym(sym) {}
 		Union(Ref<App const> const& app) : app(app) {}
 		Union(Ref<Abs const> const& abs) : abs(abs) {}
 		Union(Ref<Bind const> const& fix) : fix(fix) {}
 	} _un;
-	Term() = delete; // uninitialized constructor is not allowed
 	Term* operator&() { // making pointer is private
 		return this;
 	}
@@ -105,9 +110,9 @@ class Term {
 	typedef pair<string const&, Term const&> StrTerm;
 public:
 	/**
-	 * @brief Constructs a symbol term
+	 * @brief Construct a symbol term
 	 */
-	Term(string_view sym) : _type(SYM), _un(string(sym)) {}
+	Term(Ref<string const> const& sym = VOID_var) : _type(SYM), _un(sym) {}
 	Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
 	/**
 	 * @brief Do not explicitly call destructor!
@@ -135,8 +140,26 @@ public:
 	optional<Pair> app() const;
 	optional<StrTerm> abs() const;
 	optional<StrTerm> fix() const;
+	/**
+	 * @brief Expands implication.
+	 * 
+	 * @return The pair of the premise and conclusion, if this is an implication.
+	 */
 	optional<Pair> imp() const;
+	/**
+	 * @brief Expands universal quantification.
+	 * 
+	 * @return The pair of the variable and body, if this is a universal quantification.
+	 */
 	optional<StrTerm> all() const;
+	/**
+	 * @brief Uncurrying.
+	 * 
+	 * @return the pair of the root and the list of arguments.
+	 */
+	pair<Term const&, list<Term>> uncurry() const {
+		return _uncurry(*this);
+	}
 	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
@@ -155,6 +178,7 @@ public:
 private:
 	Union _copy_un() const;
 	bool _eq(Term const& r, Renaming& lmap, Renaming& rmap, VarMaker vars) const;// equality test
+	static pair<Term const&, list<Term>> _uncurry(Term const&);
 	void _iter_syms(Syms& bsyms, function<void(string_view)> const&, function<void(string_view)> const&) const;
 	Term _subst(string_view var, Term const& val, Renaming& ren, Syms const& fixed, VarMaker vars) const;
 
@@ -221,8 +245,8 @@ inline optional<Term::StrTerm> Term::all() const {
 }
 
 
-inline string_view rename_sym(Renaming const& map, string_view sym) {
-	auto it = map.find(sym);
+inline Ref<string const> rename_sym(Renaming const& map, Ref<string const> const& sym) {
+	auto const& it = map.find(*sym);
 	return it == map.end() ? sym : it->second;
 }
 
@@ -236,14 +260,15 @@ public:
 	 */
 	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
-	Syms const syms() const;
+	Syms const& syms() const;
 	vector<string> const& sym_list() const;
 	optional<Ctxt> const& parent() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
 	vector<Term> const& assms() const;
-	TermMap const thms() const;
+	TermMap const& specs() const;
+	TermMap const& thms() const;
 	/**
 	 * @brief tests if a symbol is fixed.
 	 */
@@ -256,6 +281,8 @@ public:
 	 * @brief Adds assumption in the context.
 	 */
 	Ctxt const& assume(string_view name, Term const& assm) const;
+	pair<Term,Thm> obtain(string_view sym, Term const& spec) const;
+	Thm adopt(Thm const& thm) const;
 	/**
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
@@ -277,7 +304,6 @@ private:
 	Ctxt(optional<Ctxt> const& parent);
 	Term _thm(string_view name) const;
 	void _add_thm(string_view name, Term const& stmt) const;
-	void _quantify_thm(Ctxt const& other, Term& stmt) const;
 };
 
 struct Ctxt::Body {
@@ -295,12 +321,13 @@ struct Ctxt::Body {
 	 */
 	vector<string> sym_list;
 	vector<Term> assms;
+	TermMap specs; // constant specifications
 	TermMap thms; // table of theorems
 };
 
 inline Ctxt::Ctxt(optional<Ctxt> const& parent) : _ref(Ref(Ctxt::Body{parent})) {}
 
-inline Syms const Ctxt::syms() const {
+inline Syms const& Ctxt::syms() const {
 	return _ref->syms;
 }
 inline vector<string> const& Ctxt::sym_list() const {
@@ -312,7 +339,10 @@ inline optional<Ctxt> const& Ctxt::parent() const {
 inline vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
 }
-inline TermMap const Ctxt::thms() const {
+inline TermMap const& Ctxt::specs() const {
+	return _ref->specs;
+}
+inline TermMap const& Ctxt::thms() const {
 	return _ref->thms;
 }
 inline Ctxt const& Ctxt::assume(string_view name, Term const& assm) const {
@@ -362,7 +392,7 @@ public:
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
 	 */
-	Thm lift() const;
+	Thm move(Ctxt const& ctxt) const;
 private:
 	Ctxt _ctxt;
 	/**
@@ -372,14 +402,15 @@ private:
 	Thm() = delete;
 	Thm* operator&() = delete;
 	friend Thm Ctxt::thm(string_view name) const;
+	friend pair<Term,Thm> Ctxt::obtain(string_view name, Term const& spec) const;
 };
 inline Thm Ctxt::thm(string_view name) const {
 	return Thm(*this,_thm(name));
 }
+
 inline Ctxt const& Ctxt::claim(string_view name, Thm const& thm) const {
-	Term stmt = thm;
-	_quantify_thm(thm.ctxt(),stmt);
-	_add_thm(name,stmt);
+	Thm thm_here = thm.move(*this);
+	_add_thm(name,thm_here);
 	return *this;
 }
 
@@ -408,5 +439,11 @@ struct TheoremNotFound : public exception {
 	TheoremNotFound(string_view name) : name(name) {}
 };
 class WrongContext : public exception {};
+
+struct DoubleFix : public exception {
+	string name;
+	DoubleFix(string_view name) : name(name) {}
+};
+
 
 #endif

@@ -2,9 +2,23 @@
 
 using namespace std;
 
-vector<string_view> Term::VarMaker::vec;
+vector<Ref<string const>> VarMaker::vec;
 
-string_view Term::VarMaker::make() {
+pair<Term const&, list<Term>> Term::_uncurry(Term const& t) {
+	Term const* cur = &t;
+	list<Term> args;
+	for(;;) {
+		auto const& p = cur->app();
+		if( p.has_value() ) {
+			args.push_front(p->second);
+			cur = &p->first;
+		} else {
+			return pair<Term const&, list<Term>>(*cur,args);
+		}
+	}
+}
+
+Ref<string const> VarMaker::make() {
 	auto pre = nest;
 	nest++;
 	if( pre < vec.size() ) {
@@ -52,7 +66,7 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 	switch(_type) {
 		case SYM: {
 			auto l = *_un.sym, r = *other._un.sym;
-			return rename_sym(lmap,l) == rename_sym(rmap,r);
+			return *rename_sym(lmap,l) == *rename_sym(rmap,r);
 		}
 		case APP: {
 			auto l = *_un.app, r = *other._un.app;
@@ -61,14 +75,14 @@ bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars)
 		case ABS: {
 			auto l = *_un.abs, r = *other._un.abs;
 			// replace the bound variables with fresh one and compare
-			string_view fresh = vars.make();
+			auto const& fresh = vars.make();
 			lmap[l.var] = fresh;
 			rmap[r.var] = fresh;
 			return l.body._eq(r.body,lmap,rmap,vars);
 		}
 		case BIND: {
 			auto l = *_un.fix, r = *other._un.fix;
-			return rename_sym(lmap,l.var) == rename_sym(rmap,r.var) &&
+			return *rename_sym(lmap,l.var) == *rename_sym(rmap,r.var) &&
 				l.val._eq(r.val,lmap,rmap,vars);
 		}
 		default: assert(false);
@@ -142,15 +156,15 @@ Term Term::_subst(
 		case ABS: {
 			auto s = *_un.abs;
 			if( s.var == x ) {// the variable is captured. Just apply necessary renaming.
-				return x /= s.body._subst(x,Term(x),ren,fixed,vars);
+				return s.var /= s.body._subst(s.var,Term(s.var),ren,fixed,vars);
 			}
 			// if the bound variable is fixed, rename to a fresh one.
 			bool must_rename = fixed.contains(s.var);
-			string_view newvar = must_rename ? vars.make() : s.var;
+			Ref<string const> const& newvar = must_rename ? vars.make() : s.var;
 			if( must_rename ) {
 				ren[s.var] = newvar;
 			}
-			Term ret = newvar /= s.body._subst(x,val,ren,fixed,vars);
+			Term ret = *newvar /= s.body._subst(x,val,ren,fixed,vars);
 			ren.erase(s.var);
 			return ret;
 		}
@@ -176,8 +190,11 @@ Term Term::_subst(
 	}
 }
 
-Term const IMP = Term("⟹");
-Term const ALL = Term("∀");
+Ref<string const> const VOID_var = Ref<string const>("");
+Ref<string const> const IMP_var = Ref<string const>("⟹");
+Ref<string const> const ALL_var = Ref<string const>("∀");
+Term const IMP = Term(IMP_var);
+Term const ALL = Term(ALL_var);
 
 Ctxt::Ctxt() : _ref(Body{}) {
 	fix("⟹");
@@ -186,6 +203,7 @@ Ctxt::Ctxt() : _ref(Body{}) {
 
 bool Ctxt::fixes(string_view sym) const {
 	return syms().contains(sym) ||
+		specs().contains(sym) ||
 		parent() && parent()->fixes(sym);
 }
 
@@ -200,7 +218,7 @@ Ctxt const& Ctxt::fix(string_view sym) const {
 void Ctxt::_add_thm(string_view name, Term const& stmt) const {
 	stmt.iter_syms(
 		[](string_view sym){},// do nothing on bound ones
-		[this](string_view sym){ this->fix(sym); }// fix free symbols
+		[this](string_view sym){ fix(sym); }// fix free symbols
 	);
 	_ref->thms.insert({string(name),stmt});
 }
@@ -218,6 +236,17 @@ Term Ctxt::_thm(string_view name) const {
 		return _ref->parent->_thm(name);
 	}
 	return it->second;
+}
+
+pair<Term,Thm> Ctxt::obtain(string_view sym, Term const& spec) const {
+	if( fixes(sym) ) {
+		throw DoubleFix(sym);
+	}
+	VarMaker varmaker;
+	auto const& thesis = varmaker.make();
+	Term goal = *thesis %= (sym %= spec >>= Term(thesis)) >>= Term(thesis);
+	_ref->specs.insert({string(sym),spec});
+	return pair(goal,Thm(*this,goal >>= spec));
 }
 
 Thm Thm::of(Term const& t) const {
@@ -239,21 +268,22 @@ Thm Thm::OF(Thm const& t) const {
 	throw MalformedDischarge(*this,t);
 }
 
-void Ctxt::_quantify_thm(Ctxt const& other, Term& stmt) const {
-	if( other == *this ) {
-		return;
+Thm Thm::move(Ctxt const& ctxt) const {
+	if( ctxt == _ctxt ) {
+		return *this;
 	}
-	if( !other.parent() ) {
+	if( !_ctxt.parent() ) {
 		throw WrongContext();
 	}
-	auto assms = other.assms();
+	Term stmt = *this;
+	auto const& parent = *_ctxt.parent();
+	auto const& assms = _ctxt.assms();
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
 		stmt = *it >>= stmt;
 	}
-	auto syms = other.sym_list();
+	auto const& syms = _ctxt.sym_list();
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = *it %= stmt;
 	}
-	_quantify_thm(*other.parent(),stmt);
+	return Thm(parent,stmt);
 }
-
