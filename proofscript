@@ -101,7 +101,7 @@ show FALSE.elim: ∀ P. FALSE ⟹ P;
 
 prefix λ 0 0;
 
-assume ∀ α. ∀ s. λ α s = α[s];
+assume ABS.def: ∀ α. ∀ s. λ α s = α[s];
 
 infix ∧ 36 35 36;
 

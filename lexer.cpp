@@ -169,13 +169,15 @@ bool Lexer::skips( char const* token ) {
 }
 void Lexer::skip( char const* token ) {
 	if( !skips(token) ) {
-		cerr << "Expected \"" << token << '"' << endl;
+		cerr << "Expected \"" << token << "\" but encountered \"" <<
+			buf <<'"' << endl;
 		throw SyntaxError();
 	}
 }
 void Lexer::skip( char c ) {
 	if( !skips(c) ) {
-		cerr << "Expected \"" << c << '"' << endl;
+		cerr << "Expected \'" << c << "\' but encountered \"" <<
+			buf <<'"' << endl;
 		throw SyntaxError();
 	}
 }

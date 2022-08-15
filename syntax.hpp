@@ -21,8 +21,8 @@ class Syntax : public Lexer {
 		int llevel;
 		int rlevel;
 	};
-	typedef map<string,Prefix,less<>> PrefixTable;
-	typedef map<string,Infix,less<>> InfixTable;
+	typedef map<String,Prefix,StringComparator> PrefixTable;
+	typedef map<String,Infix,StringComparator> InfixTable;
 
 	PrefixTable prefixes;
 	InfixTable infixes;
@@ -30,12 +30,12 @@ class Syntax : public Lexer {
 public:
 	Syntax(istream& is) : Lexer(is) {}
 
-	Syntax& prefix(string_view sym, int level, int rlevel) {
-		prefixes.insert({string(sym),{level,rlevel}});
+	Syntax& prefix(String const& sym, int level, int rlevel) {
+		prefixes.insert({sym,{level,rlevel}});
 		return *this;
 	}
-	Syntax& infix(string_view sym, int level, int llevel, int rlevel) {
-		infixes.insert({string(sym),{level,llevel,rlevel}});
+	Syntax& infix(String const& sym, int level, int llevel, int rlevel) {
+		infixes.insert({sym,{level,llevel,rlevel}});
 		return *this;
 	}
 
