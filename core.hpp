@@ -10,10 +10,10 @@
 #include<functional>
 #include<optional>
 #include"ref.hpp"
+#include"string.hpp"
 
 using namespace std;
 
-typedef Ref<string const> String;
 class Term;
 class Ctxt;
 class Thm;
@@ -32,27 +32,9 @@ extern String const ALL_var;
 extern Term const IMP;
 extern Term const ALL;
 
-struct StringComparator {
-    bool operator() (Ref<string const> const& l, Ref<string const> const& r) const {
-        return *l < r;
-    }
-	bool operator() (Ref<string const> const& l, string_view const& r) const {
-		return *l < r;
-	}
-	bool operator() (string_view const& l, Ref<string const> const& r) const {
-		return l < *r;
-	}
-	bool operator() (Ref<string const> const& l, string const& r) const {
-		return *l < r;
-	}
-	bool operator() (string const& l, Ref<string const> const& r) const {
-		return l < *r;
-	}
-	typedef void is_transparent;
-};
-typedef map<String,String,StringComparator> Renaming;
-typedef map<String,Term const,StringComparator> TermMap;
-typedef set<String,StringComparator> Syms;
+typedef map<String,String,less<>> Renaming;
+typedef map<String,Term const,less<>> TermMap;
+typedef set<String,less<>> Syms;
 
 ostream& operator<<(ostream& os, Syms const& syms);
 
@@ -136,7 +118,7 @@ public:
 		if( _type == APP ) {
 			Term const& fun1 = *_un.app.fun;
 			if( fun1._type == APP ) {
-				if( fun1._un.app.fun == IMP ) {
+				if( *fun1._un.app.fun == IMP ) {
 					return Pair(*fun1._un.app.arg,*_un.app.arg);
 				}
 			}
@@ -150,7 +132,7 @@ public:
 	 */
 	optional<StrTerm> all() const {
 		if( _type == APP ) {
-			if( _un.app.fun == ALL && _un.app.arg->_type == ABS ) {
+			if( *_un.app.fun == ALL && _un.app.arg->_type == ABS ) {
 				auto& abs = _un.app.arg->_un.abs;
 				return StrTerm(abs.var,*abs.body);
 			}
@@ -232,19 +214,19 @@ public:
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Ctxt const& assume(string const& name, Term const& assm) const;
+	Ctxt const& assume(String const& name, Term const& assm) const;
 	pair<Term,Thm> obtain(String const& sym, Term const& spec) const;
 	Thm adopt(Thm const& thm) const;
 	/**
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */
-	Ctxt const& claim(string const& name, Thm const& thm) const;
+	Ctxt const& claim(String const& name, Thm const& thm) const;
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
-	Thm thm(string const& name) const;
+	Thm thm(String const& name) const;
 	/**
 	 * @brief Creates a child context.
 	 */
@@ -257,8 +239,8 @@ public:
 	friend bool operator==(Ctxt::Body const& l, Ctxt::Body const& r);
 private:
 	Ctxt(optional<Ctxt> const& parent);
-	Term _thm(string const& name) const;
-	void _add_thm(string const& name, Term const& stmt) const;
+	Term _thm(String const& name) const;
+	void _add_thm(String const& name, Term const& stmt) const;
 };
 
 struct Ctxt::Body {
@@ -303,7 +285,7 @@ inline TermMap const& Ctxt::specs() const {
 inline TermMap const& Ctxt::thms() const {
 	return _ref->thms;
 }
-inline Ctxt const& Ctxt::assume(string const& name, Term const& assm) const {
+inline Ctxt const& Ctxt::assume(String const& name, Term const& assm) const {
 	_ref->assms.push_back(assm);
 	_add_thm(name,assm);
 	return *this;
@@ -356,15 +338,15 @@ public:
 	 */
 	Thm move(Ctxt const& ctxt) const;
 private:
-	friend Thm Ctxt::thm(string const& name) const;
+	friend Thm Ctxt::thm(String const& name) const;
 	friend pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const;
 };
 
-inline Thm Ctxt::thm(string const& name) const {
+inline Thm Ctxt::thm(String const& name) const {
 	return Thm(*this,_thm(name));
 }
 
-inline Ctxt const& Ctxt::claim(string const& name, Thm const& thm) const {
+inline Ctxt const& Ctxt::claim(String const& name, Thm const& thm) const {
 	Thm thm_here = thm.move(*this);
 	_add_thm(name,thm_here);
 	return *this;

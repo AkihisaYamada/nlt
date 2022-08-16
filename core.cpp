@@ -26,9 +26,9 @@ String VarMaker::make() {
 		return vec[pre];
 	}
 	// permanently allocate a string.
-	string const* name = new string("_" + to_string(nest));
-	vec.push_back(*name);
-	return vec.back();
+	String name = "_" + to_string(nest);
+	vec.push_back(name);
+	return name;
 }
 
 Term& Term::operator=(Term const& other) {
@@ -54,10 +54,10 @@ Term::Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
 
 Term::~Term() {
 	switch(_type) {
-	case SYM: _un.sym.~Ref(); break;
+	case SYM: _un.sym.~String(); break;
 	case APP: _un.app.fun.~Ref(); _un.app.arg.~Ref(); break;
-	case ABS: _un.abs.var.~Ref(); _un.abs.body.~Ref(); break;
-	case BIND: _un.fix.var.~Ref(); _un.fix.val.~Ref(); break;
+	case ABS: _un.abs.var.~String(); _un.abs.body.~Ref(); break;
+	case BIND: _un.fix.var.~String(); _un.fix.val.~Ref(); break;
 	default: assert(false);
 	}
 }
@@ -215,7 +215,7 @@ Ctxt const& Ctxt::fix(String const& sym) const {
 	return *this;
 }
 
-void Ctxt::_add_thm(string const& name, Term const& stmt) const {
+void Ctxt::_add_thm(String const& name, Term const& stmt) const {
 	stmt.iter_syms(
 		[](String const& sym){},// do nothing on bound ones
 		[this](String const& sym){ fix(sym); }// fix free symbols
@@ -227,7 +227,7 @@ void Ctxt::_add_thm(string const& name, Term const& stmt) const {
 /**
  * @brief Obtains the claim of a theorem, accessible from the context.
  */
-Term Ctxt::_thm(string const& name) const {
+Term Ctxt::_thm(String const& name) const {
 	auto const& it = _ref->thms.find(name);
 	if( it == _ref->thms.end() ) {
 		if( !_ref->parent ) {

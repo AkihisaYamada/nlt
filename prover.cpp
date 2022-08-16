@@ -24,13 +24,13 @@ public:
 		_syntax->infix(String(","),-1,-1,-2).
 			infix(String(";"),-1,-1,-2);
 	}
-	Prover(Prover const& parent, string_view name = "") :
+	Prover(Prover const& parent) :
 		_depth(parent._depth+1),
 		_ctxt(parent._ctxt.branch()),
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis(optional<Thesis>()) {}
-	Prover(Prover const& parent, string_view thm_name, Term const& claim) :
+	Prover(Prover const& parent, Term const& claim) :
 		_depth(parent._depth+1),
 		_ctxt(parent._ctxt.branch()),
 		_syntax(parent._syntax),
@@ -57,13 +57,13 @@ public:
 					if( _syntax->skips(';') ) break;
 					String sym = _syntax->get_token();
 					_ctxt.fix(sym);
-					cout << ' ' << *sym << flush;
+					cout << ' ' << sym << flush;
 				}
 				cout << ';' << endl;
 			} else if( _syntax->skips("assume") ) {
 				cout << "Assuming ";
 				for(;;) {
-					string name = _syntax->get_thm_name();
+					String name = _syntax->get_thm_name();
 					_syntax->skip(':');
 					Term term = _syntax->get_term(0).value();
 					cout << name << ": " << _syntax->pretty_term(term) << flush;
@@ -84,25 +84,25 @@ public:
 				_syntax->skip(';');
 				cout << "term " << _syntax->pretty_term(term) << endl;
 			} else if( _syntax->skips("name") ) {
-				string name = _syntax->get_thm_name();
+				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
 				_ctxt.claim(name,_syntax->get_thm(_ctxt));
 				_syntax->skip(';');
 				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
 			} else if( _syntax->skips("move") ) {
 				Ctxt pctxt = _ctxt.parent().value();
-				string name = _syntax->get_thm_name();
+				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
 				pctxt.claim(name,_syntax->get_thm(_ctxt));
 				_syntax->skip(';');
 				cout << "theorem " << name << ": " << _syntax->pretty_thm(pctxt.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
-				string thm_name = _syntax->get_thm_name();
+				String thm_name = _syntax->get_thm_name();
 				_syntax->skip(':');
 				Term stmt = _syntax->get_term(0).value();
 				_syntax->skip(';');
 				cout << "Proving " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
-				auto const& prf = Prover(*this,thm_name,stmt).loop();
+				auto const& prf = Prover(*this,stmt).loop();
 				if( !prf.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
@@ -116,16 +116,16 @@ public:
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
 				_syntax->skip("where");
-				string spec_name = _syntax->get_thm_name();
+				String spec_name = _syntax->get_thm_name();
 				_syntax->skip(':');
 				Term spec = _syntax->get_term(0).value();
 				_syntax->skip(';');
 				auto const& pair = _ctxt.obtain(sym,spec);
 				Term const& goal = pair.first;
 				Thm const& obtain_thm = pair.second;
-				cout << "Obtaining " << *sym << " where " << spec_name << ": " << _syntax->pretty_term(spec) << endl <<
+				cout << "Obtaining " << sym << " where " << spec_name << ": " << _syntax->pretty_term(spec) << endl <<
 					"Proving " << _syntax->pretty_term(goal) << endl;
-				auto const& prf = Prover(*this,"_obtain_goal",goal).loop();
+				auto const& prf = Prover(*this,goal).loop();
 				if( !prf.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
@@ -137,7 +137,7 @@ public:
 				}
 				Thm const& spec_thm = obtain_thm.OF(goal_thm);
 				_ctxt.claim(spec_name,spec_thm);
-				cout << "Successfully obtained " << *sym << endl;
+				cout << "Successfully obtained " << sym << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -154,7 +154,7 @@ public:
 				_syntax->skips(';');
 				_make_own_syntax();
 				_syntax->prefix(sym,level,rlevel);
-				cout << "New prefix operator " << *sym << endl;
+				cout << "New prefix operator " << sym << endl;
 			} else if( _syntax->skips("infix") ) {
 				String sym = _syntax->get_token();
 				int llevel = _syntax->get_int();
@@ -163,7 +163,7 @@ public:
 				_syntax->skips(';');
 				_make_own_syntax();
 				_syntax->infix(sym,level,llevel,rlevel);
-				cout << "New infix operator " << *sym << endl;
+				cout << "New infix operator " << sym << endl;
 			} else {
 				return optional<Thm>();
 			}
@@ -174,7 +174,7 @@ public:
 			cerr << "ERROR: Instantiating\n\t" << _syntax->pretty_term(e.all) << endl << "\nwith\t" << _syntax->pretty_term(e.arg) << endl;
 			throw e;
 		} catch ( TheoremNotFound const& e ) {
-			cerr << "ERROR: No thm \"" << *e.name << "\" found" << endl;
+			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
 			throw e;
 		}
 	}

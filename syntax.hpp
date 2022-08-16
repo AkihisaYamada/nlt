@@ -21,8 +21,8 @@ class Syntax : public Lexer {
 		int llevel;
 		int rlevel;
 	};
-	typedef map<String,Prefix,StringComparator> PrefixTable;
-	typedef map<String,Infix,StringComparator> InfixTable;
+	typedef map<String,Prefix,less<>> PrefixTable;
+	typedef map<String,Infix,less<>> InfixTable;
 
 	PrefixTable prefixes;
 	InfixTable infixes;

@@ -5,9 +5,9 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 		auto const& sym = term.sym();
 		if( sym.has_value() ) {
 			if( prefixes.contains(*sym) || infixes.contains(*sym) ) {
-				return os << '(' << **sym << ')';
+				return os << '(' << *sym << ')';
 			}
-			return os << **sym;
+			return os << *sym;
 		}
 		auto const& app = term.app();
 		if( app.has_value() ) {
@@ -16,11 +16,11 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 			if( sym.has_value() ) {
 				auto it = prefixes.find(*sym);
 				if( it != prefixes.end() ) {
-					auto& op = it->second;
+					auto const& op = it->second;
 					if( level > op.llevel ) {
 						os << '(';
 					}
-					os << **sym << ' ' << pretty_term(arg,op.rlevel);
+					os << *sym << ' ' << pretty_term(arg,op.rlevel);
 					if( level > op.llevel ) {
 						os << ')';
 					}
@@ -34,12 +34,12 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 					if( sym.has_value() ) {
 						auto it = infixes.find(*sym);
 						if( it != infixes.end() ) {
-							auto& op = it->second;
+							auto const& op = it->second;
 							if( level > op.level ) {
 								os << '(';
 							}
 							os << pretty_term(arg_in,op.llevel);
-							os << ' ' << **sym << ' ';
+							os << ' ' << *sym << ' ';
 							os << pretty_term(arg,op.rlevel);
 							if( level > op.level ) {
 								os << ')';
@@ -61,11 +61,11 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 		}
 		auto const& abs = term.abs();
 		if( abs.has_value() ) {
-			return os << *abs->first << ". " << pretty_term(abs->second, 0);
+			return os << abs->first << ". " << pretty_term(abs->second, 0);
 		}
 		auto const& fix = term.fix();
 		if( fix.has_value() ) {
-			return os << *fix->first << ".[" << pretty_term(fix->second) << ']';
+			return os << fix->first << ".[" << pretty_term(fix->second) << ']';
 		}
 		assert(false);
 	};
@@ -80,14 +80,14 @@ function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& thm) const {
 function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	return [&](ostream& os) -> ostream& {
 		os << "ctxt {" << endl;
-		for( auto sym : ctxt.sym_list() ) {
-			os << "  sym " << *sym << endl;
+		for( auto const& sym : ctxt.sym_list() ) {
+			os << "  sym " << sym << endl;
 		}
-		for( auto assm : ctxt.assms() ) {
+		for( auto const& assm : ctxt.assms() ) {
 			os << "  assm " << pretty_term(assm) << endl;
 		}
-		for( auto thm : ctxt.thms() ) {
-			os << "  thm " << *thm.first << ": " << pretty_term(thm.second) << endl;
+		for( auto const& thm : ctxt.thms() ) {
+			os << "  thm " << thm.first << ": " << pretty_term(thm.second) << endl;
 		}
 		os << "}" << endl;
 		return os;
@@ -128,12 +128,12 @@ optional<Term> Syntax::get_term(int level) {
 			}
 			ret = Term(it->first);
 			ignore_token();
-			auto r = get_term(it->second.rlevel);
+			auto const& r = get_term(it->second.rlevel);
 			if( r.has_value() ) {
 				ret = ret(r.value());
 			}
 		} else {
-			string sym = get_token();
+			String sym = get_token();
 			if( skips('.') ) {
 				ret = sym /= get_term(level).value();
 			} else if( skips('[') ) {

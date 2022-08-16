@@ -44,20 +44,4 @@ template<typename T>
 bool operator==(Ref<T> const& l, Ref<T> const& r) {
 	return l.ptr == r.ptr || *l == *r;
 };
-template<typename T>
-bool operator==(Ref<T const> const& l, T const& r) {
-	return *l == r;
-};
-template<typename T>
-bool operator<(Ref<T const> const& l, Ref<T const> const& r) {
-	return *l < *r;
-};
-template<typename T>
-bool operator<(T const& l, Ref<T const> const& r) {
-	return l < *r;
-};
-template<typename T>
-bool operator<(Ref<T const> const& l, T const& r) {
-	return *l < r;
-};
 #endif
