@@ -14,6 +14,7 @@ class Ref {
 public:
 	Ref() : ptr(new Body()) {}
 	Ref(T const& body) : ptr(new Body(body)) {}
+	Ref(T&& body) : ptr(new Body(body)) {}
 	Ref(Ref const& org) : ptr(org.ptr) {
 		ptr->nref++;
 	}

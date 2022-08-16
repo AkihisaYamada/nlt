@@ -1,0 +1,161 @@
+\documentclass{lipics-v2021}
+
+\usepackage{amsmath,proof,prettyref}
+
+\title{A Prover}
+\author{Akihisa Yamada}{AIST}{}{}{}
+
+\makeatletter
+\def\tp@#1#2{\@ifnextchar[{\tp@@{#1}{#2}}{\tp@@@{#1}{#2}}}
+\def\tp@@#1#2[#3]#4{\mathopen{#3#1}\def\mid{\mathrel{#3|}}#4\mathclose{#3#2}}
+\def\tp@@@#1#2#3{\bgroup\left#1\def\mid{\;\middle|\;}#3\right#2\egroup}
+\def\pa{\tp@()}
+\def\tp{\tp@\langle\rangle}
+\def\set{\tp@\{\}}
+\def\br{\tp@[]}
+\def\bbr{\tp@\llbracket\rrbracket}
+\def\floor{\tp@\lfloor\rfloor}
+\def\sz{\tp@||}
+
+\def\ASS{\@ifnextchar[{\ASS@}{\ASS@@{}}}
+\def\ASS@[#1]{\ASS@@{\text{\tt#1:}\;}}
+\def\ASS@@#1#2{\mathsf{assume}\hspace{3pt}#1#2}
+\newcommand\FIX[1]{\mathsf{fix}\hspace{3pt}#1}
+\def\SPEC{\@ifnextchar[{\SPEC@}{\SPEC@@{}}}
+\def\SPEC@[#1]#2{\SPEC@@{\text{\tt#1:}\;}{#2}}
+\def\SPEC@@#1#2#3{\mathsf{obtain}\hspace{3pt}#2.\hspace{3pt}#1#3}
+
+\makeatother
+
+\newcommand\cut[1]{}
+
+\newtheorem{metatheorem}{Meta-Theorem}
+\newrefformat{def}{Definition~\ref{#1}}
+
+\newcommand\Term{\mathcal{T}}
+\newcommand\Var{\mathcal{V}}
+\newcommand\Ctxt{\mathcal{C}}
+\newcommand\IMP{\Rightarrow}
+\newcommand\ALL[1]{\forall#1.\,}
+
+\newcommand\impI{{\IMP}\textrm{I}}
+\newcommand\impE{{\IMP}\textrm{E}}
+\newcommand\allI{{\forall}\textrm{I}}
+\newcommand\allE{{\forall}\textrm{E}}
+\newcommand\ass{\text{\sc Ass}}
+\newcommand\spec{\text{\sc Spec}}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\section{Meta-Theory}
+
+\subsection{Terms}
+
+\[ s,t,u,\ldots ::= x \mid s\,s \mid x.\,s \mid x[s]
+\]
+
+Substitution
+\begin{align*}
+[x\mapsto s]x &= s\\
+[x\mapsto s]y &= y \\
+[x\mapsto s](t\,u) &= [x\mapsto s]t\,[x\mapsto s]u\\
+[x\mapsto s](x.\,t) &= x.\,t\\
+[x\mapsto s](y.\,t) &= y.\,[x\mapsto s]t\\
+[x\mapsto y](x[t]) &= y[[x\mapsto y]t]\\
+[x\mapsto y.s](x[t]) &= [y\mapsto t]s\\
+[x\mapsto s](y[t]) &= y[[x\mapsto s]t]
+\end{align*}
+
+
+\subsection{Proof Contexts}
+
+We assume an infix symbol $\IMP$ and a prefix $\forall$.
+
+\begin{definition}[proof contexts]\label{def:ctxt}
+A \emph{proof context} $\Gamma \in \Ctxt(V)$ over variables $V$ is defined as follows.
+
+\begin{itemize}
+\item $\Lambda \in \Ctxt(\emptyset)$
+\item $(\Gamma;\ASS s) \in \Ctxt(V)$ if $\Gamma \in \Ctxt(V)$ and $t \in \Term(V)$
+\item $(\Gamma;\FIX x) \in \Ctxt(V)$ if $x \in V$ and $\Gamma \in \Ctxt(V\setminus\set{x})$
+\end{itemize}
+
+\noindent A term $s$ is a \emph{theorem} in $\Gamma$, written $\Gamma\vdash s$, if it is derivable by the following inference rules:
+%
+\begin{align*}
+\infer[\ass]{\Gamma;\ASS s\vdash s}{}
+&&
+\infer[\text{ if }\Gamma \in \Ctxt(V) \land t \in \Term(V)]{\Gamma;\alpha \vdash t}{\Gamma \vdash t}
+\end{align*}
+\begin{align*}
+\infer[\impE]{\Gamma\vdash t}{\Gamma\vdash s &\Gamma\vdash s \IMP t}
+&&
+\infer[\impI]{\Gamma\vdash s \IMP t}{\Gamma;\ASS s\vdash t}
+\end{align*}
+\begin{align*}
+\infer[\allE]{\Gamma\vdash s[x\mapsto t]}{\Gamma\vdash \ALL{x}{s}}
+&&
+\infer[\allI]{\Gamma\vdash \ALL{x}{s}}{\Gamma;\FIX x \vdash s}
+\end{align*}
+\end{definition}
+
+\subsection{Specification}
+
+\begin{definition}[specifications]\label{def:spec}
+We extend \prettyref{def:ctxt} with the following case:
+
+\begin{itemize}
+\item $(\Gamma;\SPEC{x}{s}) \in \Ctxt(V)$ if $x \in V$, $s \in \Term(V)$, $\Gamma \in \Ctxt(V\setminus\set{x})$, and $\Gamma \vdash \exists x.\,s$
+\end{itemize}
+
+\noindent and the following inference rule:
+\[
+\infer[\spec]{\Gamma;\SPEC{x}{s}\vdash s}{}
+\]
+
+\end{definition}
+
+By stating $\SPEC{x}{s}$ (typically $x$ occurs in $s$), one obtains a term $x$ that satisfies $s$.
+To this end, one must prove that such a term exists ($\Gamma \vdash \exists x.\,s$).
+
+\begin{metatheorem}[spec elimination]
+Let $(\Gamma;\SPEC{x}{s}) \in \Ctxt(V)$ and $t \in \Term(V\setminus\set{x})$
+such that $\Gamma;\SPEC{x}{s} \vdash t$.
+Then $\Gamma \vdash t$.
+\end{metatheorem}
+\begin{proof}
+It is easy to see that $\Gamma;\FIX x;\ASS s \vdash t$ by induction on the proof tree.
+Thus we have $\Gamma \vdash \ALL{x}{s\IMP t}$.
+On the other hand, by \prettyref{def:spec} we have $\Gamma \vdash \exists x.\,s$, i.e., $\Gamma \vdash \ALL{P}{(\ALL x{s \IMP P}) \IMP P}$. We conclude as follows:
+\begin{equation}
+\infer[\impE]{\Gamma \vdash t}{\Gamma \vdash \ALL x{s\IMP t} &
+	\infer[\allE]{\Gamma \vdash (\ALL x{s\IMP t}) \IMP t}{
+		\Gamma \vdash \ALL P{(\ALL x{s \IMP P}) \IMP P}
+	}
+}\tag*{\qedhere}
+\end{equation}
+\end{proof}
+
+
+\section{Theory}
+
+\subsection{Equality}
+
+The root context starts with fixing the $=$ symbol:
+\[
+\FIX (=);
+\]
+Then it assumes two axioms on it:
+\begin{align*}
+&\ASS[EQ.refl] \ALL x{x = x};\\
+&\ASS[EQ.mono] \ALL x \ALL y x = y \IMP \ALL C{C[x]\IMP C[y]};
+\end{align*}
+
+\begin{metatheorem}[definition]
+$(\Gamma;\SPEC x{x = s}) \in \Ctxt(V)$ if $x\in V$, $s \in \Term(V\setminus\set{x})$, and $\Gamma \in \Ctxt(V\setminus\set{x})$.
+\end{metatheorem}
+
+\end{document}

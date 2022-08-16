@@ -5,3 +5,7 @@
 *.aux
 *.synctex.gz
 *.bbl
+*.log
+*.out
+*.vtc
+paper/prover.pdf
