@@ -21,14 +21,14 @@ class Syntax : public Lexer {
 		int llevel;
 		int rlevel;
 	};
-	typedef map<String,Prefix,less<>> PrefixTable;
-	typedef map<String,Infix,less<>> InfixTable;
+	typedef std::map<String,Prefix,std::less<>> PrefixTable;
+	typedef std::map<String,Infix,std::less<>> InfixTable;
 
 	PrefixTable prefixes;
 	InfixTable infixes;
 
 public:
-	Syntax(istream& is) : Lexer(is) {}
+	Syntax(std::istream& is) : Lexer(is) {}
 
 	Syntax& prefix(String const& sym, int level, int rlevel) {
 		prefixes.insert({sym,{level,rlevel}});
@@ -39,11 +39,11 @@ public:
 		return *this;
 	}
 
-	function<ostream&(ostream&)> pretty_term(Term const& term, int level = -1000) const;
-	function<ostream&(ostream&)> pretty_thm(Thm const& thm) const;
-	function<ostream&(ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
-	string get_thm_name();
-	optional<Term> get_term(int level = 0);
+	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
+	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
+	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
+	std::string get_thm_name();
+	std::optional<Term> get_term(int level = 0);
 	Thm get_thm(Ctxt const& ctxt);
 };
 #endif

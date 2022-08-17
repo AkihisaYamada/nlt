@@ -107,7 +107,7 @@ public:
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& thm = prf->move(_ctxt);
+				Thm const& thm = prf->lift(_ctxt);
 				if( stmt != thm ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
@@ -130,12 +130,12 @@ public:
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm goal_thm = prf->move(_ctxt);
+				Thm goal_thm = prf->lift(_ctxt);
 				if( goal != goal_thm ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(goal_thm) << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& spec_thm = obtain_thm.OF(goal_thm);
+				Thm const& spec_thm = obtain_thm.discharge(goal_thm);
 				_ctxt.claim(spec_name,spec_thm);
 				cout << "Successfully obtained " << sym << endl;
 			} else if( _syntax->skips("by") ) {

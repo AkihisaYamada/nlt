@@ -23,7 +23,7 @@
 \newcommand\FIX[1]{\mathsf{fix}\hspace{3pt}#1}
 \def\SPEC{\@ifnextchar[{\SPEC@}{\SPEC@@{}}}
 \def\SPEC@[#1]#2{\SPEC@@{\text{\tt#1:}\;}{#2}}
-\def\SPEC@@#1#2#3{\mathsf{obtain}\hspace{3pt}#2.\hspace{3pt}#1#3}
+\def\SPEC@@#1#2#3{\mathsf{obtain\ }#2\mathsf{\ where\ }#1#3}
 
 \makeatother
 
@@ -37,6 +37,7 @@
 \newcommand\Ctxt{\mathcal{C}}
 \newcommand\IMP{\Rightarrow}
 \newcommand\ALL[1]{\forall#1.\,}
+\newcommand\LAM[1]{\lambda#1.\,}
 
 \newcommand\impI{{\IMP}\textrm{I}}
 \newcommand\impE{{\IMP}\textrm{E}}
@@ -78,7 +79,7 @@ We assume an infix symbol $\IMP$ and a prefix $\forall$.
 A \emph{proof context} $\Gamma \in \Ctxt(V)$ over variables $V$ is defined as follows.
 
 \begin{itemize}
-\item $\Lambda \in \Ctxt(\emptyset)$
+\item $\epsilon \in \Ctxt(\set{\IMP,\forall})$
 \item $(\Gamma;\ASS s) \in \Ctxt(V)$ if $\Gamma \in \Ctxt(V)$ and $t \in \Term(V)$
 \item $(\Gamma;\FIX x) \in \Ctxt(V)$ if $x \in V$ and $\Gamma \in \Ctxt(V\setminus\set{x})$
 \end{itemize}
@@ -157,5 +158,13 @@ Then it assumes two axioms on it:
 \begin{metatheorem}[definition]
 $(\Gamma;\SPEC x{x = s}) \in \Ctxt(V)$ if $x\in V$, $s \in \Term(V\setminus\set{x})$, and $\Gamma \in \Ctxt(V\setminus\set{x})$.
 \end{metatheorem}
+
+\subsection{Lambda Abstraction}
+\[
+\FIX (\lambda);
+\]
+\[
+\ASS[beta]\ALL C \ALL s \lambda\,C\,s = C[s];
+\]
 
 \end{document}

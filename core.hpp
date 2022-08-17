@@ -12,14 +12,12 @@
 #include"ref.hpp"
 #include"string.hpp"
 
-using namespace std;
-
 class Term;
 class Ctxt;
 class Thm;
 
 class VarMaker {
-	static vector<String> vec;
+	static std::vector<String> vec;
 	unsigned int nest;
 public:
 	VarMaker() : nest(0) {}
@@ -32,11 +30,11 @@ extern String const ALL_var;
 extern Term const IMP;
 extern Term const ALL;
 
-typedef map<String,String,less<>> Renaming;
-typedef map<String,Term const,less<>> TermMap;
-typedef set<String,less<>> Syms;
+typedef std::map<String,String,std::less<>> Renaming;
+typedef std::map<String,Term const,std::less<>> TermMap;
+typedef std::set<String,std::less<>> Syms;
 
-ostream& operator<<(ostream& os, Syms const& syms);
+std::ostream& operator<<(std::ostream& os, Syms const& syms);
 
 class Term {
 	enum { SYM, APP, ABS, BIND } _type;
@@ -69,8 +67,8 @@ class Term {
 	Term(App const& app) : _type(APP), _un(app) {}
 	Term(Abs const& abs) : _type(ABS), _un(abs) {}
 	Term(Bind const& bind) : _type(BIND), _un(bind) {}
-	typedef pair<Term const&,Term const&> Pair;
-	typedef pair<String const&, Term const&> StrTerm;
+	typedef std::pair<Term const&,Term const&> Pair;
+	typedef std::pair<String const&, Term const&> StrTerm;
 public:
 	Term(Term const& other);
 	/**
@@ -97,24 +95,24 @@ public:
 	friend Term operator/(String const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
-	optional<String> sym() const {
-		return _type == SYM ? _un.sym : optional<String>();
+	std::optional<String> sym() const {
+		return _type == SYM ? _un.sym : std::optional<String>();
 	}
-	optional<Pair> app() const {
-		return _type == APP ? Pair(*_un.app.fun,*_un.app.arg) : optional<Pair>();
+	std::optional<Pair> app() const {
+		return _type == APP ? Pair(*_un.app.fun,*_un.app.arg) : std::optional<Pair>();
 	}
-	optional<StrTerm> abs() const {
-		return _type == ABS ? StrTerm(_un.abs.var,*_un.abs.body) : optional<StrTerm>();
+	std::optional<StrTerm> abs() const {
+		return _type == ABS ? StrTerm(_un.abs.var,*_un.abs.body) : std::optional<StrTerm>();
 	}
-	optional<StrTerm> fix() const {
-		return _type == BIND ? StrTerm(_un.fix.var,*_un.fix.val) : optional<StrTerm>();
+	std::optional<StrTerm> fix() const {
+		return _type == BIND ? StrTerm(_un.fix.var,*_un.fix.val) : std::optional<StrTerm>();
 	}
 	/**
 	 * @brief Expands implication.
 	 * 
 	 * @return The pair of the premise and conclusion, if this is an implication.
 	 */
-	optional<Pair> imp() const {
+	std::optional<Pair> imp() const {
 		if( _type == APP ) {
 			Term const& fun1 = *_un.app.fun;
 			if( fun1._type == APP ) {
@@ -123,21 +121,21 @@ public:
 				}
 			}
 		}
-		return optional<Pair>();
+		return std::optional<Pair>();
 	}
 	/**
 	 * @brief Expands universal quantification.
 	 * 
 	 * @return The pair of the variable and body, if this is a universal quantification.
 	 */
-	optional<StrTerm> all() const {
+	std::optional<StrTerm> all() const {
 		if( _type == APP ) {
 			if( *_un.app.fun == ALL && _un.app.arg->_type == ABS ) {
 				auto& abs = _un.app.arg->_un.abs;
 				return StrTerm(abs.var,*abs.body);
 			}
 		}
-		return optional<StrTerm>();
+		return std::optional<StrTerm>();
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -146,8 +144,8 @@ public:
 	 * @param fsym applied on free symbols
 	 */
 	void iter_syms(
-		function<void(String const&)> const& bsym,
-		function<void(String const&)> const& fsym
+		std::function<void(String const&)> const& bsym,
+		std::function<void(String const&)> const& fsym
 	) const {
 		Syms bsyms;
 		_iter_syms(bsyms,bsym,fsym);
@@ -162,8 +160,8 @@ private:
 	bool _eq(Term const& r, Renaming& lmap, Renaming& rmap, VarMaker vars) const;// equality test
 	void _iter_syms(
 		Syms& bsyms,
-		function<void(String const&)> const& bsym,
-		function<void(String const&)> const& fsym
+		std::function<void(String const&)> const& bsym,
+		std::function<void(String const&)> const& fsym
 	) const;
 	Term _subst(String const& var, Term const& val, Renaming& ren, Syms const& fixed, VarMaker vars) const;
 
@@ -195,12 +193,12 @@ public:
 	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Syms const& syms() const;
-	vector<String> const& sym_list() const;
-	optional<Ctxt> const& parent() const;
+	std::vector<String> const& sym_list() const;
+	std::optional<Ctxt> const& parent() const;
 	/**
 	 * @brief Returns the set of assumptions.
 	 */
-	vector<Term> const& assms() const;
+	std::vector<Term> const& assms() const;
 	TermMap const& specs() const;
 	TermMap const& thms() const;
 	/**
@@ -215,7 +213,7 @@ public:
 	 * @brief Adds assumption in the context.
 	 */
 	Ctxt const& assume(String const& name, Term const& assm) const;
-	pair<Term,Thm> obtain(String const& sym, Term const& spec) const;
+	std::pair<Term,Thm> obtain(String const& sym, Term const& spec) const;
 	Thm adopt(Thm const& thm) const;
 	/**
 	 * @brief Adds a named theorem in the context.
@@ -231,14 +229,14 @@ public:
 	 * @brief Creates a child context.
 	 */
 	Ctxt branch() const {
-		return Ctxt(optional(*this));
+		return Ctxt(std::optional(*this));
 	}
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
 	friend bool operator==(Ctxt::Body const& l, Ctxt::Body const& r);
 private:
-	Ctxt(optional<Ctxt> const& parent);
+	Ctxt(std::optional<Ctxt> const& parent);
 	Term _thm(String const& name) const;
 	void _add_thm(String const& name, Term const& stmt) const;
 };
@@ -247,7 +245,7 @@ struct Ctxt::Body {
 	/**
 	 * @brief Parent context.
 	 */
-	optional<Ctxt> parent;
+	std::optional<Ctxt> parent;
 	/**
 	 * @brief The set of fixed symbols in the context or ancestors.
 	 */
@@ -255,8 +253,8 @@ struct Ctxt::Body {
 	/**
 	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
 	 */
-	vector<String> sym_list;
-	vector<Term> assms;
+	std::vector<String> sym_list;
+	std::vector<Term> assms;
 	TermMap specs; // constant specifications
 	TermMap thms; // table of theorems
 };
@@ -265,18 +263,18 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.specs == r.specs && l.thms == r.thms;
 };
 
-inline Ctxt::Ctxt(optional<Ctxt> const& parent) : _ref(Ref(Ctxt::Body{parent})) {}
+inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>(Ctxt::Body{parent})) {}
 
 inline Syms const& Ctxt::syms() const {
 	return _ref->syms;
 }
-inline vector<String> const& Ctxt::sym_list() const {
+inline std::vector<String> const& Ctxt::sym_list() const {
 	return _ref->sym_list;
 }
-inline optional<Ctxt> const& Ctxt::parent() const {
+inline std::optional<Ctxt> const& Ctxt::parent() const {
 	return _ref->parent;
 }
-inline vector<Term> const& Ctxt::assms() const {
+inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
 }
 inline TermMap const& Ctxt::specs() const {
@@ -321,7 +319,7 @@ public:
 	 * @return Thm P(t)
 	 * @exception MalformedInstantiation
 	 */
-	Thm of(Term const& t) const;
+	Thm instantiate(Term const& t) const;
 	/**
 	 * @brief implication elimination. This theorem must be of form P ⟹ Q.
 	 * 
@@ -330,16 +328,23 @@ public:
 	 * @exception MalformedDischarge
 	 * @exception WrongContext
 	 */
-	Thm OF(Thm const& t) const;
+	Thm discharge(Thm const& t) const;
 	/**
-	 * @brief Moves the theorem to parent context.
+	 * @brief Moves the theorem to ancestor context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
 	 */
-	Thm move(Ctxt const& ctxt) const;
+	Thm lift(Ctxt const& ctxt) const;
+	/**
+	 * @brief Imports the theorem to descendant context.
+	 * 
+	 * @param ctxt the descendant context.
+	 * @return Thm 
+	 */
+	Thm adopt(Ctxt const& ctxt) const;
 private:
 	friend Thm Ctxt::thm(String const& name) const;
-	friend pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const;
+	friend std::pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const;
 };
 
 inline Thm Ctxt::thm(String const& name) const {
@@ -347,30 +352,30 @@ inline Thm Ctxt::thm(String const& name) const {
 }
 
 inline Ctxt const& Ctxt::claim(String const& name, Thm const& thm) const {
-	Thm thm_here = thm.move(*this);
+	Thm thm_here = thm.lift(*this);
 	_add_thm(name,thm_here);
 	return *this;
 }
 
-struct UnexpectedTerm : public exception {
+struct UnexpectedTerm : public std::exception {
 	Term term;
 	UnexpectedTerm(Term const& term) : term(term) {}
 };
-struct MalformedInstantiation : public exception {
+struct MalformedInstantiation : public std::exception {
 	Term all, arg;
 	MalformedInstantiation(Term const& all, Term const& arg) : all(all), arg(arg) {}
 };
-struct MalformedDischarge : public exception {
+struct MalformedDischarge : public std::exception {
 	Term imp, arg;
 	MalformedDischarge(Term const& imp, Term const& arg) : imp(imp), arg(arg) {}
 };
-struct TheoremNotFound : public exception {
+struct TheoremNotFound : public std::exception {
 	String name;
 	TheoremNotFound(String const& name) : name(name) {}
 };
-class WrongContext : public exception {};
+class WrongContext : public std::exception {};
 
-struct DoubleFix : public exception {
+struct DoubleFix : public std::exception {
 	String name;
 	DoubleFix(String const& name) : name(name) {}
 };

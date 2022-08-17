@@ -26,7 +26,7 @@ Theories::Theories() :
 	{	Ctxt local = root.branch().assume("p",P);
 		root.claim("IMP.refl",local.thm("p"));
 		local.assume("pq",P>>=Q);
-		root.claim("mp",local.thm("pq").OF(local.thm("p")));
+		root.claim("mp",local.thm("pq").discharge(local.thm("p")));
 	}
 	cout << root << endl;
 
@@ -39,11 +39,11 @@ Theories::Theories() :
 	{	Ctxt local = equational.branch().
 			assume("PQ", P ^ Q);
 		Thm t = local.thm("EQ.sym");
-		t = t.of(P);
-		t = t.of(Q).OF(local.thm("PQ"));
-		Thm t2 = local.thm("EQ.prop1").of(Q);
-		t2 = t2.of(P);
-		t2 = t2.OF(t);
+		t = t.instantiate(P);
+		t = t.instantiate(Q).discharge(local.thm("PQ"));
+		Thm t2 = local.thm("EQ.prop1").instantiate(Q);
+		t2 = t2.instantiate(P);
+		t2 = t2.discharge(t);
 		equational.claim("EQ.prop2",t2);
 	}
 	cout << equational << endl;
@@ -53,50 +53,50 @@ Theories::Theories() :
 		assume("OR.def", "P" %= "Q" %= (P || Q) ^ ("R" %= (P >>= R) >>= (Q >>= R) >>= R)).
 		assume("EX.def", "α" %= EX(alpha) ^ ("P" %= ("x" %= "α"/x >>= P) >>= P));
 	{	Ctxt local = logical.branch().fix("P").fix("Q");
-		Thm t = local.thm("EQ.prop1").of(P&&Q).of("R" %= (P >>= Q >>= R) >>= R);
-		Thm t2 = local.thm("AND.def").of(P).of(Q);
-		t = t.OF(t2);
+		Thm t = local.thm("EQ.prop1").instantiate(P&&Q).instantiate("R" %= (P >>= Q >>= R) >>= R);
+		Thm t2 = local.thm("AND.def").instantiate(P).instantiate(Q);
+		t = t.discharge(t2);
 		logical.claim("AND.elim", t);
 	}
 	{	Ctxt local = logical.branch().assume("P",P).assume("Q",Q);
 		{	Ctxt local2 = local.branch().fix("R").assume("PQR",P>>=Q>>=R);
 			local.claim("rhs",
-				local2.thm("PQR").OF(local2.thm("P")).
-				OF(local2.thm("Q"))
+				local2.thm("PQR").discharge(local2.thm("P")).
+				discharge(local2.thm("Q"))
 			);
 		}
 		Thm t = local.thm("EQ.prop2");
-		t = t.of(P&&Q);
-		t = t.of("R" %= (P >>= Q >>= R) >>= R);
-		t = t.OF(local.thm("AND.def").of(P).of(Q));
-		t = t.OF(local.thm("rhs"));
+		t = t.instantiate(P&&Q);
+		t = t.instantiate("R" %= (P >>= Q >>= R) >>= R);
+		t = t.discharge(local.thm("AND.def").instantiate(P).instantiate(Q));
+		t = t.discharge(local.thm("rhs"));
 		logical.claim("AND.intro",t);
 	}
 	{	Ctxt local = logical.branch().
 			assume("Px", P(x));
 		Thm t = local.thm("EX.def");
-		t = t.of("x" /= P(x));
+		t = t.instantiate("x" /= P(x));
 		Thm t2 = local.thm("EQ.prop2");
-		t2 = t2.of(t.app()->fun.app()->arg);
-		t2 = t2.of(t.app()->arg);
-		t2 = t2.OF(t);
+		t2 = t2.instantiate(t.app()->fun.app()->arg);
+		t2 = t2.instantiate(t.app()->arg);
+		t2 = t2.discharge(t);
 		{	Ctxt local2 = local.branch().
 				assume("*", "z" %= P(z) >>= y);
 			Thm t3 = local2.thm("*");
-			t3 = t3.of(x).OF(local2.thm("Px"));
+			t3 = t3.instantiate(x).discharge(local2.thm("Px"));
 			local.claim("1",t3);
 		}
-		t2 = t2.OF(local.thm("1"));
+		t2 = t2.discharge(local.thm("1"));
 		logical.claim("EX.intro",t2);
 	}
 	{	Ctxt local = logical.branch();
 		local.assume("p_pq", P && (P >>= Q));
 		Thm t = local.thm("AND.elim");
-		t = t.of(P);
-		t = t.of(P >>= Q);
-		t = t.OF(local.thm("p_pq"));
-		t = t.of(Q);
-		t = t.OF(local.thm("mp").of(P).of(Q));
+		t = t.instantiate(P);
+		t = t.instantiate(P >>= Q);
+		t = t.discharge(local.thm("p_pq"));
+		t = t.instantiate(Q);
+		t = t.discharge(local.thm("mp").instantiate(P).instantiate(Q));
 		logical.claim("mp2",t);
 	}
 	cout << logical << endl;

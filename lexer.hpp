@@ -5,7 +5,6 @@
 #include<cstdlib>
 #include<cassert>
 #include<exception>
-#include"string.hpp"
 
 class SyntaxError : std::exception {};
 

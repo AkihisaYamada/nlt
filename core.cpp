@@ -4,21 +4,7 @@
 using namespace std;
 
 vector<String> VarMaker::vec;
-/*
-pair<Term const&, list<Term>> uncurry(Term const& t) {
-	Term const* cur = &t;
-	list<Term> args;
-	for(;;) {
-		auto const& p = cur->app();
-		if( p.has_value() ) {
-			args.push_front(p->second);
-			cur = &p->first;
-		} else {
-			return pair<Term const&, list<Term>>(*cur,args);
-		}
-	}
-}
-*/
+
 String VarMaker::make() {
 	auto pre = nest;
 	nest++;
@@ -26,7 +12,7 @@ String VarMaker::make() {
 		return vec[pre];
 	}
 	// permanently allocate a string.
-	String name = "_" + to_string(nest);
+	String name = string("_") + to_string(nest);
 	vec.push_back(name);
 	return name;
 }
@@ -249,7 +235,7 @@ pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const {
 	return pair(goal,Thm(*this,goal >>= spec));
 }
 
-Thm Thm::of(Term const& t) const {
+Thm Thm::instantiate(Term const& t) const {
 	auto a = all();
 	if( a.has_value() ) {
 		return Thm(ctxt(),a->second.subst(a->first,t));
@@ -257,7 +243,7 @@ Thm Thm::of(Term const& t) const {
 	throw MalformedInstantiation(*this,t);
 }
 
-Thm Thm::OF(Thm const& t) const {
+Thm Thm::discharge(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
@@ -268,15 +254,15 @@ Thm Thm::OF(Thm const& t) const {
 	throw MalformedDischarge(*this,t);
 }
 
-Thm Thm::move(Ctxt const& ctxt) const {
+Thm Thm::lift(Ctxt const& ctxt) const {
 	if( ctxt == _ctxt ) {
 		return *this;
 	}
-	if( !_ctxt.parent() ) {
+	auto const& parent = _ctxt.parent();
+	if( !parent.has_value() ) {
 		throw WrongContext();
 	}
 	Term stmt = *this;
-	auto const& parent = *_ctxt.parent();
 	auto const& assms = _ctxt.assms();
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
 		stmt = *it >>= stmt;
@@ -285,5 +271,18 @@ Thm Thm::move(Ctxt const& ctxt) const {
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = *it %= stmt;
 	}
-	return Thm(parent,stmt);
+	return Thm(*parent,stmt);
+}
+Thm Thm::adopt(Ctxt const& ctxt) const {
+	Ctxt cur = ctxt;
+	for(;;) {
+		if( cur == _ctxt ) {
+			return Thm(ctxt,*this);
+		}
+		auto const& parent = cur.parent();
+		if( !parent.has_value() ) {
+			throw WrongContext();
+		}
+		cur = *parent;
+	}
 }

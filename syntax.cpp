@@ -1,5 +1,7 @@
 #include "syntax.hpp"
 
+using namespace std;
+
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
 	return [&](ostream& os) -> ostream& {
 		auto const& sym = term.sym();
@@ -178,12 +180,12 @@ Thm Syntax::get_thm(Ctxt const& ctxt) {
 	for(;;) {
 		if( skips('(') ) {
 			do {
-				ret = ret.of(get_term().value());
+				ret = ret.instantiate(get_term().value());
 			} while( skips(',') );
 			skip(')');
 		} else if( skips('[') ) {
 			do {
-				ret = ret.OF(get_thm(ctxt));
+				ret = ret.discharge(get_thm(ctxt));
 			} while	( skips(',') );
 			skip(']');
 		} else {
