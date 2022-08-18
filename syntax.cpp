@@ -1,4 +1,5 @@
 #include "syntax.hpp"
+#include "matcher.hpp"
 
 using namespace std;
 
@@ -184,9 +185,11 @@ Thm Syntax::get_thm(Ctxt const& ctxt) {
 			} while( skips(',') );
 			skip(')');
 		} else if( skips('[') ) {
+			list<Thm> args;
 			do {
-				ret = ret.discharge(get_thm(ctxt));
+				args.push_back(get_thm(ctxt));
 			} while	( skips(',') );
+			ret = inst_discharge(ret,args);
 			skip(']');
 		} else {
 			return ret;

@@ -247,11 +247,11 @@ struct Ctxt::Body {
 	 */
 	std::optional<Ctxt> parent;
 	/**
-	 * @brief The set of fixed symbols in the context or ancestors.
+	 * @brief The set of symbols fixed in this context, but not in ancestors.
 	 */
 	Syms syms;
 	/**
-	 * @brief The vector of those symbols that are fixed in the context, but not in ancestors.
+	 * @brief The vector of symbols fixed in this context, but not in ancestors.
 	 */
 	std::vector<String> sym_list;
 	std::vector<Term> assms;
@@ -265,6 +265,9 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 
 inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>(Ctxt::Body{parent})) {}
 
+/**
+ * @brief The set of all symbols fixed in this context or an ancestor.
+ */
 inline Syms const& Ctxt::syms() const {
 	return _ref->syms;
 }
@@ -323,7 +326,7 @@ public:
 	/**
 	 * @brief implication elimination. This theorem must be of form P ⟹ Q.
 	 * 
-	 * @param t must be alpha equal to P.
+	 * @param t must be alpha equal to P and in the same context as this.
 	 * @return Thm Q.
 	 * @exception MalformedDischarge
 	 * @exception WrongContext

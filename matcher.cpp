@@ -1,12 +1,10 @@
-#include<list>
-#include<algorithm>
-#include"core.hpp"
+#include"matcher.hpp"
 
 using namespace std;
 
-String avoid_vars(String const& orig, set<String>& avoids) {
+String make_fresh(Ctxt const& ctxt, String const& orig) {
 	string ret = orig;
-	while( avoids.contains(ret) ) {
+	while( ctxt.fixes(ret) ) {
 		ret.append("'");
 	}
 	return String(ret);
@@ -14,43 +12,20 @@ String avoid_vars(String const& orig, set<String>& avoids) {
 
 /**
  * @brief strips universal quantifiers
- * 
- * @param t 
- * @param fvs 
- * @return a pair of the stripped term and the list of (distinct) free variables
+ * @return the stripped theorem in a context with (distinct) fixed variables
  */
-pair<Term,list<String>> strip_all(Term const& t, set<String>& fvs) {
-	Term cur = t;
-	list<String> vars;
+Thm strip_all(Thm const& t) {
+	Ctxt ctxt = t.ctxt().branch();
+	Thm cur = t.adopt(ctxt);
 	for(;;) {
 		auto const& x = cur.all();
 		if( x.has_value() ) {
 			auto const& v = x->first;
-			if( fvs.contains(v) ) {
-				String const& nv = avoid_vars(v,fvs);
-				vars.push_back(nv);
-				fvs.insert(nv);
-				cur = x->second.subst(v,nv);
-			} else {
-				vars.push_back(v);
-				cur = x->second;
-			}
+			String const& nv = make_fresh(ctxt,v);
+			ctxt.fix(nv);
+			cur = cur.instantiate(nv);
 		} else {
-			return pair<Term,list<String>>(cur,vars);
-		}
-	}
-}
-
-pair<list<Term>,Term> explode_imp(Term const& t) {
-	list<Term> ret;
-	Term const* cur = &t;
-	for(;;) {
-		auto const& imp = cur->imp();
-		if( imp.has_value() ) {
-			ret.push_back(imp->first);
-			cur = &imp->second;
-		} else {
-			return pair(ret,*cur);
+			return cur;
 		}
 	}
 }
@@ -58,30 +33,29 @@ pair<list<Term>,Term> explode_imp(Term const& t) {
 /**
  * @brief Matching, assuming disjoint free variables.
  * 
- * @param vars the list of free variables in pattern
+ * @param ctxt context which fixes non variable symbols.
  * @param pat 
  * @param val 
  */
-bool match(list<String> const& vars, Term const& pat, Term const& val, TermMap& subst, VarMaker vm) {
+bool match(Ctxt const& ctxt, Term const& pat, Term const& val, TermMap& subst, VarMaker vm) {
 	auto const& sym = pat.sym();
 	if( sym.has_value() ) {
-		if( subst.contains(*sym) ) {// the variable is already fixed
-			return subst[*sym] == val;
-		}
-		auto const& it = find(vars.begin(),vars.end(),*sym);
-		if( it == vars.end() ) {// pat is non-free symbol
+		if( ctxt.fixes(*sym) ) {// fixed symbol
 			return pat == val;
 		}
-		// fixing the free variable
-		subst.insert({*it,val});
+		if( subst.contains(*sym) ) {// already assigned variable
+			return subst[*sym] == val;
+		}
+		// assigning the free variable
+		subst.insert({*sym,val});
 		return true;
 	}
 	auto const& app = pat.app();
 	if( app.has_value() ) {
 		auto const& app2 = val.app();
 		return app2.has_value() &&
-			match(vars,app->first,app2->first,subst,vm) &&
-			match(vars,app->second,app2->second,subst,vm);
+			match(ctxt,app->first,app2->first,subst,vm) &&
+			match(ctxt,app->second,app2->second,subst,vm);
 	}
 	auto const& abs = pat.abs();
 	if( abs.has_value() ) {
@@ -90,44 +64,52 @@ bool match(list<String> const& vars, Term const& pat, Term const& val, TermMap& 
 			return false;
 		}
 		String nv = vm.make();
-		return match(vars,abs->second.subst(abs->first,nv),abs2->second.subst(abs2->first,nv),subst,vm);
+		return match(ctxt,abs->second.subst(abs->first,nv),abs2->second.subst(abs2->first,nv),subst,vm);
 	}
-	return false;
+	auto const& fix = pat.fix();
+	assert( fix.has_value() );
+	auto const& fix2 = val.fix();
+	if( !fix2.has_value() ) {
+		return false;
+	}
+	return fix->first == fix2->first && match(ctxt,fix->second,fix2->second,subst,vm);
 }
-
-Thm inst_discharge(set<String> fvars, Thm const& t, list<Thm> const& args) {
-	auto const& p = strip_all(t,fvars);
-	list<String> bvars = p.second;
+/**
+ * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
+ * 
+ * @param t 
+ * @param args 
+ * @return the resulting theorem.
+ */
+Thm inst_discharge(Thm const& t, list<Thm> const& args) {
+	Ctxt ctxt = t.ctxt();
+	Thm const& t2 = strip_all(t);
+	Term const* body = &t2;
+	Ctxt const& loc1 = t2.ctxt();
 	TermMap subst;
-	Term const* body = &p.first;
 	for( auto const& arg : args ) {
 		auto const& imp = body->imp();
-		if( !imp.has_value() || !match(bvars,imp->first,arg,subst,VarMaker()) ) {
+		if( !imp.has_value() || !match(ctxt,imp->first,arg,subst,VarMaker()) ) {
 			throw MalformedDischarge(*body,arg);
 		}
 		body = &imp->second;
 	}
-	// to quantify unfixed variables
-	Ctxt ctxt = t.ctxt().branch();
-	for( auto const& bvar : bvars ) {
-		if( !subst.contains(bvar) ) {
-			ctxt.fix(bvar);
-		}
-	}
-	// instantiate fixed variables
-	Thm tmp = t.adopt(ctxt);
-	for( auto const& bvar : bvars ) {
+	// instantiate assigned variables
+	Ctxt loc2 = ctxt.branch();
+	Thm tmp = t.adopt(loc2);
+	for( auto const& bvar : loc1.sym_list() ) {
 		if( subst.contains(bvar) ) {
 			tmp = tmp.instantiate(subst[bvar]);
 		} else {
+			loc2.fix(bvar);
 			tmp = tmp.instantiate(bvar);
 		}
 	}
 	// discharge conditions
 	for( auto const& arg : args ) {
-		tmp = tmp.discharge(arg);
+		tmp = tmp.discharge(arg.adopt(loc2));
 	}
-	return tmp.lift(t.ctxt());
+	return tmp.lift(ctxt);
 }
 
 pair<Term const&, list<Term>> uncurry(Term const& t) {
