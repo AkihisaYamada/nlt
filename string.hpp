@@ -38,11 +38,17 @@ inline bool operator==(String const& l, String const& r) {
 inline bool operator<(String const& l, String const& r) {
 	return (std::string const&)l < (std::string const&)r;
 };
-inline bool operator<(std::string_view const& l, String const& r) {
+inline bool operator<(std::string_view l, String const& r) {
 	return l < (std::string_view)r;
 };
 inline bool operator<(String const& l, std::string_view r) {
 	return (std::string_view)l < r;
+};
+inline bool operator<(std::string const& l, String const& r) {
+	return l < (std::string const&)r;
+};
+inline bool operator<(String const& l, std::string const& r) {
+	return (std::string const&)l < r;
 };
 
 inline std::ostream& operator<<(std::ostream& os, String const& x) {

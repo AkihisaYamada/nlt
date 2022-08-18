@@ -61,9 +61,6 @@ class Term {
 		Union(Abs const& abs) : abs(abs) {}
 		Union(Bind const& fix) : fix(fix) {}
 	} _un;
-	Term* operator&() { // making pointer is private
-		return this;
-	}
 	Term(App const& app) : _type(APP), _un(app) {}
 	Term(Abs const& abs) : _type(ABS), _un(abs) {}
 	Term(Bind const& bind) : _type(BIND), _un(bind) {}
