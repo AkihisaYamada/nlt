@@ -16,28 +16,24 @@ Thm allI(Thm const& thm, String const& var);
 /**
  * @brief renames a variable so that it is fresh in the context.
  * 
+ * @param str 
  * @param ctxt 
- * @param orig 
- * @param fsyms the list of avoided free variables. The quantified variables will be appended.
  * @return the stripped theorem
  */
-String make_fresh(std::list<String> const& syms, Ctxt const& ctxt, String const& orig);
+String make_fresh(std::string const& str, Ctxt const& ctxt);
 
 /**
  * @brief strips universal quantifiers.
- * @param fsyms list of free variables.
- * @param thm 
- * @return the stripped theorem.
+ * @param thm the theorem to be stripped.
+ * @param loc this context will fix the bound variables.
  */
-Thm strip_all(std::list<String>& fsyms, Thm thm);
+void strip_all(Thm& thm, Ctxt& loc);
 /**
  * @brief strips universal quantifiers.
- * @param fsyms list of free variables.
- * @param ctxt the context which `t` term belongs to.
  * @param t 
- * @return the stripped term.
+ * @param loc this context will fix the bound variables.
  */
-Term strip_all(std::list<String>& fsyms, Ctxt const& ctxt, Term const& t);
+void strip_all(Term& t, Ctxt const& loc);
 
 /**
  * @brief Matching, assuming disjoint free variables.
@@ -48,12 +44,25 @@ Term strip_all(std::list<String>& fsyms, Ctxt const& ctxt, Term const& t);
 bool match(std::list<String> const& fsyms, Term const& pat, Term const& val, TermMap& subst);
 
 /**
+ * @brief Unification.
+ * 
+ * @param ctxt should fix all the free variables in l and r.
+ * @param l 
+ * @param r 
+ * @param fsyms list of free variables.
+ * @param subst should be initially empty.
+ * @return true: subst should be a (most general) unifier.
+ * @return false: l and r do not unify.
+ */
+bool unify(Ctxt const& ctxt, Term const& l, Term const& r, std::list<String> const& fsyms, TermMap& subst);
+
+/**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
  * 
  * @param t 
- * @param args 
+ * @param arg
  * @return the resulting theorem.
  */
-Thm inst_discharge(Thm t, std::list<Thm> args);
+Thm discharge(Thm t, Thm arg);
 
 #endif

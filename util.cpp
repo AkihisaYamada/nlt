@@ -2,51 +2,6 @@
 
 using namespace std;
 
-Thm allI(Thm const& thm, String const& var) {
-	Ctxt ctxt = thm.ctxt();
-	return thm.weaken(ctxt.branch().fix(var)).lift(ctxt);
-}
-
-String make_fresh(list<String> const& syms, Ctxt const& ctxt, String const& orig) {
-	string ret = orig;
-	while( ctxt.fixes(ret) ) {
-		ret.append("'");
-	}
-	while( find(syms.begin(),syms.end(),ret) != syms.end() ) {
-		ret.append("'");
-	}
-	return String(ret);
-}
-
-Thm strip_all(list<String>& fsyms, Thm t) {
-	Ctxt const& ctxt = t.ctxt();
-	for(;;) {
-		auto const& all = t.all();
-		if( all.has_value() ) {
-			auto const& v = all->first;
-			String const& nv = make_fresh(fsyms,ctxt,v);
-			fsyms.push_back(nv);
-			t = t.allE(nv);
-		} else {
-			return t;
-		}
-	}
-}
-Term strip_all(list<String>& fsyms, Ctxt const& ctxt, Term const& t) {
-	Term cur = t;
-	for(;;) {
-		auto const& all = cur.all();
-		if( all.has_value() ) {
-			auto const& v = all->first;
-			String const& nv = make_fresh(fsyms,ctxt,v);
-			ctxt.fix(nv);
-			cur = all->second.subst(v,nv);
-		} else {
-			return cur;
-		}
-	}
-}
-
 pair<Term const&, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
@@ -61,26 +16,30 @@ pair<Term const&, list<Term>> uncurry(Term const& t) {
 	}
 }
 
-bool match(list<String> const& fsyms, Term const& pat, Term const& val, TermMap& matcher) {
+Thm allI(Thm const& thm, String const& var) {
+	Ctxt ctxt = thm.ctxt();
+	return thm.weaken(ctxt.branch().fix(var)).lift(ctxt);
+}
+
+bool match(Ctxt const& loc, Term const& pat, Term const& val, TermMap& matcher) {
 	auto const& sym = pat.sym();
 	if( sym.has_value() ) {
 		String const& x = *sym;
 		if( matcher.contains(x) ) {// already assigned variable
 			return matcher[x] == val;
 		}
-		auto it = find(fsyms.begin(),fsyms.end(),*sym);
-		if( it == fsyms.end() ) {// fixed symbol
-			return pat == val;
+		if( loc.syms().contains(x) ) {// free symbol
+			matcher.insert({*sym,val});// assigning to the variable
+			return true;
 		}
-		matcher.insert({*sym,val});// assigning to the variable
-		return true;
+		return pat == val;
 	}
 	auto const& app = pat.app();
 	if( app.has_value() ) {
 		auto const& app2 = val.app();
 		return app2.has_value() &&
-			match(fsyms,app->first,app2->first,matcher) &&
-			match(fsyms,app->second,app2->second,matcher);
+			match(loc,app->first,app2->first,matcher) &&
+			match(loc,app->second,app2->second,matcher);
 	}
 	auto const& abs = pat.abs();
 	if( abs.has_value() ) {
@@ -94,14 +53,14 @@ bool match(list<String> const& fsyms, Term const& pat, Term const& val, TermMap&
 		if( it != matcher.end() ) {
 			Term pre = it->second;//remember old assignment
 			it->second = y;// replace the assignment to y
-			if( match(fsyms,abs->second,abs2->second,matcher) ) {
+			if( match(loc,abs->second,abs2->second,matcher) ) {
 				it->second = pre;// recover the old assignment
 				return true;
 			}
 			return false;
 		}
 		matcher.insert({x,y});// assign x := y
-		if( match(fsyms,abs->second,abs2->second,matcher) ) {
+		if( match(loc,abs->second,abs2->second,matcher) ) {
 			matcher.erase(x);// forget the assignment
 			return true;
 		}
@@ -113,31 +72,66 @@ bool match(list<String> const& fsyms, Term const& pat, Term const& val, TermMap&
 	if( !fix2.has_value() ) {
 		return false;
 	}
-	return fix->first == fix2->first && match(fsyms,fix->second,fix2->second,matcher);
+	return fix->first == fix2->first && match(loc,fix->second,fix2->second,matcher);
 }
 
-Thm inst_discharge(Thm thm, list<Thm> args) {
-	Ctxt ctxt = thm.ctxt();
-	list<String> fsyms;
-	thm = strip_all(fsyms,thm);
-	for( auto const& arg : args ) {
-		auto const& imp = thm.imp();
-		if( !imp.has_value() ) {
-			throw MalformedDischarge(thm,arg);
-		}
-		TermMap matcher;
-		if( !match(fsyms,imp->first,arg,matcher) ) {
-			throw MalformedDischarge(thm,arg);
-		}
-		for( auto const& p : matcher ) {
-			thm = allI(thm,p.first).allE(p.second);
-			fsyms.erase(find(fsyms.begin(),fsyms.end(),p.first));// not free anymore
-		}
-		thm = thm.impE(arg);
+void make_fresh(string& str, Ctxt const& ctxt) {
+	while( ctxt.fixes(str) ) {
+		str.append("'");
 	}
-	// quantify free variables again
-	for( auto const& fsym : fsyms ) {
-		thm = allI(thm,fsym);
+}
+
+void strip_all(Thm& thm, Ctxt& ctxt) {
+	for(;;) {
+		auto const& all = thm.all();
+		if( all.has_value() ) {
+			string str = all->first;
+			make_fresh(str,ctxt);
+			String nv = String(str);
+			ctxt.fix(nv);
+			thm = thm.allE(nv);
+		} else {
+			return;
+		}
+	}
+}
+void strip_all(Term& t, Ctxt& ctxt) {
+	for(;;) {
+		auto const& all = t.all();
+		if( all.has_value() ) {
+			String const& v = all->first;
+			string str = v;
+			make_fresh(str,ctxt);
+			String nv = String(str);
+			ctxt.fix(nv);
+			t = all->second.subst(v,nv);
+		} else {
+			return;
+		}
+	}
+}
+
+Thm discharge(Thm thm, Thm arg) {
+	Ctxt ctxt = thm.ctxt();
+	Ctxt loc = ctxt.branch();
+	strip_all(thm,loc);
+	auto const& imp = thm.imp();
+	if( !imp.has_value() ) {
+		throw MalformedDischarge(thm,arg);
+	}
+	TermMap matcher;
+	if( !match(loc,imp->first,arg,matcher) ) {
+		throw MalformedDischarge(thm,arg);
+	}
+	for( auto const& p : matcher ) {
+		thm = allI(thm,p.first).allE(p.second);
+	}
+	thm = thm.impE(arg);
+	// quantify remaining free variables
+	for( auto const& fsym : loc.sym_list() ) {
+		if( !matcher.contains(fsym) ) {
+			thm = allI(thm,fsym);
+		}
 	}
 	return thm;
 }

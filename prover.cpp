@@ -47,11 +47,9 @@ public:
 				} while( _syntax->skips(',') );
 				_syntax->skip(')');
 			} else if( _syntax->skips('[') ) {
-				list<Thm> args;
 				do {
-					args.push_back(get_thm(ctxt));
+					ret = discharge(ret,get_thm(ctxt));
 				} while	( _syntax->skips(',') );
-				ret = inst_discharge(ret,args);
 				_syntax->skip(']');
 			} else {
 				return ret;
