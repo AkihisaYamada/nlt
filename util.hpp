@@ -18,9 +18,8 @@ Thm allI(Thm const& thm, String const& var);
  * 
  * @param str 
  * @param ctxt 
- * @return the stripped theorem
  */
-String make_fresh(std::string const& str, Ctxt const& ctxt);
+void make_fresh(std::string& str, Ctxt const& ctxt);
 
 /**
  * @brief strips universal quantifiers.
@@ -49,12 +48,12 @@ bool match(std::list<String> const& fsyms, Term const& pat, Term const& val, Ter
  * @param ctxt should fix all the free variables in l and r.
  * @param l 
  * @param r 
- * @param fsyms list of free variables.
+ * @param fsyms set of free variables.
  * @param subst should be initially empty.
  * @return true: subst should be a (most general) unifier.
  * @return false: l and r do not unify.
  */
-bool unify(Ctxt const& ctxt, Term const& l, Term const& r, std::list<String> const& fsyms, TermMap& subst);
+bool unify(Ctxt const& ctxt, Term const& l, Term const& r, Syms const& fsyms, TermMap& subst);
 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.

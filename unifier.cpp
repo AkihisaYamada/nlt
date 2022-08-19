@@ -13,16 +13,15 @@ bool var_occurs(String const& v, Term const& t) {
 	}
 }
 
-bool unify0(String const& var, Term const& val, list<String> const& fsyms, TermMap& subst) {
-	auto it = find(fsyms.begin(),fsyms.end(),var);
-	if( it == fsyms.end() || var_occurs(var,val) ) {
-		return false;
+bool unify0(String const& var, Term const& val, Syms const& fsyms, TermMap& subst) {
+	if( fsyms.contains(var) && !var_occurs(var,val) ) {
+		subst.insert({var,val});
+		return true;
 	}
-	subst.insert({var,val});
-	return true;
+	return false;
 }
 
-bool unify1(String const& x, Term const& r, list<String> const& fsyms, TermMap& subst) {
+bool unify1(String const& x, Term const& r, Syms const& fsyms, TermMap& subst) {
 	auto const& rsym = r.sym();
 	if( rsym.has_value() ) {
 		String const& y = *rsym;
@@ -42,7 +41,7 @@ bool unify1(String const& x, Term const& r, list<String> const& fsyms, TermMap& 
 	return unify0(x,r,fsyms,subst);
 }
 
-bool unify2(Ctxt const& ctxt, Term const& l, Term const& r, list<String> const& fsyms, TermMap& subst) {
+bool unify2(Ctxt const& ctxt, Term const& l, Term const& r, Syms const& fsyms, TermMap& subst) {
 	auto const& rsym = r.sym();
 	if( rsym.has_value() ) {
 		if( subst.contains(*rsym) ) {
@@ -66,7 +65,9 @@ bool unify2(Ctxt const& ctxt, Term const& l, Term const& r, list<String> const& 
 		// both are abstraction.
 		String const& x = labs->first;
 		String const& y = rabs->first;
-		String z = make_fresh(fsyms,ctxt,x);// make a fresh variable z
+		string str = x;
+		make_fresh(str,ctxt);// make a fresh variable z
+		String z = str;
 		Ctxt ctxt2 = ctxt.branch();
 		ctxt2.fix(z);
 		return unify(ctxt2,labs->second.subst(x,z),rabs->second.subst(y,z),fsyms,subst);
@@ -80,7 +81,7 @@ bool unify2(Ctxt const& ctxt, Term const& l, Term const& r, list<String> const& 
 	return lfix->first == fix2->first && unify(ctxt,lfix->second,fix2->second,fsyms,subst);
 }
 
-bool unify(Ctxt const& ctxt, Term const& l, Term const& r, list<String> const& fsyms, TermMap& subst) {
+bool unify(Ctxt const& ctxt, Term const& l, Term const& r, Syms const& fsyms, TermMap& subst) {
 	auto const& lsym = l.sym();
 	if( lsym.has_value() ) {
 		String const& x = *lsym;

@@ -119,17 +119,17 @@ Thm discharge(Thm thm, Thm arg) {
 	if( !imp.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	TermMap matcher;
-	if( !match(loc,imp->first,arg,matcher) ) {
+	TermMap subst;
+	if( !match(loc,imp->first,arg,subst) ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	for( auto const& p : matcher ) {
+	for( auto const& p : subst ) {
 		thm = allI(thm,p.first).allE(p.second);
 	}
 	thm = thm.impE(arg);
 	// quantify remaining free variables
 	for( auto const& fsym : loc.sym_list() ) {
-		if( !matcher.contains(fsym) ) {
+		if( !subst.contains(fsym) ) {
 			thm = allI(thm,fsym);
 		}
 	}
