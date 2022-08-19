@@ -1,5 +1,6 @@
-#include <fstream>
-#include "syntax.hpp"
+#include<fstream>
+#include"util.hpp"
+#include"syntax.hpp"
 
 using namespace std;
 
@@ -36,6 +37,27 @@ public:
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis({parent._ctxt,claim}) {}
+
+	Thm get_thm(Ctxt const& ctxt) {
+		Thm ret = ctxt.thm(_syntax->get_thm_name());
+		for(;;) {
+			if( _syntax->skips('(') ) {
+				do {
+					ret = ret.allE(_syntax->get_term().value());
+				} while( _syntax->skips(',') );
+				_syntax->skip(')');
+			} else if( _syntax->skips('[') ) {
+				list<Thm> args;
+				do {
+					args.push_back(get_thm(ctxt));
+				} while	( _syntax->skips(',') );
+				ret = inst_discharge(ret,args);
+				_syntax->skip(']');
+			} else {
+				return ret;
+			}
+		}
+	}
 
 	optional<Thm> loop() {
 		for(;;) try {
@@ -76,7 +98,7 @@ public:
 				_syntax->skip(';');
 				cout << endl;
 			} else if( _syntax->skips("thm") ) {
-				Thm thm = _syntax->get_thm(_ctxt);
+				Thm thm = get_thm(_ctxt);
 				_syntax->skip(';');
 				cout << "thm " << _syntax->pretty_thm(thm) << endl;
 			} else if( _syntax->skips("term") ) {
@@ -86,14 +108,14 @@ public:
 			} else if( _syntax->skips("name") ) {
 				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				_ctxt.claim(name,_syntax->get_thm(_ctxt));
+				_ctxt.claim(name,get_thm(_ctxt));
 				_syntax->skip(';');
 				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
 			} else if( _syntax->skips("move") ) {
 				Ctxt pctxt = _ctxt.parent().value();
 				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				pctxt.claim(name,_syntax->get_thm(_ctxt));
+				pctxt.claim(name,get_thm(_ctxt));
 				_syntax->skip(';');
 				cout << "theorem " << name << ": " << _syntax->pretty_thm(pctxt.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
@@ -135,7 +157,7 @@ public:
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(goal_thm) << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& spec_thm = obtain_thm.discharge(goal_thm);
+				Thm const& spec_thm = obtain_thm.impE(goal_thm);
 				_ctxt.claim(spec_name,spec_thm);
 				cout << "Successfully obtained " << sym << endl;
 			} else if( _syntax->skips("by") ) {
@@ -143,7 +165,7 @@ public:
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
-				Thm ret = _syntax->get_thm(_ctxt);
+				Thm ret = get_thm(_ctxt);
 				_syntax->skip(';');
 				cerr << "By " << _syntax->pretty_thm(ret) << endl;
 				return ret;

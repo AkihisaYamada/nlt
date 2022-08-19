@@ -1,40 +1,7 @@
+#include"matcher.hpp"
 #include"unifier.hpp"
 
 using namespace std;
-
-String make_fresh(Ctxt const& ctxt, String const& orig) {
-	string ret = orig;
-	while( ctxt.fixes(ret) ) {
-		ret.append("'");
-	}
-	return String(ret);
-}
-String make_fresh(TermMap const& subst, String const& orig) {
-	string ret = orig;
-	while( subst.contains(ret) ) {
-		ret.append("'");
-	}
-	return String(ret);
-}
-
-/**
- * @brief strips universal quantifiers into context variables
- * @return the stripped theorem in a context with (distinct) fixed variables
- */
-Thm strip_all(Ctxt& ctxt, Thm const& t) {
-	Thm cur = t.adopt(ctxt);
-	for(;;) {
-		auto const& x = cur.all();
-		if( x.has_value() ) {
-			auto const& v = x->first;
-			String const& nv = make_fresh(ctxt,v);
-			ctxt.fix(nv);
-			cur = cur.instantiate(nv);
-		} else {
-			return cur;
-		}
-	}
-}
 
 bool var_occurs(String const& v, Term const& t) {
 	try {
@@ -137,9 +104,9 @@ bool unify(Ctxt const& ctxt, Term const& l, Term const& r, Syms& fsyms, TermMap&
  */
 Thm inst_discharge(Thm t, list<Thm> args) {
 	Ctxt ctxt = t.ctxt();
-	Ctxt loc1 = ctxt.branch();// will contain the free variables
-	t = strip_all(loc1,t);
-	Term body = t;// stripped body
+	Ctxt loc1 = ctxt.branch();
+	t = strip_all(loc1,t);// stripped body
+	Term body = t;
 	Syms fsyms = loc1.syms();
 	TermMap subst;
 	for( auto& arg : args ) {
@@ -147,9 +114,10 @@ Thm inst_discharge(Thm t, list<Thm> args) {
 		if( !imp.has_value() ) {
 			throw MalformedDischarge(body,arg);
 		}
-		// strip the arg in the new context
-		arg = strip_all(loc1,arg);
-		if( !unify(loc1,imp->first,arg,fsyms,subst) ) {
+		arg = strip_all(loc1,arg);// arg will be stripped
+		Ctxt loc2 = loc1.branch();
+		Term cond = strip_all(loc2,imp->first);// condition, stripped
+		if( !unify(loc1,cond,arg,fsyms,subst) ) {
 			throw MalformedDischarge(body,arg);
 		}
 		body = imp->second;
@@ -159,28 +127,28 @@ Thm inst_discharge(Thm t, list<Thm> args) {
 	for( auto const& fsym : fsyms ) {
 		loc2.fix(fsym);
 	}
-	t = t.lift(ctxt).adopt(loc2);
+	t = t.lift(ctxt).weaken(loc2);
 	for( auto& arg : args ) {
-		arg = arg.lift(ctxt).adopt(loc2);
+		arg = arg.lift(ctxt).weaken(loc2);
 	}
 	// instantiate assigned variables
 	for( auto const& bvar : loc1.sym_list() ) {
 		if( subst.contains(bvar) ) {
-			t = t.instantiate(subst[bvar]);
+			t = t.allE(subst[bvar]);
 			for( auto& arg : args ) {
-				arg = arg.instantiate(subst[bvar]);
+				arg = arg.allE(subst[bvar]);
 			}
 		} else {
 			loc2.fix(bvar);
-			t = t.instantiate(bvar);
+			t = t.allE(bvar);
 			for( auto& arg : args ) {
-				arg = arg.instantiate(bvar);
+				arg = arg.allE(bvar);
 			}
 		}
 	}
 	// discharge conditions
 	for( auto const& arg : args ) {
-		t = t.discharge(arg);
+		t = t.impE(arg);
 	}
 	return t.lift(ctxt);
 }

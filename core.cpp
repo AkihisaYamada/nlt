@@ -235,7 +235,7 @@ pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const {
 	return pair(goal,Thm(*this,goal >>= spec));
 }
 
-Thm Thm::instantiate(Term const& t) const {
+Thm Thm::allE(Term const& t) const {
 	auto a = all();
 	if( a.has_value() ) {
 		return Thm(ctxt(),a->second.subst(a->first,t));
@@ -243,7 +243,7 @@ Thm Thm::instantiate(Term const& t) const {
 	throw MalformedInstantiation(*this,t);
 }
 
-Thm Thm::discharge(Thm const& t) const {
+Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
@@ -273,7 +273,7 @@ Thm Thm::lift(Ctxt const& ctxt) const {
 	}
 	return Thm(*parent,stmt);
 }
-Thm Thm::adopt(Ctxt const& ctxt) const {
+Thm Thm::weaken(Ctxt const& ctxt) const {
 	Ctxt cur = ctxt;
 	for(;;) {
 		if( cur == _ctxt ) {

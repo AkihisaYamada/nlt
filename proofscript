@@ -82,7 +82,7 @@ obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
 	fix thesis;
 	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
 	name 2: EQ.refl(∀ P. P ⟹ P);
-	by 1(∀ P. P ⟹ P)[2];
+	by 1[2];
 
 show TRUE.intro: TRUE;
   by EQ.prop2[TRUE.def, IMP.refl];

@@ -44,6 +44,5 @@ public:
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
 	std::string get_thm_name();
 	std::optional<Term> get_term(int level = 0);
-	Thm get_thm(Ctxt const& ctxt);
 };
 #endif

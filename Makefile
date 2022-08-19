@@ -1,4 +1,4 @@
-SRCS=core.cpp lexer.cpp syntax.cpp prover.cpp matcher.cpp
+SRCS=core.cpp util.cpp lexer.cpp syntax.cpp prover.cpp
 CPP=g++ -ggdb -std=c++20 -Wfatal-errors
 BUILD=_build
 OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)

@@ -44,7 +44,9 @@
 \newcommand\allI{{\forall}\textrm{I}}
 \newcommand\allE{{\forall}\textrm{E}}
 \newcommand\ass{\text{\sc Ass}}
+\newcommand\weaken{\text{\sc Weak}}
 \newcommand\spec{\text{\sc Spec}}
+\newcommand\inst{\text{\sc Inst}}
 
 \begin{document}
 \maketitle
@@ -75,13 +77,14 @@ Substitution
 
 We assume an infix symbol $\IMP$ and a prefix $\forall$.
 
-\begin{definition}[proof contexts]\label{def:ctxt}
-A \emph{proof context} $\Gamma \in \Ctxt(V)$ over variables $V$ is defined as follows.
+\begin{definition}[contexts]\label{def:ctxt}
+A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\Sigma$ is defined as follows.
 
 \begin{itemize}
 \item $\epsilon \in \Ctxt(\set{\IMP,\forall})$
-\item $(\Gamma;\ASS s) \in \Ctxt(V)$ if $\Gamma \in \Ctxt(V)$ and $t \in \Term(V)$
-\item $(\Gamma;\FIX x) \in \Ctxt(V)$ if $x \in V$ and $\Gamma \in \Ctxt(V\setminus\set{x})$
+\item $(\Gamma;\ASS s) \in \Ctxt(\Sigma)$ if
+	$\Gamma \in \Ctxt(\Sigma)$.
+\item $(\Gamma;\FIX x) \in \Ctxt(\Sigma\cup\set{x})$ if $x \notin \Sigma$ and $\Gamma \in \Ctxt(\Sigma)$.
 \end{itemize}
 
 \noindent A term $s$ is a \emph{theorem} in $\Gamma$, written $\Gamma\vdash s$, if it is derivable by the following inference rules:
@@ -89,19 +92,25 @@ A \emph{proof context} $\Gamma \in \Ctxt(V)$ over variables $V$ is defined as fo
 \begin{align*}
 \infer[\ass]{\Gamma;\ASS s\vdash s}{}
 &&
-\infer[\text{ if }\Gamma \in \Ctxt(V) \land t \in \Term(V)]{\Gamma;\alpha \vdash t}{\Gamma \vdash t}
+\infer[\inst,\ \Gamma\in\Ctxt(\Sigma), x\notin \Sigma]{\Gamma\vdash s[x\mapsto t]}{\Gamma\vdash s}
+&&
+\infer{\Gamma;\alpha \vdash s}{\Gamma \vdash s}
+\end{align*}
+\begin{align*}
+\infer[\impI]{\Gamma\vdash s \IMP t}{\Gamma;\ASS s\vdash t}
+&&
+\infer[\allI]{\Gamma\vdash \ALL{x}{s}}{\Gamma;\FIX x \vdash s}
 \end{align*}
 \begin{align*}
 \infer[\impE]{\Gamma\vdash t}{\Gamma\vdash s &\Gamma\vdash s \IMP t}
 &&
-\infer[\impI]{\Gamma\vdash s \IMP t}{\Gamma;\ASS s\vdash t}
-\end{align*}
-\begin{align*}
 \infer[\allE]{\Gamma\vdash s[x\mapsto t]}{\Gamma\vdash \ALL{x}{s}}
-&&
-\infer[\allI]{\Gamma\vdash \ALL{x}{s}}{\Gamma;\FIX x \vdash s}
 \end{align*}
 \end{definition}
+
+\begin{metatheorem}[\inst-elimination]
+	Every theorem $\Gamma \vdash s$ is provable without \inst.
+\end{metatheorem}
 
 \subsection{Specification}
 
@@ -109,13 +118,13 @@ A \emph{proof context} $\Gamma \in \Ctxt(V)$ over variables $V$ is defined as fo
 We extend \prettyref{def:ctxt} with the following case:
 
 \begin{itemize}
-\item $(\Gamma;\SPEC{x}{s}) \in \Ctxt(V)$ if $x \in V$, $s \in \Term(V)$, $\Gamma \in \Ctxt(V\setminus\set{x})$, and $\Gamma \vdash \exists x.\,s$
+\item $(\Gamma;\SPEC{x}{s}) \in \Ctxt(\Sigma\cup\set{x})$ if $\Gamma \in \Ctxt(\Sigma)$, $x \notin \Sigma$, and $\Gamma \vdash \exists x.\,s$
 \end{itemize}
 
-\noindent and the following inference rule:
-\[
+\noindent and the following inference rules:
+\begin{align*}
 \infer[\spec]{\Gamma;\SPEC{x}{s}\vdash s}{}
-\]
+\end{align*}
 
 \end{definition}
 
@@ -123,7 +132,7 @@ By stating $\SPEC{x}{s}$ (typically $x$ occurs in $s$), one obtains a term $x$ t
 To this end, one must prove that such a term exists ($\Gamma \vdash \exists x.\,s$).
 
 \begin{metatheorem}[spec elimination]
-Let $(\Gamma;\SPEC{x}{s}) \in \Ctxt(V)$ and $t \in \Term(V\setminus\set{x})$
+Let $(\Gamma;\SPEC{x}{s}) \in \Ctxt(\Sigma)$ and $t \in \Term(\Sigma\setminus\set{x})$
 such that $\Gamma;\SPEC{x}{s} \vdash t$.
 Then $\Gamma \vdash t$.
 \end{metatheorem}

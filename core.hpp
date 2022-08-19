@@ -31,10 +31,8 @@ extern Term const IMP;
 extern Term const ALL;
 
 typedef std::map<String,String,std::less<>> Renaming;
-typedef std::map<String,Term const,std::less<>> TermMap;
+typedef std::map<String,Term,std::less<>> TermMap;
 typedef std::set<String,std::less<>> Syms;
-
-std::ostream& operator<<(std::ostream& os, Syms const& syms);
 
 class Term {
 	enum { SYM, APP, ABS, BIND } _type;
@@ -319,7 +317,7 @@ public:
 	 * @return Thm P(t)
 	 * @exception MalformedInstantiation
 	 */
-	Thm instantiate(Term const& t) const;
+	Thm allE(Term const& t) const;
 	/**
 	 * @brief implication elimination. This theorem must be of form P ⟹ Q.
 	 * 
@@ -328,7 +326,7 @@ public:
 	 * @exception MalformedDischarge
 	 * @exception WrongContext
 	 */
-	Thm discharge(Thm const& t) const;
+	Thm impE(Thm const& t) const;
 	/**
 	 * @brief Moves the theorem to ancestor context.
 	 * Context-bound symbols will be universally quantified,
@@ -336,12 +334,12 @@ public:
 	 */
 	Thm lift(Ctxt const& ctxt) const;
 	/**
-	 * @brief Imports the theorem to descendant context.
+	 * @brief Moves the theorem to descendant context.
 	 * 
 	 * @param ctxt the descendant context.
 	 * @return Thm 
 	 */
-	Thm adopt(Ctxt const& ctxt) const;
+	Thm weaken(Ctxt const& ctxt) const;
 private:
 	friend Thm Ctxt::thm(String const& name) const;
 	friend std::pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const;

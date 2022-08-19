@@ -176,24 +176,3 @@ optional<Term> Syntax::get_term(int level) {
 	}
 }
 
-Thm Syntax::get_thm(Ctxt const& ctxt) {
-	Thm ret = ctxt.thm(get_thm_name());
-	for(;;) {
-		if( skips('(') ) {
-			do {
-				ret = ret.instantiate(get_term().value());
-			} while( skips(',') );
-			skip(')');
-		} else if( skips('[') ) {
-			list<Thm> args;
-			do {
-				args.push_back(get_thm(ctxt));
-			} while	( skips(',') );
-			ret = inst_discharge(ret,args);
-			skip(']');
-		} else {
-			return ret;
-		}
-	}
-}
-
