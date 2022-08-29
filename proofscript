@@ -31,7 +31,7 @@ show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
 	assume xy: x = y;
 	name xx: EQ.refl(x);
-	by EQ.mono(x, y, z. z = x)[xy,xx];
+	by EQ.mono[xy](z. z = x)[xx];
 
 show EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
 	fix x y z;
@@ -90,7 +90,7 @@ show TRUE.intro: TRUE;
 obtain FALSE where FALSE.def: FALSE = (∀ P. P);
 	fix thesis;
 	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
-	by 1[EQ.refl(∀ P. P)];
+	by 1[EQ.refl];
 
 show FALSE.elim: ∀ P. FALSE ⟹ P;
 	fix P;
@@ -105,14 +105,12 @@ infix ∧ 36 35 36;
 
 assume AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 
-{	fix P Q;
-	name 1: AND.def(P,Q);
-	move AND.elim: EQ.prop1[1];
-	move AND.intro: EQ.prop2[1];
-}
+name AND.elim: EQ.prop1[AND.def];
+name AND.intro: EQ.prop2[AND.def];
+
 show mp2: ∀ P. ∀ Q. P ∧ (P ⟹ Q) ⟹ Q;
 	assume p_pq: P ∧ (P ⟹ Q);
-	by AND.elim[p_pq][mp(P,Q)];
+	by AND.elim[p_pq][mp];
 
 infix ∨ 31 30 31;
 

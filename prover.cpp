@@ -19,9 +19,11 @@ class Prover {
 public:
 	Prover(istream& is) :
 		_depth(0),
-		_ctxt(Ctxt()),
+		_ctxt(),
 		_syntax(is),
 		_own_syntax(true) {
+		_ctxt.fix(IMP_var);
+		_ctxt.fix(ALL_var);
 		_syntax->infix(String(","),-1,-1,-2).
 			infix(String(";"),-1,-1,-2);
 	}
@@ -43,7 +45,11 @@ public:
 		for(;;) {
 			if( _syntax->skips('(') ) {
 				do {
-					ret = ret.allE(_syntax->get_term().value());
+					auto const& topt = _syntax->get_term();
+					if( !topt.has_value() ) {
+						throw SyntaxError();
+					}
+					ret = ret.allE(ctxt.cterm(*topt));
 				} while( _syntax->skips(',') );
 				_syntax->skip(')');
 			} else if( _syntax->skips('[') ) {
@@ -188,14 +194,17 @@ public:
 				return optional<Thm>();
 			}
 		} catch ( MalformedDischarge const& e ) {
-			cerr << "ERROR: Discharging\n\t" << _syntax->pretty_term(e.imp) << endl << "\nwith\t" << _syntax->pretty_term(e.arg) << endl;
-			throw e;
+			cerr << "ERROR: Discharging\n\t" << _syntax->pretty_term(e.imp) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
+			exit(-1);
 		} catch ( MalformedInstantiation const& e ) {
-			cerr << "ERROR: Instantiating\n\t" << _syntax->pretty_term(e.all) << endl << "\nwith\t" << _syntax->pretty_term(e.arg) << endl;
-			throw e;
+			cerr << "ERROR: Instantiating\n\t" << _syntax->pretty_term(e.all) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
+			exit(-1);
 		} catch ( TheoremNotFound const& e ) {
 			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
-			throw e;
+			exit(-1);
+		} catch ( UnexpectedTerm const& e ) {
+			cerr << "ERROR: Unexpected term " << _syntax->pretty_term(e.term) << endl;
+			exit(-1);
 		}
 	}
 private:

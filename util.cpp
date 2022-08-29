@@ -2,6 +2,24 @@
 
 using namespace std;
 
+ostream& operator<<(ostream& os, Term const& t) {
+	auto const& sym = t.sym();
+	if( sym.has_value() ) {
+		return os << *sym;
+	}
+	auto const& app = t.app();
+	if( app.has_value() ) {
+		return os << '(' << app->first << ' ' << app->second << ')';
+	}
+	auto const& abs = t.abs();
+	if( abs.has_value() ) {
+		return os << abs->first << ". " << abs->second;
+	}
+	auto const& fix = t.fix();
+	assert( fix.has_value() );
+	return os << fix->first << ".[" << fix->second << ']';
+}
+
 pair<Term const&, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
@@ -16,12 +34,7 @@ pair<Term const&, list<Term>> uncurry(Term const& t) {
 	}
 }
 
-Thm allI(Thm const& thm, String const& var) {
-	Ctxt ctxt = thm.ctxt();
-	return thm.weaken(ctxt.branch().fix(var)).lift(ctxt);
-}
-
-bool match(Ctxt const& loc, Term const& pat, Term const& val, TermMap& matcher) {
+bool match(Ctxt const& loc, Term const& pat, Term const& val, StrMap<Term>& matcher) {
 	auto const& sym = pat.sym();
 	if( sym.has_value() ) {
 		String const& x = *sym;
@@ -75,64 +88,65 @@ bool match(Ctxt const& loc, Term const& pat, Term const& val, TermMap& matcher) 
 	return fix->first == fix2->first && match(loc,fix->second,fix2->second,matcher);
 }
 
-void make_fresh(string& str, Ctxt const& ctxt) {
-	while( ctxt.fixes(str) ) {
-		str.append("'");
-	}
-}
 
-void strip_all(Thm& thm, Ctxt& ctxt) {
+Thm strip_all(Thm thm, Ctxt& ctxt) {
+	thm = thm.weaken(ctxt);
 	for(;;) {
 		auto const& all = thm.all();
 		if( all.has_value() ) {
-			string str = all->first;
-			make_fresh(str,ctxt);
-			String nv = String(str);
-			ctxt.fix(nv);
-			thm = thm.allE(nv);
+			String const& v = all->first;
+			String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
+			thm = thm.allE(ctxt.fix(nv));
 		} else {
-			return;
+			return thm;
 		}
 	}
 }
-void strip_all(Term& t, Ctxt& ctxt) {
+CTerm strip_all(CTerm t, Ctxt& ctxt) {
+	t = t.weaken(ctxt);
 	for(;;) {
-		auto const& all = t.all();
-		if( all.has_value() ) {
-			String const& v = all->first;
-			string str = v;
-			make_fresh(str,ctxt);
-			String nv = String(str);
-			ctxt.fix(nv);
-			t = all->second.subst(v,nv);
-		} else {
-			return;
+		auto const& app = t.app();
+		if( app.has_value() && app->first == ALL ) {
+			auto const& abs = app->first.abs();
+			if( abs.has_value() ) {
+				String const& v = abs->first;
+				String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
+				t = app->second.inst(ctxt.fix(nv));
+				continue;
+			}
 		}
+		return t;
 	}
 }
 
 Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
 	Ctxt loc = ctxt.branch();
-	strip_all(thm,loc);
+	// computing unifier
+	thm = strip_all(thm,loc);
 	auto const& imp = thm.imp();
 	if( !imp.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	TermMap subst;
-	if( !match(loc,imp->first,arg,subst) ) {
+	arg = strip_all(arg,loc);
+	CTerm cond = imp->first;
+	optional<CSubst> unifier = unify(cond,arg);
+	if( !unifier.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	for( auto const& p : subst ) {
-		thm = allI(thm,p.first).allE(p.second);
+	// instantiating according to the unifier
+	Ctxt loc2 = ctxt.branch();
+	thm = thm.lift(ctxt).weaken(loc2);
+	arg = arg.lift(ctxt).weaken(loc2);
+cerr << thm << endl << arg << endl;
+	for( auto const& x : loc.sym_list() ) {// TODO: slower than `subst`
+		auto opt = unifier->get(x);
+		auto const& val = opt.has_value() ? opt->lift(ctxt).weaken(loc2) : loc2.fix(x);
+		thm = thm.allE(val);
+		arg = arg.allE(val);
 	}
 	thm = thm.impE(arg);
-	// quantify remaining free variables
-	for( auto const& fsym : loc.sym_list() ) {
-		if( !subst.contains(fsym) ) {
-			thm = allI(thm,fsym);
-		}
-	}
+	thm = thm.lift(ctxt);
 	return thm;
 }
 

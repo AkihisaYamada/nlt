@@ -3,18 +3,15 @@
 
 using namespace std;
 
-vector<String> VarMaker::vec;
-
-String VarMaker::make() {
-	auto pre = nest;
-	nest++;
-	if( pre < vec.size() ) {
-		return vec[pre];
+String avoid(String const& var, function<bool(String const&)> const& test) {
+	if( !test(var) ) {
+		return var;
 	}
-	// permanently allocate a string.
-	String name = string("_") + to_string(nest);
-	vec.push_back(name);
-	return name;
+	string str = var;
+	do {
+		str.append("'");
+	} while( test(str) );
+	return str;
 }
 
 Term& Term::operator=(Term const& other) {
@@ -36,8 +33,6 @@ Term::Union Term::_copy_un() const {
 	}
 }
 
-Term::Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
-
 Term::~Term() {
 	switch(_type) {
 	case SYM: _un.sym.~String(); break;
@@ -48,34 +43,62 @@ Term::~Term() {
 	}
 }
 
-static inline String rename_sym(Renaming const& map, String const& sym) {
-	auto const& it = map.find(sym);
-	return it == map.end() ? sym : it->second;
+bool Term::_eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
+	auto lit = lmap.find(x);
+	auto rit = rmap.find(y);
+	if( lit != lmap.end() ) {
+		return rit != rmap.end() && lit->second == rit->second;
+	}
+	return rit == rmap.end() && x == y;
 }
-
-bool Term::_eq(Term const& other, Renaming& lmap, Renaming& rmap, VarMaker vars) const {
-	if( _type != other._type ) {
+bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth) {
+	if( l._type != r._type ) {
 		return false;
 	}
-	switch(_type) {
-		case SYM: {
-			return rename_sym(lmap,_un.sym) == rename_sym(rmap,other._un.sym);
-		}
-		case APP: {
-			return _un.app.fun->_eq(*other._un.app.fun,lmap,rmap,vars) &&
-				_un.app.arg->_eq(*other._un.app.arg,lmap,rmap,vars);
-		}
+	switch(l._type) {
+		case SYM:
+			return _eq_var(l._un.sym,r._un.sym,lmap,rmap);
+		case APP:
+			return _eq(*l._un.app.fun,*r._un.app.fun,lmap,rmap,depth) &&
+				_eq(*l._un.app.arg,*r._un.app.arg,lmap,rmap,depth);
 		case ABS: {
-			// replace the bound variables with fresh one and compare
-			auto const& fresh = vars.make();
-			lmap[_un.abs.var] = fresh;
-			rmap[other._un.abs.var] = fresh;
-			return _un.abs.body->_eq(*other._un.abs.body,lmap,rmap,vars);
+			String const& x = l._un.abs.var;
+			String const& y = r._un.abs.var;
+			depth++;
+			auto const& linfo = lmap.insert({x,depth});
+			unsigned int lprev;
+			if( linfo.second ) {
+				lprev = 0;
+			} else {
+				lprev = linfo.first->second;
+				linfo.first->second = depth;
+			}
+			auto const& rinfo = rmap.insert({y,depth});
+			unsigned int rprev;
+			if( rinfo.second ) {
+				rprev = 0;
+			} else {
+				rprev = rinfo.first->second;
+				rinfo.first->second = depth;
+			}
+			if( _eq(*l._un.abs.body,*r._un.abs.body,lmap,rmap,depth) ) {
+				if( lprev == 0 ) {
+					lmap.erase(linfo.first);
+				} else {
+					linfo.first->second = lprev;
+				}
+				if( rprev == 0 ) {
+					rmap.erase(rinfo.first);
+				} else {
+					rinfo.first->second = rprev;
+				}
+				return true;
+			}
+			return false;
 		}
-		case BIND: {
-			return rename_sym(lmap,_un.fix.var) == rename_sym(rmap,other._un.fix.var) &&
-				_un.fix.val->_eq(*other._un.fix.val,lmap,rmap,vars);
-		}
+		case BIND:
+			return _eq_var(l._un.fix.var,r._un.fix.var,lmap,rmap) &&
+				_eq(*l._un.fix.val,*r._un.fix.val,lmap,rmap,depth);
 		default: assert(false);
 	}
 }
@@ -124,53 +147,64 @@ Syms Term::fsyms() const {
 	return ret;
 }
 
-Term Term::_subst(
-	String const& x,
-	Term const& val,
-	Renaming& ren,
-	Syms const& fixed,
-	VarMaker vars
-) const {
+CSubst& CSubst::_assign(String const& var, CTerm const& val) {
+	auto const& info = _map.insert({var,val});
+	if( !info.second ) {
+		info.first->second = val;
+	}
+	return *this;
+}
+
+Term Term::subst(CSubst const& subst) const {
+	StrMap<String> bsyms;
+	auto f = [&](String const& sym) {
+		auto opt = subst.get(sym);
+		return opt.has_value() ? (Term)*opt : sym;
+	};
+	auto fixed = [&](String const& sym) {
+		return subst.ctxt().find(sym).has_value();
+	};
+	return map(f,fixed,bsyms);
+}
+
+static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap<String>& bsyms) {
+	for( auto p : bsyms ) {// bound variables should be renamed
+		if( p.first == sym ) {
+			return p.second;
+		}
+	}
+	return f(sym);
+}
+
+Term Term::map(function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const {
 	switch(_type) {
-		case SYM: {
-			if( x == _un.sym ) {
-				return val;
-			}
-			auto it = ren.find(_un.sym);
-			return it == ren.end() ? *this : Term(it->second);
-		}
-		case APP: {
-			return _un.app.fun->_subst(x,val,ren,fixed,vars)(_un.app.arg->_subst(x,val,ren,fixed,vars));
-		}
+		case SYM: return subst_var(f,_un.sym,bsyms);
+		case APP: return _un.app.fun->map(f,fixed,bsyms)(_un.app.arg->map(f,fixed,bsyms));
 		case ABS: {
 			auto& var = _un.abs.var;
-			if( var == x ) {// the variable is captured. Just apply necessary renaming.
-				return var /= _un.abs.body->_subst(var,Term(var),ren,fixed,vars);
+			String const& newvar = avoid(var,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
+			auto info = bsyms.insert({var,newvar});
+			String prev;
+			if( !info.second ) {
+				prev = info.first->second;
 			}
-			// if the bound variable is fixed, rename to a fresh one.
-			bool must_rename = fixed.contains(var);
-			String const& newvar = must_rename ? vars.make() : var;
-			if( must_rename ) {
-				ren[var] = newvar;
+			Term const& body = _un.abs.body->map(f,fixed,bsyms);
+			if( info.second ) {
+				bsyms.erase(info.first);
+			} else {
+				info.first->second = prev;
 			}
-			Term ret = newvar /= _un.abs.body->_subst(x,val,ren,fixed,vars);
-			ren.erase(var);
-			return ret;
+			return newvar /= body;
 		}
 		case BIND: {
 			auto& var = _un.fix.var;
-			Term newval = _un.fix.val->_subst(x,val,ren,fixed,vars);
-			if( var == x ) {
-				switch(val._type) {
-					case SYM:
-						return val._un.sym / newval;
-					case ABS:
-						return val._un.abs.body->subst(val._un.abs.var,newval);
-					default:
-						throw UnexpectedTerm(*this);
-				}
+			Term newbox = subst_var(f,_un.fix.var,bsyms);
+			Term newval = _un.fix.val->map(f,fixed,bsyms);
+			switch(newbox._type) {
+				case SYM: return newbox._un.sym / newval;
+				case ABS: return newbox._un.abs.body->subst(newbox._un.abs.var,newval);
+				default: throw UnexpectedTerm(newbox);
 			}
-			return var / newval;
 		}
 		default: assert(false);
 	}
@@ -182,37 +216,49 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-Ctxt::Ctxt() : _ref(Body{}) {
-	fix(IMP_var);
-	fix(ALL_var);
-}
-
-bool Ctxt::fixes(String const& sym) const {
-	return syms().contains(sym) ||
-		specs().contains(sym) ||
-		parent() && parent()->fixes(sym);
-}
-
-Ctxt const& Ctxt::fix(String const& sym) const {
-	if( !fixes(sym) ) {
-		_ref->syms.insert(sym);
-		_ref->sym_list.push_back(sym);
+optional<String const> Ctxt::find_local(String const& sym) const {
+	auto it = _ref->syms.find(sym);
+	if( it != _ref->syms.end() ) {
+		return *it;
 	}
-	return *this;
+	auto it2 = _ref->specs.find(sym);
+	if( it2 != _ref->specs.end() ) {
+		return it2->first;
+	}
+	return optional<String const>();
 }
 
-void Ctxt::_add_thm(String const& name, Term const& stmt) const {
-	stmt.iter_syms(
+optional<String const> Ctxt::find(String const& sym) const {
+	auto opt = find_local(sym);
+	if( !opt.has_value() && _ref->parent.has_value() ) {
+		return _ref->parent->find(sym);
+	}
+	return opt;
+}
+
+CTerm Ctxt::fix(String const& sym) const {
+	auto opt = find(sym);
+	if( opt.has_value() ) {
+		return CTerm(*this,*opt);
+	}
+	_ref->syms.insert(sym);
+	_ref->sym_list.push_back(sym);
+	return CTerm(*this,sym);
+}
+CTerm Ctxt::enclose(Term const& t) {
+	t.iter_syms(
 		[](String const& sym){},// do nothing on bound ones
 		[this](String const& sym){ fix(sym); }// fix free symbols
 	);
-	_ref->thms.insert({name,stmt});
+	return CTerm(*this,t);
 }
-
-
-/**
- * @brief Obtains the claim of a theorem, accessible from the context.
- */
+CTerm Ctxt::cterm(Term const& t) const {
+	t.iter_syms(
+		[](String const& sym){},
+		[&](String const& sym){ if( !find(sym).has_value() ) { throw UnboundVariable(sym); } }
+	);
+	return CTerm(*this,t);
+}
 Term Ctxt::_thm(String const& name) const {
 	auto const& it = _ref->thms.find(name);
 	if( it == _ref->thms.end() ) {
@@ -225,20 +271,22 @@ Term Ctxt::_thm(String const& name) const {
 }
 
 pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const {
-	if( fixes(sym) ) {
+	if( find(sym) ) {
 		throw DoubleFix(sym);
 	}
-	VarMaker varmaker;
-	auto const& thesis = varmaker.make();
-	Term goal = thesis %= (sym %= spec >>= Term(thesis)) >>= Term(thesis);
+	String thesis = avoid("thesis",[&](String const& x){ return find(x) || sym == x; });
+	Term goal = thesis %= (sym %= spec >>= thesis) >>= thesis;
 	_ref->specs.insert({sym,spec});
-	return pair(goal,Thm(*this,goal >>= spec));
+	return pair(goal,Thm(CTerm(*this,goal >>= spec)));
 }
 
-Thm Thm::allE(Term const& t) const {
+Thm Thm::allE(CTerm const& t) const {
+	if( t.ctxt() != ctxt() ) {
+		throw WrongContext();
+	}
 	auto a = all();
 	if( a.has_value() ) {
-		return Thm(ctxt(),a->second.subst(a->first,t));
+		return CTerm(ctxt(),a->second.subst(a->first,t));
 	}
 	throw MalformedInstantiation(*this,t);
 }
@@ -249,7 +297,7 @@ Thm Thm::impE(Thm const& t) const {
 	}
 	auto a = imp();
 	if( a.has_value() && a->first == t ) {
-		return Thm(ctxt(),a->second);
+		return CTerm(ctxt(),a->second);
 	}
 	throw MalformedDischarge(*this,t);
 }
@@ -271,13 +319,13 @@ Thm Thm::lift(Ctxt const& ctxt) const {
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = *it %= stmt;
 	}
-	return Thm(*parent,stmt);
+	return Thm(CTerm(*parent,stmt)).lift(ctxt);
 }
-Thm Thm::weaken(Ctxt const& ctxt) const {
+CTerm CTerm::weaken(Ctxt const& ctxt) const {
 	Ctxt cur = ctxt;
 	for(;;) {
 		if( cur == _ctxt ) {
-			return Thm(ctxt,*this);
+			return CTerm(ctxt,*this);
 		}
 		auto const& parent = cur.parent();
 		if( !parent.has_value() ) {
@@ -285,4 +333,30 @@ Thm Thm::weaken(Ctxt const& ctxt) const {
 		}
 		cur = *parent;
 	}
+}
+CTerm CTerm::lift(CSubst const& subst) const {
+	auto const& parent_opt = _ctxt.parent();
+	if( !parent_opt.has_value() ) {
+		throw WrongContext();
+	}
+	Ctxt const& parent = *parent_opt;
+	if( parent != subst.ctxt() ) {
+		throw WrongContext();
+	}
+	auto f = [&](String const& sym)->Term {
+		auto opt = subst.get(sym);
+		if( opt.has_value() ) {
+			return *opt;
+		}
+		auto const& opt2 = parent.find(sym);
+		if( opt2.has_value() ) {
+			return *opt2;
+		}
+		throw UnboundVariable(sym);
+	};
+	auto fixed = [&](String const& sym) {
+		return subst.ctxt().find(sym).has_value();
+	};
+	StrMap<String> bsyms;
+	return CTerm(parent,map(f,fixed,bsyms));
 }
