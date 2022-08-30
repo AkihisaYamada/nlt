@@ -7,6 +7,8 @@
 #include"graph.hpp"
 
 std::ostream& operator<<(std::ostream& os, Term const& t);
+std::ostream& operator<<(std::ostream& os, CSubst const& subst);
+
 
 /**
  * @brief strips universal quantifiers.
@@ -60,12 +62,13 @@ public:
 
 /**
  * @brief Unification.
- * The input two terms must be closed with respect to a context. Local symbols of the context will be considered to be free variables.
+ * The input two terms must be closed with respect to a context.
  * @param l 
  * @param r 
+ * @param fvar signifies free variables.
  * @return an idempotent, most general unifier iff `l` and `r` are unifiable.
  */
-std::optional<CSubst> unify(CTerm const& l, CTerm const& r);
+std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(String const&)> const& fvar);
 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.

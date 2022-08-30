@@ -112,37 +112,6 @@ public:
 		return _type == BIND ? *_un.fix : std::optional<StrTerm>();
 	}
 	/**
-	 * @brief Expands implication.
-	 * 
-	 * @return The pair of the premise and conclusion, if this is an implication.
-	 */
-	std::optional<Pair> imp() const {
-		if( _type == APP ) {
-			auto& app1 = *_un.app;
-			if( app1.first._type == APP ) {
-				auto& app2 = *app1.first._un.app;
-				if( app2.first == IMP ) {
-					return Pair(app2.second,app1.second);
-				}
-			}
-		}
-		return std::optional<Pair>();
-	}
-	/**
-	 * @brief Expands universal quantification.
-	 * 
-	 * @return The pair of the variable and body, if this is a universal quantification.
-	 */
-	std::optional<StrTerm> all() const {
-		if( _type == APP ) {
-			auto& app = *_un.app;
-			if( app.first == ALL && app.second._type == ABS ) {
-				return *app.second._un.abs;
-			}
-		}
-		return std::optional<StrTerm>();
-	}
-	/**
 	 * @brief Iterates over bound and free symbols.
 	 * 
 	 * @param bsym applied on bound symbols
@@ -194,10 +163,6 @@ inline bool operator!=(Term const& l, Term const& r) {
 
 inline Term operator>>=(Term const& l, Term const& r) {
 	return IMP(l)(r);
-}
-
-inline Term operator%=(String const& var, Term const& body) {
-	return ALL(var /= body);
 }
 
 struct UnexpectedTerm : public std::exception {
@@ -404,14 +369,6 @@ public:
 	std::optional<StrTerm> fix() const {
 		auto const& tfix = Term::fix();
 		return tfix.has_value() ? StrTerm(tfix->first,CTerm(_ctxt,tfix->second)) : std::optional<StrTerm>();
-	}
-	std::optional<StrTerm> all() const {
-		auto const& tall = Term::all();
-		return tall.has_value() ? StrTerm(tall->first,CTerm(_ctxt,tall->second)) : std::optional<StrTerm>();
-	}
-	std::optional<Pair> imp() const {
-		auto const& timp = Term::imp();
-		return timp.has_value() ? Pair(CTerm(_ctxt,timp->first),CTerm(_ctxt,timp->second)) : std::optional<Pair>();
 	}
 	/**
 	 * @brief applies substitution to a closed term

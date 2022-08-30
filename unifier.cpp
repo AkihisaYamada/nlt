@@ -3,12 +3,13 @@
 using namespace std;
 
 class Unifier {
+	std::function<bool(String const&)> const& fvar;// free variables
 	CSubst subst;
 public:
 	struct Mismatch : exception {};
 	struct Occurs : exception {};
 	struct Escapes : exception {};
-	Unifier(Ctxt const& ctxt) : subst(ctxt) {}
+	Unifier(Ctxt const& ctxt, std::function<bool(String const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
 private:
 	map<String,unsigned int,less<>> escapes[2];
 	Syms avoids[2];
@@ -44,7 +45,32 @@ private:
 		}
 		auto const& fix = t.fix();
 		assert( fix.has_value() );
-		return fix->first %= sanitize(fix->second,bounds,avoids,escapes);
+		return fix->first / sanitize(fix->second,bounds,avoids,escapes);
+	}
+
+	void unify1(String const& x, Term const& r) {
+		auto const& rsym = r.sym();
+		if( rsym.has_value() ) {
+			String const& y = *rsym;
+			if( x == y ) {
+				return;
+			}
+			if( escapes[1].contains(y) ) { // this case is already tested
+				throw Mismatch();
+			}
+			// test if y has an assigned value.
+			auto ysubst = subst.get(y);
+			if( ysubst.has_value() ) {
+				unify1(x,*ysubst);
+				return;
+			}
+			if( fvar(y) ) {// free variables can be assigned
+				Syms bounds;
+				subst.assign(y,x);
+				return;
+			}
+		}
+		throw Mismatch();
 	}
 	void unify2(Term const& l, Term const& r, unsigned int index) {
 		auto const& rsym = r.sym();
@@ -59,9 +85,9 @@ private:
 				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
 				unify2(l,*ysubst,index);
 				avoids[0].erase(y);
+				return;
 			}
-			auto yfree = subst.ctxt().find_local(y);
-			if( yfree.has_value() ) {// local variables can be assigned
+			if( fvar(y) ) {// free variables can be assigned
 				Syms bounds;
 				subst.assign(y,sanitize(l,bounds,avoids[0],escapes[0]));
 				return;
@@ -137,13 +163,12 @@ public:
 				avoids[1].erase(x);
 				return;
 			}
-			auto xfree = subst.ctxt().find_local(x);
-			if( xfree.has_value() ) {// local variables can be assigned
+			if( fvar(x) ) {// local variables can be assigned
 				Syms bounds;
 				subst.assign(x,sanitize(r,bounds,avoids[1],escapes[1]));
 				return;
 			}
-			throw Mismatch();
+			return unify1(x,r);
 		}
 		unify2(l,r,index);
 	}
@@ -156,11 +181,11 @@ public:
 	}
 };
 
-optional<CSubst> unify(CTerm const& l, CTerm const& r) {
+optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(String const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
 		throw WrongContext();
 	}
-	Unifier u = Unifier(l.ctxt());
+	Unifier u = Unifier(l.ctxt(),fvar);
 	try {
 		u.unify(l,r);
 		return u.result();

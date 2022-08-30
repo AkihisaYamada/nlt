@@ -19,6 +19,14 @@ ostream& operator<<(ostream& os, Term const& t) {
 	assert( fix.has_value() );
 	return os << fix->first << ".[" << fix->second << ']';
 }
+ostream& operator<<(ostream& os, CSubst const& subst) {
+	char const* punct = "[ ";
+	for( auto const& x : subst.map() ) {
+		os << punct << x.first << " := " << x.second;
+		punct = ",\n  ";
+	}
+	return os << "\n]";
+}
 
 pair<Term const&, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
@@ -92,14 +100,17 @@ bool match(Ctxt const& loc, Term const& pat, Term const& val, StrMap<Term>& matc
 Thm strip_all(Thm thm, Ctxt& ctxt) {
 	thm = thm.weaken(ctxt);
 	for(;;) {
-		auto const& all = thm.all();
-		if( all.has_value() ) {
-			String const& v = all->first;
-			String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
-			thm = thm.allE(ctxt.fix(nv));
-		} else {
-			return thm;
+		auto const& app = thm.app();
+		if( app.has_value() && app->first == ALL ) {
+			auto const& abs = app->second.abs();
+			if( abs.has_value() ) {
+				String const& v = abs->first;
+				String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
+				thm = thm.allE(ctxt.fix(nv));
+				continue;
+			}
 		}
+		return thm;
 	}
 }
 CTerm strip_all(CTerm t, Ctxt& ctxt) {
@@ -107,7 +118,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	for(;;) {
 		auto const& app = t.app();
 		if( app.has_value() && app->first == ALL ) {
-			auto const& abs = app->first.abs();
+			auto const& abs = app->second.abs();
 			if( abs.has_value() ) {
 				String const& v = abs->first;
 				String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
@@ -121,29 +132,62 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 
 Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
-	Ctxt loc = ctxt.branch();
-	// computing unifier
-	thm = strip_all(thm,loc);
-	auto const& imp = thm.imp();
-	if( !imp.has_value() ) {
+	// expand thm into cond ⟹ concl
+	Ctxt thm_ctxt = ctxt.branch();
+	Thm thm_strip = strip_all(thm,thm_ctxt);
+	auto const& app1 = thm_strip.app();
+	if( !app1.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	arg = strip_all(arg,loc);
-	CTerm cond = imp->first;
-	optional<CSubst> unifier = unify(cond,arg);
+	auto const& app2 = app1->first.app();
+	if( !app2.has_value() || app2->first != IMP ) {
+		throw MalformedDischarge(thm,arg);
+	}
+	// expand cond
+	CTerm cond = app2->second;
+	Ctxt cond_ctxt = thm_ctxt.branch();
+	CTerm cond_strip = strip_all(cond,cond_ctxt);
+	// expand arg
+	Ctxt arg_ctxt = cond_ctxt.branch();
+	Thm arg_strip = strip_all(arg,arg_ctxt);
+	cond_strip = cond_strip.weaken(arg_ctxt);
+	cond = cond.weaken(arg_ctxt);
+	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](String const& x){
+		return thm_ctxt.syms().contains(x) || arg_ctxt.syms().contains(x);
+	} );
 	if( !unifier.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
-	// instantiating according to the unifier
-	Ctxt loc2 = ctxt.branch();
-	thm = thm.lift(ctxt).weaken(loc2);
-	arg = arg.lift(ctxt).weaken(loc2);
-cerr << thm << endl << arg << endl;
-	for( auto const& x : loc.sym_list() ) {// TODO: slower than `subst`
+	// unassigned free variables will be universally quantified in the result
+	Ctxt ret_ctxt = ctxt.branch();
+	for( auto const& x : arg_ctxt.sym_list() ) {
+		if( !unifier->map().contains(x) ) {
+			ret_ctxt.fix(x);
+		}
+	}
+	for( auto const& x : thm_ctxt.sym_list() ) {
+		if( !unifier->map().contains(x) ) {
+			ret_ctxt.fix(x);
+		}
+	}
+	// instantiating arg according to the unifier
+	// quantify variables as cond
+	Ctxt discharger_ctxt = ret_ctxt.branch();
+	for( auto const& x : cond_ctxt.sym_list() ) {
+		discharger_ctxt.fix(x);
+	}
+	arg = arg.weaken(discharger_ctxt);
+	for( auto const& x : arg_ctxt.sym_list() ) {// TODO: slower than `subst`
 		auto opt = unifier->get(x);
-		auto const& val = opt.has_value() ? opt->lift(ctxt).weaken(loc2) : loc2.fix(x);
-		thm = thm.allE(val);
-		arg = arg.allE(val);
+		auto const& val = opt.has_value() ? (Term)*opt : x;
+		arg = arg.allE(discharger_ctxt.cterm(val));
+	}
+	arg = arg.lift(ret_ctxt);
+	thm = thm.weaken(ret_ctxt);
+	for( auto const& x : thm_ctxt.sym_list() ) {// TODO: slower than `subst`
+		auto opt = unifier->get(x);
+		auto const& val = opt.has_value() ? (Term)*opt : x;
+		thm = thm.allE(ret_ctxt.cterm(val));
 	}
 	thm = thm.impE(arg);
 	thm = thm.lift(ctxt);

@@ -278,7 +278,7 @@ pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const {
 		throw DoubleFix(sym);
 	}
 	String thesis = avoid("thesis",[&](String const& x){ return find(x) || sym == x; });
-	Term goal = thesis %= (sym %= spec >>= thesis) >>= thesis;
+	Term goal = ALL(thesis /= ALL(sym /= spec >>= thesis) >>= thesis);
 	_ref->specs.insert({sym,spec});
 	return pair(goal,Thm(CTerm(*this,goal >>= spec)));
 }
@@ -287,9 +287,9 @@ Thm Thm::allE(CTerm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
-	auto a = all();
-	if( a.has_value() ) {
-		return CTerm(ctxt(),a->second.subst(a->first,t));
+	auto const& a = app();
+	if( a.has_value() && a->first == ALL ) {
+		return a->second.inst(t);
 	}
 	throw MalformedInstantiation(*this,t);
 }
@@ -298,9 +298,12 @@ Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
-	auto a = imp();
-	if( a.has_value() && a->first == t ) {
-		return CTerm(ctxt(),a->second);
+	auto const& app1 = app();
+	if( app1.has_value() ) {
+		auto const& app2 = app1->first.app();
+		if( app2->first == IMP && app2->second == t ) {
+			return app1->second;
+		}
 	}
 	throw MalformedDischarge(*this,t);
 }
@@ -320,7 +323,7 @@ Thm Thm::lift(Ctxt const& ctxt) const {
 	}
 	auto const& syms = _ctxt.sym_list();
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
-		stmt = *it %= stmt;
+		stmt = ALL(*it /= stmt);
 	}
 	return Thm(CTerm(*parent,stmt)).lift(ctxt);
 }

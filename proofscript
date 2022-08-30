@@ -81,11 +81,11 @@ show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
 obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
 	fix thesis;
 	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
-	name 2: EQ.refl(∀ P. P ⟹ P);
-	by 1[2];
+	by 1[EQ.refl];
 
 show TRUE.intro: TRUE;
-  by EQ.prop2[TRUE.def, IMP.refl];
+	name 1: EQ.prop2[TRUE.def];
+	by 1[IMP.refl];
 
 obtain FALSE where FALSE.def: FALSE = (∀ P. P);
 	fix thesis;
