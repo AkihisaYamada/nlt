@@ -129,7 +129,7 @@ const char* Lexer::peek_token() {
 			read_continue(ismultiop);
 		} else if( issingleop(c) ) {
 			token_type = Operator;
-		} else if( c == '$' ) {
+		} else if( c == '\\' ) {
 			read_continue(iswordchar);
 			token_type = Escaped;
 		} else {

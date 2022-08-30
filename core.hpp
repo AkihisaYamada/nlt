@@ -40,16 +40,14 @@ typedef std::set<String,std::less<>> Syms;
 
 class Term {
 	enum { SYM, APP, ABS, BIND } _type;
-	struct App {
-		Ref<Term const> fun, arg;
+	struct App : Ref<std::pair<Term,Term> const> {
+		 App(Term const& fun, Term const& arg) : Ref({fun,arg}) {}
 	};
-	struct Abs {
-		String var;
-		Ref<Term const> body;
+	struct Abs : Ref<std::pair<String,Term> const> {
+		Abs(String const& var, Term const& body) : Ref({var,body}) {}
 	};
-	struct Bind {
-		String var;
-		Ref<Term const> val;
+	struct Bind : Ref<std::pair<String,Term> const> {
+		Bind(String const& var, Term const& val) : Ref({var,val}) {}
 	};
 	union Union {
 		String sym;
@@ -105,13 +103,13 @@ public:
 		return _type == SYM ? _un.sym : std::optional<String>();
 	}
 	std::optional<Pair> app() const {
-		return _type == APP ? Pair(*_un.app.fun,*_un.app.arg) : std::optional<Pair>();
+		return _type == APP ? *_un.app : std::optional<Pair>();
 	}
 	std::optional<StrTerm> abs() const {
-		return _type == ABS ? StrTerm(_un.abs.var,*_un.abs.body) : std::optional<StrTerm>();
+		return _type == ABS ? *_un.abs : std::optional<StrTerm>();
 	}
 	std::optional<StrTerm> fix() const {
-		return _type == BIND ? StrTerm(_un.fix.var,*_un.fix.val) : std::optional<StrTerm>();
+		return _type == BIND ? *_un.fix : std::optional<StrTerm>();
 	}
 	/**
 	 * @brief Expands implication.
@@ -120,10 +118,11 @@ public:
 	 */
 	std::optional<Pair> imp() const {
 		if( _type == APP ) {
-			Term const& fun1 = *_un.app.fun;
-			if( fun1._type == APP ) {
-				if( *fun1._un.app.fun == IMP ) {
-					return Pair(*fun1._un.app.arg,*_un.app.arg);
+			auto& app1 = *_un.app;
+			if( app1.first._type == APP ) {
+				auto& app2 = *app1.first._un.app;
+				if( app2.first == IMP ) {
+					return Pair(app2.second,app1.second);
 				}
 			}
 		}
@@ -136,9 +135,9 @@ public:
 	 */
 	std::optional<StrTerm> all() const {
 		if( _type == APP ) {
-			if( *_un.app.fun == ALL && _un.app.arg->_type == ABS ) {
-				auto& abs = _un.app.arg->_un.abs;
-				return StrTerm(abs.var,*abs.body);
+			auto& app = *_un.app;
+			if( app.first == ALL && app.second._type == ABS ) {
+				return *app.second._un.abs;
 			}
 		}
 		return std::optional<StrTerm>();

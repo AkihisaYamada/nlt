@@ -24,8 +24,9 @@ public:
 		_own_syntax(true) {
 		_ctxt.fix(IMP_var);
 		_ctxt.fix(ALL_var);
-		_syntax->infix(String(","),-1,-1,-2).
-			infix(String(";"),-1,-1,-2);
+		_syntax->infix(",",-1,-1,-2).
+			infix(";",-1,-1,-2).
+			infix("$",-1,-1,-2);
 	}
 	Prover(Prover const& parent) :
 		_depth(parent._depth+1),
@@ -61,6 +62,19 @@ public:
 				return ret;
 			}
 		}
+	}
+	Term get_term() {
+		Term term = _syntax->get_term().value();
+		if( _syntax->skips('$') ) {
+			CSubst subst = _ctxt.branch();
+			do {
+				String sym = _syntax->get_token();
+				_syntax->skip(":=");
+				subst.assign(sym,get_term());
+			} while( _syntax->skips(',') );
+			term = term.subst(subst);
+		}
+		return term;
 	}
 
 	optional<Thm> loop() {
@@ -106,7 +120,7 @@ public:
 				_syntax->skip(';');
 				cout << "thm " << _syntax->pretty_thm(thm) << endl;
 			} else if( _syntax->skips("term") ) {
-				Term term = _syntax->get_term(0).value();
+				Term term = get_term();
 				_syntax->skip(';');
 				cout << "term " << _syntax->pretty_term(term) << endl;
 			} else if( _syntax->skips("name") ) {
