@@ -42,7 +42,12 @@ public:
 		_thesis({parent._ctxt,claim}) {}
 
 	Thm get_thm() {
-		Thm ret = _ctxt.thm(_syntax->get_thm_name());
+		Ctxt loc = _ctxt.branch();
+		return _get_thm(loc).lift(_ctxt);
+	}
+
+	Thm _get_thm(Ctxt loc) {
+		Thm ret = loc.thm(_syntax->get_thm_name());
 		for(;;) {
 			if( _syntax->skips('(') ) {
 				do {
@@ -50,12 +55,12 @@ public:
 					if( !topt.has_value() ) {
 						throw SyntaxError();
 					}
-					ret = ret.allE(_ctxt.cterm(*topt));
+					ret = ret.allE(loc.enclose(*topt));
 				} while( _syntax->skips(',') );
 				_syntax->skip(')');
 			} else if( _syntax->skips('[') ) {
 				do {
-					ret = discharge(ret,get_thm());
+					ret = discharge(ret,_get_thm(loc));
 				} while	( _syntax->skips(',') );
 				_syntax->skip(']');
 			} else {

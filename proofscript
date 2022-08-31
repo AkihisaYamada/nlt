@@ -149,3 +149,5 @@ show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
 
 
 ctxt;
+
+thm FUN.def(z. λ w. C[w]);
