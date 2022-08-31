@@ -41,8 +41,8 @@ public:
 		_own_syntax(false),
 		_thesis({parent._ctxt,claim}) {}
 
-	Thm get_thm(Ctxt const& ctxt) {
-		Thm ret = ctxt.thm(_syntax->get_thm_name());
+	Thm get_thm() {
+		Thm ret = _ctxt.thm(_syntax->get_thm_name());
 		for(;;) {
 			if( _syntax->skips('(') ) {
 				do {
@@ -50,12 +50,12 @@ public:
 					if( !topt.has_value() ) {
 						throw SyntaxError();
 					}
-					ret = ret.allE(ctxt.cterm(*topt));
+					ret = ret.allE(_ctxt.cterm(*topt));
 				} while( _syntax->skips(',') );
 				_syntax->skip(')');
 			} else if( _syntax->skips('[') ) {
 				do {
-					ret = discharge(ret,get_thm(ctxt));
+					ret = discharge(ret,get_thm());
 				} while	( _syntax->skips(',') );
 				_syntax->skip(']');
 			} else {
@@ -116,7 +116,7 @@ public:
 				_syntax->skip(';');
 				cout << endl;
 			} else if( _syntax->skips("thm") ) {
-				Thm thm = get_thm(_ctxt);
+				Thm thm = get_thm();
 				_syntax->skip(';');
 				cout << "thm " << _syntax->pretty_thm(thm) << endl;
 			} else if( _syntax->skips("term") ) {
@@ -126,14 +126,14 @@ public:
 			} else if( _syntax->skips("name") ) {
 				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				_ctxt.claim(name,get_thm(_ctxt));
+				_ctxt.claim(name,get_thm());
 				_syntax->skip(';');
 				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
 			} else if( _syntax->skips("move") ) {
 				Ctxt pctxt = _ctxt.parent().value();
 				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				pctxt.claim(name,get_thm(_ctxt));
+				pctxt.claim(name,get_thm());
 				_syntax->skip(';');
 				cout << "theorem " << name << ": " << _syntax->pretty_thm(pctxt.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
@@ -194,7 +194,7 @@ public:
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
-				Thm ret = get_thm(_ctxt);
+				Thm ret = get_thm();
 				_syntax->skip(';');
 				cerr << "By " << _syntax->pretty_thm(ret) << endl;
 				return ret;
