@@ -225,7 +225,7 @@ public:
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
-	CTerm fix(String const& sym) const;
+	CTerm fix(String const& sym);
 	/**
 	 * @brief Adds assumption in the context.
 	 */
@@ -460,6 +460,9 @@ public:
 	 */
 	CSubst& assign(String const& var, Term const& val) {
 		return _assign(var,_ctxt.enclose(val));
+	}
+	void erase(String const& var) {
+		_map.erase(var);
 	}
 	/**
 	 * @brief (re)assigns a value to a variable

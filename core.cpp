@@ -239,7 +239,7 @@ optional<String const> Ctxt::find(String const& sym) const {
 	return opt;
 }
 
-CTerm Ctxt::fix(String const& sym) const {
+CTerm Ctxt::fix(String const& sym) {
 	auto opt = find(sym);
 	if( opt.has_value() ) {
 		return CTerm(*this,*opt);

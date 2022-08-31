@@ -139,7 +139,7 @@ public:
 			} else if( _syntax->skips("show") ) {
 				String thm_name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				Term stmt = _syntax->get_term(0).value();
+				CTerm stmt = _ctxt.cterm(_syntax->get_term(0).value());
 				_syntax->skip(';');
 				cout << "Proving " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
 				auto const& prf = Prover(*this,stmt).loop();
@@ -147,11 +147,22 @@ public:
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& thm = prf->lift(_ctxt);
-				if( stmt != thm ) {
+				Ctxt stmt_ctxt = _ctxt.branch();
+				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
+				Thm thm = prf->lift(_ctxt);
+				Ctxt thm_ctxt = stmt_ctxt.branch();
+				Thm thm_strip = strip_all(thm,thm_ctxt);
+				stmt_strip = stmt_strip.weaken(thm_ctxt);
+				optional<CSubst> matcher = match(thm_ctxt.syms(),thm_strip,stmt_strip);
+				if( !matcher.has_value() ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
 				}
+				thm = thm.weaken(stmt_ctxt);
+				for( auto const& v : thm_ctxt.sym_list() ) {
+					thm = thm.allE(matcher->get(v)->lift(stmt_ctxt));
+				}
+				thm = thm.lift(_ctxt);
 				_ctxt.claim(thm_name,thm);
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
@@ -218,6 +229,9 @@ public:
 			exit(-1);
 		} catch ( UnexpectedTerm const& e ) {
 			cerr << "ERROR: Unexpected term " << _syntax->pretty_term(e.term) << endl;
+			exit(-1);
+		} catch ( UnboundVariable const& e ) {
+			cerr << "ERROR: Unbound variable " << e.name << endl;
 			exit(-1);
 		}
 	}

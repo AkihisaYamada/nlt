@@ -99,11 +99,21 @@ show FALSE.elim: ∀ P. FALSE ⟹ P;
 
 prefix λ 0 0;
 
-assume ABS.def: ∀ α. ∀ s. λ α s = α[s];
+assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
 
 infix ∧ 36 35 36;
 
-assume AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
+obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
+	fix thesis;
+	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
+	show 2: ∀ P. ∀ Q. ((λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)) P Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R));
+		fix P Q;
+		show 3: (λ P. λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) P Q = (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q;
+			by EQ.fun_cong[FUN.def];
+		show 4: (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
+			by FUN.def;
+		by EQ.trans[3,4];
+	by 1[2];
 
 name AND.elim: EQ.prop1[AND.def];
 name AND.intro: EQ.prop2[AND.def];

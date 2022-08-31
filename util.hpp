@@ -25,11 +25,11 @@ CTerm strip_all(CTerm t, Ctxt& loc);
 
 /**
  * @brief Matching, assuming disjoint free variables.
- * @param fsyms the list of free variables
+ * @param fsyms the set of free variables
  * @param pat 
  * @param val 
  */
-bool match(std::list<String> const& fsyms, Term const& pat, Term const& val, StrMap<Term>& subst);
+std::optional<CSubst> match(Syms const& fsyms, CTerm const& pat, CTerm const& val);
 
 class SubstDag : public CSubst, public Graph<String,std::less<>> {
 public:

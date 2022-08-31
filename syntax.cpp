@@ -137,7 +137,10 @@ optional<Term> Syntax::get_term(int level) {
 		} else {
 			String sym = get_token();
 			if( skips('.') ) {
-				ret = sym /= get_term(level).value();
+				auto const& t = get_term(level);
+				if( t.has_value() ) {
+					ret = sym /= t.value();
+				}
 			} else if( skips('[') ) {
 				ret = sym / get_term(0).value();
 				skip(']');
