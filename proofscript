@@ -103,6 +103,10 @@ infix ∧ 36 35 36;
 obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 	fix thesis;
 	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
+	name 2: 1(λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R));
+
+thm 2[rewrite EQ.mono FUN.def];
+
 	show 2: ∀ P. ∀ Q. ((λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)) P Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R));
 		fix P Q;
 		show 3: (λ P. λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) P Q = (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q;

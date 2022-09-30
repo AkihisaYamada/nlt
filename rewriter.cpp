@@ -16,9 +16,10 @@ CTerm Rewriter::rule2pat(Thm const& thm) {
 	return app2->second;
 }
 std::optional<Thm> Rewriter::apply(Thm const& thm) {
-	Ctxt loc = thm.ctxt().branch();
-	Thm const& stripped_thm = strip_all(thm,loc);
-	return apply(stripped_thm,loc.branch().enclose(BOX),stripped_thm);
+	Ctxt loc1 = thm.ctxt().branch();
+	Thm const& stripped_thm = strip_all(thm,loc1);
+	Ctxt loc2 = loc1.branch();
+	return apply(stripped_thm,loc2.enclose(BOX),stripped_thm.weaken(loc2));
 }
 
 std::optional<Thm> Rewriter::apply(Thm const& stripped_thm, CTerm const& context, CTerm const& s) const {

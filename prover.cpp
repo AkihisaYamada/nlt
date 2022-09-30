@@ -20,12 +20,14 @@ class Prover {
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
 	optional<Thesis> _thesis;
+	bool _exit_on_error;
 public:
-	Prover(istream& is) :
+	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
 		_ctxt(),
 		_syntax(is),
-		_own_syntax(true) {
+		_own_syntax(true),
+		_exit_on_error(exit_on_error) {
 		_ctxt.fix(IMP_var);
 		_ctxt.fix(ALL_var);
 		_syntax->infix(",",-1,-1,-2).
@@ -261,6 +263,9 @@ public:
 		} catch ( UnboundVariable const& e ) {
 			cerr << "ERROR: Unbound variable " << e.name << endl;
 			exit(-1);
+		} catch ( Syntax::Error const& e ) {
+			cerr << "Syntax ERROR: " << e.message << endl;
+			exit(-1);
 		}
 	}
 private:
@@ -274,12 +279,14 @@ private:
 
 int main(int argc, char* argv[]) {
 	istream* pis;
+	bool exit_on_error = false;
 	if( argc == 1 ) {
 		pis = &cin;
 	} else {
 		pis = new fstream(argv[1]);
+		exit_on_error = true;
 	}
-	Prover prover = Prover(*pis);
+	Prover prover = Prover(*pis,exit_on_error);
 	prover.loop();
 	return 0;
 }
