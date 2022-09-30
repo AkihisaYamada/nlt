@@ -9,13 +9,13 @@ show IMP.trans: ∀ P. ∀ Q. ∀ R. (P ⟹ Q) ⟹ (Q ⟹ R) ⟹ P ⟹ R;
 	assume PQ: P ⟹ Q;
 	assume QR: Q ⟹ R;
 	assume P: P;
-	name Q: PQ[P];
-	by QR[Q];
+	name Q: PQ[OF P];
+	by QR[OF Q];
 
 show mp: ∀ P. ∀ Q. P ⟹ (P ⟹ Q) ⟹ Q;
 	assume P: P;
 	assume PQ: P ⟹ Q;
-	by PQ[P];
+	by PQ[OF P];
 
 show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P;
 	fix P Q;
@@ -30,34 +30,34 @@ assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
 show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
 	assume xy: x = y;
-	by EQ.mono(z. z = x)[xy,EQ.refl];
+	by EQ.mono(z. z = x)[OF xy EQ.refl];
 
 show EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
 	fix x y z;
 	assume xy: x = y;
 	assume yz: y = z;
-	by EQ.mono(w. x = w)[yz,xy];
+	by EQ.mono(w. x = w)[OF yz xy];
 
 show EQ.arg_cong: ∀ f. ∀ x. ∀ y. x = y ⟹ f x = f y;
 	fix f x y;
 	assume xy: x = y;
 	name 1: EQ.refl(f x);
-	by EQ.mono(z. f x = f z)[xy,1];
+	by EQ.mono(z. f x = f z)[OF xy 1];
 
 show EQ.fun_cong: ∀ f. ∀ g. ∀ x. f = g ⟹ f x = g x;
 	fix f g x;
 	assume fg: f = g;
 	name 1: EQ.refl(f x);
-	by EQ.mono(h. f x = h x)[fg,1];
+	by EQ.mono(h. f x = h x)[OF fg 1];
 
 show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 	fix f g x y;
 	assume fg: f = g, xy: x = y;
 	show 1: f x = f y;
-		by EQ.arg_cong(f)[xy];
+		by EQ.arg_cong(f)[OF xy];
 	show 2: f y = g y;
-		by EQ.fun_cong[fg](y);
-	by EQ.trans[1,2];
+		by EQ.fun_cong[OF fg](y);
+	by EQ.trans[OF 1 2];
 
 show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
 	by EQ.mono(x. x);
@@ -65,34 +65,34 @@ show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
 show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 	fix P Q;
 	assume PQ: P = Q;
-	by EQ.prop1[EQ.sym[PQ]];
+	by EQ.prop1[OF EQ.sym[OF PQ]];
 
 show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
 	assume 1: P ⟹ ∀ x. α[x];
 	show 2: ∀ x. P ⟹ α[x];
 		fix x;
 		assume P: P;
-		by 1[P](x);
+		by 1[OF P](x);
 	by 2;
 
 obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
 	fix thesis;
 	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
-	by 1[EQ.refl];
+	by 1[OF EQ.refl];
 
 show TRUE.intro: TRUE;
-	name 1: EQ.prop2[TRUE.def];
-	by 1[IMP.refl];
+	name 1: EQ.prop2[OF TRUE.def];
+	by 1[OF IMP.refl];
 
 obtain FALSE where FALSE.def: FALSE = (∀ P. P);
 	fix thesis;
 	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
-	by 1[EQ.refl];
+	by 1[OF EQ.refl];
 
 show FALSE.elim: ∀ P. FALSE ⟹ P;
 	fix P;
 	assume 1: FALSE;
-	by EQ.prop1[FALSE.def,1](P);
+	by EQ.prop1[OF FALSE.def 1](P);
 
 prefix λ 0 0;
 
@@ -106,18 +106,18 @@ obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ 
 	show 2: ∀ P. ∀ Q. ((λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)) P Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R));
 		fix P Q;
 		show 3: (λ P. λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) P Q = (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q;
-			by EQ.fun_cong[FUN.def];
+			by EQ.fun_cong[OF FUN.def];
 		show 4: (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 			by FUN.def;
-		by EQ.trans[3,4];
-	by 1[2];
+		by EQ.trans[OF 3 4];
+	by 1[OF 2];
 
-name AND.elim: EQ.prop1[AND.def];
-name AND.intro: EQ.prop2[AND.def];
+name AND.elim: EQ.prop1[OF AND.def];
+name AND.intro: EQ.prop2[OF AND.def];
 
 show mp2: ∀ P. ∀ Q. P ∧ (P ⟹ Q) ⟹ Q;
 	assume p_pq: P ∧ (P ⟹ Q);
-	by AND.elim[p_pq][mp];
+	by AND.elim[OF p_pq][OF mp];
 
 infix ∨ 31 30 31;
 
@@ -128,21 +128,21 @@ show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
 	assume P: P;
 	show 1: (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		assume PR: P ⟹ R, QR: Q ⟹ R;
-		by PR[P];
-	by EQ.prop2[OR.def,1];
+		by PR[OF P];
+	by EQ.prop2[OF OR.def 1];
 
 show OR.intro2: ∀ P. ∀ Q. Q ⟹ P ∨ Q;
 	fix P Q;
 	assume Q: Q;
 	show 1: (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		assume PR: P ⟹ R, QR: Q ⟹ R;
-		by QR[Q];
-	by EQ.prop2[OR.def,1];
+		by QR[OF Q];
+	by EQ.prop2[OF OR.def 1];
 
 show OR.elim: ∀ P. ∀ Q. ∀ R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 	fix P Q R;
 	assume PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R;
-	by EQ.prop1[OR.def,PQ,PR,QR];
+	by EQ.prop1[OF OR.def PQ PR QR];
 
 
 prefix ∃ 0 1;
@@ -151,11 +151,11 @@ assume EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 
 show EX.elim: ∀ α. (∃ α) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
 	fix α;
-	by EQ.prop1[EX.def(α)];
+	by EQ.prop1[OF EX.def(α)];
 
 show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
 	fix α;
-	by EQ.prop2[EX.def(α)];
+	by EQ.prop2[OF EX.def(α)];
 
 
 ctxt;

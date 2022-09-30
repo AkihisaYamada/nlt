@@ -96,9 +96,11 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	};
 }
 
-string Syntax::get_thm_name() {
-	if( next_token_type() != Lexer::Word ) {
-		return get_token();
+optional<string> Syntax::gets_thm_name() {
+	switch( next_token_type() ) {
+		case Lexer::Word: break;
+		case Lexer::Number: return get_token();
+		default: return optional<string>();
 	}
 	string ret = get_token();
 	for(;;) {
@@ -112,14 +114,21 @@ string Syntax::get_thm_name() {
 		ret += get_token();
 	}
 }
+string Syntax::get_thm_name() {
+	auto const& opt = gets_thm_name();
+	if( !opt.has_value() ) {
+		throw Error("Required a theorem name");
+	}
+	return *opt;
+}
 
-optional<Term> Syntax::get_term(int level) {
+optional<Term> Syntax::gets_term(int level) {
 	if( !readable() ) {
 		return optional<Term>();
 	}
 	Term ret;
 	if( skips('(') ) {
-		ret = get_term(0).value();
+		ret = gets_term(0).value();
 		skip(')');
 	} else {
 		string_view sym = peek_token();
@@ -130,19 +139,19 @@ optional<Term> Syntax::get_term(int level) {
 			}
 			ret = Term(it->first);
 			ignore_token();
-			auto const& r = get_term(it->second.rlevel);
+			auto const& r = gets_term(it->second.rlevel);
 			if( r.has_value() ) {
 				ret = ret(r.value());
 			}
 		} else {
 			String sym = get_token();
 			if( skips('.') ) {
-				auto const& t = get_term(level);
+				auto const& t = gets_term(level);
 				if( t.has_value() ) {
 					ret = sym /= t.value();
 				}
 			} else if( skips('[') ) {
-				ret = sym / get_term(0).value();
+				ret = sym / gets_term(0).value();
 				skip(']');
 			} else {
 				ret = Term(sym);
@@ -169,12 +178,20 @@ optional<Term> Syntax::get_term(int level) {
 			ignore_token();
 			rlevel = pair->second.rlevel;
 		}
-		auto r = get_term(rlevel);
+		auto r = gets_term(rlevel);
 		if( r.has_value() ) {
 			ret = ret(r.value());
 		} else {
 			return ret;
 		}
 	}
+}
+
+Term Syntax::get_term(int level) {
+	auto const& opt = gets_term(level);
+	if( !opt.has_value() ) {
+		throw Error("Required a term");
+	}
+	return *opt;
 }
 

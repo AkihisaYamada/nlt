@@ -4,6 +4,10 @@
 
 using namespace std;
 
+struct ProverFailure : exception {
+	String message;
+	ProverFailure(String const& message) : message(message) {}
+};
 class UnfinishedProof : std::exception {};
 
 class Prover {
@@ -43,25 +47,44 @@ public:
 
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
-		return _get_thm(loc).intro();
+		return _gets_thm(loc)->intro();
 	}
 
-	Thm _get_thm(Ctxt loc) {
-		Thm ret = loc.thm(_syntax->get_thm_name());
+	optional<Thm> _gets_thm(Ctxt loc) {
+		auto const& opt = _syntax->gets_thm_name();
+		if( !opt.has_value() ) {
+			return optional<Thm>();
+		}
+		Thm ret = loc.thm(*opt);
 		for(;;) {
 			if( _syntax->skips('(') ) {
 				do {
-					auto const& topt = _syntax->get_term();
-					if( !topt.has_value() ) {
-						throw SyntaxError();
-					}
-					ret = ret.allE(loc.enclose(*topt));
+					ret = ret.allE(loc.enclose(_syntax->get_term()));
 				} while( _syntax->skips(',') );
 				_syntax->skip(')');
 			} else if( _syntax->skips('[') ) {
-				do {
-					ret = discharge(ret,_get_thm(loc));
-				} while	( _syntax->skips(',') );
+				if( _syntax->skips("OF") ) {
+					for(;;) {
+						auto const& opt_arg = _gets_thm(loc);
+						if( !opt_arg.has_value() ) {
+							break;
+						}
+						ret = discharge(ret,*opt_arg);
+					}
+				} else if( _syntax->skips("rewrite") ) {
+					Rewriter rewriter = Rewriter(*_gets_thm(loc));
+					for(;;) {
+						auto const& opt_arg = _gets_thm(loc);
+						if( !opt_arg.has_value() ) {
+							break;
+						}
+						rewriter.add(*opt_arg);
+					}
+					auto const& ret_opt = rewriter.apply(ret);
+					if( !ret_opt.has_value() ) {
+						throw ProverFailure("Failed rewrite");
+					}
+				}
 				_syntax->skip(']');
 			} else {
 				return ret;
@@ -69,7 +92,7 @@ public:
 		}
 	}
 	Term get_term() {
-		Term term = _syntax->get_term().value();
+		Term term = _syntax->gets_term().value();
 		if( _syntax->skips('$') ) {
 			CSubst subst = _ctxt.branch();
 			do {
@@ -110,7 +133,7 @@ public:
 				for(;;) {
 					String name = _syntax->get_thm_name();
 					_syntax->skip(':');
-					Term term = _syntax->get_term(0).value();
+					Term term = _syntax->gets_term(0).value();
 					cout << name << ": " << _syntax->pretty_term(term) << flush;
 					_ctxt.assume(name,term);
 					if( !_syntax->skips(',') ) {
@@ -144,7 +167,7 @@ public:
 			} else if( _syntax->skips("show") ) {
 				String thm_name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				CTerm stmt = _ctxt.cterm(_syntax->get_term(0).value());
+				CTerm stmt = _ctxt.cterm(_syntax->get_term(0));
 				_syntax->skip(';');
 				cout << "Proving " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
 				auto const& prf = Prover(*this,stmt).loop();
@@ -174,7 +197,7 @@ public:
 				_syntax->skip("where");
 				String spec_name = _syntax->get_thm_name();
 				_syntax->skip(':');
-				Term spec = _syntax->get_term(0).value();
+				Term spec = _syntax->get_term(0);
 				_syntax->skip(';');
 				auto const& pair = _ctxt.obtain(sym,spec);
 				Term const& goal = pair.first;

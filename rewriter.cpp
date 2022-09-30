@@ -1,5 +1,7 @@
 #include "util.hpp"
 
+String Rewriter::BOX = "[]";
+
 CTerm Rewriter::rule2pat(Thm const& thm) {
 	Ctxt loc = thm.ctxt().branch();
 	Thm body = strip_all(thm,loc);
@@ -32,7 +34,7 @@ std::optional<Thm> Rewriter::apply(Thm const& stripped_thm, CTerm const& context
 				eq = eq.allE(*m->get(var));
 			}
 			// now eq is lθ = rθ and thm = C[lθ]. We return C[rθ]
-			return EQ_mono.allE(context.lift()).impE(eq).impE(stripped_thm).intro();
+			return EQ_mono.weaken(ctxt).allE(context.lift()).impE(eq).impE(stripped_thm).intro();
 		}
 	}
 	auto const& app = s.app();

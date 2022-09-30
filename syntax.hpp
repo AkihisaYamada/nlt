@@ -28,6 +28,10 @@ class Syntax : public Lexer {
 	InfixTable infixes;
 
 public:
+	struct Error : std::exception {
+		String message;
+		Error(String const& message) : message(message) {}
+	};
 	Syntax(std::istream& is) : Lexer(is) {}
 
 	Syntax& prefix(String const& sym, int level, int rlevel) {
@@ -42,7 +46,9 @@ public:
 	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
+	std::optional<std::string> gets_thm_name();
 	std::string get_thm_name();
-	std::optional<Term> get_term(int level = 0);
+	std::optional<Term> gets_term(int level = 0);
+	Term get_term(int level = 0);
 };
 #endif
