@@ -136,12 +136,14 @@ public:
 	/**
 	 * @brief homomorphic extension.
 	 * 
-	 * @param f the mapping applied on free variables
-	 * @param fixed 
-	 * @param bsyms 
+	 * @param f the mapping applied on free variables.
+	 * @param fixed flags fixed variables.
 	 * @return Term 
 	 */
-	Term map(std::function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const;
+	Term map(std::function<Term(String const&)> f, std::function<bool(String const&)> fixed) const {
+		StrMap<String> bsyms;
+		return _map(f,fixed,bsyms);
+	};
 private:
 	Union _copy_un() const;
 	void _iter_syms(
@@ -149,8 +151,8 @@ private:
 		std::function<void(String const&)> const& bsym,
 		std::function<void(String const&)> const& fsym
 	) const;
+	Term _map(std::function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const;
 	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);// equality test
-	static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap );
 
 	friend bool operator==(Term const& l, Term const& r) {
 		StrMap<unsigned int> lmap, rmap;
@@ -205,15 +207,34 @@ public:
 	 */
 	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
+	/**
+	 * @brief The parent context if this is not a root.
+	 */
 	std::optional<Ctxt> const& parent() const;
+	/**
+	 * @brief The set of all symbols fixed by this context.
+	 */
 	Syms const& syms() const;
+	/**
+	 * @brief The sequence of all symbols fixed by this context.
+	 */
 	std::vector<String> const& sym_list() const;
 	/**
-	 * @brief Returns the set of assumptions.
+	 * @brief The sequence of local assumptions.
 	 */
 	std::vector<Term> const& assms() const;
-	StrMap<Term const> const& specs() const;
+	/**
+	 * @brief Local theorems.
+	 * 
+	 * @return map from the theorem names to the statements.
+	 */
 	StrMap<Term const> const& thms() const;
+	/**
+	 * @brief Local specifications.
+	 * 
+	 * @return map from constant names to the specifications. 
+	 */
+	StrMap<Term const> const& specs() const;
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
@@ -230,6 +251,14 @@ public:
 	 * @brief Adds assumption in the context.
 	 */
 	Ctxt const& assume(String const& name, Term const& assm);
+	/**
+	 * @brief Fixes a symbol with a specification.
+	 * the existence of sym that satisfy spec
+	 *
+	 * @param sym the symbol to be fixed.
+	 * @param spec the specification of the symbol.
+	 * @return the pair of the term for goal, and the theorem that asserts goal implies spec.
+	 */
 	std::pair<Term,Thm> obtain(String const& sym, Term const& spec) const;
 	/**
 	 * @brief Fixes all free variables of a term, so that it will become a closed term.
@@ -246,9 +275,6 @@ public:
 	CTerm cterm(Term const& t) const;
 	/**
 	 * @brief Imports theorem from ancestor context.
-	 * 
-	 * @param thm 
-	 * @return Thm 
 	 */
 	Thm adopt(Thm const& thm) const;
 	/**
@@ -299,15 +325,8 @@ struct Ctxt::Body {
 
 inline Ctxt::Ctxt() : _ref(Body()) {};
 
-inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
-	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.specs == r.specs && l.thms == r.thms;
-};
-
 inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>(Ctxt::Body{parent})) {}
 
-/**
- * @brief The set of all symbols fixed in this context or an ancestor.
- */
 inline Syms const& Ctxt::syms() const {
 	return _ref->syms;
 }
@@ -326,6 +345,10 @@ inline StrMap<Term const> const& Ctxt::specs() const {
 inline StrMap<Term const> const& Ctxt::thms() const {
 	return _ref->thms;
 }
+
+inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
+	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.specs == r.specs && l.thms == r.thms;
+};
 
 inline bool operator!=(Ctxt const& l, Ctxt const& r) {
 	return !(l == r);
@@ -364,11 +387,20 @@ public:
 	}
 	std::optional<StrTerm> abs() const {
 		auto const& tabs = Term::abs();
-		return tabs.has_value() ?StrTerm(tabs->first,CTerm(_ctxt,tabs->second)) : std::optional<StrTerm>();
+		return tabs.has_value() ? StrTerm(tabs->first,CTerm(_ctxt,tabs->second)) : std::optional<StrTerm>();
 	}
 	std::optional<StrTerm> fix() const {
 		auto const& tfix = Term::fix();
 		return tfix.has_value() ? StrTerm(tfix->first,CTerm(_ctxt,tfix->second)) : std::optional<StrTerm>();
+	}
+	/**
+	 * @brief Application of closed terms. Both terms should belong to the same context.
+	 */
+	CTerm operator()(CTerm const& arg) const {
+		if( _ctxt != arg._ctxt ) {
+			throw WrongContext();
+		}
+		return CTerm(_ctxt,Term::operator()(arg));
 	}
 	/**
 	 * @brief applies substitution to a closed term
@@ -413,6 +445,13 @@ public:
 
 	/**
 	 * @brief Lifts a closed term to one with respect to the parent context.
+	 *   Symbols fixed in the context will be abstracted.
+	 * @return the closed term with respect to the parent.
+	 */
+	CTerm lift() const;
+
+	/**
+	 * @brief Lifts a closed term to one with respect to the parent context.
 	 * 
 	 * @param subst a substitution in the parent context.
 	 * @return the instance, closed with respect to the parent.
@@ -447,7 +486,7 @@ private:
 public:
 	CSubst(Ctxt const& ctxt) : _ctxt(ctxt) {}
 	/**
-	 * @brief The context with respect to which the range of the substitution is closed.
+	 * @brief The context in which the range of the substitution is closed.
 	 */
 	Ctxt const& ctxt() const {
 		return _ctxt;
@@ -521,11 +560,11 @@ public:
 	 */
 	Thm impE(Thm const& t) const;
 	/**
-	 * @brief Moves the theorem to ancestor context.
+	 * @brief Moves the theorem to the parent context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
 	 */
-	Thm lift(Ctxt const& ctxt) const;
+	Thm intro() const;
 	/**
 	 * @brief Moves the theorem to a descendant context.
 	 * 
@@ -545,8 +584,10 @@ inline Thm Ctxt::thm(String const& name) const {
 }
 
 inline Ctxt const& Ctxt::claim(String const& name, Thm const& thm) const {
-	Thm thm_here = thm.lift(*this);
-	_ref->thms.insert({name,thm_here});
+	if( thm._ctxt != *this ) {
+		throw WrongContext();
+	}
+	_ref->thms.insert({name,thm});
 	return *this;
 }
 

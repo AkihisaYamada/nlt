@@ -43,7 +43,7 @@ Term::~Term() {
 	}
 }
 
-bool Term::_eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
+static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
 	auto lit = lmap.find(x);
 	auto rit = rmap.find(y);
 	if( lit != lmap.end() ) {
@@ -159,7 +159,6 @@ CSubst& CSubst::_assign(String const& var, CTerm const& val) {
 }
 
 Term Term::subst(CSubst const& subst) const {
-	StrMap<String> bsyms;
 	auto f = [&](String const& sym) {
 		auto opt = subst.get(sym);
 		return opt.has_value() ? (Term)*opt : sym;
@@ -167,7 +166,7 @@ Term Term::subst(CSubst const& subst) const {
 	auto fixed = [&](String const& sym) {
 		return subst.ctxt().find(sym).has_value();
 	};
-	return map(f,fixed,bsyms);
+	return map(f,fixed);
 }
 
 static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap<String>& bsyms) {
@@ -179,10 +178,10 @@ static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap
 	return f(sym);
 }
 
-Term Term::map(function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const {
+Term Term::_map(function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const {
 	switch(_type) {
 		case SYM: return subst_var(f,_un.sym,bsyms);
-		case APP: return _un.app->first.map(f,fixed,bsyms)(_un.app->second.map(f,fixed,bsyms));
+		case APP: return _un.app->first._map(f,fixed,bsyms)(_un.app->second._map(f,fixed,bsyms));
 		case ABS: {
 			auto& abs = *_un.abs;
 			String const& newvar = avoid(abs.first,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
@@ -191,7 +190,7 @@ Term Term::map(function<Term(String const&)> f, std::function<bool(String const&
 			if( !info.second ) {
 				prev = info.first->second;
 			}
-			Term const& body = abs.second.map(f,fixed,bsyms);
+			Term const& body = abs.second._map(f,fixed,bsyms);
 			if( info.second ) {
 				bsyms.erase(info.first);
 			} else {
@@ -202,7 +201,7 @@ Term Term::map(function<Term(String const&)> f, std::function<bool(String const&
 		case BIND: {
 			auto& fix = *_un.fix;
 			Term newbox = subst_var(f,fix.first,bsyms);
-			Term newval = fix.second.map(f,fixed,bsyms);
+			Term newval = fix.second._map(f,fixed,bsyms);
 			switch(newbox._type) {
 				case SYM: return newbox._un.sym / newval;
 				case ABS: return newbox._un.abs->second.subst(newbox._un.abs->first,newval);
@@ -308,10 +307,7 @@ Thm Thm::impE(Thm const& t) const {
 	throw MalformedDischarge(*this,t);
 }
 
-Thm Thm::lift(Ctxt const& ctxt) const {
-	if( ctxt == _ctxt ) {
-		return *this;
-	}
+Thm Thm::intro() const {
 	auto const& parent = _ctxt.parent();
 	if( !parent.has_value() ) {
 		throw WrongContext();
@@ -325,7 +321,7 @@ Thm Thm::lift(Ctxt const& ctxt) const {
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = ALL(*it /= stmt);
 	}
-	return Thm(CTerm(*parent,stmt)).lift(ctxt);
+	return Thm(CTerm(*parent,stmt));
 }
 CTerm CTerm::weaken(Ctxt const& ctxt) const {
 	Ctxt cur = ctxt;
@@ -340,6 +336,18 @@ CTerm CTerm::weaken(Ctxt const& ctxt) const {
 		cur = *parent;
 	}
 }
+CTerm CTerm::lift() const {
+	auto const& parent_opt = _ctxt.parent();
+	if( !parent_opt.has_value() ) {
+		throw WrongContext();
+	}
+	Term ret = *this;
+	for( auto const& sym : _ctxt.sym_list() ) {
+		ret = sym /= ret;
+	}
+	return CTerm(*parent_opt,ret);
+}
+
 CTerm CTerm::lift(CSubst const& subst) const {
 	auto const& parent_opt = _ctxt.parent();
 	if( !parent_opt.has_value() ) {
@@ -350,7 +358,7 @@ CTerm CTerm::lift(CSubst const& subst) const {
 		throw WrongContext();
 	}
 	auto f = [&](String const& sym)->Term {
-		auto opt = subst.get(sym);
+		auto const& opt = subst.get(sym);
 		if( opt.has_value() ) {
 			return *opt;
 		}
@@ -363,6 +371,5 @@ CTerm CTerm::lift(CSubst const& subst) const {
 	auto fixed = [&](String const& sym) {
 		return subst.ctxt().find(sym).has_value();
 	};
-	StrMap<String> bsyms;
-	return CTerm(parent,map(f,fixed,bsyms));
+	return CTerm(parent,map(f,fixed));
 }

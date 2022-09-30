@@ -234,7 +234,7 @@ Thm discharge(Thm thm, Thm arg) {
 		auto const& val = opt.has_value() ? (Term)*opt : x;
 		arg = arg.allE(discharger_ctxt.cterm(val));
 	}
-	arg = arg.lift(ret_ctxt);
+	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
 	for( auto const& x : thm_ctxt.sym_list() ) {// TODO: slower than `subst`
 		auto opt = unifier->get(x);
@@ -242,7 +242,8 @@ Thm discharge(Thm thm, Thm arg) {
 		thm = thm.allE(ret_ctxt.cterm(val));
 	}
 	thm = thm.impE(arg);
-	thm = thm.lift(ctxt);
+	thm = thm.intro();
 	return thm;
 }
+
 

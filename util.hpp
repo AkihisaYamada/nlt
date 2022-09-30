@@ -79,4 +79,36 @@ std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(S
  */
 Thm discharge(Thm t, Thm arg);
 
+class ThmTransformer {
+	virtual std::optional<Thm> apply(Thm const& thm) = 0;
+};
+/**
+ * @brief Congruence prover.
+ * 
+ */
+class Rewriter : public ThmTransformer {
+	static CTerm rule2pat(Thm const& thm);
+	static String BOX;
+	Thm EQ_mono;
+	struct Rule {
+		Thm thm;
+		CTerm pat;
+		Rule(Thm const& thm) : thm(thm), pat(rule2pat(thm)) {}
+	};
+	std::vector<Rule> rules;
+	std::optional<Thm> apply(Thm const& thm, CTerm const& context, CTerm const& haystack) const;
+public:
+	Rewriter(Thm const& EQ_mono) : EQ_mono(EQ_mono) {}
+	Rewriter& add(Thm const& thm) {
+		rules.push_back(thm);
+		return *this;
+	}
+	std::optional<Thm> apply(Thm const& thm);
+};
+
+struct MalformedRewrite : std::exception {
+	Term term;
+	MalformedRewrite(Term const& term) : term(term) {}
+};
+
 #endif

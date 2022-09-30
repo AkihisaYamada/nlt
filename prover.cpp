@@ -43,7 +43,7 @@ public:
 
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
-		return _get_thm(loc).lift(_ctxt);
+		return _get_thm(loc).intro();
 	}
 
 	Thm _get_thm(Ctxt loc) {
@@ -154,7 +154,7 @@ public:
 				}
 				Ctxt stmt_ctxt = _ctxt.branch();
 				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
-				Thm thm = prf->lift(_ctxt);
+				Thm thm = prf->intro();
 				Ctxt thm_ctxt = stmt_ctxt.branch();
 				Thm thm_strip = strip_all(thm,thm_ctxt);
 				stmt_strip = stmt_strip.weaken(thm_ctxt);
@@ -167,7 +167,7 @@ public:
 				for( auto const& v : thm_ctxt.sym_list() ) {
 					thm = thm.allE(matcher->get(v)->lift(stmt_ctxt));
 				}
-				thm = thm.lift(_ctxt);
+				thm = thm.intro();
 				_ctxt.claim(thm_name,thm);
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
@@ -186,7 +186,7 @@ public:
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm goal_thm = prf->lift(_ctxt);
+				Thm goal_thm = prf->intro();
 				if( goal != goal_thm ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(goal_thm) << endl;
 					throw UnfinishedProof();
