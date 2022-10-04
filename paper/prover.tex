@@ -92,9 +92,7 @@ A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\S
 \begin{align*}
 \infer[\ass]{\Gamma;\ASS s\vdash s}{}
 &&
-\infer[\inst,\ \Gamma\in\Ctxt(\Sigma), x\notin \Sigma]{\Gamma\vdash s[x\mapsto t]}{\Gamma\vdash s}
-&&
-\infer{\Gamma;\alpha \vdash s}{\Gamma \vdash s}
+\infer[\weaken]{\Gamma;\alpha \vdash s}{\Gamma \vdash s}
 \end{align*}
 \begin{align*}
 \infer[\impI]{\Gamma\vdash s \IMP t}{\Gamma;\ASS s\vdash t}
@@ -107,10 +105,6 @@ A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\S
 \infer[\allE]{\Gamma\vdash s[x\mapsto t]}{\Gamma\vdash \ALL{x}{s}}
 \end{align*}
 \end{definition}
-
-\begin{metatheorem}[\inst-elimination]
-	Every theorem $\Gamma \vdash s$ is provable without \inst.
-\end{metatheorem}
 
 \subsection{Specification}
 
@@ -158,14 +152,15 @@ The root context starts with fixing the $=$ symbol:
 \[
 \FIX (=);
 \]
-Then it assumes two axioms on it:
+Then it assumes three axioms on it:
 \begin{align*}
 &\ASS[EQ.refl] \ALL x{x = x};\\
-&\ASS[EQ.mono] \ALL x \ALL y x = y \IMP \ALL C{C[x]\IMP C[y]};
+&\ASS[EQ.mono] \ALL x \ALL y x = y \IMP \ALL C{C[x]\IMP C[y]};\\
+&\ASS[EQ.ext] \ALL C \ALL D (\ALL x C[x] = D[x]) \IMP C = D
 \end{align*}
 
-\begin{metatheorem}[definition]
-$(\Gamma;\SPEC x{x = s}) \in \Ctxt(V)$ if $x\in V$, $s \in \Term(V\setminus\set{x})$, and $\Gamma \in \Ctxt(V\setminus\set{x})$.
+\begin{metatheorem}[constant definition]
+$(\Gamma;\SPEC x{x = s}) \in \Ctxt(\Sigma\cup\set{x})$ if $x \notin \Sigma$, $s \in \Term(\Sigma)$, and $\Gamma \in \Ctxt(\Sigma)$.
 \end{metatheorem}
 
 \subsection{Lambda Abstraction}
@@ -175,5 +170,9 @@ $(\Gamma;\SPEC x{x = s}) \in \Ctxt(V)$ if $x\in V$, $s \in \Term(V\setminus\set{
 \[
 \ASS[beta]\ALL C \ALL s \lambda\,C\,s = C[s];
 \]
+
+\begin{metatheorem}[functional definition]
+$(\Gamma;\SPEC f{\ALL{x_1,\dots,x_n} f\,x_1\,\dots\,x_n = s}) \in \Ctxt(\Sigma\cup\set{f})$ if $f \notin \Sigma$, $s \in \Term(\Sigma\cup\set{x_1,\dots,x_n})$, and $\Gamma \in \Ctxt(\Sigma)$.
+\end{metatheorem}
 
 \end{document}
