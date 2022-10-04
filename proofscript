@@ -28,6 +28,10 @@ assume EQ.refl: ∀ x. x = x;
 assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
 assume EQ.ext: ∀ α. ∀ β. (∀ x. α[x] = β[x]) ⟹ α = β;
 
+prefix λ 0 0;
+
+assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
+
 show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
 	assume xy: x = y;
@@ -98,10 +102,6 @@ show FALSE.elim: ∀ P. FALSE ⟹ P;
 	assume 1: FALSE;
 	by EQ.prop1[OF FALSE.def 1](P);
 
-prefix λ 0 0;
-
-assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
-
 infix ∧ 36 35 36;
 
 obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
@@ -161,5 +161,3 @@ show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
 
 
 ctxt;
-
-thm FUN.def(z. λ w. C[w]);
