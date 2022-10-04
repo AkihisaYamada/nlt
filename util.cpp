@@ -60,7 +60,7 @@ static bool match(Syms const& fsyms, CTerm const& pat, CTerm const& val, CSubst&
 		}
 		auto const& map_opt = matcher.get(x);
 		if( map_opt.has_value() ) {// already assigned variable
-			if( *map_opt != val ) {
+			if( (Term)*map_opt != val ) {// equal as term (may belong to different context)
 				return false;
 			}
 			return true;

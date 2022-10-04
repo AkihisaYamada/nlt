@@ -45,6 +45,7 @@ public:
 
 	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
+	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
 	std::optional<std::string> gets_thm_name();
 	std::string get_thm_name();

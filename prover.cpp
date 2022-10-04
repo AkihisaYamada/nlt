@@ -35,18 +35,14 @@ public:
 			infix(";",-1,-1,-2).
 			infix("$",-1,-1,-2);
 	}
-	Prover(Prover const& parent) :
+	Prover(Prover const& parent, optional<Thesis> thesis = optional<Thesis>()) :
 		_depth(parent._depth+1),
 		_ctxt(parent._ctxt.branch()),
 		_syntax(parent._syntax),
 		_own_syntax(false),
-		_thesis(optional<Thesis>()) {}
-	Prover(Prover const& parent, Term const& claim) :
-		_depth(parent._depth+1),
-		_ctxt(parent._ctxt.branch()),
-		_syntax(parent._syntax),
-		_own_syntax(false),
-		_thesis({parent._ctxt,claim}) {}
+		_thesis(thesis),
+		_rewrite_axioms(parent._rewrite_axioms) {}
+	Prover(Prover const& parent, Term const& claim) : Prover(parent,Thesis{parent._ctxt,claim}) {}
 
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
@@ -262,8 +258,9 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("rewrite") ) {
-					_rewrite_axioms = Ref(Rewrite::Axioms(get_thms()));
-					cout << "Setup Rewrite Axioms" << endl;
+					auto const& thms = get_thms();
+					_rewrite_axioms = Ref(Rewrite::Axioms(thms));
+					cout << "Setup Rewrite Axioms:" << endl << _syntax->pretty_thms(thms) << endl;
 				} else {
 				}
 				_syntax->skip(';');

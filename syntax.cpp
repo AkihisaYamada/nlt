@@ -79,6 +79,15 @@ function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& thm) const {
 	};
 }
 
+function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const {
+	return [&](ostream& os) -> ostream& {
+		for( auto const& thm : thms ) {
+			os << "  thm " << thm.first << ": " << pretty_term(thm.second) << endl;
+		}
+		return os;
+	};
+}
+
 function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	return [&](ostream& os) -> ostream& {
 		os << "ctxt {" << endl;
