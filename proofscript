@@ -60,8 +60,6 @@ show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 		by EQ.fun_cong[OF fg];
 	by EQ.trans[OF 1 2];
 
-setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext refl:EQ.refl trans:EQ.trans;
-
 show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
 	by EQ.mono(x. x);
 
@@ -69,6 +67,8 @@ show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 	fix P Q;
 	assume PQ: P = Q;
 	by EQ.prop1[OF EQ.sym[OF PQ]];
+
+setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext refl:EQ.refl trans:EQ.trans eq_imp:EQ.prop1;
 
 show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
 	fix P α;
@@ -107,18 +107,8 @@ infix ∧ 36 35 36;
 obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 	fix thesis;
 	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
-	name 2: 1(λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R));
-
-thm 2[rewrite FUN.def];
-
-	show 2: ∀ P. ∀ Q. ((λ P2. λ Q2. (∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)) P Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R));
-		fix P Q;
-		show 3: (λ P. λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) P Q = (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q;
-			by EQ.fun_cong[OF FUN.def];
-		show 4: (λ Q. (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) Q = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
-			by FUN.def;
-		by EQ.trans[OF 3 4];
-	by 1[OF 2];
+	name 2: 1(λ P2. λ Q2. ∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R);
+	by 2[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
 
 name AND.elim: EQ.prop1[OF AND.def];
 name AND.intro: EQ.prop2[OF AND.def];
@@ -129,7 +119,10 @@ show mp2: ∀ P. ∀ Q. P ∧ (P ⟹ Q) ⟹ Q;
 
 infix ∨ 31 30 31;
 
-assume OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+obtain ∨ where OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+	fix thesis;
+	assume 1: ∀ DISJ. (∀ P. ∀ Q. (DISJ P Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)) ⟹ thesis;
+	by 1(λ P2. λ Q2. ∀ R. (P2 ⟹ R) ⟹ (Q2 ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
 
 show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
 	fix P Q;
@@ -155,15 +148,16 @@ show OR.elim: ∀ P. ∀ Q. ∀ R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 prefix ∃ 0 1;
 
-assume EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
+obtain ∃ where EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
+	fix thesis;
+	assume 1: ∀ EX. (∀ α. (EX α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P)) ⟹ thesis;
+	by 1(λ α2. ∀ P. (∀ x. α2[x] ⟹ P) ⟹ P)[rewrite FUN.def][OF EQ.refl];
 
 show EX.elim: ∀ α. (∃ α) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
-	fix α;
-	by EQ.prop1[OF EX.def(α)];
+	by EQ.prop1[OF EX.def];
 
 show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
-	fix α;
-	by EQ.prop2[OF EX.def(α)];
+	by EQ.prop2[OF EX.def];
 
 
 ctxt;

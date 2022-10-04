@@ -128,7 +128,7 @@ private:
 		auto const& lfix = l.fix();
 		assert( lfix.has_value() );
 		auto const& rfix = r.fix();
-		if( !rfix.has_value() || lfix->first == rfix->first ) {
+		if( !rfix.has_value() || lfix->first != rfix->first ) {
 			throw Mismatch();
 		}
 		unify(lfix->second,rfix->second,index);

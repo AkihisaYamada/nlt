@@ -79,10 +79,11 @@ public:
 						}
 						rules.add(*opt_arg);
 					}
-					auto const& ret_opt = rules.rewrite(ret);
-					if( !ret_opt.has_value() ) {
+					auto const& opt_ret = rules.rewrite(ret);
+					if( !opt_ret.has_value() ) {
 						throw ProverFailure("Failed rewrite");
 					}
+					ret = *opt_ret;
 				}
 				_syntax->skip(']');
 			} else {

@@ -19,14 +19,12 @@ Rewrite::Rules& Rewrite::Rules::add(Thm const& thm) {
 	return *this;
 }
 
-std::optional<Thm> Rewrite::Rules::rewrite(CTerm const& haystack) const {
+optional<Thm> Rewrite::Rules::equate(CTerm const& haystack) const {
 	for( auto const& rule : *this ) {
 		auto const& pat = rule.pat;
 		auto const& fsyms = pat.ctxt().syms();
 		auto const& m = match(fsyms,pat,haystack);
-		cerr << "Rewriter: trying " << rule.pat << " on " << haystack << endl;
 		if( m.has_value() ) {
-			cerr << "Rewriter: " << rule.thm << " matches " << haystack << endl;
 			// haystack = lθ
 			Thm ret = rule.thm.weaken(haystack.ctxt()); // ret = ∀x... l = r
 			for( auto const& var : pat.ctxt().sym_list() ) {
@@ -38,13 +36,13 @@ std::optional<Thm> Rewrite::Rules::rewrite(CTerm const& haystack) const {
 	auto const& app = haystack.app();
 	if( app.has_value() ) {
 		auto const& fun = app->first, arg = app->second;
-		auto const& opt1 = rewrite(fun);
+		auto const& opt1 = equate(fun);
 		if( opt1.has_value() ) {
 			return
 				discharge(axioms.fun_cong.weaken(opt1->ctxt()),*opt1) // ∀x. s x = t x
 				.allE(arg);// s arg = t arg
 		}
-		auto const& opt2 = rewrite(arg);
+		auto const& opt2 = equate(arg);
 		if( opt2.has_value() ) {
 			return
 				discharge(axioms.arg_cong.weaken(opt2->ctxt()),*opt2) // ∀f. f s = f t
@@ -56,7 +54,7 @@ std::optional<Thm> Rewrite::Rules::rewrite(CTerm const& haystack) const {
 	if( abs.has_value() ) {
 		auto const& var = abs->first;
 		auto const& body = abs->second;
-		auto const& opt = rewrite(body);
+		auto const& opt = equate(body);
 		if( opt.has_value() ) {
 			Thm all = opt->intro();// ∀x. s = t
 			auto const& app = opt->app();
@@ -68,3 +66,10 @@ std::optional<Thm> Rewrite::Rules::rewrite(CTerm const& haystack) const {
 	return std::optional<Thm>();
 }
 
+optional<Thm> Rewrite::Rules::rewrite(Thm const& thm) const {
+	auto const& eq = equate(thm);
+	if( eq.has_value() ) {
+		return discharge(axioms.eq_imp.weaken(thm.ctxt()),*eq).impE(thm);
+	}
+	return optional<Thm>();
+}

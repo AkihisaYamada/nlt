@@ -127,7 +127,7 @@ static bool match(Syms const& fsyms, CTerm const& pat, CTerm const& val, CSubst&
 	if( opt.has_value() ) {
 		auto const& abs = opt->abs();
 		if( abs.has_value() ) {
-			return match(fsyms,abs->second.subst(abs->first,fix->second),val,matcher,lidx,ridx,depth);
+			return match(fsyms,opt->inst(fix->second),val,matcher,lidx,ridx,depth);
 		}
 	}
 	auto const& fix2 = val.fix();

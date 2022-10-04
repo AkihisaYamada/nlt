@@ -88,10 +88,10 @@ class ThmTransformer {
  */
 namespace Rewrite {
 	struct Axioms {
-		Thm cong, fun_cong, arg_cong, ext, refl, trans;
+		Thm cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
 		Axioms(StrMap<Thm> const& args) :
 			cong(args.at("cong")),fun_cong(args.at("fun_cong")),arg_cong(args.at("arg_cong")),
-			ext(args.at("ext")),refl(args.at("refl")),trans(args.at("trans")) {}
+			ext(args.at("ext")),eq_imp(args.at("eq_imp")),refl(args.at("refl")),trans(args.at("trans")) {}
 	};
 	struct Rule {
 		Thm thm;
@@ -99,11 +99,11 @@ namespace Rewrite {
 	};
 	class Rules : std::vector<Rule> {
 		Axioms axioms;
-		Thm _rewrite(CTerm const& haystack) const;
 	public:
 		Rules& add(Thm const& thm);
 		Rules(Axioms const& axioms) : axioms(axioms) {}
-		std::optional<Thm> rewrite(CTerm const& haystack) const;
+		std::optional<Thm> equate(CTerm const& haystack) const;
+		std::optional<Thm> rewrite(Thm const& thm) const;
 	};
 	struct Error : std::exception {
 		Term term;
