@@ -86,29 +86,29 @@ class ThmTransformer {
  * @brief Congruence prover.
  * 
  */
-class Rewriter : public ThmTransformer {
-	static CTerm rule2pat(Thm const& thm);
-	static String BOX;
-	Thm EQ_mono;
+namespace Rewrite {
+	struct Axioms {
+		Thm cong, fun_cong, arg_cong, ext, refl, trans;
+		Axioms(StrMap<Thm> const& args) :
+			cong(args.at("cong")),fun_cong(args.at("fun_cong")),arg_cong(args.at("arg_cong")),
+			ext(args.at("ext")),refl(args.at("refl")),trans(args.at("trans")) {}
+	};
 	struct Rule {
 		Thm thm;
 		CTerm pat;
-		Rule(Thm const& thm) : thm(thm), pat(rule2pat(thm)) {}
 	};
-	std::vector<Rule> rules;
-	std::optional<Thm> apply(Thm const& thm, CTerm const& context, CTerm const& haystack) const;
-public:
-	Rewriter(Thm const& EQ_mono) : EQ_mono(EQ_mono) {}
-	Rewriter& add(Thm const& thm) {
-		rules.push_back(thm);
-		return *this;
-	}
-	std::optional<Thm> apply(Thm const& thm);
-};
-
-struct MalformedRewrite : std::exception {
-	Term term;
-	MalformedRewrite(Term const& term) : term(term) {}
+	class Rules : std::vector<Rule> {
+		Axioms axioms;
+		Thm _rewrite(CTerm const& haystack) const;
+	public:
+		Rules& add(Thm const& thm);
+		Rules(Axioms const& axioms) : axioms(axioms) {}
+		std::optional<Thm> rewrite(CTerm const& haystack) const;
+	};
+	struct Error : std::exception {
+		Term term;
+		Error(Term const& term) : term(term) {}
+	};
 };
 
 #endif

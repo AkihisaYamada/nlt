@@ -323,6 +323,18 @@ Thm Thm::intro() const {
 	}
 	return Thm(CTerm(*parent,stmt));
 }
+std::optional<CTerm::StrTerm> CTerm::abs() const {
+	auto const& tabs = Term::abs();
+	if( !tabs.has_value() ) {
+		return std::optional<StrTerm>();
+	}
+	String const& var = tabs->first;
+	Term const& body = tabs->second;
+	Ctxt loc = _ctxt.branch();
+	loc.fix(var);
+	return StrTerm(var,CTerm(loc,body));
+}
+
 CTerm CTerm::weaken(Ctxt const& ctxt) const {
 	Ctxt cur = ctxt;
 	for(;;) {

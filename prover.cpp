@@ -20,6 +20,7 @@ class Prover {
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
 	optional<Thesis> _thesis;
+	optional<Ref<Rewrite::Axioms>> _rewrite_axioms;
 	bool _exit_on_error;
 public:
 	Prover(istream& is, bool exit_on_error) :
@@ -74,15 +75,15 @@ public:
 						ret = discharge(ret,*opt_arg);
 					}
 				} else if( _syntax->skips("rewrite") ) {
-					Rewriter rewriter = Rewriter(*_gets_thm(loc));
+					Rewrite::Rules rules = Rewrite::Rules(**_rewrite_axioms);
 					for(;;) {
 						auto const& opt_arg = _gets_thm(loc);
 						if( !opt_arg.has_value() ) {
 							break;
 						}
-						rewriter.add(*opt_arg);
+						rules.add(*opt_arg);
 					}
-					auto const& ret_opt = rewriter.apply(ret);
+					auto const& ret_opt = rules.rewrite(ret);
 					if( !ret_opt.has_value() ) {
 						throw ProverFailure("Failed rewrite");
 					}
@@ -92,6 +93,20 @@ public:
 				return ret;
 			}
 		}
+	}
+
+	StrMap<Thm> get_thms() {
+		StrMap<Thm> ret;
+		for(;;) {
+			optional<String> name = _syntax->gets_thm_name();
+			if( !name.has_value() ) {
+				break;
+			}
+			_syntax->skip(':');
+			Thm thm = get_thm();
+			ret.insert({*name,thm});
+		}
+		return ret;
 	}
 	Term get_term() {
 		Term term = _syntax->gets_term().value();
@@ -232,7 +247,7 @@ public:
 				String sym = _syntax->get_token();
 				int rlevel = _syntax->get_int();
 				int level = _syntax->get_int();
-				_syntax->skips(';');
+				_syntax->skip(';');
 				_make_own_syntax();
 				_syntax->prefix(sym,level,rlevel);
 				cout << "New prefix operator " << sym << endl;
@@ -241,10 +256,17 @@ public:
 				int llevel = _syntax->get_int();
 				int rlevel = _syntax->get_int();
 				int level = _syntax->get_int();
-				_syntax->skips(';');
+				_syntax->skip(';');
 				_make_own_syntax();
 				_syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
+			} else if( _syntax->skips("setup") ) {
+				if( _syntax->skips("rewrite") ) {
+					_rewrite_axioms = Ref(Rewrite::Axioms(get_thms()));
+					cout << "Setup Rewrite Axioms" << endl;
+				} else {
+				}
+				_syntax->skip(';');
 			} else {
 				return optional<Thm>();
 			}

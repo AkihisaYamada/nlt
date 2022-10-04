@@ -385,10 +385,12 @@ public:
 		auto const& tapp = Term::app();
 		return tapp.has_value() ? Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second)) : std::optional<Pair>();
 	}
-	std::optional<StrTerm> abs() const {
-		auto const& tabs = Term::abs();
-		return tabs.has_value() ? StrTerm(tabs->first,CTerm(_ctxt,tabs->second)) : std::optional<StrTerm>();
-	}
+	/**
+	 * @brief Deconstruct closed abstraction.
+	 * 
+	 * @return If this is an abstraction, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
+	 */
+	std::optional<StrTerm> abs() const;
 	std::optional<StrTerm> fix() const {
 		auto const& tfix = Term::fix();
 		return tfix.has_value() ? StrTerm(tfix->first,CTerm(_ctxt,tfix->second)) : std::optional<StrTerm>();
@@ -429,11 +431,11 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm inst(CTerm const& arg) const {
-		auto const& a = abs();
+		auto const& a = Term::abs();
 		if( !a.has_value() ) {
 			throw MalformedInstantiation(*this,arg);
 		}
-		return a->second.subst(a->first,arg);
+		return CTerm(_ctxt,a->second.subst(a->first,arg));
 	}
 	/**
 	 * @brief Moves a closed term to a descendant context

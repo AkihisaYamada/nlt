@@ -26,6 +26,7 @@ infix = 50 50 50;
 
 assume EQ.refl: ∀ x. x = x;
 assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
+assume EQ.ext: ∀ α. ∀ β. (∀ x. α[x] = β[x]) ⟹ α = β;
 
 show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
@@ -38,7 +39,7 @@ show EQ.trans: ∀ x. ∀ y. ∀ z. x = y ⟹ y = z ⟹ x = z;
 	assume yz: y = z;
 	by EQ.mono(w. x = w)[OF yz xy];
 
-show EQ.arg_cong: ∀ f. ∀ x. ∀ y. x = y ⟹ f x = f y;
+show EQ.arg_cong: ∀ x. ∀ y. ∀ f. x = y ⟹ f x = f y;
 	fix f x y;
 	assume xy: x = y;
 	name 1: EQ.refl(f x);
@@ -54,10 +55,12 @@ show EQ.cong: ∀ f. ∀ g. ∀ x. ∀ y. f = g ⟹ x = y ⟹ f x = g y;
 	fix f g x y;
 	assume fg: f = g, xy: x = y;
 	show 1: f x = f y;
-		by EQ.arg_cong(f)[OF xy];
+		by EQ.arg_cong[OF xy];
 	show 2: f y = g y;
-		by EQ.fun_cong[OF fg](y);
+		by EQ.fun_cong[OF fg];
 	by EQ.trans[OF 1 2];
+
+setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext refl:EQ.refl trans:EQ.trans;
 
 show EQ.prop1: ∀ P. ∀ Q. P = Q ⟹ P ⟹ Q;
 	by EQ.mono(x. x);
@@ -68,6 +71,7 @@ show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 	by EQ.prop1[OF EQ.sym[OF PQ]];
 
 show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
+	fix P α;
 	assume 1: P ⟹ ∀ x. α[x];
 	show 2: ∀ x. P ⟹ α[x];
 		fix x;

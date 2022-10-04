@@ -1,52 +1,70 @@
+#include <iostream>
 #include "util.hpp"
 
-String Rewriter::BOX = "[]";
+using namespace std;
 
-CTerm Rewriter::rule2pat(Thm const& thm) {
+Rewrite::Rules& Rewrite::Rules::add(Thm const& thm) {
+	// checking well-formedness and extracting the lhs of the rewrite rule
 	Ctxt loc = thm.ctxt().branch();
 	Thm body = strip_all(thm,loc);
 	auto const& app = body.app();
 	if( !app.has_value() ) {
-		throw MalformedRewrite(thm);
+		throw Rewrite::Error(thm);
 	}
 	auto const& app2 = app->first.app();
 	if( !app2.has_value() ) {
-		throw MalformedRewrite(thm);
+		throw Rewrite::Error(thm);
 	}
-	return app2->second;
-}
-std::optional<Thm> Rewriter::apply(Thm const& thm) {
-	Ctxt loc1 = thm.ctxt().branch();
-	Thm const& stripped_thm = strip_all(thm,loc1);
-	Ctxt loc2 = loc1.branch();
-	return apply(stripped_thm,loc2.enclose(BOX),stripped_thm.weaken(loc2));
+	push_back({thm,app2->second});
+	return *this;
 }
 
-std::optional<Thm> Rewriter::apply(Thm const& stripped_thm, CTerm const& context, CTerm const& s) const {
-	for( auto const& rule : rules ) {
+std::optional<Thm> Rewrite::Rules::rewrite(CTerm const& haystack) const {
+	for( auto const& rule : *this ) {
 		auto const& pat = rule.pat;
 		auto const& fsyms = pat.ctxt().syms();
-		auto const& m = match(fsyms,pat,s);
+		auto const& m = match(fsyms,pat,haystack);
+		cerr << "Rewriter: trying " << rule.pat << " on " << haystack << endl;
 		if( m.has_value() ) {
-			// s = lθ
-			Ctxt ctxt = stripped_thm.ctxt();
-			Thm eq = rule.thm.weaken(ctxt); // eq = ∀x... l = r
+			cerr << "Rewriter: " << rule.thm << " matches " << haystack << endl;
+			// haystack = lθ
+			Thm ret = rule.thm.weaken(haystack.ctxt()); // ret = ∀x... l = r
 			for( auto const& var : pat.ctxt().sym_list() ) {
-				eq = eq.allE(*m->get(var));
+				ret = ret.allE(*m->get(var));
 			}
-			// now eq is lθ = rθ and thm = C[lθ]. We return C[rθ]
-			return EQ_mono.weaken(ctxt).allE(context.lift()).impE(eq).impE(stripped_thm).intro();
+			return ret; // lθ = rθ
 		}
 	}
-	auto const& app = s.app();
-	if( !app.has_value() ) {
+	auto const& app = haystack.app();
+	if( app.has_value() ) {
+		auto const& fun = app->first, arg = app->second;
+		auto const& opt1 = rewrite(fun);
+		if( opt1.has_value() ) {
+			return
+				discharge(axioms.fun_cong.weaken(opt1->ctxt()),*opt1) // ∀x. s x = t x
+				.allE(arg);// s arg = t arg
+		}
+		auto const& opt2 = rewrite(arg);
+		if( opt2.has_value() ) {
+			return
+				discharge(axioms.arg_cong.weaken(opt2->ctxt()),*opt2) // ∀f. f s = f t
+				.allE(fun);// fun s = fun t
+		}
 		return std::optional<Thm>();
 	}
-	auto const& fun = app->first, arg = app->second;
-	auto const& opt = apply(stripped_thm,context(arg),fun);
-	if( opt.has_value() ) {
-		return opt;
+	auto const& abs = haystack.abs();
+	if( abs.has_value() ) {
+		auto const& var = abs->first;
+		auto const& body = abs->second;
+		auto const& opt = rewrite(body);
+		if( opt.has_value() ) {
+			Thm all = opt->intro();// ∀x. s = t
+			auto const& app = opt->app();
+			CTerm const& s = app->first.app()->second.lift();// x. s
+			CTerm const& t = app->second.lift();// x. t
+			return axioms.ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (x. s) = (x. t)
+		}
 	}
-	return apply(stripped_thm,fun(context),arg);
+	return std::optional<Thm>();
 }
 
