@@ -22,15 +22,19 @@ show weaken: ∀ P. ∀ Q. P ⟹ Q ⟹ P;
 	assume P: P, Q: Q;
 	by P;
 
-infix = 50 50 50;
+show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
+	fix P α;
+	assume 1: P ⟹ ∀ x. α[x];
+	show 2: ∀ x. P ⟹ α[x];
+		fix x;
+		assume P: P;
+		by 1[OF P](x);
+	by 2;
 
+infix = 50 50 50;
 assume EQ.refl: ∀ x. x = x;
 assume EQ.mono: ∀ α. ∀ x. ∀ y. x = y ⟹ α[x] ⟹ α[y];
 assume EQ.ext: ∀ α. ∀ β. (∀ x. α[x] = β[x]) ⟹ α = β;
-
-prefix λ 0 0;
-
-assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
 
 show EQ.sym: ∀ x. ∀ y. x = y ⟹ y = x;
 	fix x y;
@@ -74,40 +78,44 @@ show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 
 setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext refl:EQ.refl trans:EQ.trans eq_imp:EQ.prop1;
 
-show IMP_ALL: ∀ P. ∀ α. (P ⟹ ∀ x. α[x]) ⟹ ∀ x. P ⟹ α[x];
-	fix P α;
-	assume 1: P ⟹ ∀ x. α[x];
-	show 2: ∀ x. P ⟹ α[x];
-		fix x;
-		assume P: P;
-		by 1[OF P](x);
-	by 2;
+fix TRUE;
+assume TRUE.intro: TRUE;
+assume EQ_TRUE: ∀ P. P ⟹ P = TRUE;
 
-obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
+fix FALSE;
+assume FALSE.elim: ∀ P. FALSE ⟹ P;
+
+fix IF;
+assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
+assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
+
+prefix λ 0 0;
+
+assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
+
+prefix ¬ 10 10;
+obtain ¬ where NOT_TRUE: (¬ TRUE) = FALSE, NOT_FALSE: (¬ FALSE) = TRUE;
 	fix thesis;
-	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
-	by 1[OF EQ.refl];
-
-show TRUE.intro: TRUE;
-	name 1: EQ.prop2[OF TRUE.def];
-	by 1[OF IMP.refl];
-
-obtain FALSE where FALSE.def: FALSE = (∀ P. P);
-	fix thesis;
-	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
-	by 1[OF EQ.refl];
-
-show FALSE.elim: ∀ P. FALSE ⟹ P;
-	fix P;
-	assume 1: FALSE;
-	by EQ.prop1[OF FALSE.def 1](P);
+	assume 1: ∀ not. (not TRUE) = FALSE ⟹ (not FALSE) = TRUE ⟹ thesis;
+	name 2: 1(λ P. IF P FALSE TRUE);
+	name 3: 2[rewrite FUN.def][rewrite IF_TRUE];
+	name 4: 3[rewrite FUN.def][rewrite IF_FALSE];
+	by 4[OF EQ.refl EQ.refl];
 
 infix ∧ 36 35 36;
 
-obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
+obtain ∧ where
+	AND_TRUE: ∀ Q. (TRUE ∧ Q) = Q,
+	AND_FALSE: ∀ Q. (FALSE ∧ Q) = FALSE,
+	AND_TRUE2: ∀ P. (P ∧ TRUE) = P,
+	AND_FALSE2: ∀ P. (P ∧ FALSE) = FALSE;
 	fix thesis;
-	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
-	name 2: 1(λ P2. λ Q2. ∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R);
+	assume 1: ∀ ∧.
+		(∀ Q. (TRUE ∧ Q) = Q) ⟹
+		(∀ Q. (FALSE ∧ Q) = FALSE) ⟹
+		(∀ P. (P ∧ TRUE) = P) ⟹
+		(∀ P. (P ∧ FALSE) = FALSE) ⟹ thesis;
+	name 2: 1(λ P. λ Q. IF );
 	by 2[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
 
 name AND.elim: EQ.prop1[OF AND.def];

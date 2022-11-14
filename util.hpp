@@ -79,9 +79,14 @@ std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(S
  */
 Thm discharge(Thm t, Thm arg);
 
-class ThmTransformer {
-	virtual std::optional<Thm> apply(Thm const& thm) = 0;
-};
+/**
+ * @brief Imports a context into the parent
+ * 
+ * @param ctxt 
+ * @param target 
+ */
+void import(Ctxt ctxt, Ctxt const& target);
+
 /**
  * @brief Congruence prover.
  * 

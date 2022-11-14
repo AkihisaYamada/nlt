@@ -246,4 +246,3 @@ Thm discharge(Thm thm, Thm arg) {
 	return thm;
 }
 
-

@@ -223,10 +223,6 @@ optional<String const> Ctxt::find_local(String const& sym) const {
 	if( it != _ref->syms.end() ) {
 		return *it;
 	}
-	auto it2 = _ref->specs.find(sym);
-	if( it2 != _ref->specs.end() ) {
-		return it2->first;
-	}
 	return optional<String const>();
 }
 
@@ -272,14 +268,21 @@ Term Ctxt::_thm(String const& name) const {
 	return it->second;
 }
 
-pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const {
+Ctxt Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
 	if( find(sym) ) {
 		throw DoubleFix(sym);
 	}
+	Ctxt ret = branch();
 	String thesis = avoid("thesis",[&](String const& x){ return find(x) || sym == x; });
-	Term goal = ALL(thesis /= ALL(sym /= spec >>= thesis) >>= thesis);
-	_ref->specs.insert({sym,spec});
-	return pair(goal,Thm(CTerm(*this,goal >>= spec)));
+	Term assm = thesis;
+	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
+		assm = it->second >>= assm;
+		ret._ref->thms.insert(*it);
+	}
+	assm = ALL( thesis /= ALL( sym /= assm ) >>= thesis );
+	ret._ref->assms.push_back(assm);
+	ret._ref->thms.insert({"assms",assm});
+	return ret;
 }
 
 Thm Thm::allE(CTerm const& t) const {
@@ -385,3 +388,58 @@ CTerm CTerm::lift(CSubst const& subst) const {
 	};
 	return CTerm(parent,map(f,fixed));
 }
+Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
+	auto const& opt = parent();
+	if( !opt.has_value() ) {
+		throw WrongContext();
+	}
+	Ctxt const& ctxt = *opt;
+	if( subst.ctxt() != ctxt ) {
+		throw WrongContext();
+	}
+	Ctxt ret = ctxt.branch();
+	auto it = facts.begin();
+	for( auto& assm : assms() ) {// check that the instances of assumptions are discharged
+		if( it == facts.end() ) {
+			throw MalformedDischarge(assm,Term());
+		}
+		if( it->ctxt() != ctxt ) {
+			throw WrongContext();
+		}
+		Term const& goal = assm.subst(subst);
+		if( *it != goal ) {
+			throw MalformedDischarge(goal,*it);
+		}
+		it++;
+	}
+	for( auto& thm : thms() ) {
+		ret._ref->thms.insert({thm.first,thm.second.subst(subst)});
+	}
+	return ret;
+}
+Ctxt& Ctxt::import(Ctxt const& ctxt) {
+	auto const& opt = ctxt.parent();
+	if( opt.has_value() ) {
+		Ctxt cur = *this;
+		for(;;) {
+			if( cur == *opt ) {
+				break;
+			}
+			if( !cur.parent().has_value() ) {
+				throw WrongContext();
+			}
+			cur = *cur.parent();
+		}
+	}
+	for( auto& sym : ctxt.sym_list() ) {
+		fix(sym);
+	}
+	for( auto& assm : ctxt.assms() ) {
+		_ref->assms.push_back(assm);
+	}
+	for( auto& thm : ctxt.thms() ) {
+		_ref->thms.insert(thm);
+	}
+	return *this;
+}
+

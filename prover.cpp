@@ -46,7 +46,11 @@ public:
 
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
-		return _gets_thm(loc)->intro();
+		optional<Thm> thm = _gets_thm(loc);
+		if( !thm.has_value() ) {
+			throw Syntax::Error("expects a theorem");
+		}
+		return thm->intro();
 	}
 
 	optional<Thm> _gets_thm(Ctxt loc) {
@@ -92,7 +96,7 @@ public:
 		}
 	}
 
-	StrMap<Thm> get_thms() {
+	StrMap<Thm> get_named_thms() {
 		StrMap<Thm> ret;
 		for(;;) {
 			optional<String> name = _syntax->gets_thm_name();
@@ -106,7 +110,7 @@ public:
 		return ret;
 	}
 	Term get_term() {
-		Term term = _syntax->gets_term().value();
+		Term term = _syntax->get_term();
 		if( _syntax->skips('$') ) {
 			CSubst subst = _ctxt.branch();
 			do {
@@ -117,6 +121,22 @@ public:
 			term = term.subst(subst);
 		}
 		return term;
+	}
+
+	vector<pair<String,Term>> get_named_terms() {
+		vector<pair<String,Term>> ret;
+		for(;;) {
+			optional<String> name = _syntax->gets_thm_name();
+			if( !name.has_value() ) {
+				break;
+			}
+			_syntax->skip(':');
+			ret.push_back({*name,_syntax->get_term()});
+			if( !_syntax->skips(',') ) {
+				break;
+			}
+		}
+		return ret;
 	}
 
 	optional<Thm> loop() {
@@ -209,15 +229,15 @@ public:
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
 				_syntax->skip("where");
-				String spec_name = _syntax->get_thm_name();
-				_syntax->skip(':');
-				Term spec = _syntax->get_term(0);
+				auto specs = get_named_terms();
 				_syntax->skip(';');
-				auto const& pair = _ctxt.obtain(sym,spec);
-				Term const& goal = pair.first;
-				Thm const& obtain_thm = pair.second;
-				cout << "Obtaining " << sym << " where " << spec_name << ": " << _syntax->pretty_term(spec) << endl <<
-					"Proving " << _syntax->pretty_term(goal) << endl;
+				Ctxt obtainer = _ctxt.obtain(sym,specs);
+				Term const& goal = obtainer.assms()[0];
+				cout << "Obtaining " << sym << " where ";
+				for( auto& spec : specs ) {
+					cout << spec.first << ": " << _syntax->pretty_term(spec.second) << ", ";
+				}
+				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
 				auto const& prf = Prover(*this,goal).loop();
 				if( !prf.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
@@ -228,8 +248,8 @@ public:
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(goal_thm) << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& spec_thm = obtain_thm.impE(goal_thm);
-				_ctxt.claim(spec_name,spec_thm);
+				obtainer = obtainer.interpret(CSubst(_ctxt),{goal_thm});
+				_ctxt.import(obtainer);
 				cout << "Successfully obtained " << sym << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
@@ -259,7 +279,7 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("rewrite") ) {
-					auto const& thms = get_thms();
+					auto const& thms = get_named_thms();
 					_rewrite_axioms = Ref(Rewrite::Axioms(thms));
 					cout << "Setup Rewrite Axioms:" << endl << _syntax->pretty_thms(thms) << endl;
 				} else {

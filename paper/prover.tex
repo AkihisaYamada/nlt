@@ -60,6 +60,13 @@
 \[ s,t,u,\ldots ::= x \mid s\,s \mid x.\,s \mid x[s]
 \]
 
+\begin{itemize}
+	\item $x \in \Term(\Sigma)$ if $x \in \Sigma$
+	\item $s\,t \in \Term(\Sigma)$ if $s, t \in \Term(\Sigma)$
+	\item $x.\,s \in \Term(\Sigma)$ if $s \in \Term(\Sigma\cup\set{x})$
+	\item $x[s] \in \Term(\Sigma)$ if $x \in \Sigma$ and $s \in \Term(\Sigma\setminus\set{x})$
+\end{itemize}
+
 Substitution
 \begin{align*}
 [x\mapsto s]x &= s\\
@@ -81,13 +88,13 @@ We assume an infix symbol $\IMP$ and a prefix $\forall$.
 A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\Sigma$ is defined as follows.
 
 \begin{itemize}
-\item $\epsilon \in \Ctxt(\set{\IMP,\forall})$
+\item $\epsilon \in \Ctxt(\Sigma)$
 \item $(\Gamma;\ASS s) \in \Ctxt(\Sigma)$ if
-	$\Gamma \in \Ctxt(\Sigma)$.
-\item $(\Gamma;\FIX x) \in \Ctxt(\Sigma\cup\set{x})$ if $x \notin \Sigma$ and $\Gamma \in \Ctxt(\Sigma)$.
+	$\Gamma \in \Ctxt(\Sigma)$ and $s \in \Term(\Sigma)$.
+\item $(\Gamma;\FIX x) \in \Ctxt(\Sigma)$ if $x \in \Sigma$ and $\Gamma \in \Ctxt(\Sigma\setminus\set{x})$.
 \end{itemize}
 
-\noindent A term $s$ is a \emph{theorem} in $\Gamma$, written $\Gamma\vdash s$, if it is derivable by the following inference rules:
+\noindent A term $s \in \Term(\Sigma)$ is a \emph{theorem} in $\Gamma \in \Ctxt(\Sigma)$, written $\Gamma\vdash s$, if it is derivable by the following inference rules:
 %
 \begin{align*}
 \infer[\ass]{\Gamma;\ASS s\vdash s}{}
@@ -106,13 +113,17 @@ A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\S
 \end{align*}
 \end{definition}
 
+\begin{metatheorem}[cut-elimination]
+	If $\Gamma \vdash s$, then it is provable without $\impE$ and $\allE$.
+\end{metatheorem}
+
 \subsection{Specification}
 
 \begin{definition}[specifications]\label{def:spec}
 We extend \prettyref{def:ctxt} with the following case:
 
 \begin{itemize}
-\item $(\Gamma;\SPEC{x}{s}) \in \Ctxt(\Sigma\cup\set{x})$ if $\Gamma \in \Ctxt(\Sigma)$, $x \notin \Sigma$, and $\Gamma \vdash \exists x.\,s$
+\item $(\Gamma;\SPEC{x}{s}) \in \Ctxt(\Sigma)$ if $\Gamma \in \Ctxt(\Sigma\setminus\set{x})$, $x \in \Sigma$, $s \in \Term(\Sigma)$, and $\Gamma \vdash \exists x.\,s$
 \end{itemize}
 
 \noindent and the following inference rules:
@@ -160,7 +171,7 @@ Then it assumes three axioms on it:
 \end{align*}
 
 \begin{metatheorem}[constant definition]
-$(\Gamma;\SPEC x{x = s}) \in \Ctxt(\Sigma\cup\set{x})$ if $x \notin \Sigma$, $s \in \Term(\Sigma)$, and $\Gamma \in \Ctxt(\Sigma)$.
+$(\Gamma;\SPEC x{x = s}) \in \Ctxt(\Sigma)$ if $x \in \Sigma$, $s \in \Term(\Sigma\setminus\set{x})$, and $\Gamma \in \Ctxt(\Sigma\setminus\set{x})$.
 \end{metatheorem}
 
 \subsection{Lambda Abstraction}
@@ -172,7 +183,7 @@ $(\Gamma;\SPEC x{x = s}) \in \Ctxt(\Sigma\cup\set{x})$ if $x \notin \Sigma$, $s 
 \]
 
 \begin{metatheorem}[functional definition]
-$(\Gamma;\SPEC f{\ALL{x_1,\dots,x_n} f\,x_1\,\dots\,x_n = s}) \in \Ctxt(\Sigma\cup\set{f})$ if $f \notin \Sigma$, $s \in \Term(\Sigma\cup\set{x_1,\dots,x_n})$, and $\Gamma \in \Ctxt(\Sigma)$.
+$(\Gamma;\SPEC f{\ALL{x_1,\dots,x_n} f\,x_1\,\dots\,x_n = s}) \in \Ctxt(\Sigma)$ if $\Gamma \in \Ctxt(\Sigma\setminus\set{f})$, $f \in \Sigma$, and  $s \in \Term(\Sigma\cup\set{x_1,\dots,x_n}\setminus\set{f})$.
 \end{metatheorem}
 
 \end{document}

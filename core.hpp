@@ -230,12 +230,6 @@ public:
 	 */
 	StrMap<Term const> const& thms() const;
 	/**
-	 * @brief Local specifications.
-	 * 
-	 * @return map from constant names to the specifications. 
-	 */
-	StrMap<Term const> const& specs() const;
-	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
 	std::optional<String const> find_local(String const& sym) const;
@@ -250,16 +244,16 @@ public:
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Ctxt const& assume(String const& name, Term const& assm);
+	Ctxt& assume(String const& name, Term const& assm);
 	/**
 	 * @brief Fixes a symbol with a specification.
 	 * the existence of sym that satisfy spec
 	 *
 	 * @param sym the symbol to be fixed.
-	 * @param spec the specification of the symbol.
-	 * @return the pair of the term for goal, and the theorem that asserts goal implies spec.
+	 * @param specs the specification of the symbol.
+	 * @return Ctxt assuming the existence of such sym, and having specs as theorems.
 	 */
-	std::pair<Term,Thm> obtain(String const& sym, Term const& spec) const;
+	Ctxt obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs);
 	/**
 	 * @brief Fixes all free variables of a term, so that it will become a closed term.
 	 * 
@@ -281,7 +275,7 @@ public:
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */
-	Ctxt const& claim(String const& name, Thm const& thm) const;
+	Ctxt& claim(String const& name, Thm const& thm);
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
@@ -293,6 +287,23 @@ public:
 	Ctxt branch() const {
 		return Ctxt(std::optional(*this));
 	}
+	/**
+	 * @brief locale interpretation.
+	 * 
+	 * @param subst closed substitution of the parent context
+	 * @param thms proofs of the assumptions, in the parent context
+	 * @return the result context with no bound variable
+	 */
+	Ctxt interpret(CSubst const& subst, std::vector<Thm> const& thms) const;
+
+	/**
+	 * @brief Imports another context.
+	 * 
+	 * @param ctxt target to be imported. Its parent must be a direct ancestor of the current context.
+	 * @return this
+	 */
+	Ctxt& import(Ctxt const& ctxt);
+
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
@@ -319,7 +330,6 @@ struct Ctxt::Body {
 	 */
 	std::vector<String> sym_list;
 	std::vector<Term> assms;
-	StrMap<Term const> specs; // constant specifications
 	StrMap<Term const> thms; // table of theorems
 };
 
@@ -339,15 +349,12 @@ inline std::optional<Ctxt> const& Ctxt::parent() const {
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
 }
-inline StrMap<Term const> const& Ctxt::specs() const {
-	return _ref->specs;
-}
 inline StrMap<Term const> const& Ctxt::thms() const {
 	return _ref->thms;
 }
 
 inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
-	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.specs == r.specs && l.thms == r.thms;
+	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.thms == r.thms;
 };
 
 inline bool operator!=(Ctxt const& l, Ctxt const& r) {
@@ -470,7 +477,7 @@ public:
 inline bool operator!=(CTerm const& l, CTerm const& r) {
 	return !(l == r);
 };
-inline Ctxt const& Ctxt::assume(String const& name, Term const& assm) {
+inline Ctxt& Ctxt::assume(String const& name, Term const& assm) {
 	enclose(assm);
 	_ref->assms.push_back(assm);
 	_ref->thms.insert({name,assm});
@@ -577,15 +584,14 @@ public:
 		return CTerm::weaken(ctxt);
 	}
 private:
-	friend Thm Ctxt::thm(String const& name) const;
-	friend std::pair<Term,Thm> Ctxt::obtain(String const& sym, Term const& spec) const;
+	friend Ctxt;
 };
 
 inline Thm Ctxt::thm(String const& name) const {
 	return CTerm(*this,_thm(name));
 }
 
-inline Ctxt const& Ctxt::claim(String const& name, Thm const& thm) const {
+inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	if( thm._ctxt != *this ) {
 		throw WrongContext();
 	}
