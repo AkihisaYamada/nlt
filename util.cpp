@@ -28,7 +28,7 @@ ostream& operator<<(ostream& os, CSubst const& subst) {
 	return os << "\n]";
 }
 
-pair<Term const&, list<Term>> uncurry(Term const& t) {
+pair<String, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
 	for(;;) {
@@ -37,7 +37,11 @@ pair<Term const&, list<Term>> uncurry(Term const& t) {
 			args.push_front(p->second);
 			cur = &p->first;
 		} else {
-			return pair<Term const&, list<Term>>(*cur,args);
+			auto const& sym = cur->sym();
+			if( !p.has_value() ) {
+				throw UnexpectedTerm(*cur);
+			}
+			return pair<String,list<Term>>(*sym,args);
 		}
 	}
 }

@@ -292,6 +292,7 @@ Ctxt Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& 
 	Term assm = thesis;
 	ret.fix(sym);
 	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
+		ret.cterm(it->second);// check closedness
 		assm = it->second >>= assm;
 		ret._ref->thms.insert(*it);
 	}

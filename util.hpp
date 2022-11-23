@@ -24,6 +24,14 @@ Thm strip_all(Thm thm, Ctxt& loc);
 CTerm strip_all(CTerm t, Ctxt& loc);
 
 /**
+ * @brief Uncurrying
+ * 
+ * @param t 
+ * @return std::pair<String,std::vector<Term>> 
+ */
+std::pair<String,std::list<Term>> uncurry(Term const& t);
+
+/**
  * @brief Matching, assuming disjoint free variables.
  * @param fsyms the set of free variables
  * @param pat 
@@ -131,6 +139,19 @@ public:
 	 * @return the normal form
 	 */
 	Thm normalize(Rules const& rules, Thm const& thm, unsigned int steps) const;
+};
+
+class Definer {
+	Ref<Rewriter> rewriter;
+	String const EQ;
+	String const LAM;
+	Thm const beta;
+public:
+	struct Error : std::exception {
+		Term term;
+		Error(Term const& term) : term(term) {}
+	};
+	void define(Ctxt& ctxt, String const& sym, Term const& rule) const;
 };
 
 #endif
