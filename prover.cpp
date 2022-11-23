@@ -192,7 +192,7 @@ public:
 				_syntax->skip(';');
 				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
 			} else if( _syntax->skips("move") ) {
-				Ctxt pctxt = _ctxt.parent().value();
+				Ctxt pctxt = *_ctxt.find_ctxt();
 				String name = _syntax->get_thm_name();
 				_syntax->skip(':');
 				pctxt.claim(name,get_thm());

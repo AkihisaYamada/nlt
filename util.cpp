@@ -157,7 +157,7 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 			auto const& abs = app->second.abs();
 			if( abs.has_value() ) {
 				String const& v = abs->first;
-				String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
+				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
 				thm = thm.allE(ctxt.fix(nv));
 				continue;
 			}
@@ -173,7 +173,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 			auto const& abs = app->second.abs();
 			if( abs.has_value() ) {
 				String const& v = abs->first;
-				String nv = avoid(v,[&](String const& x){ return ctxt.find(x).has_value(); });
+				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
 				t = app->second.inst(ctxt.fix(nv));
 				continue;
 			}
@@ -239,7 +239,7 @@ Thm discharge(Thm thm, Thm arg) {
 	for( auto const& x : thm_ctxt.sym_list() ) {// TODO: slower than `subst`
 		auto opt = unifier->get(x);
 		auto const& val = opt.has_value() ? (Term)*opt : x;
-		thm = thm.allE(ret_ctxt.cterm(val));
+		thm = thm.allE(ret_ctxt.enclose(val));
 	}
 	thm = thm.impE(arg);
 	thm = thm.intro();

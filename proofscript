@@ -104,19 +104,10 @@ obtain ¬ where NOT_TRUE: (¬ TRUE) = FALSE, NOT_FALSE: (¬ FALSE) = TRUE;
 
 infix ∧ 36 35 36;
 
-obtain ∧ where
-	AND_TRUE: ∀ Q. (TRUE ∧ Q) = Q,
-	AND_FALSE: ∀ Q. (FALSE ∧ Q) = FALSE,
-	AND_TRUE2: ∀ P. (P ∧ TRUE) = P,
-	AND_FALSE2: ∀ P. (P ∧ FALSE) = FALSE;
+obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 	fix thesis;
-	assume 1: ∀ ∧.
-		(∀ Q. (TRUE ∧ Q) = Q) ⟹
-		(∀ Q. (FALSE ∧ Q) = FALSE) ⟹
-		(∀ P. (P ∧ TRUE) = P) ⟹
-		(∀ P. (P ∧ FALSE) = FALSE) ⟹ thesis;
-	name 2: 1(λ P. λ Q. IF );
-	by 2[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
+	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
+	by 1(λ P2. λ Q2. ∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
 
 name AND.elim: EQ.prop1[OF AND.def];
 name AND.intro: EQ.prop2[OF AND.def];

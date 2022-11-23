@@ -27,10 +27,16 @@
 \makeatother
 
 \newcommand\imp{\Rightarrow}
+\newcommand\defeq{\ \equiv\ }
 \newcommand\true{\mathtt{true}}
 \newcommand\false{\mathtt{false}}
-\newcommand\Prop{\mathtt{Prop}}
+\newcommand\prop{\mathtt{prop}}
+\newcommand\iprop{\mathtt{iprop}}
+\newcommand\defined{\mathtt{defined}}
 \newcommand\cF{\mathcal{F}}
+\newcommand\cV{\mathcal{V}}
+\newcommand\Var{\mathsf{Var}}
+
 \newcommand\Rule{\textrm{Rule}}
 \newcommand\Term[1]{\mathcal{T}(#1)}
 
@@ -38,10 +44,10 @@
 \maketitle
 
 \begin{definition}
-$\Term\cF$ is
-$v \in \cF$,
-or $s\,t$ for $s, t \in \Term\cF$,
-or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
+$\Term\cV$ is
+$v \in \cV$,
+or $s\,t$ for $s, t \in \Term\cV$,
+or $\xi x.\,s$ for $s \in \Term{\cV\cup\set{x}}$
 \end{definition}
 
 \begin{definition}[minimal inference rules]
@@ -49,10 +55,14 @@ or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
 	\infer{\psi}{\phi & \phi \imp \psi}
 \]
 \[
-	\infer{\forall x.\ \phi}{\phi} \text{\quad if $x$ is free in }\phi
+	\infer[\text{ if }x \notin \Var(\phi_1,\dots,\phi_n)]{
+		\phi_1 \imp\dots\imp \phi_n \imp \forall x.\ \psi
+	}{
+		\phi_1 \imp\dots\imp \phi_n \imp \psi
+	}
 \]
 \[
-	\infer{\phi(x\mapsto t)}{\forall x.\ \phi}
+	\infer{\phi(x\mapsto t)\imp\psi}{(\forall x.\ \phi)\imp\psi}
 \]
 \end{definition}
 
@@ -61,10 +71,13 @@ or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
 \forall \phi.\ \phi \imp \phi
 \]
 \[
-\forall \phi,\psi.\ \phi \imp (\psi \imp \phi)
+\forall \phi,\psi,\tau.\ (\phi \imp \psi \imp \tau) \imp (\psi \imp \phi \imp \tau)
 \]
 \[
-\forall \phi,\psi,\tau.\ (\phi \imp \psi \imp \tau) \imp (\psi \imp \phi \imp \tau)
+\forall \phi,\psi.\ \phi \imp \psi \imp \phi
+\]
+\[
+\forall \phi,\psi.\ (\phi \imp \phi \imp \psi) \imp (\phi \imp \psi)
 \]
 \end{definition}
 
@@ -72,27 +85,86 @@ or $x.\ s$ for $s \in \Term{\cF\cup\set{x}}$
 \[
 	\infer{a \imp (a\imp b) \imp b}{
 		\infer{a \imp (a\imp b)\imp a}{
-			\infer{a \imp a}{}
+			\infer{a \imp a}{\forall \phi.\ \phi \imp \phi}
 		} &
 		\infer{(a \imp (a\imp b)\imp a) \imp a \imp (a\imp b) \imp b}{
 			\infer{a \imp (a\imp b) \imp b}{
-				\infer{(a\imp b)\imp a \imp b}{}
+				\infer{(a\imp b)\imp a \imp b}{\forall \phi.\ \phi \imp \phi}
 			}
 		}
 	}
 \]
 \end{example}
 
+\begin{definition}[equality]
 \[
-\forall f,g,s,t.\ f = g \imp s = t \imp f\,s = g\,t
+	\forall x.\ x = x
+\]
+\[
+	\forall x,y.\ x = y \imp y = x
+\]
+\[
+	\forall x,y,z.\ x = y \imp y = z \imp x = y
+\]
+\[
+	\forall f,g,x,y.\ f = g \imp x = y \imp f\,x = g\,y
+\]
+\end{definition}
+
+\begin{definition}[logic symbols]
+\begin{align*}
+	\true &: \defined&
+	\true &= (\forall \phi.\ \phi \imp \phi)\\
+	\false &: \defined&
+	\false &= (\forall \phi.\ \phi)
+\end{align*}
+\[
+\forall \phi,\psi.\ (\phi \land \psi) = (\forall \rho.\ (\phi \imp \psi \imp \rho) \imp \rho)
+\]
+\[
+\forall \phi,\psi.\ (\phi \lor \psi) = (\forall \rho.\ (\phi \imp \rho) \imp (\psi \imp \rho) \imp \rho)
+\]
+\[
+\forall \phi.\ \neg\phi = (\phi \imp \false)
+\]
+\[
+\forall p.\ (\exists) p = (\forall\phi.\ (\forall x.\ p\,x \imp \phi) \imp \phi)
+\]
+\[	\forall f,\sigma,\tau.\ f : \sigma \to \tau \defeq \forall x : \sigma.\ f\,x : \tau
+\]
+\[	\forall f,\sigma,\tau.\ f \in \sigma \to \tau \defeq \forall x \in \sigma.\ f\,x \in \tau
+\]
+\end{definition}
+
+\begin{lemma}
+\[
+\infer{\forall p,x.\ p\,x \imp (\exists)p}{
+	\infer{p\,x \imp (\exists)p}{
+		\infer{p\,x \imp \forall \phi.\ (\forall x.\ p\,x \imp \phi) \imp \phi}{
+			\infer{p\,x \imp (\forall x.\ p\,x \imp \phi) \imp \phi}{
+				\infer{(\forall x.\ p\,x \imp \phi) \imp p\,x \imp \phi}{
+					(p\,x\imp\phi) \imp p\,x \imp \phi
+				}
+			}
+		}
+	}
+}
+\]
+\end{lemma}
+\subsection{Classical:}
+\[
+	\forall x.\ x : \prop \defeq x = \true \lor x = \false
+\]
+theorem:
+$\forall x : \prop.\ \neg\neg x \imp x$
+
+\subsection{Intuitionistic:}
+\[
+	\forall x.\ x : \iprop \defeq x : \defined \imp x = \true \lor x = \false
 \]
 
-\[
-\forall \phi,\psi.\ \phi \wedge \psi = (\forall \tau.\ (\phi \imp \psi \imp \tau) \imp \tau)
+\subsection{Constructivism}
+\[	\forall p,\sigma.\ p : \sigma\to\prop \imp (\forall x : \sigma.\ p\,x) : \iprop
 \]
-
-if $s : \Prop$ then $(\forall x.\ s) : \Prop$
-
-
 
 \end{document}

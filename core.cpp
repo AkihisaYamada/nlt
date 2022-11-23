@@ -164,7 +164,7 @@ Term Term::subst(CSubst const& subst) const {
 		return opt.has_value() ? (Term)*opt : sym;
 	};
 	auto fixed = [&](String const& sym) {
-		return subst.ctxt().find(sym).has_value();
+		return subst.ctxt().find_sym(sym).has_value();
 	};
 	return map(f,fixed);
 }
@@ -218,7 +218,7 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-optional<String const> Ctxt::find_local(String const& sym) const {
+optional<String const> Ctxt::find_sym_local(String const& sym) const {
 	auto it = _ref->syms.find(sym);
 	if( it != _ref->syms.end() ) {
 		return *it;
@@ -226,16 +226,19 @@ optional<String const> Ctxt::find_local(String const& sym) const {
 	return optional<String const>();
 }
 
-optional<String const> Ctxt::find(String const& sym) const {
-	auto opt = find_local(sym);
-	if( !opt.has_value() && _ref->parent.has_value() ) {
-		return _ref->parent->find(sym);
+optional<String const> Ctxt::find_sym(String const& sym) const {
+	auto opt = find_sym_local(sym);
+	if( !opt.has_value() ) {
+		auto const& parent = find_ctxt();
+		if( parent.has_value() ) {
+			return parent->find_sym(sym);
+		}
 	}
 	return opt;
 }
 
 CTerm Ctxt::fix(String const& sym) {
-	auto opt = find(sym);
+	auto opt = find_sym(sym);
 	if( opt.has_value() ) {
 		return CTerm(*this,*opt);
 	}
@@ -253,35 +256,36 @@ CTerm Ctxt::enclose(Term const& t) {
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms(
 		[](String const& sym){},
-		[&](String const& sym){ if( !find(sym).has_value() ) { throw UnboundVariable(sym); } }
+		[&](String const& sym){ if( !find_sym(sym).has_value() ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
 Term Ctxt::_thm(String const& name) const {
 	auto const& it = _ref->thms.find(name);
 	if( it == _ref->thms.end() ) {
-		if( !_ref->parent ) {
+		auto const& parent = find_ctxt();
+		if( !parent.has_value() ) {
 			throw TheoremNotFound(name);
 		}
-		return _ref->parent->_thm(name);
+		return parent->_thm(name);
 	}
 	return it->second;
 }
 
 Ctxt Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
-	if( find(sym) ) {
+	if( find_sym(sym) ) {
 		throw DoubleFix(sym);
 	}
 	Ctxt ret = branch();
-	String thesis = avoid("thesis",[&](String const& x){ return find(x) || sym == x; });
+	String thesis = avoid("thesis",[&](String const& x){ return find_sym(x) || sym == x; });
 	Term assm = thesis;
+	ret.fix(sym);
 	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
 		assm = it->second >>= assm;
 		ret._ref->thms.insert(*it);
 	}
 	assm = ALL( thesis /= ALL( sym /= assm ) >>= thesis );
 	ret._ref->assms.push_back(assm);
-	ret._ref->thms.insert({"assms",assm});
 	return ret;
 }
 
@@ -311,10 +315,7 @@ Thm Thm::impE(Thm const& t) const {
 }
 
 Thm Thm::intro() const {
-	auto const& parent = _ctxt.parent();
-	if( !parent.has_value() ) {
-		throw WrongContext();
-	}
+	auto const& parent = _ctxt.ctxt();
 	Term stmt = *this;
 	auto const& assms = _ctxt.assms();
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
@@ -324,7 +325,7 @@ Thm Thm::intro() const {
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = ALL(*it /= stmt);
 	}
-	return Thm(CTerm(*parent,stmt));
+	return Thm(CTerm(parent,stmt));
 }
 std::optional<CTerm::StrTerm> CTerm::abs() const {
 	auto const& tabs = Term::abs();
@@ -337,38 +338,17 @@ std::optional<CTerm::StrTerm> CTerm::abs() const {
 	loc.fix(var);
 	return StrTerm(var,CTerm(loc,body));
 }
-
-CTerm CTerm::weaken(Ctxt const& ctxt) const {
-	Ctxt cur = ctxt;
-	for(;;) {
-		if( cur == _ctxt ) {
-			return CTerm(ctxt,*this);
-		}
-		auto const& parent = cur.parent();
-		if( !parent.has_value() ) {
-			throw WrongContext();
-		}
-		cur = *parent;
-	}
-}
 CTerm CTerm::lift() const {
-	auto const& parent_opt = _ctxt.parent();
-	if( !parent_opt.has_value() ) {
-		throw WrongContext();
-	}
+	auto const& parent = _ctxt.ctxt();
 	Term ret = *this;
 	for( auto const& sym : _ctxt.sym_list() ) {
 		ret = sym /= ret;
 	}
-	return CTerm(*parent_opt,ret);
+	return CTerm(parent,ret);
 }
 
 CTerm CTerm::lift(CSubst const& subst) const {
-	auto const& parent_opt = _ctxt.parent();
-	if( !parent_opt.has_value() ) {
-		throw WrongContext();
-	}
-	Ctxt const& parent = *parent_opt;
+	auto const& parent = _ctxt.ctxt();
 	if( parent != subst.ctxt() ) {
 		throw WrongContext();
 	}
@@ -377,33 +357,34 @@ CTerm CTerm::lift(CSubst const& subst) const {
 		if( opt.has_value() ) {
 			return *opt;
 		}
-		auto const& opt2 = parent.find(sym);
+		auto const& opt2 = parent.find_sym(sym);
 		if( opt2.has_value() ) {
 			return *opt2;
 		}
 		throw UnboundVariable(sym);
 	};
 	auto fixed = [&](String const& sym) {
-		return subst.ctxt().find(sym).has_value();
+		return subst.ctxt().find_sym(sym).has_value();
 	};
 	return CTerm(parent,map(f,fixed));
 }
 Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
-	auto const& opt = parent();
-	if( !opt.has_value() ) {
+	auto const& parent = ctxt();
+	if( subst.ctxt() != parent ) {
 		throw WrongContext();
 	}
-	Ctxt const& ctxt = *opt;
-	if( subst.ctxt() != ctxt ) {
-		throw WrongContext();
+	Ctxt ret = parent.branch();
+	for( auto& sym : syms() ) {// fix uninstantiated variables
+		if( !subst.map().contains(sym) ) {
+			ret.fix(sym);
+		}
 	}
-	Ctxt ret = ctxt.branch();
 	auto it = facts.begin();
 	for( auto& assm : assms() ) {// check that the instances of assumptions are discharged
 		if( it == facts.end() ) {
 			throw MalformedDischarge(assm,Term());
 		}
-		if( it->ctxt() != ctxt ) {
+		if( it->ctxt() != parent ) {
 			throw WrongContext();
 		}
 		Term const& goal = assm.subst(subst);
@@ -418,18 +399,9 @@ Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 	return ret;
 }
 Ctxt& Ctxt::import(Ctxt const& ctxt) {
-	auto const& opt = ctxt.parent();
-	if( opt.has_value() ) {
-		Ctxt cur = *this;
-		for(;;) {
-			if( cur == *opt ) {
-				break;
-			}
-			if( !cur.parent().has_value() ) {
-				throw WrongContext();
-			}
-			cur = *cur.parent();
-		}
+	auto const& parent = ctxt.find_ctxt();
+	if( parent.has_value() ) {
+		ensure_ancestor(*parent);
 	}
 	for( auto& sym : ctxt.sym_list() ) {
 		fix(sym);

@@ -208,9 +208,21 @@ public:
 	Ctxt();
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	/**
-	 * @brief The parent context if this is not a root.
+	 * @brief Finds the parent or child context.
 	 */
-	std::optional<Ctxt> const& parent() const;
+	std::optional<Ctxt> find_ctxt(String const& name = String()) const;
+	/**
+	 * @brief Obtains the parent or child context.
+	 * @exception WrongContext is thrown if no such context is found.
+	 */
+	Ctxt ctxt(String const& name = String()) const;
+	/**
+	 * @brief Ensures that this has the given context as an ancestor.
+	 * @exception WrongContext is thrown if it does not.
+	 */
+	void ensure_ancestor(Ctxt const& ancestor) const {
+		for( Ctxt cur = *this; cur != ancestor; cur = cur.ctxt() );
+	}
 	/**
 	 * @brief The set of all symbols fixed by this context.
 	 */
@@ -232,11 +244,11 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	std::optional<String const> find_local(String const& sym) const;
+	std::optional<String const> find_sym_local(String const& sym) const;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	std::optional<String const> find(String const& sym) const;
+	std::optional<String const> find_sym(String const& sym) const;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
@@ -318,9 +330,9 @@ private:
 
 struct Ctxt::Body {
 	/**
-	 * @brief Parent context.
+	 * @brief Context directory.
 	 */
-	std::optional<Ctxt> parent;
+	StrMap<Ctxt const> ctxts;
 	/**
 	 * @brief The set of symbols fixed in this context, but not in ancestors.
 	 */
@@ -335,7 +347,11 @@ struct Ctxt::Body {
 
 inline Ctxt::Ctxt() : _ref(Body()) {};
 
-inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>(Ctxt::Body{parent})) {}
+inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>()) {
+	if( parent.has_value() ) {
+		_ref->ctxts.insert({"",*parent});
+	}
+}
 
 inline Syms const& Ctxt::syms() const {
 	return _ref->syms;
@@ -343,8 +359,19 @@ inline Syms const& Ctxt::syms() const {
 inline std::vector<String> const& Ctxt::sym_list() const {
 	return _ref->sym_list;
 }
-inline std::optional<Ctxt> const& Ctxt::parent() const {
-	return _ref->parent;
+inline Ctxt Ctxt::ctxt(String const& name) const {
+	auto const& it = _ref->ctxts.find(name);
+	if( it == _ref->ctxts.end() ) {
+		throw WrongContext();
+	}
+	return it->second;
+}
+inline std::optional<Ctxt> Ctxt::find_ctxt(String const& name) const {
+	try {
+		return ctxt(name);
+	} catch(WrongContext e) {
+		return std::optional<Ctxt>();
+	}
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
@@ -354,7 +381,7 @@ inline StrMap<Term const> const& Ctxt::thms() const {
 }
 
 inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
-	return l.parent == r.parent && l.syms == r.syms && l.assms == r.assms && l.thms == r.thms;
+	return l.ctxts == r.ctxts && l.syms == r.syms && l.assms == r.assms && l.thms == r.thms;
 };
 
 inline bool operator!=(Ctxt const& l, Ctxt const& r) {
@@ -447,10 +474,13 @@ public:
 	/**
 	 * @brief Moves a closed term to a descendant context
 	 * 
-	 * @param ctxt 
+	 * @param ctxt the descendant context
 	 * @return CTerm 
 	 */
-	CTerm weaken(Ctxt const& ctxt) const;
+	CTerm weaken(Ctxt const& ctxt) const {
+		ctxt.ensure_ancestor(_ctxt);
+		return CTerm(ctxt,*this);
+	}
 
 	/**
 	 * @brief Lifts a closed term to one with respect to the parent context.
