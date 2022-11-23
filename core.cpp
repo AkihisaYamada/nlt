@@ -170,10 +170,9 @@ Term Term::subst(CSubst const& subst) const {
 }
 
 static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap<String>& bsyms) {
-	for( auto p : bsyms ) {// bound variables should be renamed
-		if( p.first == sym ) {
-			return p.second;
-		}
+	auto const& it = bsyms.find(sym);
+	if( it != bsyms.end() ) {
+		return it->second;
 	}
 	return f(sym);
 }
@@ -184,18 +183,30 @@ Term Term::_map(function<Term(String const&)> f, std::function<bool(String const
 		case APP: return _un.app->first._map(f,fixed,bsyms)(_un.app->second._map(f,fixed,bsyms));
 		case ABS: {
 			auto& abs = *_un.abs;
-			String const& newvar = avoid(abs.first,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
-			auto info = bsyms.insert({abs.first,newvar});
-			String prev;
-			if( !info.second ) {
-				prev = info.first->second;
-			}
-			Term const& body = abs.second._map(f,fixed,bsyms);
-			if( info.second ) {
-				bsyms.erase(info.first);
+			String var = abs.first;
+			Term body = abs.second;
+			String const& newvar = avoid(var,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
+			auto newvar_info = bsyms.insert({newvar,newvar});// the new name should be avoided
+			if( newvar == var ) {// the bound variable is fresh
+				body = body._map(f,fixed,bsyms);
 			} else {
-				info.first->second = prev;
+				// replace the original name
+				auto replace_info = bsyms.insert({abs.first,newvar});
+				String prev;
+				if( !replace_info.second ) {// the variable is bound multiple times
+					prev = replace_info.first->second;// remember the old assignment
+					replace_info.first->second = newvar;// update to the new name
+				}
+				body = body._map(f,fixed,bsyms);
+				// forget/recover replacement
+				if( replace_info.second ) {
+					bsyms.erase(replace_info.first);
+				} else {
+					replace_info.first->second = prev;
+				}
 			}
+			// release the new name
+			bsyms.erase(newvar_info.first);
 			return newvar /= body;
 		}
 		case BIND: {

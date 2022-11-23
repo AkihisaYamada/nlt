@@ -107,7 +107,7 @@ infix ∧ 36 35 36;
 obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 	fix thesis;
 	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
-	by 1(λ P2. λ Q2. ∀ R. (P2 ⟹ Q2 ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
+	by 1(λ P. λ Q. ∀ R. (P ⟹ Q ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
 
 name AND.elim: EQ.prop1[OF AND.def];
 name AND.intro: EQ.prop2[OF AND.def];
