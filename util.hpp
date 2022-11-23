@@ -91,29 +91,46 @@ void import(Ctxt ctxt, Ctxt const& target);
  * @brief Congruence prover.
  * 
  */
-namespace Rewrite {
-	struct Axioms {
-		Thm cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
-		Axioms(StrMap<Thm> const& args) :
-			cong(args.at("cong")),fun_cong(args.at("fun_cong")),arg_cong(args.at("arg_cong")),
-			ext(args.at("ext")),eq_imp(args.at("eq_imp")),refl(args.at("refl")),trans(args.at("trans")) {}
-	};
+class Rewriter {
+	Thm const cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
 	struct Rule {
 		Thm thm;
 		CTerm pat;
 	};
-	class Rules : std::vector<Rule> {
-		Axioms axioms;
-	public:
-		Rules& add(Thm const& thm);
-		Rules(Axioms const& axioms) : axioms(axioms) {}
-		std::optional<Thm> equate(CTerm const& haystack) const;
-		std::optional<Thm> rewrite(Thm const& thm) const;
-	};
+public:
 	struct Error : std::exception {
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
+	class Rules : std::vector<Rule> {
+	public:
+		Rules() {}
+		Rules& add(Thm const& thm);
+		friend Rewriter;
+	};
+	Rewriter(StrMap<Thm> const& args) :
+		cong(args.at("cong")),fun_cong(args.at("fun_cong")),arg_cong(args.at("arg_cong")),
+		ext(args.at("ext")),eq_imp(args.at("eq_imp")),refl(args.at("refl")),trans(args.at("trans")) {}
+	/**
+	 * @brief returns a rewrite step equation for the given left hand side.
+	 * 
+	 * @param haystack the left hand side
+	 * @return std::optional<Thm> 
+	 */
+	std::optional<Thm> equate(Rules const& rules, CTerm const& haystack) const;
+	/**
+	 * @brief rewrites a theorem one step.
+	 */
+	std::optional<Thm> rewrite(Rules const& rules, Thm const& thm) const;
+	/**
+	 * @brief normalizes a theorem.
+	 * 
+	 * @param rules 
+	 * @param thm 
+	 * @param steps limits the number of steps
+	 * @return the normal form
+	 */
+	Thm normalize(Rules const& rules, Thm const& thm, unsigned int steps) const;
 };
 
 #endif

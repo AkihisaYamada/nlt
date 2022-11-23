@@ -280,10 +280,6 @@ public:
 	 */
 	CTerm cterm(Term const& t) const;
 	/**
-	 * @brief Imports theorem from ancestor context.
-	 */
-	Thm adopt(Thm const& thm) const;
-	/**
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */

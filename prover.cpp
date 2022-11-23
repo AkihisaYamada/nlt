@@ -20,7 +20,7 @@ class Prover {
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
 	optional<Thesis> _thesis;
-	optional<Ref<Rewrite::Axioms>> _rewrite_axioms;
+	optional<Ref<Rewriter>> _rewriter;
 	bool _exit_on_error;
 public:
 	Prover(istream& is, bool exit_on_error) :
@@ -41,7 +41,7 @@ public:
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis(thesis),
-		_rewrite_axioms(parent._rewrite_axioms) {}
+		_rewriter(parent._rewriter) {}
 	Prover(Prover const& parent, Term const& claim) : Prover(parent,Thesis{parent._ctxt,claim}) {}
 
 	Thm get_thm() {
@@ -75,7 +75,8 @@ public:
 						ret = discharge(ret,*opt_arg);
 					}
 				} else if( _syntax->skips("rewrite") ) {
-					Rewrite::Rules rules = Rewrite::Rules(**_rewrite_axioms);
+					bool many = _syntax->skips('*');
+					Rewriter::Rules rules;
 					for(;;) {
 						auto const& opt_arg = _gets_thm(loc);
 						if( !opt_arg.has_value() ) {
@@ -83,11 +84,15 @@ public:
 						}
 						rules.add(*opt_arg);
 					}
-					auto const& opt_ret = rules.rewrite(ret);
-					if( !opt_ret.has_value() ) {
-						throw ProverFailure("Failed rewrite");
+					if( many ) {
+						ret = (**_rewriter).normalize(rules,ret,255);
+					} else {
+						auto const& opt_ret = (**_rewriter).rewrite(rules,ret);
+						if( !opt_ret.has_value() ) {
+							throw ProverFailure("Failed rewrite");
+						}
+						ret = *opt_ret;
 					}
-					ret = *opt_ret;
 				}
 				_syntax->skip(']');
 			} else {
@@ -280,7 +285,7 @@ public:
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("rewrite") ) {
 					auto const& thms = get_named_thms();
-					_rewrite_axioms = Ref(Rewrite::Axioms(thms));
+					_rewriter = Ref(Rewriter(thms));
 					cout << "Setup Rewrite Axioms:" << endl << _syntax->pretty_thms(thms) << endl;
 				} else {
 				}

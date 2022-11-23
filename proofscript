@@ -78,36 +78,78 @@ show EQ.prop2: ∀ P. ∀ Q. P = Q ⟹ Q ⟹ P;
 
 setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext refl:EQ.refl trans:EQ.trans eq_imp:EQ.prop1;
 
-fix TRUE;
-assume TRUE.intro: TRUE;
-assume EQ_TRUE: ∀ P. P ⟹ P = TRUE;
-
-fix FALSE;
-assume FALSE.elim: ∀ P. FALSE ⟹ P;
-
-fix IF;
-assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
-assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
-
 prefix λ 0 0;
 
 assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
 
-prefix ¬ 10 10;
-obtain ¬ where NOT_TRUE: (¬ TRUE) = FALSE, NOT_FALSE: (¬ FALSE) = TRUE;
+obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
 	fix thesis;
-	assume 1: ∀ not. (not TRUE) = FALSE ⟹ (not FALSE) = TRUE ⟹ thesis;
-	name 2: 1(λ P. IF P FALSE TRUE);
-	name 3: 2[rewrite FUN.def][rewrite IF_TRUE];
-	name 4: 3[rewrite FUN.def][rewrite IF_FALSE];
-	by 4[OF EQ.refl EQ.refl];
+	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
+	by 1[OF EQ.refl];
+
+show TRUE.intro: TRUE;
+	name 1: EQ.prop2[OF TRUE.def];
+	by 1[OF IMP.refl];
+
+obtain FALSE where FALSE.def: FALSE = (∀ P. P);
+	fix thesis;
+	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
+	by 1[OF EQ.refl];
+
+show FALSE.elim: ∀ P. FALSE ⟹ P;
+	fix P;
+	assume 1: FALSE;
+	by EQ.prop1[OF FALSE.def 1](P);
+
+prefix ¬ 10 10;
+obtain ¬ where NOT.def: ∀ P. (¬ P) = (P ⟹ FALSE);
+	fix thesis;
+	assume 1: ∀ not. (∀ P. (not P) = (P ⟹ FALSE)) ⟹ thesis;
+	by 1(λ P. P ⟹ FALSE)[rewrite FUN.def][OF EQ.refl];
+
+name NOT.intro: EQ.prop2[OF NOT.def];
+name NOT.elim: EQ.prop1[OF NOT.def];
+
+show NOT_FALSE: ¬ FALSE;
+	by NOT.intro[OF IMP.refl];
+
+infix ≠ 50 50 50;
+
+obtain ≠ where NEQ.def: ∀ x. ∀ y. (x ≠ y) = (¬ x = y);
+	fix thesis;
+	assume 1: ∀ ≠. (∀ x. ∀ y. (x ≠ y) = (¬ x = y)) ⟹ thesis;
+	by 1(λ x. λ y. ¬ x = y)[rewrite* FUN.def][OF EQ.refl];
+
+name NEQ.intro: EQ.prop2[OF NEQ.def];
+name NEQ.elim: EQ.prop1[OF NEQ.def];
+
+show NEQ.irrefl: ∀ x. ¬ x ≠ x;
+	fix x;
+	show 1: x ≠ x ⟹ FALSE;
+		assume 2: x ≠ x;
+		show 3: x = x ⟹ FALSE;
+			by NOT.elim[OF NEQ.elim[OF 2]];
+		by 3[OF EQ.refl];
+		by NOT.intro[OF 1];
+
+show TRUE_NEQ_FALSE: TRUE ≠ FALSE;
+	show 1: TRUE = FALSE ⟹ FALSE;
+		assume 2: TRUE = FALSE;
+		by EQ.prop1[OF 2][OF TRUE.intro];
+	show 3: ¬ TRUE = FALSE;
+		by NOT.intro[OF 1];
+	by NEQ.intro[OF 3];
+
+fix IF;
+assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
+assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
 
 infix ∧ 36 35 36;
 
 obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 	fix thesis;
 	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
-	by 1(λ P. λ Q. ∀ R. (P ⟹ Q ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
+	by 1(λ P. λ Q. ∀ R. (P ⟹ Q ⟹ R) ⟹ R)[rewrite* FUN.def][OF EQ.refl];
 
 name AND.elim: EQ.prop1[OF AND.def];
 name AND.intro: EQ.prop2[OF AND.def];
@@ -121,7 +163,7 @@ infix ∨ 31 30 31;
 obtain ∨ where OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 	fix thesis;
 	assume 1: ∀ DISJ. (∀ P. ∀ Q. (DISJ P Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)) ⟹ thesis;
-	by 1(λ P2. λ Q2. ∀ R. (P2 ⟹ R) ⟹ (Q2 ⟹ R) ⟹ R)[rewrite FUN.def][rewrite FUN.def][OF EQ.refl];
+	by 1(λ P. λ Q. ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)[rewrite* FUN.def][OF EQ.refl];
 
 show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
 	fix P Q;
@@ -144,13 +186,12 @@ show OR.elim: ∀ P. ∀ Q. ∀ R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 	assume PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R;
 	by EQ.prop1[OF OR.def PQ PR QR];
 
-
 prefix ∃ 0 1;
 
 obtain ∃ where EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 	fix thesis;
 	assume 1: ∀ EX. (∀ α. (EX α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P)) ⟹ thesis;
-	by 1(λ α2. ∀ P. (∀ x. α2[x] ⟹ P) ⟹ P)[rewrite FUN.def][OF EQ.refl];
+	by 1(λ α. ∀ P. (∀ x. α[x] ⟹ P) ⟹ P)[rewrite FUN.def][OF EQ.refl];
 
 show EX.elim: ∀ α. (∃ α) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
 	by EQ.prop1[OF EX.def];
@@ -160,3 +201,9 @@ show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
 
 
 ctxt;
+
+assume EQ_TRUE: ∀ P. P ⟹ P = TRUE;
+
+assume EQ_FALSE: ∀ P. ¬ P ⟹ P = FALSE;
+
+
