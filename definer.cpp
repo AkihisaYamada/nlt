@@ -1,8 +1,10 @@
 #include "util.hpp"
 
-void Definer::define(Ctxt& ctxt, String const& sym, Term const& rule) const {
+using namespace std;
+
+void Definer::define(Ctxt& ctxt, Term const& rule, optional<String const> name) const {
 	Ctxt loc = ctxt.branch();
-	CTerm eq = strip_all(rule,loc);
+	Term eq = strip_all(rule,loc);
 	auto const& app = eq.app();
 	if( !app.has_value() ) {
 		throw Error(eq);
@@ -11,9 +13,32 @@ void Definer::define(Ctxt& ctxt, String const& sym, Term const& rule) const {
 	if( !app2.has_value() || app2->first != EQ ) {
 		throw Error(eq);
 	}
-	auto const& l = app2->first;
-	auto const& r = app->first;
+	auto const& l = app2->second;
+	Term r = app->second;
 	auto pair = uncurry(l);
-	Ctxt obtainer = ctxt.obtain(pair.first,{{"def",rule}});
+	String const& sym = pair.first;
+	Ctxt obtainer = ctxt.obtain(pair.first,
+		{{(string)(name.has_value() ? *name : sym) +".def",rule}}
+	);
+	// existence proving
+	Ctxt prover = ctxt.branch();
+	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x).has_value(); });
+	prover.fix(thesis);
+	prover.assume( "assm", ALL( sym /= rule >>= thesis ) );
+	// building the lambda term
+	unsigned int steps = 0;
+	for( auto it = pair.second.rbegin(); it != pair.second.rend(); it++, steps++ ) {
+		auto const& param = it->sym();
+		if( !param.has_value() ) {
+			throw Error(l);
+		}
+		r = LAM(*param /= r);
+	}
+	Thm thm = prover.thm("assm");
+	thm = thm.allE(r);
+	thm = rewriter->normalize(beta,thm,steps);
+	thm = discharge(thm,rewriter->refl);
+	thm = thm.intro();
+	ctxt.import(obtainer.interpret(ctxt,{thm}));
 }
 

@@ -82,19 +82,15 @@ prefix λ 0 0;
 
 assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
 
-obtain TRUE where TRUE.def: TRUE = (∀ P. P ⟹ P);
-	fix thesis;
-	assume 1: ∀ TRUE. TRUE = (∀ P. P ⟹ P) ⟹ thesis;
-	by 1[OF EQ.refl];
+setup define = λ FUN.def;
+
+define TRUE = (∀ P. P ⟹ P);
 
 show TRUE.intro: TRUE;
 	name 1: EQ.prop2[OF TRUE.def];
 	by 1[OF IMP.refl];
 
-obtain FALSE where FALSE.def: FALSE = (∀ P. P);
-	fix thesis;
-	assume 1: ∀ FALSE. FALSE = (∀ P. P) ⟹ thesis;
-	by 1[OF EQ.refl];
+define FALSE = (∀ P. P);
 
 show FALSE.elim: ∀ P. FALSE ⟹ P;
 	fix P;
@@ -102,10 +98,7 @@ show FALSE.elim: ∀ P. FALSE ⟹ P;
 	by EQ.prop1[OF FALSE.def 1](P);
 
 prefix ¬ 10 10;
-obtain ¬ where NOT.def: ∀ P. (¬ P) = (P ⟹ FALSE);
-	fix thesis;
-	assume 1: ∀ not. (∀ P. (not P) = (P ⟹ FALSE)) ⟹ thesis;
-	by 1(λ P. P ⟹ FALSE)[rewrite FUN.def][OF EQ.refl];
+define (NOT) ∀ P. (¬ P) = (P ⟹ FALSE);
 
 name NOT.intro: EQ.prop2[OF NOT.def];
 name NOT.elim: EQ.prop1[OF NOT.def];
@@ -115,10 +108,7 @@ show NOT_FALSE: ¬ FALSE;
 
 infix ≠ 50 50 50;
 
-obtain ≠ where NEQ.def: ∀ x. ∀ y. (x ≠ y) = (¬ x = y);
-	fix thesis;
-	assume 1: ∀ ≠. (∀ x. ∀ y. (x ≠ y) = (¬ x = y)) ⟹ thesis;
-	by 1(λ x. λ y. ¬ x = y)[rewrite* FUN.def][OF EQ.refl];
+define (NEQ) ∀ x. ∀ y. (x ≠ y) = (¬ x = y);
 
 name NEQ.intro: EQ.prop2[OF NEQ.def];
 name NEQ.elim: EQ.prop1[OF NEQ.def];
@@ -140,16 +130,9 @@ show TRUE_NEQ_FALSE: TRUE ≠ FALSE;
 		by NOT.intro[OF 1];
 	by NEQ.intro[OF 3];
 
-fix IF;
-assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
-assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
-
 infix ∧ 36 35 36;
 
-obtain ∧ where AND.def: ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
-	fix thesis;
-	assume 1: ∀ CONJ. (∀ P. ∀ Q. (CONJ P Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R)) ⟹ thesis;
-	by 1(λ P. λ Q. ∀ R. (P ⟹ Q ⟹ R) ⟹ R)[rewrite* FUN.def][OF EQ.refl];
+define (AND) ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 
 name AND.elim: EQ.prop1[OF AND.def];
 name AND.intro: EQ.prop2[OF AND.def];
@@ -188,10 +171,7 @@ show OR.elim: ∀ P. ∀ Q. ∀ R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 prefix ∃ 0 1;
 
-obtain ∃ where EX.def: ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
-	fix thesis;
-	assume 1: ∀ EX. (∀ α. (EX α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P)) ⟹ thesis;
-	by 1(λ α. ∀ P. (∀ x. α[x] ⟹ P) ⟹ P)[rewrite FUN.def][OF EQ.refl];
+define (EX) ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 
 show EX.elim: ∀ α. (∃ α) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
 	by EQ.prop1[OF EX.def];
@@ -201,6 +181,10 @@ show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
 
 
 ctxt;
+
+fix IF;
+assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
+assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
 
 assume EQ_TRUE: ∀ P. P ⟹ P = TRUE;
 

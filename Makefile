@@ -1,5 +1,5 @@
-SRCS=core.cpp util.cpp unifier.cpp lexer.cpp syntax.cpp rewriter.cpp prover.cpp
-CPP=g++ -ggdb -std=c++20 -Wfatal-errors
+SRCS=core.cpp util.cpp unifier.cpp lexer.cpp syntax.cpp rewriter.cpp definer.cpp prover.cpp
+CPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 BUILD=_build
 OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DEPS=$(OBJS:%.o=%.d)
@@ -8,7 +8,7 @@ test.exe: ${OBJS}
 	${CPP} $^ -o $@
 
 test: test.exe proofscript
-	./test.exe < proofscript
+	./test.exe proofscript
 
 $(BUILD)/%.d: %.cpp
 	@mkdir -p $(@D)

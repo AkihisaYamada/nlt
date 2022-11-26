@@ -12,16 +12,22 @@ std::ostream& operator<<(std::ostream& os, CSubst const& subst);
 
 /**
  * @brief strips universal quantifiers.
- * @param thm the theorem to be stripped.
+ * @param t 
  * @param loc this context will fix the bound variables.
  */
-Thm strip_all(Thm thm, Ctxt& loc);
+Term strip_all(Term t, Ctxt& loc);
 /**
  * @brief strips universal quantifiers.
  * @param t 
  * @param loc this context will fix the bound variables.
  */
 CTerm strip_all(CTerm t, Ctxt& loc);
+/**
+ * @brief strips universal quantifiers.
+ * @param thm the theorem to be stripped.
+ * @param loc this context will fix the bound variables.
+ */
+Thm strip_all(Thm thm, Ctxt& loc);
 
 /**
  * @brief Uncurrying
@@ -100,12 +106,12 @@ void import(Ctxt ctxt, Ctxt const& target);
  * 
  */
 class Rewriter {
-	Thm const cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
 	struct Rule {
 		Thm thm;
 		CTerm pat;
 	};
 public:
+	Thm const cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
 	struct Error : std::exception {
 		Term term;
 		Error(Term const& term) : term(term) {}
@@ -142,16 +148,21 @@ public:
 };
 
 class Definer {
-	Ref<Rewriter> rewriter;
+	Ref<Rewriter const> rewriter;
 	String const EQ;
-	String const LAM;
-	Thm const beta;
+	Term const LAM;
+	Rewriter::Rules beta;
 public:
 	struct Error : std::exception {
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
-	void define(Ctxt& ctxt, String const& sym, Term const& rule) const;
+	Definer(Rewriter const& rewriter, String const& EQ, Term const& LAM, Thm const& beta) :
+		rewriter(rewriter), LAM(LAM), EQ(EQ)
+	{
+		this->beta.add(beta);
+	}
+	void define(Ctxt& ctxt, Term const& rule, std::optional<String const> sym) const;
 };
 
 #endif

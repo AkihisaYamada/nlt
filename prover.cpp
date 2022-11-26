@@ -21,6 +21,7 @@ class Prover {
 	Ref<Syntax> _syntax;
 	optional<Thesis> _thesis;
 	optional<Ref<Rewriter>> _rewriter;
+	optional<Ref<Definer>> _definer;
 	bool _exit_on_error;
 public:
 	Prover(istream& is, bool exit_on_error) :
@@ -255,7 +256,17 @@ public:
 				}
 				obtainer = obtainer.interpret(CSubst(_ctxt),{goal_thm});
 				_ctxt.import(obtainer);
-				cout << "Successfully obtained " << sym << endl;
+				cout << "Obtained " << sym << endl;
+			} else if( _syntax->skips("define") ) {
+				optional<String> name;
+				if( _syntax->skips('(') ) {
+					name = _syntax->get_token();
+					_syntax->skip(')');
+				}
+				Term rule = get_term();
+				_syntax->skip(';');
+				(**_definer).define(_ctxt,rule,name);
+				cout << "Defined " << _syntax->pretty_term(rule) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -287,7 +298,12 @@ public:
 					auto const& thms = get_named_thms();
 					_rewriter = Ref(Rewriter(thms));
 					cout << "Setup Rewrite Axioms:" << endl << _syntax->pretty_thms(thms) << endl;
-				} else {
+				} else if( _syntax->skips("define") ) {
+					String const& eq = _syntax->get_token();
+					String const& lam = _syntax->get_token();
+					Thm const& beta = get_thm();
+					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
+					_definer = optional(Definer(**_rewriter,eq,lam,beta));
 				}
 				_syntax->skip(';');
 			} else {

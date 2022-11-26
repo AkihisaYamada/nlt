@@ -74,12 +74,15 @@ optional<Thm> Rewriter::rewrite(Rules const& rules, Thm const& thm) const {
 	return optional<Thm>();
 }
 Thm Rewriter::normalize(Rules const& rules, Thm const& thm, unsigned int steps) const {
-	if( steps == 0 ) {
-		throw Error(Term("Exceeded limit"));
+	Thm acc = thm;
+	for( unsigned int i = 0; ; i++ ) {
+		auto const& next = rewrite(rules,acc);
+		if( !next.has_value() ) {
+			return acc;
+		}
+		acc = *next;
+		if( i >= steps ) {
+			return acc;
+		}
 	}
-	auto const& next = rewrite(rules,thm);
-	if( next.has_value() ) {
-		return normalize(rules,*next,steps-1);
-	}
-	return thm;
 }

@@ -38,7 +38,7 @@ pair<String, list<Term>> uncurry(Term const& t) {
 			cur = &p->first;
 		} else {
 			auto const& sym = cur->sym();
-			if( !p.has_value() ) {
+			if( !sym.has_value() ) {
 				throw UnexpectedTerm(*cur);
 			}
 			return pair<String,list<Term>>(*sym,args);
@@ -152,7 +152,21 @@ optional<CSubst> match(Syms const& fsyms, CTerm const& pat, CTerm const& val) {
 	}
 	return optional<CSubst>();
 }
-
+Term strip_all(Term t, Ctxt& ctxt) {
+	for(;;) {
+		auto const& app = t.app();
+		if( app.has_value() && app->first == ALL ) {
+			auto const& abs = app->second.abs();
+			if( abs.has_value() ) {
+				String const& v = abs->first;
+				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
+				t = abs->second.subst(abs->first,ctxt.fix(nv));
+				continue;
+			}
+		}
+		return t;
+	}
+}
 Thm strip_all(Thm thm, Ctxt& ctxt) {
 	thm = thm.weaken(ctxt);
 	for(;;) {

@@ -363,11 +363,11 @@ inline Ctxt Ctxt::ctxt(String const& name) const {
 	return it->second;
 }
 inline std::optional<Ctxt> Ctxt::find_ctxt(String const& name) const {
-	try {
-		return ctxt(name);
-	} catch(WrongContext e) {
+	auto const& it = _ref->ctxts.find(name);
+	if( it == _ref->ctxts.end() ) {
 		return std::optional<Ctxt>();
 	}
+	return it->second;
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
@@ -574,6 +574,7 @@ private:
 	Thm(CTerm const& t) : CTerm(t) {}
 	Thm() = delete;
 	Thm* operator&() = delete;
+	Thm _allE(CTerm const& t) const;
 public:
 	Thm& operator=(Thm const& other) {
 		CTerm::operator=(other);
@@ -584,7 +585,15 @@ public:
 	 * @return Thm P(t)
 	 * @exception MalformedInstantiation
 	 */
-	Thm allE(CTerm const& t) const;
+	Thm allE(Term const& t) const {
+		return _allE(_ctxt.cterm(t));
+	}
+	Thm allE(CTerm const& t) const {
+		if( t._ctxt != _ctxt ) {
+			throw WrongContext();
+		}
+		return _allE(t);
+	}
 	/**
 	 * @brief implication elimination. This theorem must be of form P ⟹ Q.
 	 * 

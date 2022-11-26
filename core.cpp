@@ -300,11 +300,7 @@ Ctxt Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& 
 	ret._ref->assms.push_back(assm);
 	return ret;
 }
-
-Thm Thm::allE(CTerm const& t) const {
-	if( t.ctxt() != ctxt() ) {
-		throw WrongContext();
-	}
+Thm Thm::_allE(CTerm const& t) const {
 	auto const& a = app();
 	if( a.has_value() && a->first == ALL ) {
 		return a->second.inst(t);
