@@ -37,9 +37,6 @@ public:
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->register_multi_op(int_of_chars("∀"));
-		_syntax->register_multi_op(int_of_chars("∃"));
-		_syntax->register_multi_op('!');
 		_syntax->infix(",",-1,-1,-2).
 			infix(";",-1,-1,-2);
 	}
@@ -313,6 +310,11 @@ public:
 					_definer = optional(Definer(**_rewriter,eq,lam,beta));
 				}
 				_syntax->skip(";");
+			} else if( _syntax->skips("symbol") ) {
+				while( !_syntax->skips(";") ) {
+					string const& sym = _syntax->get_token();
+					_syntax->register_multi_op(int_of_chars(sym.data()));
+				}
 			} else {
 				return optional<Thm>();
 			}
