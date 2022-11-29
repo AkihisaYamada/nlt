@@ -54,7 +54,6 @@ class Term {
 		App app;
 		Abs abs;
 		Bind fix;
-		Union() {}
 		~Union() {}
 		Union(String const& sym) : sym(sym) {}
 		Union(App const& app) : app(app) {}
@@ -634,5 +633,8 @@ inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	return *this;
 }
 
+// workaround for Visual Studio...?
+template<>
+inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
 
 #endif

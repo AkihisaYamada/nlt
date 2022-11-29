@@ -145,7 +145,7 @@ public:
 				if( rsym.has_value() ) {
 					auto const& yesc_it = escapes[1].find(*rsym);
 					if( yesc_it != escapes[1].end() ) {
-						if( *xesc_it == *yesc_it ) {
+						if( xesc_it->second == yesc_it->second ) {
 							return;
 						}
 					}

@@ -5,66 +5,81 @@
 #include<cstdlib>
 #include<cassert>
 #include<exception>
+#include<map>
 
 class SyntaxError : std::exception {};
 
+// returns the size of the character
+int char_size( char start );
+
+int int_of_chars( char const* start );
+
 class Lexer {
 public:
-	enum Encoding {
-		SJIS, EUC, UTF8
+	enum CharType {
+		Blank/* space or nothing */, Control, Dot/* . */, Digit, SingleOp, MultiOp, Other
 	};
 	enum TokenType {
-		Special, Word, Number, Operator, Escaped
+		Unset, Special, Word, Number, Operator, Escaped
 	};
-	Lexer( std::istream& is, Encoding enc = UTF8 );
 private:
-	// tests if a wide charactor is done in the size 'len'
-	int (*char_done)( char const* start, unsigned short len );
-	// tests if a charactor forms a word (typically, isalnum)
-	int (*iswordchar)( int c );
-	// stores the next token type
-	TokenType token_type;
 	// input stream
 	std::istream* pis;
+	std::map<int,CharType> char_map;
+	// stores the next token type
+	TokenType token_type;
+	std::string_view peeked_token;
 	// local buffer
 	char buf[1024];
+	CharType fetched_char_type;
 	// write pointer
 	size_t wp;
-	// reads one charactor into the buffer
-	char read_char();
-	// reads until f fails
-	void read_continue( int (*f)(int) ) {
-		while( f( pis->peek() ) ) {
-			read_char();
-		}
-	}
+	// read pointer
+	size_t rp;
+	// writes one character into the buffer
+	int fetch_char();
+	void read_continue( CharType t );
 public:
+	Lexer( std::istream& is );
+	void register_single_op( int c ) {
+		char_map.insert({c,SingleOp});
+	}
+	void register_multi_op( int c ) {
+		char_map.insert({c,MultiOp});
+	}
+	CharType char_type( int c ) const {
+		auto it = char_map.find(c);
+		return it == char_map.end() ? Other : it->second;
+	}
 	void skip_spaces();
 	// peeks (not process) the next token
-	char const* peek_token();
+	std::string_view peek_token();
 	TokenType next_token_type() {
 		peek_token();
 		return token_type;
 	}
-	// ignores next token
-	void ignore_token() {
-		peek_token();
-		wp = 0;
-	}
 	// if more token follows
 	bool readable();
-	// checks if the next charactor/token is as specified, and if so, skips it
-	bool skips( char c );
-	bool skips( char const* token );
-	void skip( char const* token );
-	void skip( char c );
-
+	// checks if the next token is as specified, and if so, skips it
+	bool skips( std::string_view token ) {
+		if( peek_token() == token ) {
+			token_type = Unset;
+			return true;
+		} else {
+			return false;
+		}
+	}
+	void skip( std::string_view token );
+	void ignore_token() {
+		peek_token();
+		token_type = Unset;
+	}
 	// process the next token
 	int get_int();
 	float get_float();
 	std::string get_token() {
-		std::string ret = peek_token();
-		ignore_token();
+		auto ret = std::string(peek_token());
+		token_type = Unset;
 		return ret;
 	}
 };

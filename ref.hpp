@@ -1,6 +1,8 @@
 #ifndef _REF_HPP
 #define _REF_HPP
 
+#include<ostream>
+
 template<typename T>
 class Ref {
 	struct Body {

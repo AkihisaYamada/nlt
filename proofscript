@@ -1,11 +1,11 @@
 prefix ∀ 0 0;
 infix ⟹ 1 0 0;
 
-show IMP.refl: ∀ P. P ⟹ P;
+show IMP.refl: ∀P. P ⟹ P;
 	assume P: P;
 	by P;
 
-show IMP.trans: ∀ P. ∀ Q. ∀ R. (P ⟹ Q) ⟹ (Q ⟹ R) ⟹ P ⟹ R;
+show IMP.trans: ∀P. ∀Q. ∀R. (P ⟹ Q) ⟹ (Q ⟹ R) ⟹ P ⟹ R;
 	assume PQ: P ⟹ Q;
 	assume QR: Q ⟹ R;
 	assume P: P;
@@ -173,21 +173,63 @@ prefix ∃ 0 1;
 
 define (EX) ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 
-show EX.elim: ∀ α. (∃ α) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
+show EX.elim: ∀ α. (∃ x. α[x]) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
 	by EQ.prop1[OF EX.def];
 
-show EX.intro: ∀ α. (∀ P. (∀ x. α[x] ⟹ P) ⟹ P) ⟹ ∃ α;
-	by EQ.prop2[OF EX.def];
+show EX.intro: ∀ α. ∀ x. α[x] ⟹ ∃ y. α[y];
+	fix α x;
+	assume 1: α[x];
+	{	fix P;
+		assume 2: ∀ x. α[x] ⟹ P;
+		move 3: 2[OF 1];
+	}
+	by EQ.prop2[OF EX.def](y. α[y])[OF 3];
 
 
 ctxt;
+
+prefix ∃! 0 1;
+
+define (EX1) ∀ α. (∃! α) = (∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P);
+
+show EX1.intro: ∀ α. ∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ ∃! x. α[x];
+
+show EX1.elim: ∀ α. (∃! x. α[x]) ⟹ ∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P;
+
+prefix THE 0 1;
+
+assume THE.intro: ∀ α. (∃!) α ⟹ α[(THE) α];
+
 
 fix IF;
 assume IF_TRUE: ∀ x. ∀ y. IF TRUE x y = x;
 assume IF_FALSE: ∀ x. ∀ y. IF FALSE x y = y;
 
+fix CONST IS_CONST;
+
+assume CONST_IS_CONST: IS_CONST CONST;
+
+assume CONST.app: ∀ c. IS_CONST c ⟹ ∀ x. IS_CONST (c x);
+
+assume CONST.NEQ_app: ∀ c. IS_CONST c ⟹ ∀ x. CONST ≠ c x;
+
+assume CONST.app_EQ_app:
+  ∀ c. ∀ d. IS_CONST c ⟹ IS_CONST d ⟹ ∀ x. ∀ y. c x = d y ⟹ c = d ∧ x = y;
+
+define CONST_ARG v = (THE x. ∃ c. IS_CONST c ∧ v = c x);
+
+show CONST_ARG: ∀ c. IS_CONST c ⟹ ∀ x. CONST_ARG (c x) = x;
+
+
+define 0 = CONST TRUE;
+define SUC = CONST FALSE;
+
+
+
 assume EQ_TRUE: ∀ P. P ⟹ P = TRUE;
 
 assume EQ_FALSE: ∀ P. ¬ P ⟹ P = FALSE;
+
+define ∀ f. INJECTIVE f = (∀ x x'. f x = f x' ⟹ x = x');
 
 

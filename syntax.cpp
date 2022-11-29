@@ -1,6 +1,14 @@
 #include "syntax.hpp"
 
 using namespace std;
+Syntax::Syntax(std::istream& is) : Lexer(is) {
+	register_single_op('(');
+	register_single_op(')');
+	register_single_op('[');
+	register_single_op(']');
+	register_single_op('{');
+	register_single_op('}');
+}
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
 	return [&](ostream& os) -> ostream& {
@@ -113,7 +121,7 @@ optional<string> Syntax::gets_thm_name() {
 	}
 	string ret = get_token();
 	for(;;) {
-		if( !skips('.') ) {
+		if( !skips(".") ) {
 			return ret;
 		}
 		ret += '.';
@@ -136,9 +144,9 @@ optional<Term> Syntax::gets_term(int level) {
 		return optional<Term>();
 	}
 	Term ret;
-	if( skips('(') ) {
+	if( skips("(") ) {
 		ret = gets_term(0).value();
-		skip(')');
+		skip(")");
 	} else {
 		string_view sym = peek_token();
 		auto it = prefixes.find(sym);
@@ -154,14 +162,14 @@ optional<Term> Syntax::gets_term(int level) {
 			}
 		} else {
 			String sym = get_token();
-			if( skips('.') ) {
+			if( skips(".") ) {
 				auto const& t = gets_term(level);
 				if( t.has_value() ) {
 					ret = sym /= t.value();
 				}
-			} else if( skips('[') ) {
+			} else if( skips("[") ) {
 				ret = sym / gets_term(0).value();
-				skip(']');
+				skip("]");
 			} else {
 				ret = Term(sym);
 			}

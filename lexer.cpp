@@ -1,145 +1,174 @@
 #include<cctype>
+#include<cuchar>
 #include<cstring>
+#include<charconv>
 #include"lexer.hpp"
 
 using namespace std;
 
-static int issingleop( int c ) {
-	return strchr( ".,;()[]{}", c ) != NULL;
-}
-static int ismultiop( int c ) {
-	return strchr( ":<>!@#%^&*-+=|/?", c ) != NULL;
-}
-static int char_done_utf8( char const* start, unsigned short count ) {
-	if( !( start[count] & 0x80 ) ) {
-		return true;
+int char_size( char start ) {
+	if( (start & 0x80) == 0x00 ) {
+		return 1;
 	}
-	switch(count) {
-	case 0: return ( *start & 0x80 ) == 0x00;
-	case 1: return ( *start & 0xE0 ) == 0xC0;
-	case 2: return ( *start & 0xF0 ) == 0xE0;
-	case 3: return ( *start & 0xF8 ) == 0xF0;
-	case 4: return ( *start & 0xFC ) == 0xF8;
-	case 5: return ( *start & 0xFE ) == 0xFE;
-	case 6: return ( *start & 0xFF ) == 0xFE;
-	default:
-		assert(false);
+	if( (start & 0xE0 ) == 0xC0 ) {
+		return 2;
 	}
-}
-static int char_done_sjis( char const* start, unsigned short count ) {
-	return *start & 0x80 ? count >= 1 : true;
-}
-static int char_done_euc( char const* start, unsigned short count ) {
-	return *start & 0x80 ? count >= 1 : true;
-}
-static int iswordchar_common( int c ) {
-	return isalnum(c) || c == '_' || ( c & 0x80 );
-}
-Lexer::Lexer( istream& is, Encoding enc ) :
-pis(&is), wp(0) {
-	switch(enc) {
-	case SJIS:
-		char_done = char_done_sjis;
-		iswordchar = iswordchar_common;
-		break;
-	case EUC:
-		char_done = char_done_euc;
-		iswordchar = iswordchar_common;
-		break;
-	case UTF8:
-		char_done = char_done_utf8;
-		iswordchar = iswordchar_common;
-		break;
+	if( ( start & 0xF0 ) == 0xE0 ) {
+		return 3;
 	}
-	
+	if( ( start & 0xF8 ) == 0xF0 ) {
+		return 4;
+	}
+	assert(false);
 }
 
-char Lexer::read_char() {
-	if( wp >= sizeof buf - 1 ) {
-		strcpy( buf+20, "..." );
-		cerr << "Too long token '" << buf << "'!" << endl;
+int int_of_chars( char const* start, int size ) {
+	int ret = 0;
+	memcpy(&ret,start,size);
+	return ret;
+}
+int int_of_chars( char const* start ) {
+	return int_of_chars( start, char_size(start[0]) );
+}
+
+Lexer::Lexer( istream& is ) : pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Blank), buf(),
+	char_map({
+		{std::char_traits<char>::eof(),Control},
+		{'.',Dot},
+		{'0',Digit},
+		{'1',Digit},
+		{'2',Digit},
+		{'3',Digit},
+		{'4',Digit},
+		{'5',Digit},
+		{'6',Digit},
+		{'7',Digit},
+		{'8',Digit},
+		{'9',Digit},
+		{' ',Blank},
+		{'\t',Blank},
+		{'\n',Blank},
+		{'\r',Blank},
+	}) {}
+
+int Lexer::fetch_char() {
+	if( wp >= sizeof buf - 4 ) {
+		memcpy( buf+20, "...", 3 );
+		cerr << "Too long token \"" << buf << "\"!" << endl;
 		exit(-1);
 	}
+	char c = pis->get();
+	if( c == char_traits<char>::eof() ) {
+		return c;
+	}
 	char* start = &buf[wp];
-	*start = pis->get();
+	int len = char_size(c);
+	*start = c;
 	wp++;
-	int count = 0;
-	while( !char_done( start, count ) ) {
+	int ch;
+	switch( len ) {
+	case 1:
+		ch = c;
+		break;
+	case 4:
 		buf[wp] = pis->get();
 		wp++;
-		count++;
+	case 3:
+		buf[wp] = pis->get();
+		wp++;
+	case 2:
+		buf[wp] = pis->get();
+		wp++;
+		ch = int_of_chars(start,len);
+		break;
 	}
-	return *start;
+	fetched_char_type = char_type(ch);
+	return ch;
 }
 void Lexer::skip_spaces() {
-	if( wp == 0 ) {
-		char c;
-		for(;;) {
-			while( isspace( c = pis->peek() ) ) {
-				pis->ignore();
-			}
-			if( c == '#' ) {
-				while( ! pis->eof() && pis->get() != '\n' );
-				continue;
-			} else {
-				break;
-			}
+	char c;
+	for(;;) {
+		while( isspace( c = pis->peek() ) ) {
+			pis->ignore();
+		}
+		if( c == '#' ) {
+			while( ! pis->eof() && pis->get() != '\n' );
+			continue;
+		} else {
+			break;
 		}
 	}
 }
-const char* Lexer::peek_token() {
-	if( wp == 0 ) {
-		skip_spaces();
-		if( pis->eof() ) {
-			token_type = Special;
-			return "";
+void Lexer::read_continue( CharType t ) {
+	for(;;) {
+		fetch_char();
+		if( fetched_char_type != t ) {
+			return;
 		}
-		char c = read_char();
-		if( isdigit(c) ) {
-			read_continue(isdigit);
-			if( pis->peek() == '.' ) {
-				read_char();
-				read_continue(isdigit);
+		rp = wp;// this character is considered read
+	}
+}
+
+string_view Lexer::peek_token() {
+	if( token_type == Unset ) {// no token is set
+		if( fetched_char_type == Blank ) {// nothing or only a space is prefetched
+			skip_spaces();
+			wp = 0;// start from the top
+			fetch_char();
+			rp = wp;// the first character is always read
+		} else {// a significant character is prefetched
+			// move it to the top of buf
+			size_t next_wp = 0;
+			for( ;rp < wp; rp++, next_wp++ ) {
+				buf[next_wp] = buf[rp];
 			}
-			if( iswordchar( pis->peek() ) ) {
-				read_continue(iswordchar);
-				token_type = Word;
-			} else {
-				token_type = Number;
+			wp = rp = next_wp;
+		}
+		switch( fetched_char_type ) {
+		case Digit:
+			read_continue(Digit);
+			if( fetched_char_type == Dot ) {
+				rp = wp;
+				read_continue(Digit);
 			}
-		} else if( iswordchar(c) ) {
-			read_continue(iswordchar);
-			token_type = Word;
-		} else if( c == '-' ) {
-			if( isdigit( pis->peek() ) ) {
-				read_continue(isdigit);
-				token_type = Number;
-			} else {
-				token_type = Operator; // minus operator
-			}
-		} else if( c == '.' ) {
-			if( isdigit( pis->peek() ) ) {
-				read_continue(isdigit);
+			token_type = Number;
+			break;
+		case Dot:
+			fetch_char();
+			if( fetched_char_type == Digit ) {// dot followed by digits
+				rp = wp;
+				read_continue(Digit);
 				token_type = Number;
 			} else {
 				token_type = Operator; // dot operator
 			}
-		} else if( ismultiop(c) ) {
+			break;
+		case MultiOp:
+			read_continue(MultiOp);
 			token_type = Operator;
-			read_continue(ismultiop);
-		} else if( issingleop(c) ) {
+			break;
+		case SingleOp:
 			token_type = Operator;
-		} else if( c == '\\' ) {
-			read_continue(iswordchar);
-			token_type = Escaped;
-		} else {
+			fetched_char_type = Blank;
+			break;
+		case Control:
 			token_type = Special;
+			fetched_char_type = Blank;
+			break;
+		default:
+			for(;;) {
+				fetch_char();
+				if( fetched_char_type != Other && fetched_char_type != Digit ) {
+					break;
+				}
+				rp = wp;
+			}
+			token_type = Word;
+			break;
 		}
-		buf[wp] = '\0';
-		return buf;
-	} else {
-		return buf;
+		peeked_token = string_view(buf,rp);
 	}
+	return peeked_token;
 }
 bool Lexer::readable() {
 	if( wp == 0 ) {
@@ -149,46 +178,26 @@ bool Lexer::readable() {
 		return true;
 	}
 }
-bool Lexer::skips( char c ) {
-	peek_token();
-	if( buf[0] == c && buf[1] == '\0' ) {
-		ignore_token();
-		return true;
-	} else {
-		return false;
-	}
-}
-bool Lexer::skips( char const* token ) {
-	peek_token();
-	if( strncmp( buf, token, sizeof buf ) == 0 ) {
-		ignore_token();
-		return true;
-	} else {
-		return false;
-	}
-}
-void Lexer::skip( char const* token ) {
+
+void Lexer::skip( string_view token ) {
 	if( !skips(token) ) {
 		cerr << "Expected \"" << token << "\" but encountered \"" <<
-			buf <<'"' << endl;
-		throw SyntaxError();
-	}
-}
-void Lexer::skip( char c ) {
-	if( !skips(c) ) {
-		cerr << "Expected \'" << c << "\' but encountered \"" <<
-			buf <<'"' << endl;
+			peeked_token <<'"' << endl;
 		throw SyntaxError();
 	}
 }
 
 int Lexer::get_int() {
-	int ret = atoi(peek_token());
-	ignore_token();
+	peek_token();
+	int ret;
+	from_chars(buf,buf+rp,ret);
+	token_type = Unset;
 	return ret;
 }
 float Lexer::get_float() {
-	float ret = atof(peek_token());
-	ignore_token();
+	peek_token();
+	float ret;
+	from_chars(buf,buf+rp,ret);
+	token_type = Unset;
 	return ret;
 }

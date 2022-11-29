@@ -32,7 +32,7 @@ public:
 		String message;
 		Error(String const& message) : message(message) {}
 	};
-	Syntax(std::istream& is) : Lexer(is) {}
+	Syntax(std::istream& is);
 
 	Syntax& prefix(String const& sym, int level, int rlevel) {
 		prefixes.insert({sym,{level,rlevel}});
