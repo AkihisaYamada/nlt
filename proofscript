@@ -201,9 +201,11 @@ prefix ∃! 0 1;
 
 define (EX1) ∀ α. (∃!) α = (∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P);
 
-show EX1.intro: ∀ α. ∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ ∃! x. α[x];
+show EX1.intro: ∀ α. ∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ ∃! z. α[z];
+	sorry;
 
 show EX1.elim: ∀ α. (∃! x. α[x]) ⟹ ∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P;
+	sorry;
 
 prefix THE 0 1;
 

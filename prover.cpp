@@ -20,6 +20,7 @@ class Prover {
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
 	optional<Thesis> _thesis;
+	static list<Thm> _sorries;
 	optional<Ref<Rewriter>> _rewriter;
 	optional<Ref<Definer>> _definer;
 	bool _exit_on_error;
@@ -315,6 +316,14 @@ public:
 					string const& sym = _syntax->get_token();
 					_syntax->register_multi_op(int_of_chars(sym.data()));
 				}
+			} else if( _syntax->skips("sorry") ) {
+				_syntax->skip(";");
+				String name = "_" + to_string(_sorries.size());
+				_thesis->ctxt.assume( name, _thesis->claim );
+				Thm ret = _ctxt.thm(name);
+				_sorries.push_back(ret);
+				cerr << "!!! SORRY !!! " << name << ": " << _syntax->pretty_thm(ret) << endl;
+				return ret;
 			} else {
 				return optional<Thm>();
 			}
@@ -346,6 +355,8 @@ private:
 		}
 	}
 };
+
+list<Thm> Prover::_sorries;
 
 int main(int argc, char* argv[]) {
 	istream* pis;
