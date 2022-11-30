@@ -140,15 +140,20 @@ string Syntax::get_thm_name() {
 }
 
 optional<Term> Syntax::gets_term(int level) {
-	if( !readable() ) {
+	string_view sym = peek_token();
+	if( sym == "" || sym == ")" || sym == "]" || sym == "}" ) {
 		return optional<Term>();
 	}
 	Term ret;
-	if( skips("(") ) {
-		ret = gets_term(0).value();
+	if( sym == "(" ) {
+		ignore_token();
+		auto const& opt = gets_term(-1000);
+		if( !opt.has_value() ) {
+			throw Error( "parse error after '(' at " + string(peek_token()) );
+		}
+		ret = opt.value();
 		skip(")");
 	} else {
-		string_view sym = peek_token();
 		auto it = prefixes.find(sym);
 		if( it != prefixes.end() ) {
 			if( it->second.llevel < level ) {
@@ -168,7 +173,7 @@ optional<Term> Syntax::gets_term(int level) {
 					ret = sym /= t.value();
 				}
 			} else if( skips("[") ) {
-				ret = sym / gets_term(0).value();
+				ret = sym / gets_term(-1000).value();
 				skip("]");
 			} else {
 				ret = Term(sym);

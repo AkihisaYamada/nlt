@@ -2,6 +2,8 @@ symbol ∀ ⟹ ∧ ∨ ∃ = ≠ ¬ !;
 prefix ∀ 0 0;
 infix ⟹ 1 0 0;
 
+term (∀);
+
 show IMP.refl: ∀P. P ⟹ P;
 	assume P: P;
 	by P;
@@ -81,7 +83,7 @@ setup rewrite cong:EQ.cong fun_cong:EQ.fun_cong arg_cong:EQ.arg_cong ext:EQ.ext 
 
 prefix λ 0 0;
 
-assume FUN.def: ∀ α. ∀ s. (λ α) s = α[s];
+assume FUN.def: ∀ α. ∀ s. (λ) α s = α[s];
 
 setup define = λ FUN.def;
 
@@ -107,6 +109,12 @@ name NOT.elim: EQ.prop1[OF NOT.def];
 show NOT_FALSE: ¬ FALSE;
 	by NOT.intro[OF IMP.refl];
 
+show NOT_TRUE_EQ_FALSE: ¬ TRUE = FALSE;
+	show 1: TRUE = FALSE ⟹ FALSE;
+		assume 2: TRUE = FALSE;
+		by EQ.prop1[OF 2][OF TRUE.intro];
+	by NOT.intro[OF 1];
+
 infix ≠ 50 50 50;
 
 define (NEQ) ∀ x. ∀ y. (x ≠ y) = (¬ x = y);
@@ -124,30 +132,30 @@ show NEQ.irrefl: ∀ x. ¬ x ≠ x;
 		by NOT.intro[OF 1];
 
 show TRUE_NEQ_FALSE: TRUE ≠ FALSE;
-	show 1: TRUE = FALSE ⟹ FALSE;
-		assume 2: TRUE = FALSE;
-		by EQ.prop1[OF 2][OF TRUE.intro];
-	show 3: ¬ TRUE = FALSE;
-		by NOT.intro[OF 1];
-	by NEQ.intro[OF 3];
+	by NEQ.intro[OF NOT_TRUE_EQ_FALSE];
 
 infix ∧ 36 35 36;
 
 define (AND) ∀ P. ∀ Q. (P ∧ Q) = (∀ R. (P ⟹ Q ⟹ R) ⟹ R);
 
 name AND.elim: EQ.prop1[OF AND.def];
-name AND.intro: EQ.prop2[OF AND.def];
+
+show AND.intro: ∀ P. ∀ Q. P ⟹ Q ⟹ P ∧ Q;
+	fix P Q;
+	assume P: P, Q: Q;
+	show 1: ∀ R. (P ⟹ Q ⟹ R) ⟹ R;
+		fix R;
+		assume PQR: P ⟹ Q ⟹ R;
+		by PQR[OF P Q];
+	by EQ.prop2[OF AND.def 1];
 
 show mp2: ∀ P. ∀ Q. P ∧ (P ⟹ Q) ⟹ Q;
 	assume p_pq: P ∧ (P ⟹ Q);
-	by AND.elim[OF p_pq][OF mp];
+	by AND.elim[OF p_pq mp];
 
 infix ∨ 31 30 31;
 
-obtain ∨ where OR.def: ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
-	fix thesis;
-	assume 1: ∀ DISJ. (∀ P. ∀ Q. (DISJ P Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)) ⟹ thesis;
-	by 1(λ P. λ Q. ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R)[rewrite* FUN.def][OF EQ.refl];
+define (OR) ∀ P. ∀ Q. (P ∨ Q) = (∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 
 show OR.intro1: ∀ P. ∀ Q. P ⟹ P ∨ Q;
 	fix P Q;
@@ -172,7 +180,7 @@ show OR.elim: ∀ P. ∀ Q. ∀ R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 prefix ∃ 0 1;
 
-define (EX) ∀ α. (∃ α) = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
+define (EX) ∀ α. (∃) α = (∀ P. (∀ x. α[x] ⟹ P) ⟹ P);
 
 show EX.elim: ∀ α. (∃ x. α[x]) ⟹ ∀ P. (∀ x. α[x] ⟹ P) ⟹ P;
 	by EQ.prop1[OF EX.def];
@@ -191,7 +199,7 @@ ctxt;
 
 prefix ∃! 0 1;
 
-define (EX1) ∀ α. (∃! α) = (∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P);
+define (EX1) ∀ α. (∃!) α = (∀ P. (∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ P) ⟹ P);
 
 show EX1.intro: ∀ α. ∀ x. α[x] ⟹ (∀ y. α[y] ⟹ x = y) ⟹ ∃! x. α[x];
 

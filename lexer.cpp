@@ -86,7 +86,7 @@ int Lexer::fetch_char() {
 	return ch;
 }
 void Lexer::skip_spaces() {
-	char c;
+	unsigned char c;
 	for(;;) {
 		while( isspace( c = pis->peek() ) ) {
 			pis->ignore();
