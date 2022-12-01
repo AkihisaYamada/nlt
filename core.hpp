@@ -434,13 +434,6 @@ public:
 		return CTerm(_ctxt,Term::operator()(arg));
 	}
 	/**
-	 * @brief applies substitution to a closed term
-	 * 
-	 * @param subst
-	 * @return result of substitution, still closed
-	 */
-	CTerm subst(CSubst const& subst) const;
-	/**
 	 * @brief single substitution
 	 * 
 	 * @param var 
@@ -453,6 +446,15 @@ public:
 		}
 		return CTerm(_ctxt,Term::subst(var,val));
 	}
+
+	/**
+	 * @brief Applies a closed substitution to a closed term.
+	 * 
+	 * @param subst a substitution in an ancestor context.
+	 * @return the instance, closed with respect to the ancestor.
+	 */
+	CTerm subst(CSubst const& subst) const;
+
 	/**
 	 * @brief instantiates the bound variable. This must be an abstraction.
 	 * 
@@ -541,10 +543,7 @@ public:
 	 * @brief (re)assigns a value to a variable
 	 */
 	CSubst& assign(String const& var, CTerm const& val) {
-		if( val.ctxt() != _ctxt ) {
-			throw WrongContext();
-		}
-		return _assign(var,val);
+		return _assign(var,val.subst(_ctxt));// val should be also closed wrt ctxt
 	}
 	std::optional<CTerm> get(String const& var) const {
 		auto it = _map.find(var);
@@ -553,13 +552,6 @@ public:
 private:
 	CSubst& _assign(String const& var, CTerm const& val);
 };
-
-inline CTerm CTerm::subst(CSubst const& subst) const {
-	if( subst.ctxt() != _ctxt ) {
-		throw WrongContext();
-	}
-	return CTerm(_ctxt,Term::subst(subst));
-}
 
 inline Term Term::subst(String const& var, Term const& val) const {
 	return subst(CSubst(Ctxt()).assign(var,val));

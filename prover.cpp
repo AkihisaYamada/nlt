@@ -233,7 +233,7 @@ public:
 				}
 				thm = thm.weaken(stmt_ctxt);
 				for( auto const& v : thm_ctxt.sym_list() ) {
-					thm = thm.allE(matcher->get(v)->lift(stmt_ctxt));
+					thm = thm.allE(matcher->get(v)->subst(stmt_ctxt));
 				}
 				thm = thm.intro();
 				_ctxt.claim(thm_name,thm);

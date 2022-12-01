@@ -355,17 +355,15 @@ CTerm CTerm::lift() const {
 	return CTerm(parent,ret);
 }
 
-CTerm CTerm::lift(CSubst const& subst) const {
-	auto const& parent = _ctxt.ctxt();
-	if( parent != subst.ctxt() ) {
-		throw WrongContext();
-	}
+CTerm CTerm::subst(CSubst const& subst) const {
+	auto const& ctxt = subst.ctxt();
+	_ctxt.ensure_ancestor(ctxt);
 	auto f = [&](String const& sym)->Term {
 		auto const& opt = subst.get(sym);
 		if( opt.has_value() ) {
 			return *opt;
 		}
-		auto const& opt2 = parent.find_sym(sym);
+		auto const& opt2 = ctxt.find_sym(sym);
 		if( opt2.has_value() ) {
 			return *opt2;
 		}
@@ -374,7 +372,7 @@ CTerm CTerm::lift(CSubst const& subst) const {
 	auto fixed = [&](String const& sym) {
 		return subst.ctxt().find_sym(sym).has_value();
 	};
-	return CTerm(parent,map(f,fixed));
+	return CTerm(ctxt,map(f,fixed));
 }
 Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 	auto const& parent = ctxt();
