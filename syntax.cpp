@@ -1,6 +1,7 @@
 #include "syntax.hpp"
 
 using namespace std;
+
 Syntax::Syntax(std::istream& is) : Lexer(is) {
 	register_single_op('(');
 	register_single_op(')');
@@ -8,6 +9,7 @@ Syntax::Syntax(std::istream& is) : Lexer(is) {
 	register_single_op(']');
 	register_single_op('{');
 	register_single_op('}');
+	closers.insert("]");
 }
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
@@ -99,7 +101,7 @@ function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const 
 function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	return [&](ostream& os) -> ostream& {
 		os << "ctxt {" << endl;
-		for( auto const& sym : ctxt.sym_list() ) {
+		for( auto const& sym : ctxt.fvar_list() ) {
 			os << "  sym " << sym << endl;
 		}
 		for( auto const& assm : ctxt.assms() ) {
@@ -141,27 +143,28 @@ string Syntax::get_thm_name() {
 
 optional<Term> Syntax::gets_term(int level) {
 	string_view sym = peek_token();
-	if( sym == "" || sym == ")" || sym == "]" || sym == "}" ) {
+	if( sym == "" || closers.contains(sym) ) {
 		return optional<Term>();
 	}
 	Term ret;
-	if( sym == "(" ) {
+	auto opener_it = openers.find(sym);
+	if( opener_it != openers.end() ) {
 		ignore_token();
-		auto const& opt = gets_term(-1000);
+		auto const& opt = gets_term(opener_it->second.level);
 		if( !opt.has_value() ) {
-			throw Error( "parse error after '(' at " + string(peek_token()) );
+			throw Error( "parse error after '" + string(opener_it->first) + "' at " + string(peek_token()) );
 		}
-		ret = opt.value();
-		skip(")");
+		ret = opener_it->second.handler(opt.value());
+		skip(opener_it->second.closer);
 	} else {
-		auto it = prefixes.find(sym);
-		if( it != prefixes.end() ) {
-			if( it->second.llevel < level ) {
+		auto prefix_it = prefixes.find(sym);
+		if( prefix_it != prefixes.end() ) {
+			if( prefix_it->second.llevel < level ) {
 				return optional<Term>();
 			}
-			ret = Term(it->first);
+			ret = Term(prefix_it->first);
 			ignore_token();
-			auto const& r = gets_term(it->second.rlevel);
+			auto const& r = gets_term(prefix_it->second.rlevel);
 			if( r.has_value() ) {
 				ret = ret(r.value());
 			}
@@ -182,7 +185,7 @@ optional<Term> Syntax::gets_term(int level) {
 	}
 	for(;;) {
 		string_view sym = peek_token();
-		if( sym == "" || sym == ")" || sym == "]" || sym == "}" ) {
+		if( sym == "" || closers.contains(sym) ) {
 			return ret;
 		}
 		auto pair = infixes.find(sym);

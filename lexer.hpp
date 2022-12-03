@@ -17,7 +17,13 @@ int int_of_chars( char const* start );
 class Lexer {
 public:
 	enum CharType {
-		Blank/* space or nothing */, Control, Dot/* . */, Digit, SingleOp, MultiOp, Other
+		Blank = 1 << 0,// space or nothing
+		Control = 1 << 1,
+		Dot = 1 << 2,// .
+		Digit = 1 << 3,
+		SingleOp = 1 << 4,
+		MultiOp = 1 << 5,
+		Other = 1 << 6
 	};
 	enum TokenType {
 		Unset, Special, Word, Number, Operator, Escaped
@@ -82,5 +88,11 @@ public:
 		token_type = Unset;
 		return ret;
 	}
+	friend CharType operator|( CharType a, CharType b );
 };
+
+inline Lexer::CharType operator|( Lexer::CharType a, Lexer::CharType b ) {
+	return (Lexer::CharType)((int)a|(int)b);
+}
+
 #endif

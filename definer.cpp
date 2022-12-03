@@ -2,41 +2,32 @@
 
 using namespace std;
 
-void Definer::define(Ctxt& ctxt, Term const& rule, optional<String const> name) const {
-	Ctxt loc = ctxt.branch();
-	Term eq = strip_all(rule,loc);
-	auto const& app = eq.app();
-	if( !app.has_value() ) {
-		throw Error(eq);
-	}
-	auto const& app2 = app->first.app();
-	if( !app2.has_value() || app2->first != EQ ) {
-		throw Error(eq);
-	}
-	auto const& l = app2->second;
-	Term r = app->second;
-	auto pair = uncurry(l);
-	String const& sym = pair.first;
-	Ctxt obtainer = ctxt.obtain(pair.first,
-		{{(string)(name.has_value() ? *name : sym) +".def",rule}}
-	);
-	// existence proving
-	Ctxt prover = ctxt.branch();
-	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x).has_value(); });
-	prover.fix(thesis);
-	prover.assume( "assm", ALL( sym /= rule >>= thesis ) );
-	// building the lambda term
+void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String const> name) const {
+	auto unc = uncurry(l);
+	String const& f = unc.first;
+	// building the rule and the lambda term for f
+	Term rule = Term(EQ)(l)(r);
 	unsigned int steps = 0;
-	for( auto it = pair.second.rbegin(); it != pair.second.rend(); it++, steps++ ) {
+	Term t = r;
+	for( auto it = unc.second.rbegin(); it != unc.second.rend(); it++, steps++ ) {
 		auto const& param = it->sym();
 		if( !param.has_value() ) {
 			throw Error(l);
 		}
-		r = LAM(*param /= r);
+		rule = ALL(*param /= rule);
+		t = LAM(*param /= t);
 	}
+	auto const& pair = ctxt.obtain(f,{{(string)(name.has_value() ? *name : f) +".def", rule}});
+	Ctxt const& obtainer = pair.second;
+	// proving the existence
+	Ctxt prover = ctxt.branch();
+	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x).has_value(); });
+	prover.fix(thesis);
+	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
+
 	Thm thm = prover.thm("assm");
-	thm = thm.allE(r);
-	thm = rewriter->normalize(beta,thm,steps);
+	thm = thm.allE(t);
+	thm = rewriter->normalize(beta,thm,steps,{false,true});
 	thm = discharge(thm,rewriter->refl);
 	thm = thm.intro();
 	ctxt.import(obtainer.interpret(ctxt,{thm}));

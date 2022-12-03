@@ -20,6 +20,11 @@ class CTerm;
 class CSubst;
 
 /**
+ * @brief flags if unproved claims are made
+ */
+static bool polluted;
+
+/**
  * @brief renames a variable so that it is not in the set of symbols.
  * 
  * @param var variable to be made fresh
@@ -36,7 +41,7 @@ extern Term const ALL;
 template<typename T>
 class StrMap : public std::map<String,T,std::less<>> {};
 
-typedef std::set<String,std::less<>> Syms;
+typedef std::set<String,std::less<>> StrSet;
 
 class Term {
 	enum { SYM, APP, ABS, BIND } _type;
@@ -120,10 +125,10 @@ public:
 		std::function<void(String const&)> const& bsym,
 		std::function<void(String const&)> const& fsym
 	) const {
-		Syms bsyms;
+		StrSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
 	}
-	Syms fsyms() const;
+	StrSet fsyms() const;
 	Term subst(String const& var, Term const& val) const;
 	/**
 	 * @brief applies a substitution.
@@ -146,7 +151,7 @@ public:
 private:
 	Union _copy_un() const;
 	void _iter_syms(
-		Syms& bsyms,
+		StrSet& bsyms,
 		std::function<void(String const&)> const& bsym,
 		std::function<void(String const&)> const& fsym
 	) const;
@@ -200,16 +205,19 @@ class Ctxt {
 private:
 	struct Body;
 	Ref<Body> _ref;
+	Ctxt();
 public:
+	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	/**
 	 * @brief The root Ctxt
 	 */
-	Ctxt();
-	Ctxt(Ctxt const& other) : _ref(other._ref) {}
+	static Ctxt root() {
+		return Ctxt();
+	}
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	std::optional<Ctxt> find_ctxt(String const& name = String()) const;
+	std::optional<Ctxt const> find_ctxt(String const& name = String()) const;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -223,13 +231,17 @@ public:
 		for( Ctxt cur = *this; cur != ancestor; cur = cur.ctxt() );
 	}
 	/**
-	 * @brief The set of all symbols fixed by this context.
+	 * @brief The set of locally fixed variables.
 	 */
-	Syms const& syms() const;
+	StrSet const& fvars() const;
 	/**
-	 * @brief The sequence of all symbols fixed by this context.
+	 * @brief The sequence of locally fixed variables.
 	 */
-	std::vector<String> const& sym_list() const;
+	std::vector<String> const& fvar_list() const;
+	/**
+	 * @brief The set of locally obtained constants and their specifications
+	 */
+	StrMap<std::vector<std::pair<String,Term>>> const& specs() const;
 	/**
 	 * @brief The sequence of local assumptions.
 	 */
@@ -262,9 +274,10 @@ public:
 	 *
 	 * @param sym the symbol to be fixed.
 	 * @param specs the specification of the symbol.
-	 * @return Ctxt assuming the existence of such sym, and having specs as theorems.
+	 * @return first element the goal stating the existence of such sym,
+	 * and the second is Ctxt assuming the existence and having specs as theorems.
 	 */
-	Ctxt obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs);
+	std::pair<CTerm,Ctxt const> obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs);
 	/**
 	 * @brief Fixes all free variables of a term, so that it will become a closed term.
 	 * 
@@ -284,6 +297,10 @@ public:
 	 */
 	Ctxt& claim(String const& name, Thm const& thm);
 	/**
+	 * @brief Returns the n-th assumption.
+	 */
+	Thm assm(size_t n) const;
+	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
@@ -291,9 +308,7 @@ public:
 	/**
 	 * @brief Creates a child context.
 	 */
-	Ctxt branch() const {
-		return Ctxt(std::optional(*this));
-	}
+	Ctxt branch() const;
 	/**
 	 * @brief locale interpretation.
 	 * 
@@ -329,31 +344,47 @@ struct Ctxt::Body {
 	 */
 	StrMap<Ctxt const> ctxts;
 	/**
-	 * @brief The set of symbols fixed in this context, but not in ancestors.
+	 * @brief The set of locally fixed variables (excluding ancestors).
 	 */
-	Syms syms;
+	StrSet fvars;
 	/**
-	 * @brief The vector of symbols fixed in this context, but not in ancestors.
+	 * @brief The vector of locally fixed variables.
 	 */
-	std::vector<String> sym_list;
+	std::vector<String> fvar_list;
+	/**
+	 * @brief Locally obtained constants and their specifications.
+	 */
+	StrMap<std::vector<std::pair<String,Term>>> specs;
 	std::vector<Term> assms;
 	StrMap<Term const> thms; // table of theorems
 };
 
+/**
+ * @brief dummy: Contexts are equal only if they have the same reference to the body.
+ * Therefore, two context bodies are always considered unequal.
+ */
+inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
+	return false;
+};
+
 inline Ctxt::Ctxt() : _ref(Body()) {};
 
-inline Ctxt::Ctxt(std::optional<Ctxt> const& parent) : _ref(Ref<Ctxt::Body>()) {
-	if( parent.has_value() ) {
-		_ref->ctxts.insert({"",*parent});
-	}
+inline Ctxt Ctxt::branch() const {
+	Ctxt ret;
+	ret._ref->ctxts.insert({"",*this});
+	return ret;
 }
 
-inline Syms const& Ctxt::syms() const {
-	return _ref->syms;
+inline StrSet const& Ctxt::fvars() const {
+	return _ref->fvars;
 }
-inline std::vector<String> const& Ctxt::sym_list() const {
-	return _ref->sym_list;
+inline std::vector<String> const& Ctxt::fvar_list() const {
+	return _ref->fvar_list;
 }
+inline StrMap<std::vector<std::pair<String,Term>>> const& Ctxt::specs() const {
+	return _ref->specs;
+}
+
 inline Ctxt Ctxt::ctxt(String const& name) const {
 	auto const& it = _ref->ctxts.find(name);
 	if( it == _ref->ctxts.end() ) {
@@ -361,7 +392,7 @@ inline Ctxt Ctxt::ctxt(String const& name) const {
 	}
 	return it->second;
 }
-inline std::optional<Ctxt> Ctxt::find_ctxt(String const& name) const {
+inline std::optional<Ctxt const> Ctxt::find_ctxt(String const& name) const {
 	auto const& it = _ref->ctxts.find(name);
 	if( it == _ref->ctxts.end() ) {
 		return std::optional<Ctxt>();
@@ -374,11 +405,6 @@ inline std::vector<Term> const& Ctxt::assms() const {
 inline StrMap<Term const> const& Ctxt::thms() const {
 	return _ref->thms;
 }
-
-inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
-	return l.ctxts == r.ctxts && l.syms == r.syms && l.assms == r.assms && l.thms == r.thms;
-};
-
 inline bool operator!=(Ctxt const& l, Ctxt const& r) {
 	return !(l == r);
 }
@@ -554,7 +580,7 @@ private:
 };
 
 inline Term Term::subst(String const& var, Term const& val) const {
-	return subst(CSubst(Ctxt()).assign(var,val));
+	return subst(CSubst(Ctxt::root()).assign(var,val));
 }
 
 class Thm : public CTerm {
@@ -609,14 +635,19 @@ public:
 	Thm weaken(Ctxt const& ctxt) const {
 		return CTerm::weaken(ctxt);
 	}
-private:
 	friend Ctxt;
+	friend Thm sorry(CTerm const&);
 };
 
 inline Thm Ctxt::thm(String const& name) const {
 	return CTerm(*this,_thm(name));
 }
-
+inline Thm Ctxt::assm(size_t n) const {
+	if( n > assms().size() ) {
+		throw TheoremNotFound("$assm "+std::to_string(n));
+	}
+	return CTerm(*this,_ref->assms[n]);
+}
 inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	if( thm._ctxt != *this ) {
 		throw WrongContext();
@@ -624,9 +655,15 @@ inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	_ref->thms.insert({name,thm});
 	return *this;
 }
+/**
+ * @brief The unsound way of obtaining a theorem.
+ */
+inline Thm sorry(CTerm const& t) {
+	polluted = true;
+	return Thm(t);
+}
 
 // workaround for Visual Studio...?
-template<>
-inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
+//template<> inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
 
 #endif

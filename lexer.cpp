@@ -102,7 +102,7 @@ void Lexer::skip_spaces() {
 void Lexer::read_continue( CharType t ) {
 	for(;;) {
 		fetch_char();
-		if( fetched_char_type != t ) {
+		if( ( fetched_char_type & t ) == 0 ) {
 			return;
 		}
 		rp = wp;// this character is considered read
@@ -126,25 +126,32 @@ string_view Lexer::peek_token() {
 		}
 		switch( fetched_char_type ) {
 		case Digit:
-			read_continue(Digit);
-			if( fetched_char_type == Dot ) {
-				rp = wp;
-				read_continue(Digit);
-			}
+			read_continue(Digit|Dot);
 			token_type = Number;
 			break;
 		case Dot:
 			fetch_char();
-			if( fetched_char_type == Digit ) {// dot followed by digits
-				rp = wp;
-				read_continue(Digit);
+			switch( fetched_char_type ) {
+			case Digit: // dot followed by digits
+				read_continue(Digit|Dot);
 				token_type = Number;
-			} else {
+				break;
+			case Dot:
+			case MultiOp:
+				read_continue(MultiOp|Dot);
+				token_type = Operator;
+				break;
+			case SingleOp:
+				rp = wp;
+				token_type = Operator;
+				break;
+			default:
 				token_type = Operator; // dot operator
+				break;
 			}
 			break;
 		case MultiOp:
-			read_continue(MultiOp);
+			read_continue(MultiOp|Dot);
 			token_type = Operator;
 			break;
 		case SingleOp:
@@ -156,13 +163,7 @@ string_view Lexer::peek_token() {
 			fetched_char_type = Blank;
 			break;
 		default:
-			for(;;) {
-				fetch_char();
-				if( fetched_char_type != Other && fetched_char_type != Digit ) {
-					break;
-				}
-				rp = wp;
-			}
+			read_continue(Other|Digit);
 			token_type = Word;
 			break;
 		}

@@ -6,8 +6,9 @@
 #include"lexer.hpp"
 
 inline std::ostream& operator<<(
-        std::ostream& stream, 
-        const std::function<std::ostream& (std::ostream&)>& manipulator) {
+	std::ostream& stream, 
+	const std::function<std::ostream& (std::ostream&)>& manipulator
+) {
     return manipulator( stream );
 }
 
@@ -21,11 +22,15 @@ class Syntax : public Lexer {
 		int llevel;
 		int rlevel;
 	};
-	typedef std::map<String,Prefix,std::less<>> PrefixTable;
-	typedef std::map<String,Infix,std::less<>> InfixTable;
-
-	PrefixTable prefixes;
-	InfixTable infixes;
+	struct Opener {
+		String closer;
+		int level;
+		std::function<Term(std::optional<Term>)> handler;
+	};
+	StrMap<Prefix> prefixes;
+	StrMap<Infix> infixes;
+	StrMap<Opener> openers;
+	StrSet closers;
 
 public:
 	struct Error : std::exception {
@@ -34,15 +39,16 @@ public:
 	};
 	Syntax(std::istream& is);
 
-	Syntax& prefix(String const& sym, int level, int rlevel) {
+	void prefix(String const& sym, int level, int rlevel) {
 		prefixes.insert({sym,{level,rlevel}});
-		return *this;
 	}
-	Syntax& infix(String const& sym, int level, int llevel, int rlevel) {
+	void infix(String const& sym, int level, int llevel, int rlevel) {
 		infixes.insert({sym,{level,llevel,rlevel}});
-		return *this;
 	}
-
+	void encloser(String const& opener, String const& closer, int level, std::function<Term(std::optional<Term>)> handler) {
+		openers.insert({opener,{closer,level,handler}});
+		closers.insert(closer);
+	}
 	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;

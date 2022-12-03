@@ -12,9 +12,9 @@ public:
 	Unifier(Ctxt const& ctxt, std::function<bool(String const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
 private:
 	map<String,unsigned int,less<>> escapes[2];
-	Syms avoids[2];
+	StrSet avoids[2];
 
-	static Term sanitize(Term const& t, Syms& bounds, Syms const& avoids, map<String,unsigned int,less<>> const& escapes) {
+	static Term sanitize(Term const& t, StrSet& bounds, StrSet const& avoids, map<String,unsigned int,less<>> const& escapes) {
 		auto const& sym = t.sym();
 		if( sym.has_value() ) {
 			String const& x = *sym;
@@ -65,7 +65,7 @@ private:
 				return;
 			}
 			if( fvar(y) ) {// free variables can be assigned
-				Syms bounds;
+				StrSet bounds;
 				subst.assign(y,x);
 				return;
 			}
@@ -88,7 +88,7 @@ private:
 				return;
 			}
 			if( fvar(y) ) {// free variables can be assigned
-				Syms bounds;
+				StrSet bounds;
 				subst.assign(y,sanitize(l,bounds,avoids[0],escapes[0]));
 				return;
 			}
@@ -164,7 +164,7 @@ public:
 				return;
 			}
 			if( fvar(x) ) {// local variables can be assigned
-				Syms bounds;
+				StrSet bounds;
 				subst.assign(x,sanitize(r,bounds,avoids[1],escapes[1]));
 				return;
 			}
@@ -173,7 +173,7 @@ public:
 		unify2(l,r,index);
 	}
 	CSubst result() {
-		Syms done;
+		StrSet done;
 		for( auto& x : subst.map() ) {
 			subst.assign(x.first,subst.get(x.first)->subst(subst));
 		}

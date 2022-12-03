@@ -46,7 +46,7 @@ pair<String, list<Term>> uncurry(Term const& t) {
 	}
 }
 
-static bool match(Syms const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
+static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
 	auto const& sym = pat.sym();
 	if( sym.has_value() ) {
 		String const& x = *sym;
@@ -144,7 +144,7 @@ static bool match(Syms const& fsyms, CTerm const& pat, CTerm const& val, CSubst&
 	return match(fsyms,fix->second,fix2->second,matcher,lidx,ridx,depth);
 }
 
-optional<CSubst> match(Syms const& fsyms, CTerm const& pat, CTerm const& val) {
+optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 	CSubst ret = val.ctxt();
 	StrMap<unsigned int> lidx, ridx;
 	if( match(fsyms,pat,val,ret,lidx,ridx,0) ) {
@@ -223,19 +223,19 @@ Thm discharge(Thm thm, Thm arg) {
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
 	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](String const& x){
-		return thm_ctxt.syms().contains(x) || arg_ctxt.syms().contains(x);
+		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
 	if( !unifier.has_value() ) {
 		throw MalformedDischarge(thm,arg);
 	}
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
-	for( auto const& x : arg_ctxt.sym_list() ) {
+	for( auto const& x : arg_ctxt.fvar_list() ) {
 		if( !unifier->map().contains(x) ) {
 			ret_ctxt.fix(x);
 		}
 	}
-	for( auto const& x : thm_ctxt.sym_list() ) {
+	for( auto const& x : thm_ctxt.fvar_list() ) {
 		if( !unifier->map().contains(x) ) {
 			ret_ctxt.fix(x);
 		}
@@ -243,18 +243,18 @@ Thm discharge(Thm thm, Thm arg) {
 	// instantiating arg according to the unifier
 	// quantify variables as cond
 	Ctxt discharger_ctxt = ret_ctxt.branch();
-	for( auto const& x : cond_ctxt.sym_list() ) {
+	for( auto const& x : cond_ctxt.fvar_list() ) {
 		discharger_ctxt.fix(x);
 	}
 	arg = arg.weaken(discharger_ctxt);
-	for( auto const& x : arg_ctxt.sym_list() ) {// TODO: slower than `subst`
+	for( auto const& x : arg_ctxt.fvar_list() ) {// TODO: slower than `subst`
 		auto opt = unifier->get(x);
 		auto const& val = opt.has_value() ? (Term)*opt : x;
 		arg = arg.allE(discharger_ctxt.cterm(val));
 	}
 	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
-	for( auto const& x : thm_ctxt.sym_list() ) {// TODO: slower than `subst`
+	for( auto const& x : thm_ctxt.fvar_list() ) {// TODO: slower than `subst`
 		auto opt = unifier->get(x);
 		auto const& val = opt.has_value() ? (Term)*opt : x;
 		thm = thm.allE(ret_ctxt.enclose(val));

@@ -43,7 +43,7 @@ std::pair<String,std::list<Term>> uncurry(Term const& t);
  * @param pat 
  * @param val 
  */
-std::optional<CSubst> match(Syms const& fsyms, CTerm const& pat, CTerm const& val);
+std::optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val);
 
 class SubstDag : public CSubst, public Graph<String,std::less<>> {
 public:
@@ -111,7 +111,7 @@ class Rewriter {
 		CTerm pat;
 	};
 public:
-	Thm const cong, fun_cong, arg_cong, ext, eq_imp, refl, trans;
+	Thm const cong, fun_cong, arg_cong, ext, eq_prop1, eq_sym, refl, trans;
 	struct Error : std::exception {
 		Term term;
 		Error(Term const& term) : term(term) {}
@@ -124,7 +124,11 @@ public:
 	};
 	Rewriter(StrMap<Thm> const& args) :
 		cong(args.at("cong")),fun_cong(args.at("fun_cong")),arg_cong(args.at("arg_cong")),
-		ext(args.at("ext")),eq_imp(args.at("eq_imp")),refl(args.at("refl")),trans(args.at("trans")) {}
+		ext(args.at("ext")),eq_prop1(args.at("eq_prop1")),eq_sym(args.at("eq_sym")),
+		refl(args.at("refl")),trans(args.at("trans")) {}
+	Thm reverse(Thm const& thm) const {
+		return discharge(eq_sym.weaken(thm.ctxt()),thm);
+	}
 	/**
 	 * @brief returns a rewrite step equation for the given left hand side.
 	 * 
@@ -133,9 +137,18 @@ public:
 	 */
 	std::optional<Thm> equate(Rules const& rules, CTerm const& haystack) const;
 	/**
+	 * @brief returns a rewrite step equation for the given left hand side.
+	 * 
+	 * @param haystack the left hand side
+	 * @return std::optional<Thm> 
+	 */
+	std::optional<Thm> equate(Rules const& rules, CTerm const& haystack, std::vector<bool> const& pos) const {
+		return equate(rules,haystack,pos.begin(),pos.end());
+	}
+	/**
 	 * @brief rewrites a theorem one step.
 	 */
-	std::optional<Thm> rewrite(Rules const& rules, Thm const& thm) const;
+	std::optional<Thm> rewrite(Rules const& rules, Thm const& thm, std::vector<bool> const& pos) const;
 	/**
 	 * @brief normalizes a theorem.
 	 * 
@@ -144,7 +157,9 @@ public:
 	 * @param steps limits the number of steps
 	 * @return the normal form
 	 */
-	Thm normalize(Rules const& rules, Thm const& thm, unsigned int steps) const;
+	Thm normalize(Rules const& rules, Thm const& thm, unsigned int steps, std::vector<bool> const& pos) const;
+private:
+	std::optional<Thm> equate( Rules const& rules, CTerm const& haystack, std::vector<bool>::const_iterator it, std::vector<bool>::const_iterator end ) const;
 };
 
 class Definer {
@@ -162,7 +177,7 @@ public:
 	{
 		this->beta.add(beta);
 	}
-	void define(Ctxt& ctxt, Term const& rule, std::optional<String const> sym) const;
+	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<String const> name) const;
 };
 
 #endif

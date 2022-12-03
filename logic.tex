@@ -45,9 +45,13 @@
 
 \begin{definition}
 $\Term\cV$ is
-$v \in \cV$,
-or $s\,t$ for $s, t \in \Term\cV$,
-or $\xi x.\,s$ for $s \in \Term{\cV\cup\set{x}}$
+\begin{itemize}
+\item
+$v \in \cV$, or
+\item $s\,t$ for $s, t \in \Term\cV$, or
+\item $x.\,s$ for $s \in \Term{\cV\cup\set{x}}$, or
+\item $x..\,s$
+\end{itemize}
 \end{definition}
 
 \begin{definition}[minimal inference rules]

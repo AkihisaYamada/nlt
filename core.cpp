@@ -107,7 +107,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 }
 
 void Term::_iter_syms(
-	Syms& bsyms,
+	StrSet& bsyms,
 	function<void(String const&)> const& bsym,
 	function<void(String const&)> const& fsym
 ) const {
@@ -144,8 +144,8 @@ void Term::_iter_syms(
 	}
 }
 
-Syms Term::fsyms() const {
-	Syms bsyms, ret;
+StrSet Term::fsyms() const {
+	StrSet bsyms, ret;
 	_iter_syms(bsyms,[](String const&){},[&ret](String const& fsym){ret.insert(fsym);});
 	return ret;
 }
@@ -230,9 +230,13 @@ Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
 optional<String const> Ctxt::find_sym_local(String const& sym) const {
-	auto it = _ref->syms.find(sym);
-	if( it != _ref->syms.end() ) {
+	auto it = fvars().find(sym);
+	if( it != fvars().end() ) {
 		return *it;
+	}
+	auto spec_it = specs().find(sym);
+	if( spec_it != specs().end() ) {
+		return spec_it->first;
 	}
 	return optional<String const>();
 }
@@ -253,8 +257,8 @@ CTerm Ctxt::fix(String const& sym) {
 	if( opt.has_value() ) {
 		return CTerm(*this,*opt);
 	}
-	_ref->syms.insert(sym);
-	_ref->sym_list.push_back(sym);
+	_ref->fvars.insert(sym);
+	_ref->fvar_list.push_back(sym);
 	return CTerm(*this,sym);
 }
 CTerm Ctxt::enclose(Term const& t) {
@@ -283,22 +287,22 @@ Term Ctxt::_thm(String const& name) const {
 	return it->second;
 }
 
-Ctxt Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
+pair<CTerm,Ctxt const> Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
 	if( find_sym(sym) ) {
 		throw DoubleFix(sym);
 	}
-	Ctxt ret = branch();
+	Ctxt obtainer = branch();
 	String thesis = avoid("thesis",[&](String const& x){ return find_sym(x) || sym == x; });
 	Term assm = thesis;
-	ret.fix(sym);
+	obtainer._ref->specs.insert({sym,specs});// register the specification
 	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
-		ret.cterm(it->second);// check closedness
+		obtainer.cterm(it->second);// check closedness
 		assm = it->second >>= assm;
-		ret._ref->thms.insert(*it);
+		obtainer._ref->thms.insert(*it);
 	}
 	assm = ALL( thesis /= ALL( sym /= assm ) >>= thesis );
-	ret._ref->assms.push_back(assm);
-	return ret;
+	obtainer._ref->assms.push_back(assm);
+	return {CTerm(*this,assm),obtainer};
 }
 Thm Thm::_allE(CTerm const& t) const {
 	auto const& a = app();
@@ -329,7 +333,7 @@ Thm Thm::intro() const {
 	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
 		stmt = *it >>= stmt;
 	}
-	auto const& syms = _ctxt.sym_list();
+	auto const& syms = _ctxt.fvar_list();
 	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
 		stmt = ALL(*it /= stmt);
 	}
@@ -349,7 +353,7 @@ std::optional<CTerm::StrTerm> CTerm::abs() const {
 CTerm CTerm::lift() const {
 	auto const& parent = _ctxt.ctxt();
 	Term ret = *this;
-	for( auto const& sym : _ctxt.sym_list() ) {
+	for( auto const& sym : _ctxt.fvar_list() ) {
 		ret = sym /= ret;
 	}
 	return CTerm(parent,ret);
@@ -380,13 +384,13 @@ Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 		throw WrongContext();
 	}
 	Ctxt ret = parent.branch();
-	for( auto& sym : syms() ) {// fix uninstantiated variables
-		if( !subst.map().contains(sym) ) {
-			ret.fix(sym);
+	for( auto& fvar : fvars() ) {// fix uninstantiated variables
+		if( !subst.map().contains(fvar) ) {
+			ret.fix(fvar);
 		}
 	}
 	auto it = facts.begin();
-	for( auto& assm : assms() ) {// check that the instances of assumptions are discharged
+	for( auto const& assm : assms() ) {// check that the instances of assumptions are discharged
 		if( it == facts.end() ) {
 			throw MalformedDischarge(assm,Term());
 		}
@@ -399,7 +403,11 @@ Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 		}
 		it++;
 	}
-	for( auto& thm : thms() ) {
+	// copy specified constants and theorems
+	for( auto const& spec : specs() ) {
+		ret._ref->specs.insert(spec);
+	}
+	for( auto const& thm : thms() ) {
 		ret._ref->thms.insert({thm.first,thm.second.subst(subst)});
 	}
 	return ret;
@@ -409,8 +417,12 @@ Ctxt& Ctxt::import(Ctxt const& ctxt) {
 	if( parent.has_value() ) {
 		ensure_ancestor(*parent);
 	}
-	for( auto& sym : ctxt.sym_list() ) {
-		fix(sym);
+	for( auto& fvar : ctxt.fvar_list() ) {
+		_ref->fvars.insert(fvar);
+		_ref->fvar_list.push_back(fvar);
+	}
+	for( auto& spec : ctxt.specs() ) {
+		_ref->specs.insert(spec);
 	}
 	for( auto& assm : ctxt.assms() ) {
 		_ref->assms.push_back(assm);

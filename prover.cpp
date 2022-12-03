@@ -11,45 +11,53 @@ struct ProverFailure : exception {
 class UnfinishedProof : std::exception {};
 
 class Prover {
-	struct Thesis {
-		Ctxt ctxt;
-		Term claim;
-	};
 	unsigned int _depth;
 	Ctxt _ctxt;
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
-	optional<Thesis> _thesis;
-	static list<Thm> _sorries;
+	optional<CTerm> _thesis;
 	optional<Ref<Rewriter>> _rewriter;
 	optional<Ref<Definer>> _definer;
 	bool _exit_on_error;
+	Prover(Prover const& parent, Ctxt const& ctxt, optional<CTerm> thesis) :
+		_depth(parent._depth+1),
+		_ctxt(ctxt),
+		_syntax(parent._syntax),
+		_own_syntax(false),
+		_thesis(thesis),
+		_rewriter(parent._rewriter),
+		_definer(parent._definer) {}
 public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
-		_ctxt(),
+		_ctxt(Ctxt::root()),
 		_syntax(is),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
 		_ctxt.fix(IMP_var);
 		_ctxt.fix(ALL_var);
+		_syntax->register_single_op('(');
+		_syntax->register_single_op(')');
+		_syntax->register_single_op('{');
+		_syntax->register_single_op('}');
+		_syntax->register_single_op('[');
+		_syntax->register_single_op(']');
 		_syntax->register_single_op(',');
 		_syntax->register_single_op(';');
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->infix(",",-1,-1,-2).
-			infix(";",-1,-1,-2);
+		_syntax->encloser("(",")",-1000,[]( std::optional<Term> t ){ return *t; });
+		_syntax->infix(",",-1,-1,-2);
+		_syntax->infix(";",-1,-1,-2);
+		_syntax->infix(":=",-1,-1,-2);
 	}
-	Prover(Prover const& parent, optional<Thesis> thesis = optional<Thesis>()) :
-		_depth(parent._depth+1),
-		_ctxt(parent._ctxt.branch()),
-		_syntax(parent._syntax),
-		_own_syntax(false),
-		_thesis(thesis),
-		_rewriter(parent._rewriter) {}
-	Prover(Prover const& parent, Term const& claim) : Prover(parent,Thesis{parent._ctxt,claim}) {}
-
+	Prover branch() {
+		return Prover(*this,_ctxt.branch(),optional<CTerm>());
+	}
+	Prover prove(CTerm const& thesis) {
+		return Prover(*this,thesis.ctxt().branch(),thesis);
+	}
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
 		optional<Thm> thm = _gets_thm(loc);
@@ -80,7 +88,19 @@ public:
 						}
 						ret = discharge(ret,*opt_arg);
 					}
-				} else if( _syntax->skips("rewrite") ) {
+				} else if( _syntax->skips("unfolded") ) {
+					vector<bool> pos;
+					if( _syntax->skips("(") ) {
+						string const& pos_str = _syntax->get_token();
+						for( int i = 0; i <pos_str.length(); i++ ) {
+							switch( pos_str[i] ) {
+							case '0': pos.push_back(false); break;
+							case '1': pos.push_back(true); break;
+							default: throw ProverFailure("Wrong position \""+pos_str+"\"");
+							}
+						}
+						_syntax->skip(")");
+					}
 					bool many = _syntax->skips("*");
 					Rewriter::Rules rules;
 					for(;;) {
@@ -91,14 +111,28 @@ public:
 						rules.add(*opt_arg);
 					}
 					if( many ) {
-						ret = (**_rewriter).normalize(rules,ret,255);
+						ret = (**_rewriter).normalize(rules,ret,255,pos);
 					} else {
-						auto const& opt_ret = (**_rewriter).rewrite(rules,ret);
+						auto const& opt_ret = (**_rewriter).rewrite(rules,ret,pos);
 						if( !opt_ret.has_value() ) {
-							throw ProverFailure("Failed rewrite");
+							throw ProverFailure("Failed unfold");
 						}
 						ret = *opt_ret;
 					}
+				} else if( _syntax->skips("folded") ) {
+					Rewriter::Rules rules;
+					for(;;) {
+						auto const& opt_arg = _gets_thm(loc);
+						if( !opt_arg.has_value() ) {
+							break;
+						}
+						rules.add((**_rewriter).reverse(*opt_arg));
+					}
+					auto const& opt_ret = (**_rewriter).rewrite(rules,ret,{});
+					if( !opt_ret.has_value() ) {
+						throw ProverFailure("Failed fold");
+					}
+					ret = *opt_ret;
 				}
 				_syntax->skip("]");
 			} else {
@@ -158,7 +192,7 @@ public:
 			cout << ' ' << flush;
 			if( _syntax->skips("{") ) {
 				cout << "Creating context." << endl;
-				Prover(*this).loop();
+				branch().loop();
 				_syntax->skip("}");
 				cout << "Left context." << endl;
 			} else if( _syntax->skips("ctxt") ) {
@@ -212,27 +246,27 @@ public:
 			} else if( _syntax->skips("show") ) {
 				String thm_name = _syntax->get_thm_name();
 				_syntax->skip(":");
-				CTerm stmt = _ctxt.cterm(_syntax->get_term(0));
+				Ctxt stmt_ctxt = _ctxt.branch();
+				CTerm stmt = stmt_ctxt.enclose(_syntax->get_term(0));
 				_syntax->skip(";");
 				cout << "Proving " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
-				auto const& prf = Prover(*this,stmt).loop();
-				if( !prf.has_value() ) {
+				auto const& thm_opt = prove(stmt).loop();
+				if( !thm_opt.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Ctxt stmt_ctxt = _ctxt.branch();
+				Thm thm = *thm_opt;
 				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
-				Thm thm = prf->intro();
 				Ctxt thm_ctxt = stmt_ctxt.branch();
 				Thm thm_strip = strip_all(thm,thm_ctxt);
 				stmt_strip = stmt_strip.weaken(thm_ctxt);
-				optional<CSubst> matcher = match(thm_ctxt.syms(),thm_strip,stmt_strip);
+				optional<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
 				if( !matcher.has_value() ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
 				}
 				thm = thm.weaken(stmt_ctxt);
-				for( auto const& v : thm_ctxt.sym_list() ) {
+				for( auto const& v : thm_ctxt.fvar_list() ) {
 					thm = thm.allE(matcher->get(v)->subst(stmt_ctxt));
 				}
 				thm = thm.intro();
@@ -242,25 +276,25 @@ public:
 				_syntax->skip("where");
 				auto specs = get_named_terms();
 				_syntax->skip(";");
-				Ctxt obtainer = _ctxt.obtain(sym,specs);
-				Term const& goal = obtainer.assms()[0];
+				auto const& pair = _ctxt.obtain(sym,specs);
+				CTerm const& goal = pair.first;
+				Ctxt const& obtainer = pair.second;
 				cout << "Obtaining " << sym << " where ";
 				for( auto& spec : specs ) {
 					cout << spec.first << ": " << _syntax->pretty_term(spec.second) << ", ";
 				}
 				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
-				auto const& prf = Prover(*this,goal).loop();
-				if( !prf.has_value() ) {
+				auto const& thm_opt = prove(goal).loop();
+				if( !thm_opt.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm goal_thm = prf->intro();
-				if( goal != goal_thm ) {
-					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(goal_thm) << endl;
+				Thm const& thm = *thm_opt;
+				if( goal != thm ) {
+					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
 				}
-				obtainer = obtainer.interpret(CSubst(_ctxt),{goal_thm});
-				_ctxt.import(obtainer);
+				_ctxt.import(obtainer.interpret(CSubst(_ctxt),{thm}));
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
 				optional<String> name;
@@ -268,10 +302,12 @@ public:
 					name = _syntax->get_token();
 					_syntax->skip(")");
 				}
-				Term rule = get_term();
+				Term l = get_term();
+				_syntax->skip(":=");
+				Term r = get_term();
 				_syntax->skip(";");
-				(**_definer).define(_ctxt,rule,name);
-				cout << "Defined " << _syntax->pretty_term(rule) << endl;
+				(**_definer).define(_ctxt,l,r,name);
+				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -280,7 +316,7 @@ public:
 				Thm ret = get_thm();
 				_syntax->skip(";");
 				cerr << "By " << _syntax->pretty_thm(ret) << endl;
-				return ret;
+				return ret.intro();
 			} else if( _syntax->skips("prefix") ) {
 				String sym = _syntax->get_token();
 				int rlevel = _syntax->get_int();
@@ -309,6 +345,21 @@ public:
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
 					_definer = optional(Definer(**_rewriter,eq,lam,beta));
+				} else if( _syntax->skips("set_comprehension") ) {
+					Term const& empty = _syntax->get_term(1000);
+					Term const& singleton = _syntax->get_term(1000);
+					Term const& collect = _syntax->get_term(1000);
+					Term const& lam = _syntax->get_term(1000);
+					auto handler = [=](optional<Term> inner) {
+						if( !inner.has_value() ) {
+							return empty;
+						}
+						if( inner->abs().has_value() ) {
+							return collect(lam(*inner));
+						}
+						return singleton(*inner);
+					};
+					_syntax->encloser("{","}",-1000,handler);
 				}
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
@@ -318,11 +369,9 @@ public:
 				}
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
-				String name = "_" + to_string(_sorries.size());
-				_thesis->ctxt.assume( name, _thesis->claim );
-				Thm ret = _ctxt.thm(name);
-				_sorries.push_back(ret);
-				cerr << "!!! SORRY !!! " << name << ": " << _syntax->pretty_thm(ret) << endl;
+				Thm ret = sorry(*_thesis);
+				ret = ret.intro();
+				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else {
 				return optional<Thm>();
@@ -355,8 +404,6 @@ private:
 		}
 	}
 };
-
-list<Thm> Prover::_sorries;
 
 int main(int argc, char* argv[]) {
 	istream* pis;
