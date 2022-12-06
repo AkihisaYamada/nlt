@@ -363,9 +363,15 @@ public:
 				}
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
+				bool solo = _syntax->skips("solo");
 				while( !_syntax->skips(";") ) {
 					string const& sym = _syntax->get_token();
-					_syntax->register_multi_op(int_of_chars(sym.data()));
+					int ch = int_of_chars(sym.data());
+					if( solo ) {
+						_syntax->register_single_op(ch);
+					} else {
+						_syntax->register_multi_op(ch);
+					}
 				}
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
