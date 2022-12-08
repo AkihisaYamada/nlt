@@ -50,6 +50,7 @@ public:
 		_syntax->encloser("(",")",-1000,[]( std::optional<Term> t ){ return *t; });
 		_syntax->infix(",",-1,-1,-2);
 		_syntax->infix(";",-1,-1,-2);
+		_syntax->infix(":",-1,-1,-2);
 		_syntax->infix(":=",-1,-1,-2);
 	}
 	Prover branch() {
@@ -89,17 +90,11 @@ public:
 						ret = discharge(ret,*opt_arg);
 					}
 				} else if( _syntax->skips("unfolded") ) {
-					vector<bool> pos;
+					vector<char> pos;
 					if( _syntax->skips("(") ) {
-						string const& pos_str = _syntax->get_token();
-						for( int i = 0; i <pos_str.length(); i++ ) {
-							switch( pos_str[i] ) {
-							case '0': pos.push_back(false); break;
-							case '1': pos.push_back(true); break;
-							default: throw ProverFailure("Wrong position \""+pos_str+"\"");
-							}
+						while( !_syntax->skips(")") ) {
+							pos.push_back(_syntax->get_int());
 						}
-						_syntax->skip(")");
 					}
 					bool many = _syntax->skips("*");
 					Rewriter::Rules rules;
@@ -154,8 +149,12 @@ public:
 		}
 		return ret;
 	}
-	Term get_term() {
-		Term term = _syntax->get_term();
+	optional<Term> gets_term() {
+		optional<Term> const& term_opt = _syntax->gets_term();
+		if( !term_opt.has_value() ) {
+			return optional<Term>();
+		}
+		Term term = *term_opt;
 		if( _syntax->skips("$") ) {
 			CSubst subst = _ctxt.branch();
 			do {
@@ -166,6 +165,9 @@ public:
 			term = term.subst(subst);
 		}
 		return term;
+	}
+	Term get_term() {
+		return *gets_term();
 	}
 
 	vector<pair<String,Term>> get_named_terms() {
@@ -336,9 +338,27 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("rewrite") ) {
-					auto const& thms = get_named_thms();
-					_rewriter = Ref(Rewriter(thms));
-					cout << "Setup Rewrite Axioms:" << endl << _syntax->pretty_thms(thms) << endl;
+					Thm const& imp = get_thm();
+					Thm const& sym = get_thm();
+					Thm const& refl = get_thm();
+					Thm const& trans = get_thm();
+					_rewriter = Ref(Rewriter(imp,sym,refl,trans));
+					cout << "Setup Rewrite Axioms:" << endl;
+					for(;;) {
+						if( _syntax->skips("@") ) {
+							CTerm cong_pat = _ctxt.branch().enclose(get_term());
+							_syntax->skip(":");
+							Thm const& cong_rule = get_thm();
+							(**_rewriter).register_cong(cong_pat,cong_rule);
+						} else if( _syntax->skips("!") ) {
+							CTerm cong_pat = _ctxt.branch().enclose(get_term());
+							_syntax->skip(":");
+							Thm const& cong_rule = get_thm();
+							(**_rewriter).register_quantifier_cong(cong_pat,cong_rule);
+						} else {
+							break;
+						}
+					}
 				} else if( _syntax->skips("define") ) {
 					String const& eq = _syntax->get_token();
 					String const& lam = _syntax->get_token();

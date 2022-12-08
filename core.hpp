@@ -553,6 +553,11 @@ public:
 	Ctxt const& ctxt() const {
 		return _ctxt;
 	}
+	/**
+	 * @brief The map from variable names to the substitutes.
+	 * 
+	 * @return StrMap<Term> const& 
+	 */
 	StrMap<Term> const& map() const {
 		return _map;
 	}
