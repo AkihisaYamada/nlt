@@ -16,7 +16,7 @@ class Prover {
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
 	optional<CTerm> _thesis;
-	optional<Ref<Rewriter>> _rewriter;
+	StrMap<Rewriter> _rewriters;
 	optional<Ref<Definer>> _definer;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, optional<CTerm> thesis) :
@@ -25,7 +25,7 @@ class Prover {
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis(thesis),
-		_rewriter(parent._rewriter),
+		_rewriters(parent._rewriters),
 		_definer(parent._definer) {}
 public:
 	Prover(istream& is, bool exit_on_error) :
@@ -68,6 +68,38 @@ public:
 		return thm->intro();
 	}
 
+	Thm _rewrite( Ctxt const& loc, Thm const& source, bool rev = false ) {
+		String name;
+		if( _syntax->skips("[") ) {
+			name = _syntax->get_token();
+			_syntax->skip("]");
+		}
+		Rewriter& rewriter = _rewriters.find(name)->second;
+		vector<char> pos;
+		if( _syntax->skips("(") ) {
+			while( !_syntax->skips(")") ) {
+				pos.push_back(_syntax->get_int());
+			}
+		}
+		bool many = _syntax->skips("*");
+		Rewriter::Rules rules;
+		for(;;) {
+			auto const& opt_arg = _gets_thm(loc);
+			if( !opt_arg.has_value() ) {
+				break;
+			}
+			rules.add( rev ? rewriter.reverse(*opt_arg) : *opt_arg );
+		}
+		if( many ) {
+			return rewriter.normalize(rules,source,255,pos);
+		}
+		auto const& opt_ret = rewriter.rewrite(rules,source,pos);
+		if( !opt_ret.has_value() ) {
+			throw ProverFailure("Failed unfold");
+		}
+		return *opt_ret;
+	}
+
 	optional<Thm> _gets_thm(Ctxt loc) {
 		auto const& opt = _syntax->gets_thm_name();
 		if( !opt.has_value() ) {
@@ -90,44 +122,9 @@ public:
 						ret = discharge(ret,*opt_arg);
 					}
 				} else if( _syntax->skips("unfolded") ) {
-					vector<char> pos;
-					if( _syntax->skips("(") ) {
-						while( !_syntax->skips(")") ) {
-							pos.push_back(_syntax->get_int());
-						}
-					}
-					bool many = _syntax->skips("*");
-					Rewriter::Rules rules;
-					for(;;) {
-						auto const& opt_arg = _gets_thm(loc);
-						if( !opt_arg.has_value() ) {
-							break;
-						}
-						rules.add(*opt_arg);
-					}
-					if( many ) {
-						ret = (**_rewriter).normalize(rules,ret,255,pos);
-					} else {
-						auto const& opt_ret = (**_rewriter).rewrite(rules,ret,pos);
-						if( !opt_ret.has_value() ) {
-							throw ProverFailure("Failed unfold");
-						}
-						ret = *opt_ret;
-					}
+					ret = _rewrite(loc,ret);
 				} else if( _syntax->skips("folded") ) {
-					Rewriter::Rules rules;
-					for(;;) {
-						auto const& opt_arg = _gets_thm(loc);
-						if( !opt_arg.has_value() ) {
-							break;
-						}
-						rules.add((**_rewriter).reverse(*opt_arg));
-					}
-					auto const& opt_ret = (**_rewriter).rewrite(rules,ret,{});
-					if( !opt_ret.has_value() ) {
-						throw ProverFailure("Failed fold");
-					}
-					ret = *opt_ret;
+					ret = _rewrite(loc,ret,true);
 				}
 				_syntax->skip("]");
 			} else {
@@ -338,24 +335,37 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("rewrite") ) {
+					String name;
+					if( _syntax->skips("[") ) {
+						name = _syntax->get_token();
+						_syntax->skip("]");
+					}
 					Thm const& imp = get_thm();
 					Thm const& sym = get_thm();
 					Thm const& refl = get_thm();
 					Thm const& trans = get_thm();
-					_rewriter = Ref(Rewriter(imp,sym,refl,trans));
-					cout << "Setup Rewrite Axioms:" << endl;
+					auto const& pair = _rewriters.insert({name,Rewriter(imp,sym,refl,trans)});
+					cout << "Initialized Rewriter " << name << endl;
+				} else if( _syntax->skips("cong") ) {
+					String name;
+					if( _syntax->skips("[") ) {
+						name = _syntax->get_token();
+						_syntax->skip("]");
+					}
+					Rewriter& rewriter = _rewriters.find(name)->second;
 					for(;;) {
-						if( _syntax->skips("@") ) {
+						if( _syntax->skips("!") ) {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
 							_syntax->skip(":");
 							Thm const& cong_rule = get_thm();
-							(**_rewriter).register_cong(cong_pat,cong_rule);
-						} else if( _syntax->skips("!") ) {
-							CTerm cong_pat = _ctxt.branch().enclose(get_term());
-							_syntax->skip(":");
-							Thm const& cong_rule = get_thm();
-							(**_rewriter).register_quantifier_cong(cong_pat,cong_rule);
+							rewriter.register_quantifier_cong(cong_pat,cong_rule);
 						} else {
+							CTerm cong_pat = _ctxt.branch().enclose(get_term());
+							_syntax->skip(":");
+							Thm const& cong_rule = get_thm();
+							rewriter.register_cong(cong_pat,cong_rule);
+						}
+						if( !_syntax->skips(",") ) {
 							break;
 						}
 					}
@@ -364,7 +374,8 @@ public:
 					String const& lam = _syntax->get_token();
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
-					_definer = optional(Definer(**_rewriter,eq,lam,beta));
+					Rewriter const& rewriter = _rewriters.find(String())->second;
+					_definer = optional(Definer(rewriter,eq,lam,beta));
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
 					Term const& singleton = _syntax->get_term(1000);

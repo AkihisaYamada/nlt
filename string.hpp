@@ -9,8 +9,9 @@
 class String {
 	Ref<std::string const> _ref;
 	void operator*() = delete;
+	static std::string const EMPTY;
 public:
-	String() : _ref() {}
+	String() : _ref(EMPTY) {}
 	String(char const* str) : _ref(std::string(str)) {}
 	String(std::string const& str) : _ref(str) {}
 	String(std::string&& str) : _ref(str) {}
@@ -31,6 +32,8 @@ public:
 	}
 	friend bool operator==(String const& l, String const& r);
 };
+
+inline std::string const String::EMPTY;
 
 inline bool operator==(String const& l, String const& r) {
 	return l._ref == r._ref || *l._ref == *r._ref;

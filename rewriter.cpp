@@ -45,12 +45,11 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm con
 	for( auto const& rule : rules ) {
 		auto const& pat = rule.pat;
 		auto const& fvars = pat.ctxt().fvars();
-		auto const& fvar_list = pat.ctxt().fvar_list();
 		auto const& m = match(fvars,pat,source);
 		if( m.has_value() ) {
 			// source = lθ
 			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
-			for( auto const& var : fvar_list ) {
+			for( auto const& var : pat.ctxt().fvar_list() ) {
 				ret = ret.allE(*m->get(var));
 			}
 			return ret; // lθ = rθ
@@ -59,10 +58,10 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm con
 	for( auto const& cong : congs ) {
 		auto const& pat = cong.pat;
 		auto const& fvars = pat.ctxt().fvars();
-		auto const& fvar_list = pat.ctxt().fvar_list();
 		auto const& m = match(fvars,pat,source);
 		if( m.has_value() ) {// source = C[s...]
 			Thm ret = cong.rule.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
+			auto const& fvar_list = pat.ctxt().fvar_list();
 			auto it = fvar_list.begin();
 			auto end = fvar_list.end();
 			for(;;) {
