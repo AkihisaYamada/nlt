@@ -838,17 +838,21 @@ show IN_Prop: (P ∈ Prop) = (P = True ∨ P = False);
 	done;
 
 show True_IN_Prop: True ∈ Prop;
-	by EQ_IMP_IFF[OF IN_Prop(True)][unfolded[IFF]* IFF_True[OF EQ.refl] True_IMP_IFF IFF_True[OF True_OR] IFF_True_IFF];
+	unfold IN_Prop;
+	unfold[IFF]* IFF_True[OF EQ.refl] True_IMP_IFF IFF_True[OF True_OR] IFF_True_IFF;
+	done;
 
 show False_IN_Prop: False ∈ Prop;
-	by EQ_IMP_IFF[OF IN_Prop(False)][unfolded[IFF]* IFF_True[OF EQ.refl] IFF_True[OF OR_True] IFF_True_IFF];
-
-show IN_Prop_cases: P ∈ Prop ⟹ (P = True ⟹ Q) ⟹ (P = False ⟹ Q) ⟹ Q;
-	assume p: P ∈ Prop;
-	by p[unfolded* IN_Prop OR.def](Q);
+	unfold IN_Prop;
+	unfold[IFF]* IFF_True[OF EQ.refl] IFF_True[OF OR_True] IFF_True_IFF;
+	done;
 
 assume EQ_True: ∀P. P ⟹ P = True;
-assume False.elim: ∀P. False ⟹ P;
+assume False.def: False = (∀P. P);
+
+show False.elim: False ⟹ P;
+	assume 0: False;
+	by 0[unfolded False.def](P);
 
 show NOT_IMP: ¬P ⟹ P ⟹ Q;
 	assume nP: ¬P, P: P;
@@ -860,30 +864,14 @@ show IMP_True_EQ_True: (P ⟹ True) = True;
 show False_IMP_EQ_True: (False ⟹ P) = True;
 	by EQ_True[OF False.elim(P)];
 
-assume True_IMP_False_EQ_False: (True ⟹ False) = False;
-
-show True_IMP: P ∈ Prop ⟹ (True ⟹ P) = P;
-	assume p: P ∈ Prop;
-	show 1: P = True ⟹ (True ⟹ P) = P;
-		assume P1: P = True;
-		show it: (True ⟹ P) = P;
-			unfold* P1 IMP_True_EQ_True;
-			done;
-		by it;
-	show 2: P = False ⟹ (True ⟹ P) = P;
-		assume P0: P = False;
-		show it: (True ⟹ P) = P;
-			unfold* P0 True_IMP_False_EQ_False;
-			done;
-		by it;
-	by IN_Prop_cases[OF p 1 2];
+assume True_IMP: ∀P. (True ⟹ P) = P;
 
 show IMP_IN_Prop: P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ⟹ Q) ∈ Prop;
 	assume p: P ∈ Prop, q: Q ∈ Prop;
 	show 1: P = True ⟹ (P ⟹ Q) ∈ Prop;
 		assume P1: P = True;
 		show it: (P ⟹ Q) ∈ Prop;
-			unfold* P1 True_IMP[OF q];
+			unfold* P1 True_IMP;
 			by q;
 		by it;
 	show 2: P = False ⟹ (P ⟹ Q) ∈ Prop;
@@ -894,7 +882,46 @@ show IMP_IN_Prop: P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ⟹ Q) ∈ Prop;
 		by it;
 	by OR.elim[OF p[unfolded IN_Prop] 1 2];
 
-show Prop_AND: 
+show True_AND_True: (True ∧ True) = True;
+	show 1: True ∧ True;
+		unfold[IFF]* True_AND;
+		done;
+	by EQ_True[OF 1];
+
+show AND_False: (P ∧ False) = False;
+	unfold* AND.def False_IMP_EQ_True IMP_True_EQ_True True_IMP;
+	fold False.def;
+	done;
+
+show False_AND: (False ∧ P) = False;
+	unfold* AND.def False_IMP_EQ_True True_IMP;
+	fold False.def;
+	done;
+
+show Prop_AND: P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ∧ Q) ∈ Prop;
+	assume p: P ∈ Prop, q: Q ∈ Prop;
+	show 1: P = True ⟹ (P ∧ Q) ∈ Prop;
+		assume P1: P = True;
+		show 1.1: Q = True ⟹ (P ∧ Q) ∈ Prop;
+			assume Q1: Q = True;
+			show it: (P ∧ Q) ∈ Prop;
+				unfold* P1 Q1 True_AND_True;
+				by True_IN_Prop;
+			by it;
+		show 1.2: Q = False ⟹ (P ∧ Q) ∈ Prop;
+			assume Q0: Q = False;
+			show it: (P ∧ Q) ∈ Prop;
+				unfold* Q0 AND_False;
+				by False_IN_Prop;
+			by it;
+		by OR.elim[OF q[unfolded IN_Prop] 1.1 1.2];
+	show 2: P = False ⟹ (P ∧ Q) ∈ Prop;
+		assume P0: P = False;
+		show it: (P ∧ Q) ∈ Prop;
+			unfold* P0 False_AND;
+			by False_IN_Prop;
+		by it;
+	by OR.elim[OF p[unfolded IN_Prop] 1 2];
 
 show Prop_EQ_IFF: P ∈ Prop ⟹ Q ∈ Prop ⟹ P = Q ⟺ (P ⟺ Q);
 	assume p: P ∈ Prop, q: Q ∈ Prop;
@@ -902,13 +929,14 @@ show Prop_EQ_IFF: P ∈ Prop ⟹ Q ∈ Prop ⟹ P = Q ⟺ (P ⟺ Q);
 		assume P: P = True;
 		show 1.1: Q = True ⟹ P = Q ⟺ (P ⟺ Q);
 			assume Q: Q = True;
-			show 1.1.1: P ⟺ Q;
-				by IFF.refl(P ⟺ Q)[unfolded(1)* P Q][unfolded[IFF]* IFF_True_IFF];
-			show 1.1.2: P = Q;
-				by IFF.refl(P = Q)[unfolded(1)* P Q][unfolded[
-
-		assume PQ: P = Q;
-		by IFF.refl(P)[unfolded(1) PQ];
+			show it: P = Q ⟺ (P ⟺ Q);
+				unfold* P Q EQ_True[OF IFF.refl] EQ.True[OF EQ.refl];
+				done;
+			by it;
+		show 1.2: Q = False ⟹ P = Q ⟺ (P ⟺ Q);
+			assume Q: Q = False;
+			show it: P = Q ⟺ (P ⟺ Q);
+				unfold* P Q 
 	show 2: (P ⟺ Q) ⟹ P = Q;
 		assume PQ: P ⟺ Q;
 		show 2.1: P = True ⟹ P = Q;

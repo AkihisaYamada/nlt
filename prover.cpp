@@ -70,7 +70,9 @@ public:
 	Prover prove(CTerm const& thesis) {
 		Ctxt const& ctxt = thesis.ctxt();
 		Thm thm = ctxt.branch().assume("thesis",thesis).intro();// thesis ⟹ thesis
-		return Prover(*this,ctxt.branch(),thm);
+		Ctxt ctxt2 = ctxt.branch();
+		ctxt2.claim("_thesis",thm.weaken(ctxt2));
+		return Prover(*this,ctxt2,thm);
 	}
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
@@ -88,8 +90,7 @@ public:
 		}
 		return _rewriters.find(name)->second;
 	}
-	Thm _rewrite( Rewriter const& rewriter, Ctxt const& loc, Thm const& source, bool simp, bool rev = false ) {
-		vector<char> pos = simp ? vector<char>{0,1} : vector<char>{};
+	Thm _rewrite( Rewriter const& rewriter, Ctxt const& loc, Thm const& source, vector<char> pos, bool rev = false ) {
 		if( _syntax->skips("(") ) {
 			while( !_syntax->skips(")") ) {
 				pos.push_back(_syntax->get_int());
@@ -130,10 +131,10 @@ public:
 					}
 				} else if( _syntax->skips("unfolded") ) {
 					Rewriter const& rewriter = _rewriter();
-					ret = _rewrite(rewriter,loc,ret,false,false);
+					ret = _rewrite(rewriter,loc,ret,{},false);
 				} else if( _syntax->skips("folded") ) {
 					Rewriter const& rewriter = _rewriter();
-					ret = _rewrite(rewriter,loc,ret,false,true);
+					ret = _rewrite(rewriter,loc,ret,{},true);
 				}
 				_syntax->skip("]");
 			} else {
@@ -308,9 +309,19 @@ public:
 				}
 				Rewriter const& rewriter = _rewriter();
 				Ctxt const& loc = _thesis->ctxt();
-				*_thesis = _rewrite(rewriter,loc,*_thesis,true);
+				*_thesis = _rewrite(rewriter,loc,*_thesis,{0});
 				_syntax->skip(";");
 				cerr << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
+			} else if( _syntax->skips("fold") ) {
+				if( !_thesis.has_value() ) {
+					cerr << "No goal for \"fold\"" << endl;
+					throw UnfinishedProof();
+				}
+				Rewriter const& rewriter = _rewriter();
+				Ctxt const& loc = _thesis->ctxt();
+				*_thesis = _rewrite(rewriter,loc,*_thesis,{0},true);
+				_syntax->skip(";");
+				cerr << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -343,6 +354,7 @@ public:
 					throw UnfinishedProof();
 				}
 				_syntax->skip(";");
+				cerr << "Done." << endl;
 				return _concluder.conclude(*_thesis);
 			} else if( _syntax->skips("prefix") ) {
 				String sym = _syntax->get_token();
