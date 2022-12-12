@@ -101,23 +101,34 @@ Thm discharge(Thm t, Thm arg);
  */
 void import(Ctxt ctxt, Ctxt const& target);
 
+class Concluder {
+	struct Rule {
+		CTerm pat;
+		Thm thm;
+	};
+	std::vector<Rule> rules;
+public:
+	void insert(Thm const& thm) {
+		Ctxt loc = thm.ctxt().branch();
+		Thm pat = strip_all(thm,loc);
+		rules.push_back({pat,thm});
+	}
+	Thm conclude(Thm const& target);
+};
+
 /**
  * @brief Congruence prover.
  * 
  */
 class Rewriter {
 	struct Rule {
+		CTerm pat;
 		Thm thm;
-		CTerm pat;
 	};
-	struct Cong {
-		CTerm pat;
-		Thm rule;
-	};
-	std::vector<Cong> congs;
-	std::vector<Cong> quantifier_congs;
+	std::vector<Rule> congs;
+	std::vector<Rule> quantifier_congs;
 public:
-	Thm const imp, sym, refl, trans;
+	Thm const refl, sym, trans, imp;
 	struct Error : std::exception {
 		Term term;
 		Error(Term const& term) : term(term) {}
@@ -128,8 +139,8 @@ public:
 		Rules& add(Thm const& thm);
 		friend Rewriter;
 	};
-	Rewriter(Thm const& imp, Thm const& sym, Thm const& refl, Thm const& trans) :
-		imp(imp), sym(sym), refl(refl), trans(trans) {}
+	Rewriter(Thm const& refl, Thm const& sym, Thm const& trans, Thm const& imp) :
+		refl(refl), sym(sym), trans(trans), imp(imp) {}
 	Thm reverse(Thm const& thm) const {
 		return discharge(sym.weaken(thm.ctxt()),thm);
 	}
@@ -139,14 +150,15 @@ public:
 	void register_quantifier_cong(CTerm const& pat, Thm const& rule) {
 		quantifier_congs.push_back({pat,rule});
 	}
+	void register_concl(Thm const& rule);
 	/**
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 
 	 * @param source the term to be rewritten
 	 * @return std::optional<Thm> 
 	 */
-	std::optional<Thm> equate(Rules const& rules, CTerm const& source) const {
-		return _equate(rules,source,refl.weaken(source.ctxt()));
+	std::optional<Thm> step(Rules const& rules, CTerm const& source) const {
+		return _step(rules,source,refl.weaken(source.ctxt()));
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -154,26 +166,24 @@ public:
 	 * @param source the term to be rewritten
 	 * @return std::optional<Thm> 
 	 */
-	std::optional<Thm> equate(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
-		return _equate(rules,source,pos.begin(),pos.end(),refl.weaken(source.ctxt()));
+	std::optional<Thm> step(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
+		return _step(rules,source,pos.begin(),pos.end(),refl.weaken(source.ctxt()));
 	}
 	/**
-	 * @brief rewrites a theorem one step.
-	 */
-	std::optional<Thm> rewrite(Rules const& rules, Thm const& thm, std::vector<char> const& pos) const;
-	/**
-	 * @brief normalizes a theorem.
+	 * @brief many step rewrite equation
 	 * 
 	 * @param rules 
-	 * @param thm 
-	 * @param steps limits the number of steps
-	 * @return the normal form
+	 * @param source 
+	 * @param n 
+	 * @param pos 
+	 * @return Thm 
 	 */
-	Thm normalize(Rules const& rules, Thm const& thm, unsigned int steps, std::vector<char> const& pos) const;
+	Thm steps(Rules const& rules, CTerm const& source, unsigned int n, std::vector<char> const& pos) const;
+	Thm rewrite(Rules const& rules, Thm const& source, unsigned int n, std::vector<char> const& pos) const;
 private:
 	std::optional<Thm> congruence(std::function<std::optional<Thm>(CTerm const&)> inner, CTerm const& source) const;
-	std::optional<Thm> _equate(Rules const& rules, CTerm const& source, Thm const& refl) const;
-	std::optional<Thm> _equate( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
+	std::optional<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
+	std::optional<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
 };
 
 class Definer {

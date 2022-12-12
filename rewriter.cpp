@@ -15,7 +15,7 @@ Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 	if( !app2.has_value() ) {
 		throw Error(thm);
 	}
-	push_back({thm,app2->second});
+	push_back({app2->second,thm});
 	return *this;
 }
 
@@ -41,7 +41,7 @@ static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (ξ x. s) = (ξ x. t)
 }
 
-optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm const& refl) const {
+optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
 	for( auto const& rule : rules ) {
 		auto const& pat = rule.pat;
 		auto const& fvars = pat.ctxt().fvars();
@@ -60,14 +60,14 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm con
 		auto const& fvars = pat.ctxt().fvars();
 		auto const& m = match(fvars,pat,source);
 		if( m.has_value() ) {// source = C[s...]
-			Thm ret = cong.rule.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
+			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			auto const& fvar_list = pat.ctxt().fvar_list();
 			auto it = fvar_list.begin();
 			auto end = fvar_list.end();
 			for(;;) {
 				auto const& si = *m->get(*it);
 				it++;
-				auto const& eq_opt = _equate(rules,si,refl);
+				auto const& eq_opt = _step(rules,si,refl);
 				if( eq_opt.has_value() ) {
 					ret = discharge(ret,*eq_opt);
 					break;
@@ -93,9 +93,9 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm con
 				auto const& abs = s->abs();
 				if( abs.has_value() ) {
 					CTerm const& s = abs->second;
-					auto const& eq_opt = _equate(rules,s,refl.weaken(s.ctxt()));
+					auto const& eq_opt = _step(rules,s,refl.weaken(s.ctxt()));
 					if( eq_opt.has_value() ) {
-						return equate_abs(qcong.rule,*eq_opt);
+						return equate_abs(qcong.thm,*eq_opt);
 					}
 				}
 			}
@@ -105,9 +105,9 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, Thm con
 	return std::optional<Thm>();
 }
 
-optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
+optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
 	if( pos_it == pos_end ) {// rewritable position
-		return equate(rules,source);
+		return _step(rules,source,refl);
 	}
 	for( auto const& cong : congs ) {
 		auto const& pat = cong.pat;
@@ -115,7 +115,7 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, vector<
 		auto const& fvar_list = pat.ctxt().fvar_list();
 		auto const& m = match(fvars,pat,source);
 		if( m.has_value() ) {// source = C[s...]
-			Thm ret = cong.rule.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
+			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			auto var_it = fvar_list.begin();
 			auto var_end = fvar_list.end();
 			char i = 0;
@@ -125,7 +125,7 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, vector<
 				auto const& si = *m->get(var);
 				if( *pos_it == i ) {
 					pos_it++;
-					auto const& eq_opt = _equate(rules,si,pos_it,pos_end,refl);
+					auto const& eq_opt = _step(rules,si,pos_it,pos_end,refl);
 					if( eq_opt.has_value() ) {
 						ret = discharge(ret,*eq_opt);
 						break;
@@ -154,9 +154,9 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, vector<
 				auto const& abs = s->abs();
 				if( abs.has_value() ) {
 					pos_it++;
-					auto const& eq_opt = _equate(rules,abs->second,pos_it,pos_end,refl);
+					auto const& eq_opt = _step(rules,abs->second,pos_it,pos_end,refl);
 					if( eq_opt.has_value() ) {
-						return equate_abs(qcong.rule,*eq_opt);
+						return equate_abs(qcong.thm,*eq_opt);
 					}
 				}
 			}
@@ -166,23 +166,27 @@ optional<Thm> Rewriter::_equate(Rules const& rules, CTerm const& source, vector<
 	return std::optional<Thm>();
 }
 
-optional<Thm> Rewriter::rewrite(Rules const& rules, Thm const& thm, vector<char> const& pos) const {
-	auto const& eq = equate(rules,thm,pos);
-	if( eq.has_value() ) {
-		return discharge(imp.weaken(thm.ctxt()),*eq).impE(thm);
+Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int n, std::vector<char> const& pos) const {
+	Ctxt const& ctxt = source.ctxt();
+	Thm lrefl = refl.weaken(ctxt);
+	Thm ltrans = trans.weaken(ctxt).allE(source);
+	Thm eq = lrefl.allE(source);
+	auto begin = pos.begin(), end = pos.end();
+	CTerm s = source;
+	for( unsigned int i = 0; i < n; i++ ) {
+		auto const& step = _step(rules,s,begin,end,lrefl);
+		if( !step.has_value() ) {
+			break;
+		}
+		CTerm const& t = step->app()->second;
+		Thm tr = ltrans.allE(s).allE(t).impE(eq);
+		eq = tr.impE(*step);
+		s = t;
 	}
-	return optional<Thm>();
+	return eq;
 }
-Thm Rewriter::normalize(Rules const& rules, Thm const& thm, unsigned int steps, std::vector<char> const& pos) const {
-	Thm acc = thm;
-	for( unsigned int i = 0; ; i++ ) {
-		auto const& next = rewrite(rules,acc,pos);
-		if( !next.has_value() ) {
-			return acc;
-		}
-		acc = *next;
-		if( i >= steps ) {
-			return acc;
-		}
-	}
+Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int n, std::vector<char> const& pos) const {
+	Thm const& eq = steps(rules,source,n,pos);
+	CTerm const& target = eq.app()->second;
+	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);
 }

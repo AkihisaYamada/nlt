@@ -150,12 +150,7 @@ optional<Term> Syntax::gets_term(int level) {
 	auto opener_it = openers.find(sym);
 	if( opener_it != openers.end() ) {
 		ignore_token();
-		auto const& opt = gets_term(opener_it->second.level);
-		if( !opt.has_value() ) {
-			throw Error( "parse error after '" + string(opener_it->first) + "' at " + string(peek_token()) );
-		}
-		ret = opener_it->second.handler(opt.value());
-		skip(opener_it->second.closer);
+		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
 	} else {
 		auto prefix_it = prefixes.find(sym);
 		if( prefix_it != prefixes.end() ) {

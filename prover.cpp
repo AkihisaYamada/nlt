@@ -10,21 +10,28 @@ struct ProverFailure : exception {
 };
 class UnfinishedProof : std::exception {};
 
+static String const LPAR = "(";
+static String const RPAR = ")";
+static String const LBRACE = "{";
+static String const RBRACE = "}";
+
 class Prover {
 	unsigned int _depth;
 	Ctxt _ctxt;
 	bool _own_syntax;
 	Ref<Syntax> _syntax;
-	optional<CTerm> _thesis;
+	optional<Thm> _thesis;
+	Concluder _concluder;
 	StrMap<Rewriter> _rewriters;
 	optional<Ref<Definer>> _definer;
 	bool _exit_on_error;
-	Prover(Prover const& parent, Ctxt const& ctxt, optional<CTerm> thesis) :
+	Prover(Prover const& parent, Ctxt const& ctxt, optional<Thm> thesis) :
 		_depth(parent._depth+1),
 		_ctxt(ctxt),
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis(thesis),
+		_concluder(parent._concluder),
 		_rewriters(parent._rewriters),
 		_definer(parent._definer) {}
 public:
@@ -47,17 +54,23 @@ public:
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->encloser("(",")",-1000,[]( std::optional<Term> t ){ return *t; });
+		_syntax->encloser(LPAR,RPAR,-1000,[&]( function<optional<Term>(int)> get_inner ){
+			optional<Term> t = get_inner(0);
+			_syntax->skip(RPAR);
+			return *t;
+		});
 		_syntax->infix(",",-1,-1,-2);
 		_syntax->infix(";",-1,-1,-2);
 		_syntax->infix(":",-1,-1,-2);
 		_syntax->infix(":=",-1,-1,-2);
 	}
 	Prover branch() {
-		return Prover(*this,_ctxt.branch(),optional<CTerm>());
+		return Prover(*this,_ctxt.branch(),optional<Thm>());
 	}
 	Prover prove(CTerm const& thesis) {
-		return Prover(*this,thesis.ctxt().branch(),thesis);
+		Ctxt const& ctxt = thesis.ctxt();
+		Thm thm = ctxt.branch().assume("thesis",thesis).intro();// thesis ⟹ thesis
+		return Prover(*this,ctxt.branch(),thm);
 	}
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
@@ -67,15 +80,16 @@ public:
 		}
 		return thm->intro();
 	}
-
-	Thm _rewrite( Ctxt const& loc, Thm const& source, bool rev = false ) {
+	Rewriter& _rewriter() {
 		String name;
 		if( _syntax->skips("[") ) {
 			name = _syntax->get_token();
 			_syntax->skip("]");
 		}
-		Rewriter& rewriter = _rewriters.find(name)->second;
-		vector<char> pos;
+		return _rewriters.find(name)->second;
+	}
+	Thm _rewrite( Rewriter const& rewriter, Ctxt const& loc, Thm const& source, bool simp, bool rev = false ) {
+		vector<char> pos = simp ? vector<char>{0,1} : vector<char>{};
 		if( _syntax->skips("(") ) {
 			while( !_syntax->skips(")") ) {
 				pos.push_back(_syntax->get_int());
@@ -90,14 +104,7 @@ public:
 			}
 			rules.add( rev ? rewriter.reverse(*opt_arg) : *opt_arg );
 		}
-		if( many ) {
-			return rewriter.normalize(rules,source,255,pos);
-		}
-		auto const& opt_ret = rewriter.rewrite(rules,source,pos);
-		if( !opt_ret.has_value() ) {
-			throw ProverFailure("Failed unfold");
-		}
-		return *opt_ret;
+		return rewriter.rewrite(rules,source, many ? 255 : 1, pos);
 	}
 
 	optional<Thm> _gets_thm(Ctxt loc) {
@@ -122,9 +129,11 @@ public:
 						ret = discharge(ret,*opt_arg);
 					}
 				} else if( _syntax->skips("unfolded") ) {
-					ret = _rewrite(loc,ret);
+					Rewriter const& rewriter = _rewriter();
+					ret = _rewrite(rewriter,loc,ret,false,false);
 				} else if( _syntax->skips("folded") ) {
-					ret = _rewrite(loc,ret,true);
+					Rewriter const& rewriter = _rewriter();
+					ret = _rewrite(rewriter,loc,ret,false,true);
 				}
 				_syntax->skip("]");
 			} else {
@@ -254,22 +263,7 @@ public:
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm thm = *thm_opt;
-				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
-				Ctxt thm_ctxt = stmt_ctxt.branch();
-				Thm thm_strip = strip_all(thm,thm_ctxt);
-				stmt_strip = stmt_strip.weaken(thm_ctxt);
-				optional<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
-				if( !matcher.has_value() ) {
-					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
-					throw UnfinishedProof();
-				}
-				thm = thm.weaken(stmt_ctxt);
-				for( auto const& v : thm_ctxt.fvar_list() ) {
-					thm = thm.allE(matcher->get(v)->subst(stmt_ctxt));
-				}
-				thm = thm.intro();
-				_ctxt.claim(thm_name,thm);
+				_ctxt.claim(thm_name,thm_opt->intro());
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
 				_syntax->skip("where");
@@ -307,15 +301,49 @@ public:
 				_syntax->skip(";");
 				(**_definer).define(_ctxt,l,r,name);
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
+			} else if( _syntax->skips("unfold") ) {
+				if( !_thesis.has_value() ) {
+					cerr << "No goal for \"unfold\"" << endl;
+					throw UnfinishedProof();
+				}
+				Rewriter const& rewriter = _rewriter();
+				Ctxt const& loc = _thesis->ctxt();
+				*_thesis = _rewrite(rewriter,loc,*_thesis,true);
+				_syntax->skip(";");
+				cerr << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis.has_value() ) {
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
-				Thm ret = get_thm();
+				Thm const& thm = get_thm().intro();
 				_syntax->skip(";");
-				cerr << "By " << _syntax->pretty_thm(ret) << endl;
-				return ret.intro();
+				CTerm stmt = _thesis->app()->first.app()->second;
+				Ctxt stmt_ctxt = stmt.ctxt().branch();
+				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
+				Ctxt thm_ctxt = stmt_ctxt.branch();
+				Thm thm_strip = strip_all(thm,thm_ctxt);
+				stmt_strip = stmt_strip.weaken(thm_ctxt);
+				optional<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
+				if( !matcher.has_value() ) {
+					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
+					throw UnfinishedProof();
+				}
+				Thm arg = thm.weaken(stmt_ctxt);
+				for( auto const& v : thm_ctxt.fvar_list() ) {
+					arg = arg.allE(matcher->get(v)->subst(stmt_ctxt));
+				}
+				arg = arg.intro();
+				Thm const& ret = _thesis->impE(arg);
+				cerr << "Concluded " << _syntax->pretty_thm(ret) << endl;
+				return ret;
+			} else if( _syntax->skips("done") ) {
+				if( !_thesis.has_value() ) {
+					cerr << "No goal for \"done\"" << endl;
+					throw UnfinishedProof();
+				}
+				_syntax->skip(";");
+				return _concluder.conclude(*_thesis);
 			} else if( _syntax->skips("prefix") ) {
 				String sym = _syntax->get_token();
 				int rlevel = _syntax->get_int();
@@ -334,25 +362,28 @@ public:
 				_syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
-				if( _syntax->skips("rewrite") ) {
+				if( _syntax->skips("conclude") ) {
+					Thm const& thm = get_thm();
+					_concluder.insert(thm);
+					cout << "Added concluder: " << _syntax->pretty_thm(thm) << endl;
+				} else if( _syntax->skips("rewrite") ) {
 					String name;
 					if( _syntax->skips("[") ) {
 						name = _syntax->get_token();
 						_syntax->skip("]");
 					}
-					Thm const& imp = get_thm();
-					Thm const& sym = get_thm();
 					Thm const& refl = get_thm();
+					Thm const& sym = get_thm();
 					Thm const& trans = get_thm();
-					auto const& pair = _rewriters.insert({name,Rewriter(imp,sym,refl,trans)});
-					cout << "Initialized Rewriter " << name << endl;
+					Thm const& imp = get_thm();
+					auto const& pair = _rewriters.insert({name,Rewriter(refl,sym,trans,imp)});
+					cout << "Initialized Rewriter " << name << endl <<
+						"refl: " << _syntax->pretty_term(refl) <<
+						", sym: " << _syntax->pretty_term(sym) <<
+						", trans: " << _syntax->pretty_term(trans) <<
+						", imp: " << _syntax->pretty_term(imp) << endl;
 				} else if( _syntax->skips("cong") ) {
-					String name;
-					if( _syntax->skips("[") ) {
-						name = _syntax->get_token();
-						_syntax->skip("]");
-					}
-					Rewriter& rewriter = _rewriters.find(name)->second;
+					Rewriter& rewriter = _rewriter();
 					for(;;) {
 						if( _syntax->skips("!") ) {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
@@ -381,16 +412,26 @@ public:
 					Term const& singleton = _syntax->get_term(1000);
 					Term const& collect = _syntax->get_term(1000);
 					Term const& lam = _syntax->get_term(1000);
-					auto handler = [=](optional<Term> inner) {
+					Term const& un = _syntax->get_term(1000);
+					auto handler = [=,*this](function<optional<Term>(int)> get_inner) {
+						auto const& inner = get_inner(0);
 						if( !inner.has_value() ) {
+							_syntax->skip(RBRACE);
 							return empty;
 						}
 						if( inner->abs().has_value() ) {
+							_syntax->skip(RBRACE);
 							return collect(lam(*inner));
 						}
-						return singleton(*inner);
+						Term ret = singleton(*inner);
+						while( _syntax->skips(",") ) {
+							auto const inner2 = get_inner(0);
+							ret = un(ret)(singleton(*inner2));
+						}
+						_syntax->skip(RBRACE);
+						return ret;
 					};
-					_syntax->encloser("{","}",-1000,handler);
+					_syntax->encloser(LBRACE,RBRACE,-1000,handler);
 				}
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
@@ -406,8 +447,7 @@ public:
 				}
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
-				Thm ret = sorry(*_thesis);
-				ret = ret.intro();
+				Thm ret = sorry(_thesis->app()->second);
 				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else {
@@ -430,6 +470,9 @@ public:
 			exit(-1);
 		} catch ( Syntax::Error const& e ) {
 			cerr << "Syntax ERROR: " << e.message << endl;
+			exit(-1);
+		} catch ( exception const& e ) {
+			cerr << "Other exception: " << e.what() << endl;
 			exit(-1);
 		}
 	}

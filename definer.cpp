@@ -24,10 +24,9 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String c
 	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x).has_value(); });
 	prover.fix(thesis);
 	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
-
 	Thm thm = prover.thm("assm");
 	thm = thm.allE(t);
-	thm = rewriter->normalize(beta,thm,steps,{false,true});
+	thm = rewriter->rewrite(beta,thm,steps,{0,1});
 	thm = discharge(thm,rewriter->refl);
 	thm = thm.intro();
 	ctxt.import(obtainer.interpret(ctxt,{thm}));

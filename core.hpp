@@ -267,7 +267,7 @@ public:
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Ctxt& assume(String const& name, Term const& assm);
+	Thm assume(String const& name, Term const& assm);
 	/**
 	 * @brief Fixes a symbol with a specification.
 	 * the existence of sym that satisfy spec
@@ -530,12 +530,6 @@ public:
 inline bool operator!=(CTerm const& l, CTerm const& r) {
 	return !(l == r);
 };
-inline Ctxt& Ctxt::assume(String const& name, Term const& assm) {
-	enclose(assm);
-	_ref->assms.push_back(assm);
-	_ref->thms.insert({name,assm});
-	return *this;
-}
 
 /**
  * @brief Substitution, whose range is closed with respect to a context.
@@ -652,6 +646,12 @@ inline Thm Ctxt::assm(size_t n) const {
 		throw TheoremNotFound("$assm "+std::to_string(n));
 	}
 	return CTerm(*this,_ref->assms[n]);
+}
+inline Thm Ctxt::assume(String const& name, Term const& assm) {
+	CTerm const& t = enclose(assm);
+	_ref->assms.push_back(assm);
+	_ref->thms.insert({name,assm});
+	return t;
 }
 inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	if( thm._ctxt != *this ) {

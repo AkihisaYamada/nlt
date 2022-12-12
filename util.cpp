@@ -264,3 +264,19 @@ Thm discharge(Thm thm, Thm arg) {
 	return thm;
 }
 
+Thm Concluder::conclude(Thm const& thm) {
+	CTerm const& source = thm.app()->first.app()->second; // thm = source ⟹ ...
+	for( Rule const& rule : rules ) {
+		auto const& pat_ctxt = rule.pat.ctxt();
+		auto const& m = match(pat_ctxt.fvars(),rule.pat,source);
+		if( m.has_value() ) {
+			Thm arg = rule.thm.weaken(source.ctxt());
+			for( auto const& fvar : pat_ctxt.fvar_list() ) {
+				arg = arg.allE(*m->get(fvar));
+			}
+			return thm.impE(arg);
+		}
+	}
+	throw UnexpectedTerm(thm);
+}
+

@@ -25,7 +25,7 @@ class Syntax : public Lexer {
 	struct Opener {
 		String closer;
 		int level;
-		std::function<Term(std::optional<Term>)> handler;
+		std::function<Term(std::function<std::optional<Term>(int)>)> handler;
 	};
 	StrMap<Prefix> prefixes;
 	StrMap<Infix> infixes;
@@ -45,7 +45,7 @@ public:
 	void infix(String const& sym, int level, int llevel, int rlevel) {
 		infixes.insert({sym,{level,llevel,rlevel}});
 	}
-	void encloser(String const& opener, String const& closer, int level, std::function<Term(std::optional<Term>)> handler) {
+	void encloser(String const& opener, String const& closer, int level, std::function<Term(std::function<std::optional<Term>(int)>)> handler) {
 		openers.insert({opener,{closer,level,handler}});
 		closers.insert(closer);
 	}
