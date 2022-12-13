@@ -185,7 +185,7 @@ public:
 				break;
 			}
 			_syntax->skip(":");
-			ret.push_back({*name,_syntax->get_term()});
+			ret.push_back({*name,_syntax->get_term(0)});
 			if( !_syntax->skips(",") ) {
 				break;
 			}
@@ -221,7 +221,7 @@ public:
 				for(;;) {
 					String name = _syntax->get_thm_name();
 					_syntax->skip(":");
-					Term term = _syntax->gets_term(0).value();
+					Term term = _syntax->get_term(0);
 					cout << name << ": " << _syntax->pretty_term(term) << flush;
 					_ctxt.assume(name,term);
 					if( !_syntax->skips(",") ) {
@@ -257,14 +257,29 @@ public:
 				_syntax->skip(":");
 				Ctxt stmt_ctxt = _ctxt.branch();
 				CTerm stmt = stmt_ctxt.enclose(_syntax->get_term(0));
+				cout << "Show " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
+				if( _syntax->skips(",") ) {
+					_syntax->skip("assuming");
+					for(;;) {
+						String assm_name = _syntax->get_thm_name();
+						_syntax->skip(":");
+						Term term = _syntax->get_term(0);
+						cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
+						stmt_ctxt.assume(assm_name,term);
+						if( !_syntax->skips(",") ) {
+							break;
+						}
+						cout << ", " << flush;
+					}
+				}
 				_syntax->skip(";");
-				cout << "Proving " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
 				auto const& thm_opt = prove(stmt).loop();
 				if( !thm_opt.has_value() ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
 				_ctxt.claim(thm_name,thm_opt->intro());
+				
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
 				_syntax->skip("where");
