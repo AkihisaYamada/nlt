@@ -199,21 +199,27 @@ struct UnboundVariable : public std::exception {
 	UnboundVariable(String const& name) : name(name) {}
 };
 
+struct LocaleNotFound : public std::exception {
+	String name;
+	LocaleNotFound(String const& name) : name(name) {}
+};
+
 class CTerm;
+
+class Fixer {
+};
 
 class Ctxt {
 private:
 	struct Body;
 	Ref<Body> _ref;
-	Ctxt();
+	Ctxt(Body const& body);
 public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	/**
 	 * @brief The root Ctxt
 	 */
-	static Ctxt root() {
-		return Ctxt();
-	}
+	static Ctxt root();
 	/**
 	 * @brief Finds the parent or child context.
 	 */
@@ -261,14 +267,6 @@ public:
 	 */
 	std::optional<String const> find_sym(String const& sym) const;
 	/**
-	 * @brief Fixes a symbol if it is not fixed yet.
-	 */
-	CTerm fix(String const& sym);
-	/**
-	 * @brief Adds assumption in the context.
-	 */
-	Thm assume(String const& name, Term const& assm);
-	/**
 	 * @brief Fixes a symbol with a specification.
 	 * the existence of sym that satisfy spec
 	 *
@@ -279,12 +277,12 @@ public:
 	 */
 	std::pair<CTerm,Ctxt const> obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs);
 	/**
-	 * @brief Fixes all free variables of a term, so that it will become a closed term.
+	 * @brief Universally quantify all free variables of a term, so that it will become a closed term.
 	 * 
 	 * @param t the term to be closed.
 	 * @return CTerm whose context is this
 	 */
-	CTerm enclose(Term const& t);
+	CTerm quantify(Term t);
 	/**
 	 * @brief Verifies a closed term.
 	 * 
@@ -308,7 +306,7 @@ public:
 	/**
 	 * @brief Creates a child context.
 	 */
-	Ctxt branch() const;
+	Ctxt branch(std::list<String> const& vars, std::list<Term> const& assms) const;
 	/**
 	 * @brief locale interpretation.
 	 * 
@@ -346,17 +344,22 @@ struct Ctxt::Body {
 	/**
 	 * @brief The set of locally fixed variables (excluding ancestors).
 	 */
-	StrSet fvars;
+	StrSet const fvars;
 	/**
 	 * @brief The vector of locally fixed variables.
 	 */
-	std::vector<String> fvar_list;
+	std::vector<String> const fvar_list;
+	/**
+	 * @brief Local assumptions.
+	 */
+	std::vector<Term> const assms;
 	/**
 	 * @brief Locally obtained constants and their specifications.
 	 */
 	StrMap<std::vector<std::pair<String,Term>>> specs;
-	std::vector<Term> assms;
 	StrMap<Term const> thms; // table of theorems
+	Body() {}
+	Body(Ctxt const& parent, std::vector<String> const&& fvars, std::vector<Term> const&& assms);
 };
 
 /**
@@ -367,12 +370,8 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : _ref(Body()) {};
-
-inline Ctxt Ctxt::branch() const {
-	Ctxt ret;
-	ret._ref->ctxts.insert({"",*this});
-	return ret;
+Ctxt Ctxt::root() {
+	return Ctxt(Body());
 }
 
 inline StrSet const& Ctxt::fvars() const {
@@ -647,12 +646,6 @@ inline Thm Ctxt::assm(size_t n) const {
 	}
 	return CTerm(*this,_ref->assms[n]);
 }
-inline Thm Ctxt::assume(String const& name, Term const& assm) {
-	CTerm const& t = enclose(assm);
-	_ref->assms.push_back(assm);
-	_ref->thms.insert({name,assm});
-	return t;
-}
 inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
 	if( thm._ctxt != *this ) {
 		throw WrongContext();
@@ -670,5 +663,20 @@ inline Thm sorry(CTerm const& t) {
 
 // workaround for Visual Studio...?
 //template<> inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
+
+class Intp;
+
+class Locale {
+	Ctxt _ctxt;
+	StrMap<Intp> _intp;
+public:
+	Thm thm(std::list<String> const& path, String const& name) const;
+};
+
+struct Intp {
+	Locale locale;
+	CSubst subst;
+	Term thm(std::list<String> const& path, String const& name) const;
+};
 
 #endif

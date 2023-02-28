@@ -15,6 +15,17 @@ static String const RPAR = ")";
 static String const LBRACE = "{";
 static String const RBRACE = "}";
 
+class Locale;
+class Intp {
+	Ref<Locale> _locale;
+	list<Thm> _prfs;
+	CSubst _args;
+};
+
+class Locale {
+	Ctxt _ctxt;
+};
+
 class Prover {
 	unsigned int _depth;
 	Ctxt _ctxt;
@@ -24,6 +35,7 @@ class Prover {
 	Concluder _concluder;
 	StrMap<Rewriter> _rewriters;
 	optional<Ref<Definer>> _definer;
+	StrMap<Prover> _locales;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, optional<Thm> thesis) :
 		_depth(parent._depth+1),
@@ -204,6 +216,20 @@ public:
 				branch().loop();
 				_syntax->skip("}");
 				cout << "Left context." << endl;
+			} else if( _syntax->skips("locale") ) {
+				String name = _syntax->get_token();
+				Prover loc = branch();
+				_locales.insert({name,loc});
+				if( _syntax->skips("=") ) {
+					for(;;) {
+						String parent_name = _syntax->get_token();
+						loc._ctxt.
+					}
+				}
+				_syntax->skip("{");
+				loc.loop();
+				_syntax->skip("}");
+				cout << "Left locale " << name << "." << endl;
 			} else if( _syntax->skips("ctxt") ) {
 				_syntax->skip(";");
 				cout << _syntax->pretty_ctxt(_ctxt) << endl;

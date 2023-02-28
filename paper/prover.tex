@@ -5,6 +5,44 @@
 \title{A Prover}
 \author{Akihisa Yamada}{AIST}{}{}{}
 
+\authorrunning{A. Yamada}
+
+\Copyright{Akihisa Yamada}
+
+\ccsdesc[100]{\textcolor{red}{Replace ccsdesc macro with valid one}} %TODO mandatory: Please choose ACM 2012 classifications from https://dl.acm.org/ccs/ccs_flat.cfm 
+
+\keywords{Dummy keyword} %TODO mandatory; please add comma-separated list of keywords
+
+\category{} %optional, e.g. invited paper
+
+\relatedversion{} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
+%\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
+
+%\supplement{}%optional, e.g. related research data, source code, ... hosted on a repository like zenodo, figshare, GitHub, ...
+%\supplementdetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93, subcategory={Description, Subcategory}, swhid={Software Heritage Identifier}]{General Classification (e.g. Software, Dataset, Model, ...)}{URL to related version} %linktext, cite, and subcategory are optional
+
+%\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
+
+\acknowledgements{I want to thank \dots}%optional
+
+%\nolinenumbers %uncomment to disable line numbering
+
+
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\EventEditors{John Q. Open and Joan R. Access}
+\EventNoEds{2}
+\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+\EventShortTitle{CVIT 2016}
+\EventAcronym{CVIT}
+\EventYear{2016}
+\EventDate{December 24--27, 2016}
+\EventLocation{Little Whinging, United Kingdom}
+\EventLogo{}
+\SeriesVolume{42}
+\ArticleNo{23}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \makeatletter
 \def\tp@#1#2{\@ifnextchar[{\tp@@{#1}{#2}}{\tp@@@{#1}{#2}}}
 \def\tp@@#1#2[#3]#4{\mathopen{#3#1}\def\mid{\mathrel{#3|}}#4\mathclose{#3#2}}
@@ -51,6 +89,9 @@
 \begin{document}
 \maketitle
 
+\begin{abstract}
+\end{abstract}
+
 \section{Introduction}
 
 \section{Meta-Theory}
@@ -63,7 +104,7 @@
 \begin{itemize}
 	\item $x \in \Term(\Sigma)$ if $x \in \Sigma$
 	\item $s\,t \in \Term(\Sigma)$ if $s, t \in \Term(\Sigma)$
-	\item $x.\,s \in \Term(\Sigma)$ if $s \in \Term(\Sigma\cup\set{x})$
+	\item $x.\,s \in \Term(\Sigma\setminus\set{x})$ if $x \in \Sigma$ and $s \in \Term(\Sigma)$
 	\item $x[s] \in \Term(\Sigma)$ if $x \in \Sigma$ and $s \in \Term(\Sigma\setminus\set{x})$
 \end{itemize}
 
@@ -85,13 +126,13 @@ Substitution
 We assume an infix symbol $\IMP$ and a prefix $\forall$.
 
 \begin{definition}[contexts]\label{def:ctxt}
-A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set of \emph{constants} $\Sigma$ is defined as follows.
+A \emph{context} $\Gamma \in \Ctxt(\Sigma)$ over the set $\Sigma$ of \emph{constants} is defined as follows.
 
 \begin{itemize}
 \item $\epsilon \in \Ctxt(\Sigma)$
 \item $(\Gamma;\ASS s) \in \Ctxt(\Sigma)$ if
 	$\Gamma \in \Ctxt(\Sigma)$ and $s \in \Term(\Sigma)$.
-\item $(\Gamma;\FIX x) \in \Ctxt(\Sigma)$ if $x \in \Sigma$ and $\Gamma \in \Ctxt(\Sigma\setminus\set{x})$.
+\item $(\Gamma;\FIX x) \in \Ctxt(\Sigma)$ if $\Gamma \in \Ctxt(\Sigma\setminus\set{x})$ and $x \in \Sigma$.
 \end{itemize}
 
 \noindent A term $s \in \Term(\Sigma)$ is a \emph{theorem} in $\Gamma \in \Ctxt(\Sigma)$, written $\Gamma\vdash s$, if it is derivable by the following inference rules:

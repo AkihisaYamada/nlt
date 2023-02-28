@@ -419,6 +419,7 @@ prefix THE 0 1;
 
 assume THE.intro: ∀α. (∃!) α ⟹ α[(THE) α];
 
+locale negation {
 
 fix False;
 
@@ -668,11 +669,12 @@ show NEQ.irrefl: ∀ x. ¬ x ≠ x;
 		by 3[OF EQ.refl];
 		by NOT.intro[OF 1];
 
+}
 
-define True := ∀P. P ⟹ P;
+locale truth {
 
-show True.intro: True;
-	by IMP.refl[folded True.def];
+fix True;
+assume True.intro: True;
 
 setup conclude True.intro;
 
@@ -706,6 +708,8 @@ show True_EQ_IMP: True = P ⟹ P;
 show EQ_True_IMP: P = True ⟹ P;
 	unfold[IFF] EQ.commute;
 	by True_EQ_IMP;
+
+}
 
 show True_NEQ_False: True ≠ False;
 	show NOT_True_EQ_False: ¬ (True = False);

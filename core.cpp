@@ -229,6 +229,44 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
+Ctxt::Body::Body(Ctxt const& parent, std::vector<String> const&& fvar_list, std::vector<Term> const&& assms) :
+	fvar_list(fvar_list),
+	fvars([&](){
+		StrSet ret;
+		for( auto const& fvar : fvar_list ) {
+			ret.insert(fvar);
+		}
+		return ret;
+	}()),
+	assms(assms) {
+	ctxts.insert({"",parent});
+}
+
+CTerm Ctxt::quantify(Term t) {
+	StrSet fvars;
+	std::list<String> fvar_list;
+	t.iter_syms(
+		[](String const& var){},// do nothing on bound ones
+		[&](String const& var){
+			if( !fvars.contains(var) ) {// fix free variable
+				fvars.insert(var);
+				fvar_list.push_front(var);
+			}
+		}
+	);
+	for( String const& fvar : fvar_list ) {
+		t = ALL(fvar /= t);
+	}
+	return CTerm(*this,t);
+}
+
+Ctxt Ctxt::branch(std::list<String> const& vars, std::list<Term> const& assms) const {
+	Ctxt ret;
+	ret._ref->ctxts.insert({"",*this});
+	ret._ref->fvars = vars;
+	return ret;
+}
+
 optional<String const> Ctxt::find_sym_local(String const& sym) const {
 	auto it = fvars().find(sym);
 	if( it != fvars().end() ) {
@@ -250,23 +288,6 @@ optional<String const> Ctxt::find_sym(String const& sym) const {
 		}
 	}
 	return opt;
-}
-
-CTerm Ctxt::fix(String const& sym) {
-	auto opt = find_sym(sym);
-	if( opt.has_value() ) {
-		return CTerm(*this,*opt);
-	}
-	_ref->fvars.insert(sym);
-	_ref->fvar_list.push_back(sym);
-	return CTerm(*this,sym);
-}
-CTerm Ctxt::enclose(Term const& t) {
-	t.iter_syms(
-		[](String const& sym){},// do nothing on bound ones
-		[this](String const& sym){ fix(sym); }// fix free symbols
-	);
-	return CTerm(*this,t);
 }
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms(
@@ -433,3 +454,21 @@ Ctxt& Ctxt::import(Ctxt const& ctxt) {
 	return *this;
 }
 
+Thm Locale::thm(list<String> const& path, String const& name) const {
+	if( path.empty() ) {
+	}
+	
+}
+Thm Intp::thm(list<String> const& path, String const& name) const {
+	if( path.empty() ) {
+		return _ctxt.thm(name);
+	}
+	auto intp_it = _intp.find(*it);
+	it++;
+	if( intp_it == _intp.end() ) {
+		throw LocaleNotFound(*it);
+	}
+	Locale const& loc = intp_it->second.locale;
+	Thm const& thm = loc._thm(it,end,name);
+	
+}
