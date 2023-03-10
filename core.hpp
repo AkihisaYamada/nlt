@@ -10,6 +10,7 @@
 #include<functional>
 #include<optional>
 #include<list>
+#include<variant>
 #include"ref.hpp"
 #include"string.hpp"
 
@@ -44,7 +45,13 @@ class StrMap : public std::map<String,T,std::less<>> {};
 typedef std::set<String,std::less<>> StrSet;
 
 class Term {
-	enum { SYM, APP, ABS, BIND } _type;
+	template<typename T>
+	struct Opt {
+		T* ptr;
+		operator bool() const { return ptr; }
+		T& operator*() { return *ptr; }
+		T* operator->() { return ptr; }
+	};
 	struct App : Ref<std::pair<Term,Term> const> {
 		 App(Term const& fun, Term const& arg) : Ref({fun,arg}) {}
 	};
@@ -54,32 +61,17 @@ class Term {
 	struct Bind : Ref<std::pair<String,Term> const> {
 		Bind(String const& var, Term const& val) : Ref({var,val}) {}
 	};
-	union Union {
-		String sym;
-		App app;
-		Abs abs;
-		Bind fix;
-		~Union() {}
-		Union(String const& sym) : sym(sym) {}
-		Union(App const& app) : app(app) {}
-		Union(Abs const& abs) : abs(abs) {}
-		Union(Bind const& fix) : fix(fix) {}
-	} _un;
-	Term(App const& app) : _type(APP), _un(app) {}
-	Term(Abs const& abs) : _type(ABS), _un(abs) {}
-	Term(Bind const& bind) : _type(BIND), _un(bind) {}
+	std::variant<String,App,Abs,Bind> _un;
+	Term(App const& app) : _un(app) {}
+	Term(Abs const& abs) : _un(abs) {}
+	Term(Bind const& bind) : _un(bind) {}
 	typedef std::pair<Term const&,Term const&> Pair;
 	typedef std::pair<String const&, Term const&> StrTerm;
 public:
-	Term(Term const& other) : _type(other._type), _un(other._copy_un()) {}
 	/**
 	 * @brief Construct a symbol term
 	 */
-	Term(String const& sym = VOID_var) : _type(SYM), _un(sym) {}
-	/**
-	 * @brief Do not explicitly call destructor!
-	 */
-	~Term();
+	Term(String const& sym = VOID_var) : _un(sym) {}
 	Term& operator=(Term const& other);
 	/**
 	 * @brief application
@@ -103,17 +95,20 @@ public:
 	friend Term operator/(String const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
-	std::optional<String> sym() const {
-		return _type == SYM ? _un.sym : std::optional<String>();
+	Opt<String const> sym() const {
+		return {std::get_if<String>(&_un)};
 	}
-	std::optional<Pair> app() const {
-		return _type == APP ? *_un.app : std::optional<Pair>();
+	Opt<std::pair<Term,Term> const> app() const {
+		auto ptr = std::get_if<App>(&_un);
+		return { ptr ? &**ptr : nullptr };
 	}
-	std::optional<StrTerm> abs() const {
-		return _type == ABS ? *_un.abs : std::optional<StrTerm>();
+	Opt<std::pair<String,Term> const> abs() const {
+		auto ptr = std::get_if<Abs>(&_un);
+		return { ptr ? &**ptr : nullptr };
 	}
-	std::optional<StrTerm> fix() const {
-		return _type == BIND ? *_un.fix : std::optional<StrTerm>();
+	Opt<std::pair<String,Term> const> fix() const {
+		auto ptr = std::get_if<Bind>(&_un);
+		return { ptr ? &**ptr : nullptr };
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -149,7 +144,6 @@ public:
 		return _map(f,fixed,bsyms);
 	};
 private:
-	Union _copy_un() const;
 	void _iter_syms(
 		StrSet& bsyms,
 		std::function<void(String const&)> const& bsym,
@@ -437,8 +431,8 @@ public:
 		return _ctxt;
 	}
 	std::optional<Pair> app() const {
-		auto const& tapp = Term::app();
-		return tapp.has_value() ? Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second)) : std::optional<Pair>();
+		auto tapp = Term::app();
+		return tapp ? Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second)) : std::optional<Pair>();
 	}
 	/**
 	 * @brief Deconstruct closed abstraction.
@@ -447,8 +441,8 @@ public:
 	 */
 	std::optional<StrTerm> abs() const;
 	std::optional<StrTerm> fix() const {
-		auto const& tfix = Term::fix();
-		return tfix.has_value() ? StrTerm(tfix->first,CTerm(_ctxt,tfix->second)) : std::optional<StrTerm>();
+		auto tfix = Term::fix();
+		return tfix ? StrTerm(tfix->first,CTerm(_ctxt,tfix->second)) : std::optional<StrTerm>();
 	}
 	/**
 	 * @brief Application of closed terms. Both terms should belong to the same context.
@@ -488,8 +482,8 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm inst(CTerm const& arg) const {
-		auto const& a = Term::abs();
-		if( !a.has_value() ) {
+		auto a = Term::abs();
+		if( !a ) {
 			throw MalformedInstantiation(*this,arg);
 		}
 		return CTerm(_ctxt,a->second.subst(a->first,arg));

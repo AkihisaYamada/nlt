@@ -23,26 +23,6 @@ Term& Term::operator=(Term const& other) {
 	return *this;
 }
 
-Term::Union Term::_copy_un() const {
-	switch(_type) {
-		case SYM: return Union(_un.sym);
-		case APP: return Union(_un.app);
-		case ABS: return Union(_un.abs);
-		case BIND: return Union(_un.fix);
-		default: assert(false);
-	}
-}
-
-Term::~Term() {
-	switch(_type) {
-	case SYM: _un.sym.~String(); break;
-	case APP: _un.app.~App(); break;
-	case ABS: _un.abs.~Abs(); break;
-	case BIND: _un.fix.~Bind(); break;
-	default: assert(false);
-	}
-}
-
 static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
 	auto lit = lmap.find(x);
 	auto rit = rmap.find(y);
@@ -52,20 +32,19 @@ static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap
 	return rit == rmap.end() && x == y;
 }
 bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth) {
-	if( l._type != r._type ) {
-		return false;
-	}
-	switch(l._type) {
-		case SYM:
-			return _eq_var(l._un.sym,r._un.sym,lmap,rmap);
-		case APP:
-			return _eq(l._un.app->first,r._un.app->first,lmap,rmap,depth) &&
-				_eq(l._un.app->second,r._un.app->second,lmap,rmap,depth);
-		case ABS: {
-			auto& labs = *l._un.abs;
-			auto& rabs = *r._un.abs;
+	if( auto lsym = l.sym() ) {
+		if( auto rsym = r.sym() ) {
+			return _eq_var(*lsym,*rsym,lmap,rmap);
+		}
+	} else if( auto lapp = l.app() ) {
+		if( auto rapp = r.app() ) {
+			return _eq(lapp->first,rapp->first,lmap,rmap,depth) &&
+				_eq(lapp->second,rapp->second,lmap,rmap,depth);
+		}
+	} else if( auto labs = l.abs() ) {
+		if( auto rabs = r.abs() ) {
 			depth++;
-			auto const& linfo = lmap.insert({labs.first,depth});
+			auto const& linfo = lmap.insert({labs->first,depth});
 			unsigned int lprev;
 			if( linfo.second ) {
 				lprev = 0;
@@ -73,7 +52,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				lprev = linfo.first->second;
 				linfo.first->second = depth;
 			}
-			auto const& rinfo = rmap.insert({rabs.first,depth});
+			auto const& rinfo = rmap.insert({rabs->first,depth});
 			unsigned int rprev;
 			if( rinfo.second ) {
 				rprev = 0;
@@ -81,7 +60,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				rprev = rinfo.first->second;
 				rinfo.first->second = depth;
 			}
-			if( _eq(labs.second,rabs.second,lmap,rmap,depth) ) {
+			if( _eq(labs->second,rabs->second,lmap,rmap,depth) ) {
 				if( lprev == 0 ) {
 					lmap.erase(linfo.first);
 				} else {
@@ -94,16 +73,16 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				}
 				return true;
 			}
-			return false;
 		}
-		case BIND: {
-			auto& lfix = *l._un.fix;
-			auto& rfix = *r._un.fix;
-			return _eq_var(lfix.first,rfix.first,lmap,rmap) &&
-				_eq(lfix.second,rfix.second,lmap,rmap,depth);
+	} else if( auto lfix = l.fix() ) {
+		if( auto rfix = r.fix() ) {
+			return _eq_var(lfix->first,rfix->first,lmap,rmap) &&
+				_eq(lfix->second,rfix->second,lmap,rmap,depth);
 		}
-		default: assert(false);
+	} else {
+		assert(false);
 	}
+	return false;
 }
 
 void Term::_iter_syms(
@@ -111,36 +90,28 @@ void Term::_iter_syms(
 	function<void(String const&)> const& bsym,
 	function<void(String const&)> const& fsym
 ) const {
-	switch(_type) {
-		case SYM:
-			if( bsyms.contains(_un.sym) ) {
-				bsym(_un.sym);
-			} else {
-				fsym(_un.sym);
-			}
-			return;
-		case APP:
-			_un.app->first._iter_syms(bsyms,bsym,fsym);
-			_un.app->second._iter_syms(bsyms,bsym,fsym);
-			return;
-		case ABS: {
-			auto& abs = *_un.abs;
-			bsyms.insert(abs.first);
-			abs.second._iter_syms(bsyms,bsym,fsym);
-			bsyms.erase(abs.first);
-			return;
+	if( auto sym = this->sym() ) {
+		if( bsyms.contains(*sym) ) {
+			bsym(*sym);
+		} else {
+			fsym(*sym);
 		}
-		case BIND: {
-			auto& fix = *_un.fix;
-			if( bsyms.contains(fix.first) ) {
-				bsym(fix.first);
-			} else {
-				fsym(fix.first);
-			}
-			fix.second._iter_syms(bsyms,bsym,fsym);
-			return;
+	} else if( auto app = this->app() ) {
+		app->first._iter_syms(bsyms,bsym,fsym);
+		app->second._iter_syms(bsyms,bsym,fsym);
+	} else if( auto abs = this->abs() ) {
+		bsyms.insert(abs->first);
+		abs->second._iter_syms(bsyms,bsym,fsym);
+		bsyms.erase(abs->first);
+	} else if( auto fix = this->fix() ) {
+		if( bsyms.contains(fix->first) ) {
+			bsym(fix->first);
+		} else {
+			fsym(fix->first);
 		}
-		default: assert(false);
+		fix->second._iter_syms(bsyms,bsym,fsym);
+	} else {
+		assert(false);
 	}
 }
 
@@ -178,48 +149,48 @@ static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap
 }
 
 Term Term::_map(function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const {
-	switch(_type) {
-		case SYM: return subst_var(f,_un.sym,bsyms);
-		case APP: return _un.app->first._map(f,fixed,bsyms)(_un.app->second._map(f,fixed,bsyms));
-		case ABS: {
-			auto& abs = *_un.abs;
-			String var = abs.first;
-			Term body = abs.second;
-			String const& newvar = avoid(var,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
-			auto newvar_info = bsyms.insert({newvar,newvar});// the new name should be avoided
-			if( newvar == var ) {// the bound variable is fresh
-				body = body._map(f,fixed,bsyms);
+	if( auto sym = this->sym() ) {
+		return subst_var(f,*sym,bsyms);
+	} else if( auto app = this->app() ) {
+		return app->first._map(f,fixed,bsyms)(app->second._map(f,fixed,bsyms));
+	} else if( auto abs = this->abs() ) {
+		String var = abs->first;
+		Term body = abs->second;
+		String const& newvar = avoid(var,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
+		auto newvar_info = bsyms.insert({newvar,newvar});// the new name should be avoided
+		if( newvar == var ) {// the bound variable is fresh
+			body = body._map(f,fixed,bsyms);
+		} else {
+			// replace the original name
+			auto replace_info = bsyms.insert({abs->first,newvar});
+			String prev;
+			if( !replace_info.second ) {// the variable is bound multiple times
+				prev = replace_info.first->second;// remember the old assignment
+				replace_info.first->second = newvar;// update to the new name
+			}
+			body = body._map(f,fixed,bsyms);
+			// forget/recover replacement
+			if( replace_info.second ) {
+				bsyms.erase(replace_info.first);
 			} else {
-				// replace the original name
-				auto replace_info = bsyms.insert({abs.first,newvar});
-				String prev;
-				if( !replace_info.second ) {// the variable is bound multiple times
-					prev = replace_info.first->second;// remember the old assignment
-					replace_info.first->second = newvar;// update to the new name
-				}
-				body = body._map(f,fixed,bsyms);
-				// forget/recover replacement
-				if( replace_info.second ) {
-					bsyms.erase(replace_info.first);
-				} else {
-					replace_info.first->second = prev;
-				}
-			}
-			// release the new name
-			bsyms.erase(newvar_info.first);
-			return newvar /= body;
-		}
-		case BIND: {
-			auto& fix = *_un.fix;
-			Term newbox = subst_var(f,fix.first,bsyms);
-			Term newval = fix.second._map(f,fixed,bsyms);
-			switch(newbox._type) {
-				case SYM: return newbox._un.sym / newval;
-				case ABS: return newbox._un.abs->second.subst(newbox._un.abs->first,newval);
-				default: throw UnexpectedTerm(newbox);
+				replace_info.first->second = prev;
 			}
 		}
-		default: assert(false);
+		// release the new name
+		bsyms.erase(newvar_info.first);
+		return newvar /= body;
+	} else if( auto fix = this->fix() ) {
+		Term newbox = subst_var(f,fix->first,bsyms);
+		Term newval = fix->second._map(f,fixed,bsyms);
+		if( auto nsym = newbox.sym() ) {
+			return *nsym / newval;
+		} else if( auto nabs = newbox.abs() ) {
+			return nabs->second.subst(nabs->first,newval);
+		} else {
+			throw UnexpectedTerm(newbox);
+		}
+	} else {
+		assert(false);
 	}
 }
 
