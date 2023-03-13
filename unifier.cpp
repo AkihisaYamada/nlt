@@ -15,8 +15,7 @@ private:
 	StrSet avoids[2];
 
 	static Term sanitize(Term const& t, StrSet& bounds, StrSet const& avoids, map<String,unsigned int,less<>> const& escapes) {
-		auto const& sym = t.sym();
-		if( sym.has_value() ) {
+		if( auto sym = t.sym() ) {
 			String const& x = *sym;
 			if( bounds.contains(x) ) {// local bound variable is OK
 				return x;
@@ -28,13 +27,9 @@ private:
 				throw Escapes();
 			}
 			return t;
-		}
-		auto const& app = t.app();
-		if( app.has_value() ) {
+		} else if( auto app = t.app() ) {
 			return sanitize(app->first,bounds,avoids,escapes)(sanitize(app->second,bounds,avoids,escapes));
-		}
-		auto const& abs = t.abs();
-		if( abs.has_value() ) {
+		} else if( auto abs = t.abs() ) {
 			String const& x = abs->first;
 			auto const& info = bounds.insert(x);
 			auto const& body = sanitize(abs->second,bounds,avoids,escapes);
@@ -42,15 +37,15 @@ private:
 				bounds.erase(info.first);
 			}
 			return x /= body;
+		} else if( auto fix = t.fix() ) {
+			return fix->first / sanitize(fix->second,bounds,avoids,escapes);
+		} else {
+			assert(false);
 		}
-		auto const& fix = t.fix();
-		assert( fix.has_value() );
-		return fix->first / sanitize(fix->second,bounds,avoids,escapes);
 	}
 
 	void unify1(String const& x, Term const& r) {
-		auto const& rsym = r.sym();
-		if( rsym.has_value() ) {
+		if( auto rsym = r.sym() ) {
 			String const& y = *rsym;
 			if( x == y ) {
 				return;
@@ -73,15 +68,13 @@ private:
 		throw Mismatch();
 	}
 	void unify2(Term const& l, Term const& r, unsigned int index) {
-		auto const& rsym = r.sym();
-		if( rsym.has_value() ) {
+		if( auto rsym = r.sym() ) {
 			String const& y = *rsym;
 			if( escapes[1].contains(y) ) { // bound variable cannot match other things
 				throw Mismatch();
 			}
 			// test if y has an assigned value.
-			auto ysubst = subst.get(y);
-			if( ysubst.has_value() ) {
+			if( auto ysubst = subst.get(y) ) {
 				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
 				unify2(l,*ysubst,index);
 				avoids[0].erase(y);
@@ -93,56 +86,52 @@ private:
 				return;
 			}
 			throw Mismatch();
-		}
-		auto const& lapp = l.app();
-		if( lapp.has_value() ) {
-			auto const& rapp = r.app();
-			if( !rapp.has_value() ) {
-				throw Mismatch();
-			 }
-			unify(lapp->first,rapp->first,index);
-			unify(lapp->second,rapp->second,index);
-			return;
-		}
-		auto const& labs = l.abs();
-		if( labs.has_value() ) {
-			auto const& rabs = r.abs();
-			if( !rabs.has_value() ) {
+		} else if( auto lapp = l.app() ) {
+			if( auto rapp = r.app() ) {
+				unify(lapp->first,rapp->first,index);
+				unify(lapp->second,rapp->second,index);
+				return;
+			} else {
 				throw Mismatch();
 			}
-			// both are abstraction.
-			String const& x = labs->first;
-			String const& y = rabs->first;
-			auto const& xinfo = escapes[0].insert({x,index});
-			auto const& yinfo = escapes[1].insert({y,index});
-			unify(labs->second,rabs->second,index+1);
-			// forget the bound variables
-			if( xinfo.second ) {
-				escapes[0].erase(xinfo.first);
+		} else if( auto labs = l.abs() ) {
+			if( auto rabs = r.abs() ) {
+				// both are abstraction.
+				String const& x = labs->first;
+				String const& y = rabs->first;
+				auto const& xinfo = escapes[0].insert({x,index});
+				auto const& yinfo = escapes[1].insert({y,index});
+				unify(labs->second,rabs->second,index+1);
+				// forget the bound variables
+				if( xinfo.second ) {
+					escapes[0].erase(xinfo.first);
+				}
+				if( yinfo.second ) {
+					escapes[1].erase(yinfo.first);
+				}
+				return;
+			} else {
+				throw Mismatch();
 			}
-			if( yinfo.second ) {
-				escapes[1].erase(yinfo.first);
+		} else if( auto lfix = l.fix() ) {
+			if( auto rfix = r.fix() ) {
+				if( lfix->first == rfix->first ) {
+					unify(lfix->second,rfix->second,index);
+					return;
+				}
 			}
-			return;
-		}
-		auto const& lfix = l.fix();
-		assert( lfix.has_value() );
-		auto const& rfix = r.fix();
-		if( !rfix.has_value() || lfix->first != rfix->first ) {
 			throw Mismatch();
+		} else {
+			assert(false);
 		}
-		unify(lfix->second,rfix->second,index);
-		return;
 	}
 public:
 	void unify(Term const& l, Term const& r, unsigned int index = 0) {
-		auto const& lsym = l.sym();
-		if( lsym.has_value() ) {
+		if( auto lsym = l.sym() ) {
 			String const& x = *lsym;
 			auto const& xesc_it = escapes[0].find(x);
 			if( xesc_it != escapes[0].end() ) {// bound variable must have the same index.
-				auto const& rsym = r.sym();
-				if( rsym.has_value() ) {
+				if( auto rsym = r.sym() ) {
 					auto const& yesc_it = escapes[1].find(*rsym);
 					if( yesc_it != escapes[1].end() ) {
 						if( xesc_it->second == yesc_it->second ) {

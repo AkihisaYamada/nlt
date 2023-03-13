@@ -38,6 +38,7 @@ extern String const IMP_var;
 extern String const ALL_var;
 extern Term const IMP;
 extern Term const ALL;
+std::ostream& operator<<(std::ostream& os, Term const& t);
 
 template<typename T>
 class StrMap : public std::map<String,T,std::less<>> {};
@@ -49,10 +50,10 @@ class Term {
 	struct Opt {
 		T* ptr;
 		operator bool() const { return ptr; }
-		T& operator*() { return *ptr; }
-		T* operator->() { return ptr; }
+		T& operator*() const { return *ptr; }
+		T* operator->() const{ return ptr; }
 	};
-	struct App : Ref<std::pair<Term,Term> const> {
+	struct App : public Ref<std::pair<Term,Term> const> {
 		 App(Term const& fun, Term const& arg) : Ref({fun,arg}) {}
 	};
 	struct Abs : Ref<std::pair<String,Term> const> {
@@ -67,12 +68,35 @@ class Term {
 	Term(Bind const& bind) : _un(bind) {}
 	typedef std::pair<Term const&,Term const&> Pair;
 	typedef std::pair<String const&, Term const&> StrTerm;
+	std::variant<String,App,Abs,Bind> _copy_un() const;
 public:
+	Term() {}
+	~Term() {
+/*		bool fl = false;
+		if( auto s = std::get_if<String>(&_un) ) {
+			fl = s->last();
+		} else if( auto s = std::get_if<App>(&_un) ) {
+			fl = s->last();
+		} else if(  auto s = std::get_if<Abs>(&_un) ) {
+			fl = s->last();
+		} else if(  auto s = std::get_if<Bind>(&_un) ) {
+			fl = s->last();
+		} else {
+		}
+		if( fl ) {
+			std::cerr << "Deleting " << *this << std::endl;
+		}
+*/	}
+	Term(Term&& other) : _un(other._copy_un()) {}
+	Term(Term const& other) : _un(other._copy_un()) {}
+	Term& operator=(Term const& other) {
+		_un = other._un;
+		return *this;
+	}
 	/**
 	 * @brief Construct a symbol term
 	 */
-	Term(String const& sym = VOID_var) : _un(sym) {}
-	Term& operator=(Term const& other);
+	Term(String const& sym) : _un(sym) {}
 	/**
 	 * @brief application
 	 */
@@ -197,6 +221,13 @@ class CTerm;
 
 class Ctxt {
 private:
+	template<typename T>
+	struct Opt {
+		T* ptr;
+		operator bool() const { return ptr; }
+		T& operator*() const { return *ptr; }
+		T* operator->() const { return ptr; }
+	};
 	struct Body;
 	Ref<Body> _ref;
 	Ctxt();
@@ -211,7 +242,7 @@ public:
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	std::optional<Ctxt const> find_ctxt(String const& name = String()) const;
+	Opt<Ctxt const> find_ctxt(String const& name = String()) const;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -249,11 +280,11 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	std::optional<String const> find_sym_local(String const& sym) const;
+	Opt<String const> find_sym_local(String const& sym) const;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	std::optional<String const> find_sym(String const& sym) const;
+	Opt<String const> find_sym(String const& sym) const;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
@@ -386,12 +417,9 @@ inline Ctxt Ctxt::ctxt(String const& name) const {
 	}
 	return it->second;
 }
-inline std::optional<Ctxt const> Ctxt::find_ctxt(String const& name) const {
+inline Ctxt::Opt<Ctxt const> Ctxt::find_ctxt(String const& name) const {
 	auto const& it = _ref->ctxts.find(name);
-	if( it == _ref->ctxts.end() ) {
-		return std::optional<Ctxt>();
-	}
-	return it->second;
+	return { it == _ref->ctxts.end() ? nullptr : &it->second };
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
@@ -419,6 +447,8 @@ private:
 	typedef std::pair<CTerm const, CTerm const> Pair;
 	typedef std::pair<String const, CTerm const> StrTerm;
 public:
+	CTerm(CTerm const& other) : _ctxt(other._ctxt), Term(other) {}
+	CTerm(CTerm&& other) : _ctxt(other._ctxt), Term(other) {}
 	CTerm& operator=(CTerm const& other) {
 		_ctxt = other._ctxt;
 		Term::operator=((Term)other);
@@ -565,8 +595,13 @@ public:
 		return _assign(var,val.subst(_ctxt));// val should be also closed wrt ctxt
 	}
 	std::optional<CTerm> get(String const& var) const {
-		auto it = _map.find(var);
-		return it == _map.end() ? std::optional<CTerm>() : CTerm(_ctxt,it->second);
+		auto const& it = _map.find(var);
+		if( it == _map.end() ) {
+			return std::optional<CTerm>();
+		} else {
+			auto const& ret = CTerm(_ctxt,it->second);
+			return std::optional(ret);
+		}
 	}
 private:
 	CSubst& _assign(String const& var, CTerm const& val);

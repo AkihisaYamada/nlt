@@ -21,6 +21,9 @@ public:
 	Ref(Ref const& org) : ptr(org.ptr) {
 		ptr->nref++;
 	}
+	Ref(Ref&& org) : ptr(org.ptr) {
+		ptr->nref++;
+	}
 	~Ref() {
 		if( ptr->nref == 0 ) {
 			delete ptr;
@@ -52,6 +55,9 @@ public:
 		ptr->nref--;
 		ptr = new Body(ptr->body);
 		return *this;
+	}
+	bool last() const {
+		return ptr->nref == 0;
 	}
 	template<typename S>
 	friend bool operator==(Ref<S> const& l, Ref<S> const& r);

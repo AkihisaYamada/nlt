@@ -3,21 +3,17 @@
 using namespace std;
 
 ostream& operator<<(ostream& os, Term const& t) {
-	auto const& sym = t.sym();
-	if( sym.has_value() ) {
+	if( auto sym = t.sym() ) {
 		return os << *sym;
-	}
-	auto const& app = t.app();
-	if( app.has_value() ) {
+	} else if( auto const& app = t.app() ) {
 		return os << '(' << app->first << ' ' << app->second << ')';
-	}
-	auto const& abs = t.abs();
-	if( abs.has_value() ) {
+	} else if( auto const& abs = t.abs() ) {
 		return os << abs->first << ". " << abs->second;
+	} else if( auto const& fix = t.fix() ) {
+		return os << fix->first << ".[" << fix->second << ']';
+	} else {
+		assert(false);
 	}
-	auto const& fix = t.fix();
-	assert( fix.has_value() );
-	return os << fix->first << ".[" << fix->second << ']';
 }
 ostream& operator<<(ostream& os, CSubst const& subst) {
 	char const* punct = "[ ";
@@ -32,116 +28,94 @@ pair<String, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
 	for(;;) {
-		auto const& p = cur->app();
-		if( p.has_value() ) {
+		if( auto p = cur->app() ) {
 			args.push_front(p->second);
 			cur = &p->first;
-		} else {
-			auto const& sym = cur->sym();
-			if( !sym.has_value() ) {
-				throw UnexpectedTerm(*cur);
-			}
+		} else if( auto sym = cur->sym() ) {
 			return pair<String,list<Term>>(*sym,args);
+		} else {
+			throw UnexpectedTerm(*cur);
 		}
 	}
 }
 
 static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
-	auto const& sym = pat.sym();
-	if( sym.has_value() ) {
-		String const& x = *sym;
-		auto lidx_it = lidx.find(x);// bound variable must be identical
-		if( lidx_it != lidx.end() ) {
-			auto const& rsym = val.sym();
-			if( !rsym.has_value() ) {
+	if( auto sym = pat.sym() ) {
+		if( auto lidx_it = lidx.find(*sym); lidx_it != lidx.end() ) {// bound variable must be identical
+			if( auto rsym = val.sym() ) {
+				auto ridx_it = ridx.find(*rsym);
+				return ridx_it != ridx.end() && lidx_it->second == ridx_it->second;
+			} else {
 				return false;
 			}
-			auto const& ridx_it = ridx.find(*rsym);
-			if( ridx_it == ridx.end() || lidx_it->second != ridx_it->second ) {
-				return false;
-			}
-			return true;
-		}
-		auto const& map_opt = matcher.get(x);
-		if( map_opt.has_value() ) {// already assigned variable
-			if( (Term)*map_opt != val ) {// equal as term (may belong to different context)
-				return false;
-			}
-			return true;
-		}
-		if( fsyms.contains(x) ) {// free symbol
+		} else if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
+			return (Term)*map_opt == val;// equal as term (may belong to different context)
+		} else if( fsyms.contains(*sym) ) {// free symbol
 			matcher.assign(*sym,val);// assigning to the variable
 			return true;
+		} else {
+			return *sym == val;
 		}
-		if( x == val ) {
-			return true;
-		}
-		return false;
-	}
-	auto const& app = pat.app();
-	if( app.has_value() ) {
-		auto const& app2 = val.app();
-		if( !app2.has_value() ) {
+	} else if( auto app = pat.app() ) {
+		if( auto app2 = val.app() ) {
+			return match(fsyms,app->first,app2->first,matcher,lidx,ridx,depth) &&
+				match(fsyms,app->second,app2->second,matcher,lidx,ridx,depth);
+		} else {
 			return false;
 		}
-		return match(fsyms,app->first,app2->first,matcher,lidx,ridx,depth) &&
-			match(fsyms,app->second,app2->second,matcher,lidx,ridx,depth);
-	}
-	auto const& abs = pat.abs();
-	if( abs.has_value() ) {
-		auto const& abs2 = val.abs();
-		if( !abs2.has_value() ) {
+	} else if( auto const& abs = pat.abs() ) {
+		if( auto const& abs2 = val.abs() ) {
+			String const& x = abs->first;
+			String const& y = abs2->first;
+			depth++;
+			auto const& lidx_info = lidx.insert({x,depth});
+			auto const& ridx_info = ridx.insert({y,depth});
+			unsigned int lpre;
+			unsigned int rpre;
+			if( !lidx_info.second ) {
+				lpre = lidx_info.first->second;// remember the old index
+				lidx_info.first->second = depth;// and update
+			}
+			if( !ridx_info.second ) {
+				rpre = ridx_info.first->second;// remember the old index
+				ridx_info.first->second = depth;// and update
+			}
+			if( match(fsyms,abs->second,abs2->second,matcher,lidx,ridx,depth) ) {
+				// recover the old indices
+				if( lidx_info.second ) {
+					lidx.erase(lidx_info.first);
+				} else {
+					lidx_info.first->second = lpre;
+				}
+				if( ridx_info.second ) {
+					ridx.erase(ridx_info.first);
+				} else {
+					ridx_info.first->second = rpre;
+				}
+				return true;
+			}
+			return false;
+		} else {
 			return false;
 		}
-		String const& x = abs->first;
-		String const& y = abs2->first;
-		depth++;
-		auto const& lidx_info = lidx.insert({x,depth});
-		auto const& ridx_info = ridx.insert({y,depth});
-		unsigned int lpre;
-		unsigned int rpre;
-		if( !lidx_info.second ) {
-			lpre = lidx_info.first->second;// remember the old index
-			lidx_info.first->second = depth;// and update
-		}
-		if( !ridx_info.second ) {
-			rpre = ridx_info.first->second;// remember the old index
-			ridx_info.first->second = depth;// and update
-		}
-		if( match(fsyms,abs->second,abs2->second,matcher,lidx,ridx,depth) ) {
-			// recover the old indices
-			if( lidx_info.second ) {
-				lidx.erase(lidx_info.first);
-			} else {
-				lidx_info.first->second = lpre;
+	} else if( auto fix = pat.fix() ) {
+		auto const& x = fix->first;
+		if( auto const& opt = matcher.get(x) ) {
+			if( auto const& abs = opt->abs() ) {
+				return match(fsyms,opt->inst(fix->second),val,matcher,lidx,ridx,depth);
 			}
-			if( ridx_info.second ) {
-				ridx.erase(ridx_info.first);
-			} else {
-				ridx_info.first->second = rpre;
+		}
+		if( auto fix2 = val.fix() ) {
+			if( fsyms.contains(x) ) {
+				matcher.assign(x,fix2->first);
 			}
-			return true;
+			return match(fsyms,fix->second,fix2->second,matcher,lidx,ridx,depth);
+		} else {
+			return false;
 		}
-		return false;
+	} else {
+		assert(false);
 	}
-	auto const& fix = pat.fix();
-	assert( fix.has_value() );
-	auto const& x = fix->first;
-	auto const& opt = matcher.get(x);
-	if( opt.has_value() ) {
-		auto const& abs = opt->abs();
-		if( abs.has_value() ) {
-			return match(fsyms,opt->inst(fix->second),val,matcher,lidx,ridx,depth);
-		}
-	}
-	auto const& fix2 = val.fix();
-	if( !fix2.has_value() ) {
-		return false;
-	}
-	if( fsyms.contains(x) ) {
-		matcher.assign(x,fix2->first);
-	}
-	return match(fsyms,fix->second,fix2->second,matcher,lidx,ridx,depth);
 }
 
 optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
@@ -154,14 +128,14 @@ optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) 
 }
 Term strip_all(Term t, Ctxt& ctxt) {
 	for(;;) {
-		auto const& app = t.app();
-		if( app.has_value() && app->first == ALL ) {
-			auto const& abs = app->second.abs();
-			if( abs.has_value() ) {
-				String const& v = abs->first;
-				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
-				t = abs->second.subst(abs->first,ctxt.fix(nv));
-				continue;
+		if( auto app = t.app() ) {
+			if( app->first == ALL ) {
+				if( auto abs = app->second.abs() ) {
+					String const& v = abs->first;
+					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					t = abs->second.subst(abs->first,ctxt.fix(nv));
+					continue;
+				}
 			}
 		}
 		return t;
@@ -170,14 +144,14 @@ Term strip_all(Term t, Ctxt& ctxt) {
 Thm strip_all(Thm thm, Ctxt& ctxt) {
 	thm = thm.weaken(ctxt);
 	for(;;) {
-		auto const& app = thm.app();
-		if( app.has_value() && app->first == ALL ) {
-			auto const& abs = app->second.abs();
-			if( abs.has_value() ) {
-				String const& v = abs->first;
-				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
-				thm = thm.allE(ctxt.fix(nv));
-				continue;
+		if( auto const& app = thm.app() ) {
+			if( app->first == ALL ) {
+				if( auto const& abs = app->second.abs() ) {
+					String const& v = abs->first;
+					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					thm = thm.allE(ctxt.fix(nv));
+					continue;
+				}
 			}
 		}
 		return thm;
@@ -186,14 +160,14 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	t = t.weaken(ctxt);
 	for(;;) {
-		auto const& app = t.app();
-		if( app.has_value() && app->first == ALL ) {
-			auto const& abs = app->second.abs();
-			if( abs.has_value() ) {
-				String const& v = abs->first;
-				String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x).has_value(); });
-				t = app->second.inst(ctxt.fix(nv));
-				continue;
+		if( auto app = t.app() ) {
+			if( app->first == ALL ) {
+				if( auto abs = app->second.abs() ) {
+					String const& v = abs->first;
+					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					t = app->second.inst(ctxt.fix(nv));
+					continue;
+				}
 			}
 		}
 		return t;

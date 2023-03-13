@@ -10,18 +10,18 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String c
 	unsigned int steps = 0;
 	Term t = r;
 	for( auto it = unc.second.rbegin(); it != unc.second.rend(); it++, steps++ ) {
-		auto const& param = it->sym();
-		if( !param.has_value() ) {
+		if( auto param = it->sym() ) {
+			rule = ALL(*param /= rule);
+			t = LAM(*param /= t);
+		} else {
 			throw Error(l);
 		}
-		rule = ALL(*param /= rule);
-		t = LAM(*param /= t);
 	}
 	auto const& pair = ctxt.obtain(f,{{(string)(name.has_value() ? *name : f) +".def", rule}});
 	Ctxt const& obtainer = pair.second;
 	// proving the existence
 	Ctxt prover = ctxt.branch();
-	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x).has_value(); });
+	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x); });
 	prover.fix(thesis);
 	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
 	Thm thm = prover.thm("assm");

@@ -6,9 +6,7 @@
 #include"core.hpp"
 #include"graph.hpp"
 
-std::ostream& operator<<(std::ostream& os, Term const& t);
 std::ostream& operator<<(std::ostream& os, CSubst const& subst);
-
 
 /**
  * @brief strips universal quantifiers.

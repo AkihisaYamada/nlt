@@ -16,6 +16,7 @@ public:
 	String(std::string const& str) : _ref(str) {}
 	String(std::string&& str) : _ref(str) {}
 	String(String const& other) : _ref(other._ref) {}
+	String(String&& other) : _ref(other._ref) {}
 	String& operator=(char const* str) {
 		_ref = Ref<std::string const>(str);
 		return *this;
@@ -29,6 +30,9 @@ public:
 	}
 	operator std::string_view () const {
 		return *_ref;
+	}
+	bool last() const {
+		return _ref.last();
 	}
 	friend bool operator==(String const& l, String const& r);
 };

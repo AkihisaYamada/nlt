@@ -14,20 +14,15 @@ Syntax::Syntax(std::istream& is) : Lexer(is) {
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
 	return [&](ostream& os) -> ostream& {
-		auto const& sym = term.sym();
-		if( sym.has_value() ) {
+		if( auto sym = term.sym() ) {
 			if( prefixes.contains(*sym) || infixes.contains(*sym) ) {
 				return os << '(' << *sym << ')';
 			}
 			return os << *sym;
-		}
-		auto const& app = term.app();
-		if( app.has_value() ) {
+		} else if( auto app = term.app() ) {
 			auto const& fun = app->first, arg = app->second;
-			auto const& sym = fun.sym();
-			if( sym.has_value() ) {
-				auto it = prefixes.find(*sym);
-				if( it != prefixes.end() ) {
+			if( auto sym = fun.sym() ) {
+				if( auto it = prefixes.find(*sym); it != prefixes.end() ) {
 					auto const& op = it->second;
 					if( level > op.llevel ) {
 						os << '(';
@@ -38,26 +33,22 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 					}
 					return os;
 				}
-			} else {
-				auto const& app_in = fun.app();
-				if( app_in.has_value() ) {
-					auto const& fun_in = app_in->first, arg_in = app_in->second;
-					auto const& sym = fun_in.sym();
-					if( sym.has_value() ) {
-						auto it = infixes.find(*sym);
-						if( it != infixes.end() ) {
-							auto const& op = it->second;
-							if( level > op.level ) {
-								os << '(';
-							}
-							os << pretty_term(arg_in,op.llevel);
-							os << ' ' << *sym << ' ';
-							os << pretty_term(arg,op.rlevel);
-							if( level > op.level ) {
-								os << ')';
-							}
-							return os;
+			} else if( auto app_in = fun.app() ) {
+				auto const& fun_in = app_in->first, arg_in = app_in->second;
+				if( auto sym = fun_in.sym() ) {
+					auto it = infixes.find(*sym);
+					if( it != infixes.end() ) {
+						auto const& op = it->second;
+						if( level > op.level ) {
+							os << '(';
 						}
+						os << pretty_term(arg_in,op.llevel);
+						os << ' ' << *sym << ' ';
+						os << pretty_term(arg,op.rlevel);
+						if( level > op.level ) {
+							os << ')';
+						}
+						return os;
 					}
 				}
 			}
@@ -70,16 +61,13 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 				os << ')';
 			}
 			return os;
-		}
-		auto const& abs = term.abs();
-		if( abs.has_value() ) {
+		} else if( auto abs = term.abs() ) {
 			return os << abs->first << ". " << pretty_term(abs->second, 0);
-		}
-		auto const& fix = term.fix();
-		if( fix.has_value() ) {
+		} else if( auto fix = term.fix() ) {
 			return os << fix->first << ".[" << pretty_term(fix->second) << ']';
+		} else {
+			assert(false);
 		}
-		assert(false);
 	};
 }
 

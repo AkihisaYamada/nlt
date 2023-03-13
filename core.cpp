@@ -3,6 +3,20 @@
 
 using namespace std;
 
+variant<String,Term::App,Term::Abs,Term::Bind> Term::_copy_un() const {
+	if( auto p = get_if<String>(&_un) ) {
+		return *p;
+	} else if( auto p = get_if<App>(&_un) ) {
+		return *p;
+	} else if( auto p = get_if<Abs>(&_un) ) {
+		return *p;
+	} else if( auto p = get_if<Bind>(&_un) ) {
+		return *p;
+	} else {
+		assert(false);
+	}
+}
+
 String avoid(String const& var, function<bool(String const&)> const& test) {
 	if( !test(var) ) {
 		return var;
@@ -12,15 +26,6 @@ String avoid(String const& var, function<bool(String const&)> const& test) {
 		str.append("'");
 	} while( test(str) );
 	return str;
-}
-
-Term& Term::operator=(Term const& other) {
-	Term temp1 = other;// copy other
-	char temp2[sizeof *this];
-	memcpy(temp2,this,sizeof *this);// remember old this
-	memcpy(this,&temp1,sizeof *this);// new this is the copy
-	memcpy(&temp1,temp2,sizeof *this);// temp1 is old this, to be destructed
-	return *this;
 }
 
 static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
@@ -132,10 +137,10 @@ CSubst& CSubst::_assign(String const& var, CTerm const& val) {
 Term Term::subst(CSubst const& subst) const {
 	auto f = [&](String const& sym) {
 		auto opt = subst.get(sym);
-		return opt.has_value() ? (Term)*opt : sym;
+		return opt ? (Term)*opt : sym;
 	};
-	auto fixed = [&](String const& sym) {
-		return subst.ctxt().find_sym(sym).has_value();
+	auto fixed = [&](String const& sym)->bool {
+		return subst.ctxt().find_sym(sym);
 	};
 	return map(f,fixed);
 }
@@ -200,32 +205,30 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-optional<String const> Ctxt::find_sym_local(String const& sym) const {
-	auto it = fvars().find(sym);
+Ctxt::Opt<String const> Ctxt::find_sym_local(String const& sym) const {
+	auto const& it = fvars().find(sym);
 	if( it != fvars().end() ) {
-		return *it;
+		return {&*it};
 	}
-	auto spec_it = specs().find(sym);
+	auto const& spec_it = specs().find(sym);
 	if( spec_it != specs().end() ) {
-		return spec_it->first;
+		return {&spec_it->first};
 	}
-	return optional<String const>();
+	return {nullptr};
 }
 
-optional<String const> Ctxt::find_sym(String const& sym) const {
-	auto opt = find_sym_local(sym);
-	if( !opt.has_value() ) {
-		auto const& parent = find_ctxt();
-		if( parent.has_value() ) {
-			return parent->find_sym(sym);
-		}
+Ctxt::Opt<String const> Ctxt::find_sym(String const& sym) const {
+	if( auto opt = find_sym_local(sym) ) {
+		return opt;
+	} else if( auto parent = find_ctxt() ) {
+		return parent->find_sym(sym);
+	} else {
+		return {nullptr};
 	}
-	return opt;
 }
 
 CTerm Ctxt::fix(String const& sym) {
-	auto opt = find_sym(sym);
-	if( opt.has_value() ) {
+	if( auto opt = find_sym(sym) ) {
 		return CTerm(*this,*opt);
 	}
 	_ref->fvars.insert(sym);
@@ -242,18 +245,17 @@ CTerm Ctxt::enclose(Term const& t) {
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms(
 		[](String const& sym){},
-		[&](String const& sym){ if( !find_sym(sym).has_value() ) { throw UnboundVariable(sym); } }
+		[&](String const& sym){ if( !find_sym(sym) ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
 Term Ctxt::_thm(String const& name) const {
-	auto const& it = _ref->thms.find(name);
+	auto it = _ref->thms.find(name);
 	if( it == _ref->thms.end() ) {
-		auto const& parent = find_ctxt();
-		if( !parent.has_value() ) {
-			throw TheoremNotFound(name);
+		if( auto parent = find_ctxt() ) {
+			return parent->_thm(name);
 		}
-		return parent->_thm(name);
+		throw TheoremNotFound(name);
 	}
 	return it->second;
 }
@@ -311,15 +313,15 @@ Thm Thm::intro() const {
 	return Thm(CTerm(parent,stmt));
 }
 std::optional<CTerm::StrTerm> CTerm::abs() const {
-	auto const& tabs = Term::abs();
-	if( !tabs.has_value() ) {
-		return std::optional<StrTerm>();
+	if( auto tabs = Term::abs() ) {
+		String const& var = tabs->first;
+		Term const& body = tabs->second;
+		Ctxt loc = _ctxt.branch();
+		loc.fix(var);
+		return StrTerm(var,CTerm(loc,body));
+	} else {
+		return nullopt;
 	}
-	String const& var = tabs->first;
-	Term const& body = tabs->second;
-	Ctxt loc = _ctxt.branch();
-	loc.fix(var);
-	return StrTerm(var,CTerm(loc,body));
 }
 CTerm CTerm::lift() const {
 	auto const& parent = _ctxt.ctxt();
@@ -334,18 +336,16 @@ CTerm CTerm::subst(CSubst const& subst) const {
 	auto const& ctxt = subst.ctxt();
 	_ctxt.ensure_ancestor(ctxt);
 	auto f = [&](String const& sym)->Term {
-		auto const& opt = subst.get(sym);
-		if( opt.has_value() ) {
+		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
-		}
-		auto const& opt2 = ctxt.find_sym(sym);
-		if( opt2.has_value() ) {
+		} else if( auto const& opt2 = ctxt.find_sym(sym) ) {
 			return *opt2;
+		} else {
+			throw UnboundVariable(sym);
 		}
-		throw UnboundVariable(sym);
 	};
-	auto fixed = [&](String const& sym) {
-		return subst.ctxt().find_sym(sym).has_value();
+	auto fixed = [&](String const& sym)->bool {
+		return subst.ctxt().find_sym(sym);
 	};
 	return CTerm(ctxt,map(f,fixed));
 }
@@ -363,7 +363,7 @@ Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 	auto it = facts.begin();
 	for( auto const& assm : assms() ) {// check that the instances of assumptions are discharged
 		if( it == facts.end() ) {
-			throw MalformedDischarge(assm,Term());
+			throw MalformedDischarge(assm,Term("#context"));
 		}
 		if( it->ctxt() != parent ) {
 			throw WrongContext();
@@ -384,8 +384,7 @@ Ctxt Ctxt::interpret(CSubst const& subst, std::vector<Thm> const& facts) const {
 	return ret;
 }
 Ctxt& Ctxt::import(Ctxt const& ctxt) {
-	auto const& parent = ctxt.find_ctxt();
-	if( parent.has_value() ) {
+	if( auto const& parent = ctxt.find_ctxt() ) {
 		ensure_ancestor(*parent);
 	}
 	for( auto& fvar : ctxt.fvar_list() ) {

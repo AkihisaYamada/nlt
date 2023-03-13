@@ -8,11 +8,11 @@ Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 	Ctxt loc = thm.ctxt().branch();
 	Thm body = strip_all(thm,loc);
 	auto const& app = body.app();
-	if( !app.has_value() ) {
+	if( !app ) {
 		throw Error(thm);
 	}
 	auto const& app2 = app->first.app();
-	if( !app2.has_value() ) {
+	if( !app2 ) {
 		throw Error(thm);
 	}
 	push_back({app2->second,thm});
@@ -27,7 +27,10 @@ static Thm equate_cong(Thm const& cong, Thm const& eq, CTerm const& arg) {
 static Thm equate_abs(Thm const& ext, Thm const& eq) {
 	Thm all = eq.intro();// ∀x. s = t
 	auto const& app = eq.app();
-	CTerm const& s = app->first.app()->second.lift();// x. s
+	assert(app);
+	auto const& app2 = app->first.app();
+	assert(app2);
+	CTerm const& s = app2->second.lift();// x. s
 	CTerm const& t = app->second.lift();// x. t
 	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (x. s) = (x. t)
 }
@@ -36,7 +39,10 @@ static Thm equate_abs(Thm const& ext, Thm const& eq) {
 static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 	Thm all = eq.intro();// ∀x. s = t
 	auto const& app = eq.app();
-	CTerm const& s = app->first.app()->second.lift();// x. s
+	assert(app);
+	auto const& app2 = app->first.app();
+	assert(app2);
+	CTerm const& s = app2->second.lift();// x. s
 	CTerm const& t = app->second.lift();// x. t
 	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (ξ x. s) = (ξ x. t)
 }
@@ -46,7 +52,7 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 		auto const& pat = rule.pat;
 		auto const& fvars = pat.ctxt().fvars();
 		auto const& m = match(fvars,pat,source);
-		if( m.has_value() ) {
+		if( m ) {
 			// source = lθ
 			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
 			for( auto const& var : pat.ctxt().fvar_list() ) {
@@ -59,23 +65,24 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 		auto const& pat = cong.pat;
 		auto const& fvars = pat.ctxt().fvars();
 		auto const& m = match(fvars,pat,source);
-		if( m.has_value() ) {// source = C[s...]
+		if( m ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			auto const& fvar_list = pat.ctxt().fvar_list();
 			auto it = fvar_list.begin();
 			auto end = fvar_list.end();
 			for(;;) {
-				auto const& si = *m->get(*it);
+				auto const& si = m->get(*it);
+				assert(si);
+				auto const& eq_o = _step(rules,*si,refl);
 				it++;
-				auto const& eq_opt = _step(rules,si,refl);
-				if( eq_opt.has_value() ) {
-					ret = discharge(ret,*eq_opt);
+				if( eq_o ) {
+					ret = discharge(ret,*eq_o);
 					break;
 				}
 				if( it == end ) {
 					return optional<Thm>();
 				}
-				ret = discharge(ret,refl.allE(si));
+				ret = discharge(ret,refl.allE(*si));
 			}
 			for( ; it != end; it++ ) {
 				ret = discharge(ret,refl.allE(*m->get(*it)));
@@ -90,12 +97,13 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 		if( m.has_value() ) {// source = (ξ) α
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
+				assert(s);
 				auto const& abs = s->abs();
-				if( abs.has_value() ) {
+				if( abs ) {
 					CTerm const& s = abs->second;
-					auto const& eq_opt = _step(rules,s,refl.weaken(s.ctxt()));
-					if( eq_opt.has_value() ) {
-						return equate_abs(qcong.thm,*eq_opt);
+					auto const& eq = _step(rules,s,refl.weaken(s.ctxt()));
+					if( eq ) {
+						return equate_abs(qcong.thm,*eq);
 					}
 				}
 			}
@@ -121,21 +129,22 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 			char i = 0;
 			for(;;) {
 				auto const& var = *var_it;
-				var_it++;
-				auto const& si = *m->get(var);
+				auto const& si = m->get(var);
+				assert(si);
 				if( *pos_it == i ) {
 					pos_it++;
-					auto const& eq_opt = _step(rules,si,pos_it,pos_end,refl);
-					if( eq_opt.has_value() ) {
-						ret = discharge(ret,*eq_opt);
+					auto const& eq = _step(rules,*si,pos_it,pos_end,refl);
+					if( eq ) {
+						ret = discharge(ret,*eq);
 						break;
 					}
 					return optional<Thm>();
 				}
+				var_it++;
 				if( var_it == var_end ) {
 					return optional<Thm>();
 				}
-				ret = discharge(ret,refl.allE(si));
+				ret = discharge(ret,refl.allE(*si));
 				i++;
 			}
 			for( ; var_it != var_end; var_it++ ) {
@@ -148,15 +157,16 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 		auto const& pat = qcong.pat;
 		Ctxt const& ctxt = pat.ctxt();
 		auto const& m = match(ctxt.fvars(),pat,source);
-		if( m.has_value() ) {// source = (ξ) α
+		if( m ) {// source = (ξ) α
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
+				assert(s);
 				auto const& abs = s->abs();
-				if( abs.has_value() ) {
+				if( abs ) {
 					pos_it++;
-					auto const& eq_opt = _step(rules,abs->second,pos_it,pos_end,refl);
-					if( eq_opt.has_value() ) {
-						return equate_abs(qcong.thm,*eq_opt);
+					auto const& eq = _step(rules,abs->second,pos_it,pos_end,refl);
+					if( eq ) {
+						return equate_abs(qcong.thm,*eq);
 					}
 				}
 			}
@@ -175,10 +185,12 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int n, std
 	CTerm s = source;
 	for( unsigned int i = 0; i < n; i++ ) {
 		auto const& step = _step(rules,s,begin,end,lrefl);
-		if( !step.has_value() ) {
+		if( !step ) {
 			break;
 		}
-		CTerm const& t = step->app()->second;
+		auto const& app = step->app();
+		assert(app);
+		CTerm const& t = app->second;
 		Thm tr = ltrans.allE(s).allE(t).impE(eq);
 		eq = tr.impE(*step);
 		s = t;
@@ -187,6 +199,8 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int n, std
 }
 Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int n, std::vector<char> const& pos) const {
 	Thm const& eq = steps(rules,source,n,pos);
-	CTerm const& target = eq.app()->second;
+	auto const& app = eq.app();
+	assert(app);
+	CTerm const& target = app->second;
 	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);
 }

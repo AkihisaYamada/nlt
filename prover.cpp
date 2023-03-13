@@ -442,11 +442,11 @@ public:
 					Term const& un = _syntax->get_term(1000);
 					auto handler = [=,*this](function<optional<Term>(int)> get_inner) {
 						auto const& inner = get_inner(0);
-						if( !inner.has_value() ) {
+						if( !inner ) {
 							_syntax->skip(RBRACE);
 							return empty;
 						}
-						if( inner->abs().has_value() ) {
+						if( inner->abs() ) {
 							_syntax->skip(RBRACE);
 							return collect(lam(*inner));
 						}
