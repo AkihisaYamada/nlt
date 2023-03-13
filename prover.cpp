@@ -76,11 +76,11 @@ public:
 	}
 	Thm get_thm() {
 		Ctxt loc = _ctxt.branch();
-		optional<Thm> thm = _gets_thm(loc);
-		if( !thm.has_value() ) {
+		if( auto const& thm = _gets_thm(loc) ) {
+			return thm->intro();
+		} else {
 			throw Syntax::Error("expects a theorem");
 		}
-		return thm->intro();
 	}
 	Rewriter& _rewriter() {
 		String name;
@@ -98,20 +98,16 @@ public:
 		}
 		bool many = _syntax->skips("*");
 		Rewriter::Rules rules;
-		for(;;) {
-			auto const& opt_arg = _gets_thm(loc);
-			if( !opt_arg.has_value() ) {
-				break;
-			}
-			rules.add( rev ? rewriter.reverse(*opt_arg) : *opt_arg );
+		while( auto const& arg = _gets_thm(loc) ) {
+			rules.add( rev ? rewriter.reverse(*arg) : *arg );
 		}
 		return rewriter.rewrite(rules,source, many ? 255 : 1, pos);
 	}
 
 	optional<Thm> _gets_thm(Ctxt loc) {
 		auto const& opt = _syntax->gets_thm_name();
-		if( !opt.has_value() ) {
-			return optional<Thm>();
+		if( !opt ) {
+			return nullopt;
 		}
 		Thm ret = loc.thm(*opt);
 		for(;;) {
@@ -122,12 +118,8 @@ public:
 				_syntax->skip(")");
 			} else if( _syntax->skips("[") ) {
 				if( _syntax->skips("OF") ) {
-					for(;;) {
-						auto const& opt_arg = _gets_thm(loc);
-						if( !opt_arg.has_value() ) {
-							break;
-						}
-						ret = discharge(ret,*opt_arg);
+					while( auto const& arg = _gets_thm(loc) ) {
+						ret = discharge(ret,*arg);
 					}
 				} else if( _syntax->skips("unfolded") ) {
 					Rewriter const& rewriter = _rewriter();
@@ -145,52 +137,51 @@ public:
 
 	StrMap<Thm> get_named_thms() {
 		StrMap<Thm> ret;
-		for(;;) {
-			optional<String> name = _syntax->gets_thm_name();
-			if( !name.has_value() ) {
-				break;
-			}
+		while( auto const& name = _syntax->gets_thm_name() ) {
 			_syntax->skip(":");
-			Thm thm = get_thm();
+			Thm const& thm = get_thm();
 			ret.insert({*name,thm});
 		}
 		return ret;
 	}
 	optional<Term> gets_term() {
-		optional<Term> const& term_opt = _syntax->gets_term();
-		if( !term_opt.has_value() ) {
-			return optional<Term>();
+		if( auto const& term = _syntax->gets_term() ) {
+			Term ret = *term;
+			if( _syntax->skips("$") ) {
+				CSubst subst = _ctxt.branch();
+				do {
+					String sym = _syntax->get_token();
+					_syntax->skip(":=");
+					subst.assign(sym,get_term());
+				} while( _syntax->skips(",") );
+				ret = ret.subst(subst);
+			}
+			return ret;
+		} else {
+			return nullopt;
 		}
-		Term term = *term_opt;
-		if( _syntax->skips("$") ) {
-			CSubst subst = _ctxt.branch();
-			do {
-				String sym = _syntax->get_token();
-				_syntax->skip(":=");
-				subst.assign(sym,get_term());
-			} while( _syntax->skips(",") );
-			term = term.subst(subst);
-		}
-		return term;
 	}
 	Term get_term() {
-		return *gets_term();
+		if( auto const& term = gets_term() ) {
+			return *term;
+		} else {
+			throw Syntax::Error("Expects a term");
+		}
 	}
 
 	vector<pair<String,Term>> get_named_terms() {
 		vector<pair<String,Term>> ret;
 		for(;;) {
-			optional<String> name = _syntax->gets_thm_name();
-			if( !name.has_value() ) {
-				break;
+			auto const& name = _syntax->gets_thm_name();
+			if(!name) {
+				return ret;
 			}
 			_syntax->skip(":");
 			ret.push_back({*name,_syntax->get_term(0)});
 			if( !_syntax->skips(",") ) {
-				break;
+				return ret;
 			}
 		}
-		return ret;
 	}
 
 	optional<Thm> loop() {
@@ -273,13 +264,12 @@ public:
 					}
 				}
 				_syntax->skip(";");
-				auto const& thm_opt = prove(stmt).loop();
-				if( !thm_opt.has_value() ) {
+				auto const& thm = prove(stmt).loop();
+				if( !thm ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				_ctxt.claim(thm_name,thm_opt->intro());
-				
+				_ctxt.claim(thm_name,thm->intro());
 			} else if( _syntax->skips("obtain") ) {
 				String sym = _syntax->get_token();
 				_syntax->skip("where");
@@ -294,7 +284,7 @@ public:
 				}
 				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
 				auto const& thm_opt = prove(goal).loop();
-				if( !thm_opt.has_value() ) {
+				if( !thm_opt ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
@@ -318,7 +308,7 @@ public:
 				(**_definer).define(_ctxt,l,r,name);
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("unfold") ) {
-				if( !_thesis.has_value() ) {
+				if( !_thesis ) {
 					cerr << "No goal for \"unfold\"" << endl;
 					throw UnfinishedProof();
 				}
@@ -328,7 +318,7 @@ public:
 				_syntax->skip(";");
 				cerr << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("fold") ) {
-				if( !_thesis.has_value() ) {
+				if( !_thesis ) {
 					cerr << "No goal for \"fold\"" << endl;
 					throw UnfinishedProof();
 				}
@@ -338,7 +328,7 @@ public:
 				_syntax->skip(";");
 				cerr << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
-				if( !_thesis.has_value() ) {
+				if( !_thesis ) {
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
@@ -351,7 +341,7 @@ public:
 				Thm thm_strip = strip_all(thm,thm_ctxt);
 				stmt_strip = stmt_strip.weaken(thm_ctxt);
 				optional<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
-				if( !matcher.has_value() ) {
+				if( !matcher ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
 				}
@@ -364,7 +354,7 @@ public:
 				cerr << "Concluded " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else if( _syntax->skips("done") ) {
-				if( !_thesis.has_value() ) {
+				if( !_thesis ) {
 					cerr << "No goal for \"done\"" << endl;
 					throw UnfinishedProof();
 				}

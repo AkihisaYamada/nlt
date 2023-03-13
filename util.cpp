@@ -218,16 +218,14 @@ Thm discharge(Thm thm, Thm arg) try {
 	}
 	arg = arg.weaken(discharger_ctxt);
 	for( auto const& x : arg_ctxt.fvar_list() ) {// TODO: slower than `subst`
-		auto opt = unifier->get(x);
-		auto const& val = opt.has_value() ? (Term)*opt : x;
-		arg = arg.allE(discharger_ctxt.cterm(val));
+		auto val = unifier->get(x);
+		arg = arg.allE( discharger_ctxt.cterm( val ? (Term)*val : x ) );
 	}
 	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
 	for( auto const& x : thm_ctxt.fvar_list() ) {// TODO: slower than `subst`
-		auto opt = unifier->get(x);
-		auto const& val = opt.has_value() ? (Term)*opt : x;
-		thm = thm.allE(ret_ctxt.enclose(val));
+		auto val = unifier->get(x);
+		thm = thm.allE( ret_ctxt.enclose( val ? (Term)*val : x ) );
 	}
 	thm = thm.impE(arg);
 	thm = thm.intro();
@@ -245,8 +243,7 @@ Thm Concluder::conclude(Thm const& thm) {
 	CTerm const& source = app2->second; // thm = source ⟹ ...
 	for( Rule const& rule : rules ) {
 		auto const& pat_ctxt = rule.pat.ctxt();
-		auto const& m = match(pat_ctxt.fvars(),rule.pat,source);
-		if( m.has_value() ) {
+		if( auto const& m = match(pat_ctxt.fvars(),rule.pat,source) ) {
 			Thm arg = rule.thm.weaken(source.ctxt());
 			for( auto const& fvar : pat_ctxt.fvar_list() ) {
 				arg = arg.allE(*m->get(fvar));

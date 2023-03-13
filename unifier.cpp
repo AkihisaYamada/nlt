@@ -54,9 +54,8 @@ private:
 				throw Mismatch();
 			}
 			// test if y has an assigned value.
-			auto ysubst = subst.get(y);
-			if( ysubst.has_value() ) {
-				unify1(x,*ysubst);
+			if( auto const& yval = subst.get(y) ) {
+				unify1(x,*yval);
 				return;
 			}
 			if( fvar(y) ) {// free variables can be assigned
@@ -74,9 +73,9 @@ private:
 				throw Mismatch();
 			}
 			// test if y has an assigned value.
-			if( auto ysubst = subst.get(y) ) {
+			if( auto const& yval = subst.get(y) ) {
 				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
-				unify2(l,*ysubst,index);
+				unify2(l,*yval,index);
 				avoids[0].erase(y);
 				return;
 			}
@@ -145,10 +144,9 @@ public:
 				return;
 			}
 			// test if substitution is necessary
-			auto xopt = subst.get(x);
-			if( xopt.has_value() ) {
+			if( auto xval = subst.get(x) ) {
 				avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
-				unify(*xopt,r);
+				unify(*xval,r);
 				avoids[1].erase(x);
 				return;
 			}

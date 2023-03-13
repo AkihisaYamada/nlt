@@ -250,14 +250,13 @@ CTerm Ctxt::cterm(Term const& t) const {
 	return CTerm(*this,t);
 }
 Term Ctxt::_thm(String const& name) const {
-	auto it = _ref->thms.find(name);
-	if( it == _ref->thms.end() ) {
-		if( auto parent = find_ctxt() ) {
-			return parent->_thm(name);
-		}
+	if( auto it = _ref->thms.find(name); it != _ref->thms.end() ) {
+		return it->second;
+	} else if( auto parent = find_ctxt() ) {
+		return parent->_thm(name);
+	} else {
 		throw TheoremNotFound(name);
 	}
-	return it->second;
 }
 
 pair<CTerm,Ctxt const> Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
@@ -278,9 +277,10 @@ pair<CTerm,Ctxt const> Ctxt::obtain(String const& sym, std::vector<std::pair<Str
 	return {CTerm(*this,assm),obtainer};
 }
 Thm Thm::_allE(CTerm const& t) const {
-	auto const& a = app();
-	if( a && a->first == ALL ) {
-		return a->second.inst(t);
+	if( auto const& a = app() ) {
+		if( a->first == ALL ) {
+			return a->second.inst(t);
+		}
 	}
 	throw MalformedInstantiation(*this,t);
 }
@@ -289,11 +289,11 @@ Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext();
 	}
-	auto const& app1 = app();
-	if( app1.has_value() ) {
-		auto const& app2 = app1->first.app();
-		if( app2->first == IMP && app2->second == t ) {
-			return app1->second;
+	if( auto const& app1 = app() ) {
+		if( auto const& app2 = app1->first.app() ) {
+			if( app2->first == IMP && app2->second == t ) {
+				return app1->second;
+			}
 		}
 	}
 	throw MalformedDischarge(*this,t);

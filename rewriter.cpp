@@ -68,9 +68,8 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 			for(;;) {
 				auto const& si = m->get(*it);
 				assert(si);
-				auto const& eq = _step(rules,*si,refl);
 				it++;
-				if( eq ) {
+				if( auto const& eq = _step(rules,*si,refl) ) {
 					ret = discharge(ret,*eq);
 					break;
 				}
@@ -87,8 +86,7 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 	}
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
-		auto const& m = match(ctxt.fvars(),qcong.pat,source);
-		if( m.has_value() ) {// source = (ξ) α
+		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source = (ξ) α
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
 				assert(s);

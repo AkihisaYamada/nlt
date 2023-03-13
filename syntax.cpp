@@ -122,11 +122,11 @@ optional<string> Syntax::gets_thm_name() {
 	}
 }
 string Syntax::get_thm_name() {
-	auto const& opt = gets_thm_name();
-	if( !opt.has_value() ) {
+	if( auto const& opt = gets_thm_name() ) {
+		return *opt;
+	} else {
 		throw Error("Required a theorem name");
 	}
-	return *opt;
 }
 
 optional<Term> Syntax::gets_term(int level) {
@@ -147,15 +147,13 @@ optional<Term> Syntax::gets_term(int level) {
 			}
 			ret = Term(prefix_it->first);
 			ignore_token();
-			auto const& r = gets_term(prefix_it->second.rlevel);
-			if( r.has_value() ) {
+			if( auto const& r = gets_term(prefix_it->second.rlevel) ) {
 				ret = ret(r.value());
 			}
 		} else {
 			String sym = get_token();
 			if( skips(".") ) {
-				auto const& t = gets_term(level);
-				if( t.has_value() ) {
+				if( auto const& t = gets_term(level) ) {
 					ret = sym /= t.value();
 				}
 			} else if( skips("[") ) {
@@ -186,8 +184,7 @@ optional<Term> Syntax::gets_term(int level) {
 			ignore_token();
 			rlevel = pair->second.rlevel;
 		}
-		auto r = gets_term(rlevel);
-		if( r.has_value() ) {
+		if( auto r = gets_term(rlevel) ) {
 			ret = ret(r.value());
 		} else {
 			return ret;
@@ -196,10 +193,10 @@ optional<Term> Syntax::gets_term(int level) {
 }
 
 Term Syntax::get_term(int level) {
-	auto const& opt = gets_term(level);
-	if( !opt.has_value() ) {
+	if( auto const& opt = gets_term(level) ) {
+		return *opt;
+	} else {
 		throw Error("Required a term");
 	}
-	return *opt;
 }
 
