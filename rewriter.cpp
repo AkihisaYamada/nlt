@@ -125,6 +125,7 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 			auto const& fvar_list = pat.ctxt().fvar_list();
 			auto var_it = fvar_list.begin();
 			auto var_end = fvar_list.end();
+			assert( var_it != var_end );
 			char i = 0;
 			for(;;) {
 				auto const& si = m->get(*var_it);
