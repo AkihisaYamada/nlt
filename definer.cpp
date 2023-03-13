@@ -21,7 +21,7 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String c
 	Ctxt const& obtainer = pair.second;
 	// proving the existence
 	Ctxt prover = ctxt.branch();
-	String thesis = avoid("thesis",[&](String const& x){ return ctxt.find_sym(x); });
+	String thesis = avoid("thesis",[&](String const& x){ return (bool)ctxt.find_sym(x); });
 	prover.fix(thesis);
 	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
 	Thm thm = prover.thm("assm");

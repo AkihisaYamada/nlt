@@ -3,20 +3,6 @@
 
 using namespace std;
 
-variant<String,Term::App,Term::Abs,Term::Bind> Term::_copy_un() const {
-	if( auto p = get_if<String>(&_un) ) {
-		return *p;
-	} else if( auto p = get_if<App>(&_un) ) {
-		return *p;
-	} else if( auto p = get_if<Abs>(&_un) ) {
-		return *p;
-	} else if( auto p = get_if<Bind>(&_un) ) {
-		return *p;
-	} else {
-		assert(false);
-	}
-}
-
 String avoid(String const& var, function<bool(String const&)> const& test) {
 	if( !test(var) ) {
 		return var;
@@ -139,8 +125,8 @@ Term Term::subst(CSubst const& subst) const {
 		auto opt = subst.get(sym);
 		return opt ? (Term)*opt : sym;
 	};
-	auto fixed = [&](String const& sym)->bool {
-		return subst.ctxt().find_sym(sym);
+	auto fixed = [&](String const& sym) {
+		return (bool)subst.ctxt().find_sym(sym);
 	};
 	return map(f,fixed);
 }
@@ -205,25 +191,25 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-Ctxt::Opt<String const> Ctxt::find_sym_local(String const& sym) const {
+optional<String> Ctxt::find_sym_local(String const& sym) const {
 	auto const& it = fvars().find(sym);
 	if( it != fvars().end() ) {
-		return {&*it};
+		return *it;
 	}
 	auto const& spec_it = specs().find(sym);
 	if( spec_it != specs().end() ) {
-		return {&spec_it->first};
+		return spec_it->first;
 	}
-	return {nullptr};
+	return nullopt;
 }
 
-Ctxt::Opt<String const> Ctxt::find_sym(String const& sym) const {
+optional<String> Ctxt::find_sym(String const& sym) const {
 	if( auto opt = find_sym_local(sym) ) {
 		return opt;
 	} else if( auto parent = find_ctxt() ) {
 		return parent->find_sym(sym);
 	} else {
-		return {nullptr};
+		return nullopt;
 	}
 }
 
@@ -344,8 +330,8 @@ CTerm CTerm::subst(CSubst const& subst) const {
 			throw UnboundVariable(sym);
 		}
 	};
-	auto fixed = [&](String const& sym)->bool {
-		return subst.ctxt().find_sym(sym);
+	auto fixed = [&](String const& sym) {
+		return (bool)subst.ctxt().find_sym(sym);
 	};
 	return CTerm(ctxt,map(f,fixed));
 }

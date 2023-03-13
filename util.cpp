@@ -25,16 +25,16 @@ ostream& operator<<(ostream& os, CSubst const& subst) {
 }
 
 pair<String, list<Term>> uncurry(Term const& t) {
-	Term const* cur = &t;
+	Term cur = t;
 	list<Term> args;
 	for(;;) {
-		if( auto p = cur->app() ) {
-			args.push_front(p->second);
-			cur = &p->first;
-		} else if( auto sym = cur->sym() ) {
+		if( auto const& app = cur.app() ) {
+			args.push_front(app->second);
+			cur = app->first;
+		} else if( auto sym = cur.sym() ) {
 			return pair<String,list<Term>>(*sym,args);
 		} else {
-			throw UnexpectedTerm(*cur);
+			throw UnexpectedTerm(cur);
 		}
 	}
 }
@@ -133,7 +133,7 @@ Term strip_all(Term t, Ctxt& ctxt) {
 			if( app->first == ALL ) {
 				if( auto abs = app->second.abs() ) {
 					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
 					t = abs->second.subst(abs->first,ctxt.fix(nv));
 					continue;
 				}
@@ -149,7 +149,7 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 			if( app->first == ALL ) {
 				if( auto const& abs = app->second.abs() ) {
 					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
 					thm = thm.allE(ctxt.fix(nv));
 					continue;
 				}
@@ -165,7 +165,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 			if( app->first == ALL ) {
 				if( auto abs = app->second.abs() ) {
 					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return ctxt.find_sym(x); });
+					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
 					t = app->second.inst(ctxt.fix(nv));
 					continue;
 				}

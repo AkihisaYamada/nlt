@@ -46,13 +46,6 @@ class StrMap : public std::map<String,T,std::less<>> {};
 typedef std::set<String,std::less<>> StrSet;
 
 class Term {
-	template<typename T>
-	struct Opt {
-		T* ptr;
-		operator bool() const { return ptr; }
-		T& operator*() const { return *ptr; }
-		T* operator->() const{ return ptr; }
-	};
 	struct App : public Ref<std::pair<Term,Term> const> {
 		 App(Term const& fun, Term const& arg) : Ref({fun,arg}) {}
 	};
@@ -68,7 +61,6 @@ class Term {
 	Term(Bind const& bind) : _un(bind) {}
 	typedef std::pair<Term const&,Term const&> Pair;
 	typedef std::pair<String const&, Term const&> StrTerm;
-	std::variant<String,App,Abs,Bind> _copy_un() const;
 public:
 	Term() {}
 	~Term() {
@@ -87,12 +79,6 @@ public:
 			std::cerr << "Deleting " << *this << std::endl;
 		}
 */	}
-	Term(Term&& other) : _un(other._copy_un()) {}
-	Term(Term const& other) : _un(other._copy_un()) {}
-	Term& operator=(Term const& other) {
-		_un = other._un;
-		return *this;
-	}
 	/**
 	 * @brief Construct a symbol term
 	 */
@@ -119,20 +105,21 @@ public:
 	friend Term operator/(String const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
-	Opt<String const> sym() const {
-		return {std::get_if<String>(&_un)};
+	std::optional<String> sym() const {
+		auto ptr = std::get_if<String>(&_un);
+		return ptr ? std::optional(*ptr) : std::nullopt;
 	}
-	Opt<std::pair<Term,Term> const> app() const {
+	std::optional<std::pair<Term,Term>> app() const {
 		auto ptr = std::get_if<App>(&_un);
-		return { ptr ? &**ptr : nullptr };
+		return ptr ? std::optional(**ptr) : std::nullopt;
 	}
-	Opt<std::pair<String,Term> const> abs() const {
+	std::optional<std::pair<String,Term>> abs() const {
 		auto ptr = std::get_if<Abs>(&_un);
-		return { ptr ? &**ptr : nullptr };
+		return ptr ? std::optional(**ptr) : std::nullopt;
 	}
-	Opt<std::pair<String,Term> const> fix() const {
+	std::optional<std::pair<String,Term>> fix() const {
 		auto ptr = std::get_if<Bind>(&_un);
-		return { ptr ? &**ptr : nullptr };
+		return ptr ? std::optional(**ptr) : std::nullopt;
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -221,13 +208,6 @@ class CTerm;
 
 class Ctxt {
 private:
-	template<typename T>
-	struct Opt {
-		T* ptr;
-		operator bool() const { return ptr; }
-		T& operator*() const { return *ptr; }
-		T* operator->() const { return ptr; }
-	};
 	struct Body;
 	Ref<Body> _ref;
 	Ctxt();
@@ -242,7 +222,7 @@ public:
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	Opt<Ctxt const> find_ctxt(String const& name = String()) const;
+	std::optional<Ctxt> find_ctxt(String const& name = String()) const;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -280,11 +260,11 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	Opt<String const> find_sym_local(String const& sym) const;
+	std::optional<String> find_sym_local(String const& sym) const;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	Opt<String const> find_sym(String const& sym) const;
+	std::optional<String> find_sym(String const& sym) const;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
@@ -417,9 +397,9 @@ inline Ctxt Ctxt::ctxt(String const& name) const {
 	}
 	return it->second;
 }
-inline Ctxt::Opt<Ctxt const> Ctxt::find_ctxt(String const& name) const {
+inline std::optional<Ctxt> Ctxt::find_ctxt(String const& name) const {
 	auto const& it = _ref->ctxts.find(name);
-	return { it == _ref->ctxts.end() ? nullptr : &it->second };
+	return it == _ref->ctxts.end() ? std::nullopt : std::optional(it->second);
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
