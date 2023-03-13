@@ -48,28 +48,26 @@ static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 }
 
 optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
+cerr << "Rewriter on " << source << endl;
 	for( auto const& rule : rules ) {
-		auto const& pat = rule.pat;
-		auto const& fvars = pat.ctxt().fvars();
-		auto const& m = match(fvars,pat,source);
-		if( m ) {
+		Ctxt const& ctxt = rule.pat.ctxt();
+cerr << "Rewriter trying " << rule.thm << "..."<<endl;
+		if( auto const& m = match(ctxt.fvars(),rule.pat,source) ) {
 			// source = lθ
 			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
-			for( auto const& var : pat.ctxt().fvar_list() ) {
+			for( auto const& var : ctxt.fvar_list() ) {
 				ret = ret.allE(*m->get(var));
 			}
+cerr << "Rewriter equation " << ret << endl;
 			return ret; // lθ = rθ
 		}
 	}
 	for( auto const& cong : congs ) {
-		auto const& pat = cong.pat;
-		auto const& fvars = pat.ctxt().fvars();
-		auto const& m = match(fvars,pat,source);
-		if( m ) {// source = C[s...]
+		Ctxt const& ctxt = cong.pat.ctxt();
+		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			auto const& fvar_list = pat.ctxt().fvar_list();
-			auto it = fvar_list.begin();
-			auto end = fvar_list.end();
+			auto it = ctxt.fvar_list().begin();
+			auto end = ctxt.fvar_list().end();
 			for(;;) {
 				auto const& si = m->get(*it);
 				assert(si);
@@ -91,9 +89,8 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 		}
 	}
 	for( auto const& qcong : quantifier_congs ) {
-		auto const& pat = qcong.pat;
-		Ctxt const& ctxt = pat.ctxt();
-		auto const& m = match(ctxt.fvars(),pat,source);
+		Ctxt const& ctxt = qcong.pat.ctxt();
+		auto const& m = match(ctxt.fvars(),qcong.pat,source);
 		if( m.has_value() ) {// source = (ξ) α
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
@@ -107,10 +104,10 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 					}
 				}
 			}
-			return optional<Thm>();
+			return nullopt;
 		}
 	}
-	return std::optional<Thm>();
+	return nullopt;
 }
 
 optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
@@ -118,13 +115,11 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 		return _step(rules,source,refl);
 	}
 	for( auto const& cong : congs ) {
-		auto const& pat = cong.pat;
-		auto const& fvars = pat.ctxt().fvars();
-		if( auto const& m = match(fvars,pat,source) ) {// source = C[s...]
+		auto const& ctxt = cong.pat.ctxt();
+		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			auto const& fvar_list = pat.ctxt().fvar_list();
-			auto var_it = fvar_list.begin();
-			auto var_end = fvar_list.end();
+			auto var_it = ctxt.fvar_list().begin();
+			auto var_end = ctxt.fvar_list().end();
 			assert( var_it != var_end );
 			char i = 0;
 			for(;;) {
@@ -136,10 +131,7 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 					if( auto const& eq = _step(rules,*si,pos_it,pos_end,refl) ) {
 						// rewrite step was successful
 						ret = discharge(ret,*eq);
-						for( ; var_it != var_end; var_it++ ) {// remaining variables are instantiated as is
-							ret = discharge(ret,refl.allE(*m->get(*var_it)));
-						}
-						return ret;
+						break;
 					} else {// no rewrite step was done
 						return nullopt;
 					}
@@ -150,12 +142,15 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 					i++;
 				}
 			}
+			for( ; var_it != var_end; var_it++ ) {// remaining variables are instantiated as is
+				ret = discharge(ret,refl.allE(*m->get(*var_it)));
+			}
+			return ret;
 		}
 	}
 	for( auto const& qcong : quantifier_congs ) {
-		auto const& pat = qcong.pat;
-		Ctxt const& ctxt = pat.ctxt();
-		auto const& m = match(ctxt.fvars(),pat,source);
+		Ctxt const& ctxt = qcong.pat.ctxt();
+		auto const& m = match(ctxt.fvars(),qcong.pat,source);
 		if( m ) {// source = (ξ) α
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
@@ -201,5 +196,6 @@ Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int n, std
 	auto const& app = eq.app();
 	assert(app);
 	CTerm const& target = app->second;
+cerr << source << endl << eq << endl << target << endl;
 	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);
 }

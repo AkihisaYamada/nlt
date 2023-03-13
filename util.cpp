@@ -238,7 +238,11 @@ Thm discharge(Thm thm, Thm arg) try {
 
 
 Thm Concluder::conclude(Thm const& thm) {
-	CTerm const& source = thm.app()->first.app()->second; // thm = source ⟹ ...
+	auto const& app1 = thm.app();
+	assert(app1);
+	auto const& app2 = app1->first.app();
+	assert(app2);
+	CTerm const& source = app2->second; // thm = source ⟹ ...
 	for( Rule const& rule : rules ) {
 		auto const& pat_ctxt = rule.pat.ctxt();
 		auto const& m = match(pat_ctxt.fvars(),rule.pat,source);
