@@ -512,7 +512,15 @@ private:
 	}
 };
 
+void test() {
+	Term t = Term("x");
+	cerr << t << endl;
+	t = Term("y");
+	cerr << t << endl;
+}
+
 int main(int argc, char* argv[]) {
+	test();
 	istream* pis;
 	bool exit_on_error = false;
 	if( argc == 1 ) {

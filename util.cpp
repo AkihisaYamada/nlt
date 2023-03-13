@@ -40,6 +40,7 @@ pair<String, list<Term>> uncurry(Term const& t) {
 }
 
 static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
+//cerr << "match: "<< pat << endl << '\t' << val << endl;
 	if( auto sym = pat.sym() ) {
 		if( auto lidx_it = lidx.find(*sym); lidx_it != lidx.end() ) {// bound variable must be identical
 			if( auto rsym = val.sym() ) {
@@ -174,19 +175,16 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	}
 }
 
-Thm discharge(Thm thm, Thm arg) {
+Thm discharge(Thm thm, Thm arg) try {
 	Ctxt ctxt = thm.ctxt();
 	// expand thm into cond ⟹ concl
 	Ctxt thm_ctxt = ctxt.branch();
 	Thm thm_strip = strip_all(thm,thm_ctxt);
 	auto const& app1 = thm_strip.app();
-	if( !app1.has_value() ) {
-		throw MalformedDischarge(thm,arg);
-	}
+	if( !app1 ) throw 0;
 	auto const& app2 = app1->first.app();
-	if( !app2.has_value() || app2->first != IMP ) {
-		throw MalformedDischarge(thm,arg);
-	}
+	if( !app2 ) throw 1;
+	if( app2->first != IMP ) throw 2;
 	// expand cond
 	CTerm cond = app2->second;
 	Ctxt cond_ctxt = thm_ctxt.branch();
@@ -199,9 +197,7 @@ Thm discharge(Thm thm, Thm arg) {
 	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](String const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
-	if( !unifier.has_value() ) {
-		throw MalformedDischarge(thm,arg);
-	}
+	if( !unifier ) throw 3;
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
 	for( auto const& x : arg_ctxt.fvar_list() ) {
@@ -236,7 +232,10 @@ Thm discharge(Thm thm, Thm arg) {
 	thm = thm.impE(arg);
 	thm = thm.intro();
 	return thm;
+} catch( int n ) {
+	throw MalformedDischarge(thm,arg);
 }
+
 
 Thm Concluder::conclude(Thm const& thm) {
 	CTerm const& source = thm.app()->first.app()->second; // thm = source ⟹ ...

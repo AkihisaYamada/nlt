@@ -73,14 +73,14 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 			for(;;) {
 				auto const& si = m->get(*it);
 				assert(si);
-				auto const& eq_o = _step(rules,*si,refl);
+				auto const& eq = _step(rules,*si,refl);
 				it++;
-				if( eq_o ) {
-					ret = discharge(ret,*eq_o);
+				if( eq ) {
+					ret = discharge(ret,*eq);
 					break;
 				}
 				if( it == end ) {
-					return optional<Thm>();
+					return nullopt;
 				}
 				ret = discharge(ret,refl.allE(*si));
 			}
@@ -120,37 +120,35 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 	for( auto const& cong : congs ) {
 		auto const& pat = cong.pat;
 		auto const& fvars = pat.ctxt().fvars();
-		auto const& fvar_list = pat.ctxt().fvar_list();
-		auto const& m = match(fvars,pat,source);
-		if( m.has_value() ) {// source = C[s...]
+		if( auto const& m = match(fvars,pat,source) ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
+			auto const& fvar_list = pat.ctxt().fvar_list();
 			auto var_it = fvar_list.begin();
 			auto var_end = fvar_list.end();
 			char i = 0;
 			for(;;) {
-				auto const& var = *var_it;
-				auto const& si = m->get(var);
+				auto const& si = m->get(*var_it);
 				assert(si);
-				if( *pos_it == i ) {
-					pos_it++;
-					auto const& eq = _step(rules,*si,pos_it,pos_end,refl);
-					if( eq ) {
-						ret = discharge(ret,*eq);
-						break;
-					}
-					return optional<Thm>();
-				}
 				var_it++;
-				if( var_it == var_end ) {
-					return optional<Thm>();
+				if( *pos_it == i ) {// rewrite step must occur inside this position
+					pos_it++;
+					if( auto const& eq = _step(rules,*si,pos_it,pos_end,refl) ) {
+						// rewrite step was successful
+						ret = discharge(ret,*eq);
+						for( ; var_it != var_end; var_it++ ) {// remaining variables are instantiated as is
+							ret = discharge(ret,refl.allE(*m->get(*var_it)));
+						}
+						return ret;
+					} else {// no rewrite step was done
+						return nullopt;
+					}
+				} else if( var_it == var_end ) {
+					return nullopt;
+				} else {
+					ret = discharge(ret,refl.allE(*si));
+					i++;
 				}
-				ret = discharge(ret,refl.allE(*si));
-				i++;
 			}
-			for( ; var_it != var_end; var_it++ ) {
-				ret = discharge(ret,refl.allE(*m->get(*var_it)));
-			}
-			return ret;
 		}
 	}
 	for( auto const& qcong : quantifier_congs ) {

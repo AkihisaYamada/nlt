@@ -279,7 +279,7 @@ pair<CTerm,Ctxt const> Ctxt::obtain(String const& sym, std::vector<std::pair<Str
 }
 Thm Thm::_allE(CTerm const& t) const {
 	auto const& a = app();
-	if( a.has_value() && a->first == ALL ) {
+	if( a && a->first == ALL ) {
 		return a->second.inst(t);
 	}
 	throw MalformedInstantiation(*this,t);
