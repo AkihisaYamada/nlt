@@ -48,17 +48,14 @@ static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 }
 
 optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
-cerr << "Rewriter on " << source << endl;
 	for( auto const& rule : rules ) {
 		Ctxt const& ctxt = rule.pat.ctxt();
-cerr << "Rewriter trying " << rule.thm << "..."<<endl;
 		if( auto const& m = match(ctxt.fvars(),rule.pat,source) ) {
 			// source = lθ
 			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
 			for( auto const& var : ctxt.fvar_list() ) {
 				ret = ret.allE(*m->get(var));
 			}
-cerr << "Rewriter equation " << ret << endl;
 			return ret; // lθ = rθ
 		}
 	}
@@ -196,6 +193,5 @@ Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int n, std
 	auto const& app = eq.app();
 	assert(app);
 	CTerm const& target = app->second;
-cerr << source << endl << eq << endl << target << endl;
 	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);
 }
