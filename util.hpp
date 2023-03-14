@@ -6,6 +6,8 @@
 #include"core.hpp"
 #include"graph.hpp"
 
+#define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << endl; } while(0)
+
 std::ostream& operator<<(std::ostream& os, CSubst const& subst);
 
 /**
@@ -131,6 +133,14 @@ public:
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
+	struct TooFewSteps : std::exception {
+		Term term;
+		TooFewSteps(Term const& term) : term(term) {}
+	};
+	struct TooManySteps : std::exception {
+		Term term;
+		TooManySteps(Term const& term) : term(term) {}
+	};
 	class Rules : std::vector<Rule> {
 	public:
 		Rules() {}
@@ -176,16 +186,21 @@ public:
 	 * @param pos 
 	 * @return Thm 
 	 */
-	Thm steps(Rules const& rules, CTerm const& source, unsigned int n, std::vector<char> const& pos) const;
-	Thm rewrite(Rules const& rules, Thm const& source, unsigned int n, std::vector<char> const& pos) const;
+	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
+	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
 private:
 	std::optional<Thm> congruence(std::function<std::optional<Thm>(CTerm const&)> inner, CTerm const& source) const;
 	std::optional<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
 	std::optional<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
+	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
+inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) {
+	return os << '[' << rule.pat << "] " << rule.thm;
+}
+
 class Definer {
-	Ref<Rewriter const> rewriter;
+	Ptr<Rewriter const> rewriter;
 	String const EQ;
 	Term const LAM;
 	Rewriter::Rules beta;
@@ -199,7 +214,7 @@ public:
 	{
 		this->beta.add(beta);
 	}
-	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<String const> name) const;
+	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<String> const& name) const;
 };
 
 #endif

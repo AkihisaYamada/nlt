@@ -19,11 +19,11 @@ class Prover {
 	unsigned int _depth;
 	Ctxt _ctxt;
 	bool _own_syntax;
-	Ref<Syntax> _syntax;
+	Ptr<Syntax> _syntax;
 	optional<Thm> _thesis;
 	Concluder _concluder;
 	StrMap<Rewriter> _rewriters;
-	optional<Ref<Definer>> _definer;
+	optional<Ptr<Definer>> _definer;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, optional<Thm> thesis) :
 		_depth(parent._depth+1),
@@ -34,6 +34,11 @@ class Prover {
 		_concluder(parent._concluder),
 		_rewriters(parent._rewriters),
 		_definer(parent._definer) {}
+	void _error() {
+		if( _exit_on_error ) {
+			exit(-1);
+		}
+	}
 public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
@@ -56,7 +61,7 @@ public:
 		_syntax->register_multi_op('+');
 		_syntax->encloser(LPAR,RPAR,-1000,[&]( function<optional<Term>(int)> get_inner ){
 			optional<Term> t = get_inner(0);
-			_syntax->skip(RPAR);
+			_syntax->skip(*RPAR);
 			return *t;
 		});
 		_syntax->infix(",",-1,-1,-2);
@@ -96,12 +101,19 @@ public:
 				pos.push_back(_syntax->get_int());
 			}
 		}
-		bool many = _syntax->skips("*");
+		unsigned int min, max;
+		if( _syntax->skips("*") ) {
+			min = 0; max = 255;
+		} else if( _syntax->skips("+") ) {
+			min = 1; max = 255;
+		} else {
+			min = 1; max = 1;
+		}
 		Rewriter::Rules rules;
 		while( auto const& arg = _gets_thm(loc) ) {
 			rules.add( rev ? rewriter.reverse(*arg) : *arg );
 		}
-		return rewriter.rewrite(rules,source, many ? 255 : 1, pos);
+		return rewriter.rewrite(rules,source,min,max,pos);
 	}
 
 	optional<Thm> _gets_thm(Ctxt loc) {
@@ -184,15 +196,19 @@ public:
 		}
 	}
 
+	void _flush() {
+		cout << flush;
+	}
 	void _indent() {
 		for( int i = 0; i <= _depth; i++ ) {
 			cout << '>';
 		}
-		cout << ' ' << flush;
+		cout << ' ';
 	}
 	optional<Thm> loop() {
 		for(;;) try {
 			_indent();
+			_flush();
 			if( _syntax->skips("{") ) {
 				cout << "Creating context." << endl;
 				branch().loop();
@@ -400,23 +416,26 @@ public:
 					Thm const& imp = get_thm();
 					auto const& pair = _rewriters.insert({name,Rewriter(refl,sym,trans,imp)});
 					cout << "Initialized Rewriter " << name << endl <<
-						"refl: " << _syntax->pretty_term(refl) <<
+						"\trefl: " << _syntax->pretty_term(refl) <<
 						", sym: " << _syntax->pretty_term(sym) <<
 						", trans: " << _syntax->pretty_term(trans) <<
 						", imp: " << _syntax->pretty_term(imp) << endl;
 				} else if( _syntax->skips("cong") ) {
 					Rewriter& rewriter = _rewriter();
+					cout << "Registering Congruence:" << endl;
 					for(;;) {
 						if( _syntax->skips("!") ) {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
 							_syntax->skip(":");
 							Thm const& cong_rule = get_thm();
 							rewriter.register_quantifier_cong(cong_pat,cong_rule);
+							cout << "\tquantifier cong [" << cong_pat << "] " << cong_rule << endl;
 						} else {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
 							_syntax->skip(":");
 							Thm const& cong_rule = get_thm();
 							rewriter.register_cong(cong_pat,cong_rule);
+							cout << "\t[" << cong_pat << "] " << cong_rule << endl;
 						}
 						if( !_syntax->skips(",") ) {
 							break;
@@ -438,11 +457,11 @@ public:
 					auto handler = [=,*this](function<optional<Term>(int)> get_inner) {
 						auto const& inner = get_inner(0);
 						if( !inner ) {
-							_syntax->skip(RBRACE);
+							_syntax->skip(*RBRACE);
 							return empty;
 						}
 						if( inner->abs() ) {
-							_syntax->skip(RBRACE);
+							_syntax->skip(*RBRACE);
 							return collect(lam(*inner));
 						}
 						Term ret = singleton(*inner);
@@ -450,7 +469,7 @@ public:
 							auto const inner2 = get_inner(0);
 							ret = un(ret)(singleton(*inner2));
 						}
-						_syntax->skip(RBRACE);
+						_syntax->skip(*RBRACE);
 						return ret;
 					};
 					_syntax->encloser(LBRACE,RBRACE,-1000,handler);
@@ -477,31 +496,37 @@ public:
 			}
 		} catch ( MalformedDischarge const& e ) {
 			cerr << "ERROR: Discharging\n\t" << _syntax->pretty_term(e.imp) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
-			exit(-1);
+			_error();
 		} catch ( MalformedInstantiation const& e ) {
 			cerr << "ERROR: Instantiating\n\t" << _syntax->pretty_term(e.all) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
-			exit(-1);
+			_error();
 		} catch ( TheoremNotFound const& e ) {
 			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
-			exit(-1);
+			_error();
 		} catch ( UnexpectedTerm const& e ) {
 			cerr << "ERROR: Unexpected term " << _syntax->pretty_term(e.term) << endl;
-			exit(-1);
+			_error();
 		} catch ( UnboundVariable const& e ) {
 			cerr << "ERROR: Unbound variable " << e.name << endl;
-			exit(-1);
+			_error();
 		} catch ( Syntax::Error const& e ) {
 			cerr << "Syntax ERROR: " << e.message << endl;
-			exit(-1);
+			_error();
+		} catch ( Rewriter::TooFewSteps const& e ) {
+			cerr << "Rewriter ERROR: Too few steps on: " << _syntax->pretty_term(e.term) << endl;
+			_error();
+		} catch ( Rewriter::TooManySteps const& e ) {
+			cerr << "Rewriter ERROR: Too many steps on: " << _syntax->pretty_term(e.term) << endl;
+			_error();
 		} catch ( exception const& e ) {
 			cerr << "Other exception: " << e.what() << endl;
-			exit(-1);
+			_error();
 		}
 	}
 private:
 	void _make_own_syntax() {
 		if( !_own_syntax ) {
-			_syntax = Ref(*_syntax);
+			_syntax = Ptr(*_syntax);
 			_own_syntax = true;
 		}
 	}

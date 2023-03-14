@@ -46,14 +46,14 @@ class StrMap : public std::map<String,T,std::less<>> {};
 typedef std::set<String,std::less<>> StrSet;
 
 class Term {
-	struct App : public Ref<std::pair<Term,Term> const> {
-		 App(Term const& fun, Term const& arg) : Ref({fun,arg}) {}
+	struct App : public Ptr<std::pair<Term,Term> const> {
+		 App(Term const& fun, Term const& arg) : Ptr({fun,arg}) {}
 	};
-	struct Abs : Ref<std::pair<String,Term> const> {
-		Abs(String const& var, Term const& body) : Ref({var,body}) {}
+	struct Abs : Ptr<std::pair<String,Term> const> {
+		Abs(String const& var, Term const& body) : Ptr({var,body}) {}
 	};
-	struct Bind : Ref<std::pair<String,Term> const> {
-		Bind(String const& var, Term const& val) : Ref({var,val}) {}
+	struct Bind : Ptr<std::pair<String,Term> const> {
+		Bind(String const& var, Term const& val) : Ptr({var,val}) {}
 	};
 	std::variant<String,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
@@ -113,8 +113,8 @@ public:
 	/**
 	 * @brief Reference to the string if the term a symbol.
 	 */
-	Ptr<String const> sym() const & {
-		return Ptr(*std::get_if<String>(&_un));
+	TempOpt<String const> sym() const & {
+		return TempOpt(*std::get_if<String>(&_un));
 	}
 	/**
 	 * @brief Copy the function and argument if the term is an application.
@@ -126,9 +126,9 @@ public:
 	/**
 	 * @brief Reference to the function and argument if the term is an application.
 	 */
-	Ptr<std::pair<Term,Term> const> app() const & {
+	TempOpt<std::pair<Term,Term> const> app() const & {
 		auto ptr = std::get_if<App>(&_un);
-		return ptr ? Ptr(**ptr) : nullptr;
+		return ptr ? TempOpt(**ptr) : nullptr;
 	}
 	/**
 	 * @brief Copy of the variable and body if the term is an abstraction.
@@ -140,9 +140,9 @@ public:
 	/**
 	 * @brief Reference to the variable and body if the term is an abstraction.
 	 */
-	Ptr<std::pair<String,Term> const> abs() const & {
+	TempOpt<std::pair<String,Term> const> abs() const & {
 		auto ptr = std::get_if<Abs>(&_un);
-		return ptr ? Ptr(**ptr) : nullptr;
+		return ptr ? TempOpt(**ptr) : nullptr;
 	}
 	/**
 	 * @brief Copy the variable and body if the term is a binding.
@@ -154,9 +154,9 @@ public:
 	/**
 	 * @brief Reference to the variable and body if the term is a binding.
 	 */
-	Ptr<std::pair<String,Term> const> fix() const & {
+	TempOpt<std::pair<String,Term> const> fix() const & {
 		auto ptr = std::get_if<Bind>(&_un);
-		return ptr ? Ptr(**ptr) : nullptr;
+		return ptr ? TempOpt(**ptr) : nullptr;
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -246,7 +246,7 @@ class CTerm;
 class Ctxt {
 private:
 	struct Body;
-	Ref<Body> _ref;
+	Ptr<Body> _ref;
 	Ctxt();
 public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
@@ -259,7 +259,7 @@ public:
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	Ptr<Ctxt const> find_ctxt(String const& name = String()) const &;
+	TempOpt<Ctxt const> find_ctxt(String const& name = String()) const &;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -297,11 +297,11 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	Ptr<String const> find_sym_local(String const& sym) const &;
+	TempOpt<String const> find_sym_local(String const& sym) const &;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	Ptr<String const> find_sym(String const& sym) const &;
+	TempOpt<String const> find_sym(String const& sym) const &;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
@@ -409,7 +409,7 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : _ref(Body()) {};
+inline Ctxt::Ctxt() : _ref() {};
 
 inline Ctxt Ctxt::branch() const {
 	Ctxt ret;
@@ -434,9 +434,9 @@ inline Ctxt Ctxt::ctxt(String const& name) const {
 	}
 	return it->second;
 }
-inline Ptr<Ctxt const> Ctxt::find_ctxt(String const& name) const & {
+inline TempOpt<Ctxt const> Ctxt::find_ctxt(String const& name) const & {
 	auto const& it = _ref->ctxts.find(name);
-	return it == _ref->ctxts.end() ? nullptr : Ptr(it->second);
+	return it == _ref->ctxts.end() ? nullptr : TempOpt(it->second);
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;

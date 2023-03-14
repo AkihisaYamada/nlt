@@ -103,25 +103,25 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	};
 }
 
-optional<string> Syntax::gets_thm_name() {
+optional<String> Syntax::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
-		default: return optional<string>();
+		default: return nullopt;
 	}
-	string ret = get_token();
+	String ret = get_token();
 	for(;;) {
 		if( !skips(".") ) {
 			return ret;
 		}
-		ret += '.';
+		*ret += '.';
 		if( next_token_type() != Lexer::Word ) {
 			return ret;
 		}
-		ret += get_token();
+		*ret += get_token();
 	}
 }
-string Syntax::get_thm_name() {
+String Syntax::get_thm_name() {
 	if( auto const& opt = gets_thm_name() ) {
 		return *opt;
 	} else {
@@ -130,62 +130,58 @@ string Syntax::get_thm_name() {
 }
 
 optional<Term> Syntax::gets_term(int level) {
-	string_view sym = peek_token();
-	if( sym == "" || closers.contains(sym) ) {
-		return optional<Term>();
+	string_view peek = peek_token();
+	if( peek == "" || closers.contains(peek) ) {
+		return nullopt;
 	}
 	Term ret;
-	auto opener_it = openers.find(sym);
-	if( opener_it != openers.end() ) {
+	if( auto opener_it = openers.find(peek); opener_it != openers.end() ) {
 		ignore_token();
 		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
+	} else if( auto prefix_it = prefixes.find(peek); prefix_it != prefixes.end() ) {
+		if( prefix_it->second.llevel < level ) {
+			return nullopt;
+		}
+		ret = Term(prefix_it->first);
+		ignore_token();
+		if( auto const& r = gets_term(prefix_it->second.rlevel) ) {
+			ret = ret(r.value());
+		}
 	} else {
-		auto prefix_it = prefixes.find(sym);
-		if( prefix_it != prefixes.end() ) {
-			if( prefix_it->second.llevel < level ) {
-				return optional<Term>();
+		String sym = peek;
+		ignore_token();
+		if( skips(".") ) {
+			if( auto const& t = gets_term(level) ) {
+				ret = sym /= t.value();
 			}
-			ret = Term(prefix_it->first);
-			ignore_token();
-			if( auto const& r = gets_term(prefix_it->second.rlevel) ) {
-				ret = ret(r.value());
-			}
+		} else if( skips("[") ) {
+			ret = sym / gets_term(-1000).value();
+			skip("]");
 		} else {
-			String sym = get_token();
-			if( skips(".") ) {
-				if( auto const& t = gets_term(level) ) {
-					ret = sym /= t.value();
-				}
-			} else if( skips("[") ) {
-				ret = sym / gets_term(-1000).value();
-				skip("]");
-			} else {
-				ret = Term(sym);
-			}
+			ret = Term(sym);
 		}
 	}
 	for(;;) {
-		string_view sym = peek_token();
-		if( sym == "" || closers.contains(sym) ) {
+		string_view peek = peek_token();
+		if( peek == "" || closers.contains(peek) ) {
 			return ret;
 		}
-		auto pair = infixes.find(sym);
 		int rlevel;
-		if( pair == infixes.end() ) {
+		if( auto it = infixes.find(peek); it != infixes.end() ) {
+			if( it->second.llevel < level ) {
+				return ret;
+			}
+			ret = Term(it->first)(ret);
+			ignore_token();
+			rlevel = it->second.rlevel;
+		} else {
 			if( 1000 <= level ) {
 				return ret;
 			}
 			rlevel = 1000;
-		} else {
-			if( pair->second.llevel < level ) {
-				return ret;
-			}
-			ret = Term(pair->first)(ret);
-			ignore_token();
-			rlevel = pair->second.rlevel;
 		}
 		if( auto r = gets_term(rlevel) ) {
-			ret = ret(r.value());
+			ret = ret(*r);
 		} else {
 			return ret;
 		}

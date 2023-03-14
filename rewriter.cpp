@@ -165,17 +165,21 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 	return std::optional<Thm>();
 }
 
-Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int n, std::vector<char> const& pos) const {
+Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const {
 	Ctxt const& ctxt = source.ctxt();
 	Thm lrefl = refl.weaken(ctxt);
 	Thm ltrans = trans.weaken(ctxt).allE(source);
 	Thm eq = lrefl.allE(source);
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
-	for( unsigned int i = 0; i < n; i++ ) {
+	for( unsigned int i = 0; i < max; i++ ) {
 		auto const& step = _step(rules,s,begin,end,lrefl);
 		if( !step ) {
-			break;
+			if( i < min ) {
+				throw TooFewSteps(source);
+			} else {
+				return eq;
+			}
 		}
 		auto const& app = step->app();
 		assert(app);
@@ -186,8 +190,8 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int n, std
 	}
 	return eq;
 }
-Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int n, std::vector<char> const& pos) const {
-	Thm const& eq = steps(rules,source,n,pos);
+Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const {
+	Thm const& eq = steps(rules,source,min,max,pos);
 	auto const& app = eq.app();
 	assert(app);
 	CTerm const& target = app->second;

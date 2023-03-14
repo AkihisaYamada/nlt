@@ -7,9 +7,9 @@ String avoid(String const& var, function<bool(String const&)> const& test) {
 	if( !test(var) ) {
 		return var;
 	}
-	string str = var;
+	String str = var;
 	do {
-		str.append("'");
+		str->push_back('\'');
 	} while( test(str) );
 	return str;
 }
@@ -121,9 +121,12 @@ CSubst& CSubst::_assign(String const& var, CTerm const& val) {
 }
 
 Term Term::subst(CSubst const& subst) const {
-	auto f = [&](String const& sym) {
-		auto opt = subst.get(sym);
-		return opt ? (Term)*opt : sym;
+	auto f = [&](String const& sym)->Term {
+		if( auto opt = subst.get(sym) ) {
+			return *opt;
+		} else {
+			return sym;
+		}
 	};
 	auto fixed = [&](String const& sym) {
 		return (bool)subst.ctxt().find_sym(sym);
@@ -191,7 +194,7 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-Ptr<String const> Ctxt::find_sym_local(String const& sym) const & {
+TempOpt<String const> Ctxt::find_sym_local(String const& sym) const & {
 	auto const& it = fvars().find(sym);
 	if( it != fvars().end() ) {
 		return *it;
@@ -203,9 +206,9 @@ Ptr<String const> Ctxt::find_sym_local(String const& sym) const & {
 	return nullptr;
 }
 
-Ptr<String const> Ctxt::find_sym(String const& sym) const & {
+TempOpt<String const> Ctxt::find_sym(String const& sym) const & {
 	if( auto opt = find_sym_local(sym) ) {
-		return *opt;
+		return opt;
 	} else if( auto parent = find_ctxt() ) {
 		return parent->find_sym(sym);
 	} else {

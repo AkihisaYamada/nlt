@@ -40,7 +40,6 @@ pair<String, list<Term>> uncurry(Term const& t) {
 }
 
 static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
-//cerr << "match: "<< pat << endl << '\t' << val << endl;
 	if( auto sym = pat.sym() ) {
 		if( auto lidx_it = lidx.find(*sym); lidx_it != lidx.end() ) {// bound variable must be identical
 			if( auto rsym = val.sym() ) {
@@ -219,13 +218,13 @@ Thm discharge(Thm thm, Thm arg) try {
 	arg = arg.weaken(discharger_ctxt);
 	for( auto const& x : arg_ctxt.fvar_list() ) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		arg = arg.allE( discharger_ctxt.cterm( val ? (Term)*val : x ) );
+		arg = arg.allE( discharger_ctxt.cterm( val ? *val : Term(x) ) );
 	}
 	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
 	for( auto const& x : thm_ctxt.fvar_list() ) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		thm = thm.allE( ret_ctxt.enclose( val ? (Term)*val : x ) );
+		thm = thm.allE( ret_ctxt.enclose( val ? *val : Term(x) ) );
 	}
 	thm = thm.impE(arg);
 	thm = thm.intro();
