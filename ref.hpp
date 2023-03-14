@@ -11,8 +11,18 @@
 template<typename T>
 class Ptr {
 	T* ptr;
-	Ptr(T&&) = delete;// rvalue cannot be referenced
-	Ptr( Ptr<T> const& ) = delete;// you cannot copy pointers
+	/**
+	 * @brief rvalue cannot be pointed.
+	 */
+	Ptr(T&&) = delete;
+	/**
+	 * @brief Do not copy Ptr.
+	 */
+	Ptr( Ptr<T> const& ) = delete;
+	/**
+	 * @brief Do not copy Ptr.
+	 */
+	Ptr& operator=( Ptr<T> const& ) = delete;
 public:
 	Ptr( std::nullptr_t = nullptr ) : ptr(nullptr) {}
 	Ptr( T& l ) : ptr(&l) {}
