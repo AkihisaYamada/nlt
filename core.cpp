@@ -191,7 +191,7 @@ String const ALL_var = String("∀");
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-optional<String> Ctxt::find_sym_local(String const& sym) const {
+Ptr<String const> Ctxt::find_sym_local(String const& sym) const & {
 	auto const& it = fvars().find(sym);
 	if( it != fvars().end() ) {
 		return *it;
@@ -200,16 +200,16 @@ optional<String> Ctxt::find_sym_local(String const& sym) const {
 	if( spec_it != specs().end() ) {
 		return spec_it->first;
 	}
-	return nullopt;
+	return nullptr;
 }
 
-optional<String> Ctxt::find_sym(String const& sym) const {
+Ptr<String const> Ctxt::find_sym(String const& sym) const & {
 	if( auto opt = find_sym_local(sym) ) {
-		return opt;
+		return *opt;
 	} else if( auto parent = find_ctxt() ) {
 		return parent->find_sym(sym);
 	} else {
-		return nullopt;
+		return nullptr;
 	}
 }
 

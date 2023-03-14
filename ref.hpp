@@ -3,6 +3,29 @@
 
 #include<ostream>
 
+/**
+ * @brief Safe, temporary pointers. Can only point to an lvalue.
+ * 
+ * @tparam T 
+ */
+template<typename T>
+class Ptr {
+	T* ptr;
+	Ptr(T&&) = delete;// rvalue cannot be referenced
+	Ptr( Ptr<T> const& ) = delete;// you cannot copy pointers
+public:
+	Ptr( std::nullptr_t = nullptr ) : ptr(nullptr) {}
+	Ptr( T& l ) : ptr(&l) {}
+	operator bool() const { return ptr; }
+	T& operator*() const { return *ptr; }
+	T* operator->() const { return ptr; }
+};
+
+/**
+ * @brief Reference counter.
+ * 
+ * @tparam T 
+ */
 template<typename T>
 class Ref {
 	struct Body {
