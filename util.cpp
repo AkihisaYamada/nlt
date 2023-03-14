@@ -25,16 +25,16 @@ ostream& operator<<(ostream& os, CSubst const& subst) {
 }
 
 pair<String, list<Term>> uncurry(Term const& t) {
-	Term cur = t;
+	auto cur = Ptr(t);
 	list<Term> args;
 	for(;;) {
-		if( auto const& app = cur.app() ) {
+		if( auto const& app = cur->app() ) {
 			args.push_front(app->second);
 			cur = app->first;
-		} else if( auto sym = cur.sym() ) {
+		} else if( auto sym = cur->sym() ) {
 			return pair<String,list<Term>>(*sym,args);
 		} else {
-			throw UnexpectedTerm(cur);
+			throw UnexpectedTerm(*cur);
 		}
 	}
 }
