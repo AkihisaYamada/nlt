@@ -184,12 +184,15 @@ public:
 		}
 	}
 
+	void _indent() {
+		for( int i = 0; i <= _depth; i++ ) {
+			cout << '>';
+		}
+		cout << ' ' << flush;
+	}
 	optional<Thm> loop() {
 		for(;;) try {
-			for( int i = 0; i <= _depth; i++ ) {
-				cout << '>';
-			}
-			cout << ' ' << flush;
+			_indent();
 			if( _syntax->skips("{") ) {
 				cout << "Creating context." << endl;
 				branch().loop();
@@ -248,9 +251,10 @@ public:
 				_syntax->skip(":");
 				Ctxt stmt_ctxt = _ctxt.branch();
 				CTerm stmt = stmt_ctxt.enclose(_syntax->get_term(0));
-				cout << "Show " << thm_name << ": " << _syntax->pretty_term(stmt) << endl;
+				cout << "Show " << thm_name << ": " << _syntax->pretty_term(stmt);
 				if( _syntax->skips(",") ) {
 					_syntax->skip("assuming");
+					cout << ", assuming " << flush;
 					for(;;) {
 						String assm_name = _syntax->get_thm_name();
 						_syntax->skip(":");
@@ -263,6 +267,7 @@ public:
 						cout << ", " << flush;
 					}
 				}
+				cout << endl;
 				_syntax->skip(";");
 				auto const& thm = prove(stmt).loop();
 				if( !thm ) {
@@ -502,15 +507,7 @@ private:
 	}
 };
 
-void test() {
-	Term t = Term("x");
-	cerr << t << endl;
-	t = Term("y");
-	cerr << t << endl;
-}
-
 int main(int argc, char* argv[]) {
-	test();
 	istream* pis;
 	bool exit_on_error = false;
 	if( argc == 1 ) {
