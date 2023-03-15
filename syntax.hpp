@@ -23,7 +23,7 @@ class Syntax : public Lexer {
 		int rlevel;
 	};
 	struct Opener {
-		String closer;
+		std::string closer;
 		int level;
 		std::function<Term(std::function<std::optional<Term>(int)>)> handler;
 	};
@@ -34,18 +34,18 @@ class Syntax : public Lexer {
 
 public:
 	struct Error : std::exception {
-		String message;
-		Error(String const& message) : message(message) {}
+		std::string message;
+		Error(std::string const& message) : message(message) {}
 	};
 	Syntax(std::istream& is);
 
-	void prefix(String const& sym, int level, int rlevel) {
+	void prefix(std::string const& sym, int level, int rlevel) {
 		prefixes.insert({sym,{level,rlevel}});
 	}
-	void infix(String const& sym, int level, int llevel, int rlevel) {
+	void infix(std::string const& sym, int level, int llevel, int rlevel) {
 		infixes.insert({sym,{level,llevel,rlevel}});
 	}
-	void encloser(String const& opener, String const& closer, int level, std::function<Term(std::function<std::optional<Term>(int)>)> handler) {
+	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<std::optional<Term>(int)>)> handler) {
 		openers.insert({opener,{closer,level,handler}});
 		closers.insert(closer);
 	}
@@ -53,8 +53,8 @@ public:
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
-	std::optional<String> gets_thm_name();
-	String get_thm_name();
+	std::optional<std::string> gets_thm_name();
+	std::string get_thm_name();
 	std::optional<Term> gets_term(int level = 0);
 	Term get_term(int level = 0);
 };

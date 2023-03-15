@@ -5,15 +5,10 @@
 using namespace std;
 
 struct ProverFailure : exception {
-	String message;
-	ProverFailure(String const& message) : message(message) {}
+	string message;
+	ProverFailure(string const& message) : message(message) {}
 };
 class UnfinishedProof : std::exception {};
-
-static String const LPAR = "(";
-static String const RPAR = ")";
-static String const LBRACE = "{";
-static String const RBRACE = "}";
 
 class Prover {
 	unsigned int _depth;
@@ -59,9 +54,9 @@ public:
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->encloser(LPAR,RPAR,-1000,[&]( function<optional<Term>(int)> get_inner ){
+		_syntax->encloser("(",")",-1000,[&]( function<optional<Term>(int)> get_inner ){
 			optional<Term> t = get_inner(0);
-			_syntax->skip(*RPAR);
+			_syntax->skip(")");
 			return *t;
 		});
 		_syntax->infix(",",-1,-1,-2);
@@ -88,7 +83,7 @@ public:
 		}
 	}
 	Rewriter& _rewriter() {
-		String name;
+		string name;
 		if( _syntax->skips("[") ) {
 			name = _syntax->get_token();
 			_syntax->skip("]");
@@ -162,7 +157,7 @@ public:
 			if( _syntax->skips("$") ) {
 				CSubst subst = _ctxt.branch();
 				do {
-					String sym = _syntax->get_token();
+					string sym = _syntax->get_token();
 					_syntax->skip(":=");
 					subst.assign(sym,get_term());
 				} while( _syntax->skips(",") );
@@ -181,8 +176,8 @@ public:
 		}
 	}
 
-	vector<pair<String,Term>> get_named_terms() {
-		vector<pair<String,Term>> ret;
+	vector<pair<string,Term>> get_named_terms() {
+		vector<pair<string,Term>> ret;
 		for(;;) {
 			auto const& name = _syntax->gets_thm_name();
 			if(!name) {
@@ -221,7 +216,7 @@ public:
 				cout << "Fixing";
 				for(;;) {
 					if( _syntax->skips(";") ) break;
-					String sym = _syntax->get_token();
+					string sym = _syntax->get_token();
 					_ctxt.fix(sym);
 					cout << ' ' << sym << flush;
 				}
@@ -229,7 +224,7 @@ public:
 			} else if( _syntax->skips("assume") ) {
 				cout << "Assuming ";
 				for(;;) {
-					String name = _syntax->get_thm_name();
+					string name = _syntax->get_thm_name();
 					_syntax->skip(":");
 					Term term = _syntax->get_term(0);
 					cout << name << ": " << _syntax->pretty_term(term) << flush;
@@ -250,20 +245,20 @@ public:
 				_syntax->skip(";");
 				cout << "term " << _syntax->pretty_term(term) << endl;
 			} else if( _syntax->skips("name") ) {
-				String name = _syntax->get_thm_name();
+				string name = _syntax->get_thm_name();
 				_syntax->skip(":");
 				_ctxt.claim(name,get_thm());
 				_syntax->skip(";");
 				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
 			} else if( _syntax->skips("move") ) {
 				Ctxt pctxt = *_ctxt.find_ctxt();
-				String name = _syntax->get_thm_name();
+				string name = _syntax->get_thm_name();
 				_syntax->skip(":");
 				pctxt.claim(name,get_thm().intro());
 				_syntax->skip(";");
 				cout << "theorem " << name << ": " << _syntax->pretty_thm(pctxt.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
-				String thm_name = _syntax->get_thm_name();
+				string thm_name = _syntax->get_thm_name();
 				_syntax->skip(":");
 				Ctxt stmt_ctxt = _ctxt.branch();
 				CTerm stmt = stmt_ctxt.enclose(_syntax->get_term(0));
@@ -272,7 +267,7 @@ public:
 					_syntax->skip("assuming");
 					cout << ", assuming " << flush;
 					for(;;) {
-						String assm_name = _syntax->get_thm_name();
+						string assm_name = _syntax->get_thm_name();
 						_syntax->skip(":");
 						Term term = _syntax->get_term(0);
 						cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
@@ -292,7 +287,7 @@ public:
 				}
 				_ctxt.claim(thm_name,thm->intro());
 			} else if( _syntax->skips("obtain") ) {
-				String sym = _syntax->get_token();
+				string sym = _syntax->get_token();
 				_syntax->skip("where");
 				auto specs = get_named_terms();
 				_syntax->skip(";");
@@ -317,7 +312,7 @@ public:
 				_ctxt.import(obtainer.interpret(CSubst(_ctxt),{thm}));
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
-				optional<String> name;
+				optional<string> name;
 				if( _syntax->skips("(") ) {
 					name = _syntax->get_token();
 					_syntax->skip(")");
@@ -383,7 +378,7 @@ public:
 				cerr << "Done." << endl;
 				return _concluder.conclude(*_thesis);
 			} else if( _syntax->skips("prefix") ) {
-				String sym = _syntax->get_token();
+				string sym = _syntax->get_token();
 				int rlevel = _syntax->get_int();
 				int level = _syntax->get_int();
 				_syntax->skip(";");
@@ -391,7 +386,7 @@ public:
 				_syntax->prefix(sym,level,rlevel);
 				cout << "New prefix operator " << sym << endl;
 			} else if( _syntax->skips("infix") ) {
-				String sym = _syntax->get_token();
+				string sym = _syntax->get_token();
 				int llevel = _syntax->get_int();
 				int rlevel = _syntax->get_int();
 				int level = _syntax->get_int();
@@ -405,7 +400,7 @@ public:
 					_concluder.insert(thm);
 					cout << "Added concluder: " << _syntax->pretty_thm(thm) << endl;
 				} else if( _syntax->skips("rewrite") ) {
-					String name;
+					string name;
 					if( _syntax->skips("[") ) {
 						name = _syntax->get_token();
 						_syntax->skip("]");
@@ -415,11 +410,11 @@ public:
 					Thm const& trans = get_thm();
 					Thm const& imp = get_thm();
 					auto const& pair = _rewriters.insert({name,Rewriter(refl,sym,trans,imp)});
-					cout << "Initialized Rewriter " << name << endl <<
-						"\trefl: " << _syntax->pretty_term(refl) <<
-						", sym: " << _syntax->pretty_term(sym) <<
-						", trans: " << _syntax->pretty_term(trans) <<
-						", imp: " << _syntax->pretty_term(imp) << endl;
+					cout << "Initialized Rewriter " << name <<
+						"\n\trefl: " << _syntax->pretty_term(refl) <<
+						"\n\tsym: " << _syntax->pretty_term(sym) <<
+						"\n\ttrans: " << _syntax->pretty_term(trans) <<
+						"\n\timp: " << _syntax->pretty_term(imp) << endl;
 				} else if( _syntax->skips("cong") ) {
 					Rewriter& rewriter = _rewriter();
 					cout << "Registering Congruence:" << endl;
@@ -427,26 +422,28 @@ public:
 						if( _syntax->skips("!") ) {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
 							_syntax->skip(":");
-							Thm const& cong_rule = get_thm();
-							rewriter.register_quantifier_cong(cong_pat,cong_rule);
-							cout << "\tquantifier cong [" << cong_pat << "] " << cong_rule << endl;
+							Thm const& cong_thm = get_thm();
+							rewriter.register_quantifier_cong(cong_pat,cong_thm);
+							cout << "\tquantifier [" << _syntax->pretty_term(cong_pat) <<
+								 "] " << _syntax->pretty_thm(cong_thm) << endl;
 						} else {
 							CTerm cong_pat = _ctxt.branch().enclose(get_term());
 							_syntax->skip(":");
-							Thm const& cong_rule = get_thm();
-							rewriter.register_cong(cong_pat,cong_rule);
-							cout << "\t[" << cong_pat << "] " << cong_rule << endl;
+							Thm const& cong_thm = get_thm();
+							rewriter.register_cong(cong_pat,cong_thm);
+							cout << "\t[" << _syntax->pretty_term(cong_pat) <<
+								 "] " << _syntax->pretty_thm(cong_thm) << endl;
 						}
 						if( !_syntax->skips(",") ) {
 							break;
 						}
 					}
 				} else if( _syntax->skips("define") ) {
-					String const& eq = _syntax->get_token();
-					String const& lam = _syntax->get_token();
+					string const& eq = _syntax->get_token();
+					string const& lam = _syntax->get_token();
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
-					Rewriter const& rewriter = _rewriters.find(String())->second;
+					Rewriter const& rewriter = _rewriters.find(string())->second;
 					_definer = optional(Definer(rewriter,eq,lam,beta));
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
@@ -457,11 +454,11 @@ public:
 					auto handler = [=,*this](function<optional<Term>(int)> get_inner) {
 						auto const& inner = get_inner(0);
 						if( !inner ) {
-							_syntax->skip(*RBRACE);
+							_syntax->skip("}");
 							return empty;
 						}
 						if( inner->abs() ) {
-							_syntax->skip(*RBRACE);
+							_syntax->skip("}");
 							return collect(lam(*inner));
 						}
 						Term ret = singleton(*inner);
@@ -469,10 +466,10 @@ public:
 							auto const inner2 = get_inner(0);
 							ret = un(ret)(singleton(*inner2));
 						}
-						_syntax->skip(*RBRACE);
+						_syntax->skip("}");
 						return ret;
 					};
-					_syntax->encloser(LBRACE,RBRACE,-1000,handler);
+					_syntax->encloser("{","}",-1000,handler);
 				}
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {

@@ -33,9 +33,9 @@ Thm strip_all(Thm thm, Ctxt& loc);
  * @brief Uncurrying
  * 
  * @param t 
- * @return std::pair<String,std::vector<Term>> 
+ * @return std::pair<std::string,std::vector<Term>> 
  */
-std::pair<String,std::list<Term>> uncurry(Term const& t);
+std::pair<std::string,std::list<Term>> uncurry(Term const& t);
 
 /**
  * @brief Matching, assuming disjoint free variables.
@@ -45,7 +45,7 @@ std::pair<String,std::list<Term>> uncurry(Term const& t);
  */
 std::optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val);
 
-class SubstDag : public CSubst, public Graph<String,std::less<>> {
+class SubstDag : public CSubst, public Graph<std::string,std::less<>> {
 public:
 	struct Cyclic : std::exception {};
 	/**
@@ -54,11 +54,11 @@ public:
 	 * @param var 
 	 * @param val 
 	 */
-	void assign(String const& var, CTerm const& val) {
+	void assign(std::string const& var, CTerm const& val) {
 		if( val != var ) {
 			CSubst::assign(var,val);
 			val.iter_syms([](auto){},
-				[&](String const& sym) {
+				[&](std::string const& sym) {
 					if( has_path(sym,var) ) {
 						throw Cyclic();
 					}
@@ -82,7 +82,7 @@ public:
  * @param fvar signifies free variables.
  * @return an idempotent, most general unifier iff `l` and `r` are unifiable.
  */
-std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(String const&)> const& fvar);
+std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
@@ -201,7 +201,7 @@ inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) 
 
 class Definer {
 	Ptr<Rewriter const> rewriter;
-	String const EQ;
+	std::string const EQ;
 	Term const LAM;
 	Rewriter::Rules beta;
 public:
@@ -209,12 +209,12 @@ public:
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
-	Definer(Rewriter const& rewriter, String const& EQ, Term const& LAM, Thm const& beta) :
+	Definer(Rewriter const& rewriter, std::string const& EQ, Term const& LAM, Thm const& beta) :
 		rewriter(rewriter), LAM(LAM), EQ(EQ)
 	{
 		this->beta.add(beta);
 	}
-	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<String> const& name) const;
+	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<std::string> const& name) const;
 };
 
 #endif

@@ -2,9 +2,9 @@
 
 using namespace std;
 
-void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String> const& name) const {
+void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<string> const& name) const {
 	auto unc = uncurry(l);
-	String const& f = unc.first;
+	string const& f = unc.first;
 	// building the rule and the lambda term for f
 	Term rule = Term(EQ)(l)(r);
 	unsigned int steps = 0;
@@ -17,11 +17,11 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<String> 
 			throw Error(l);
 		}
 	}
-	auto const& pair = ctxt.obtain(f,{{ *(name ? *name : f) + ".def", rule }});
+	auto const& pair = ctxt.obtain(f,{{ (name ? *name : f) + ".def", rule }});
 	Ctxt const& obtainer = pair.second;
 	// proving the existence
 	Ctxt prover = ctxt.branch();
-	String thesis = avoid("thesis",[&](String const& x){ return (bool)ctxt.find_sym(x); });
+	string thesis = avoid("thesis",[&](string const& x){ return (bool)ctxt.find_sym(x); });
 	prover.fix(thesis);
 	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
 	Thm thm = prover.thm("assm");

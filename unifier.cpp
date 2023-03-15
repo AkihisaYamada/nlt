@@ -3,20 +3,20 @@
 using namespace std;
 
 class Unifier {
-	std::function<bool(String const&)> const& fvar;// free variables
+	std::function<bool(string const&)> const& fvar;// free variables
 	CSubst subst;
 public:
 	struct Mismatch : exception {};
 	struct Occurs : exception {};
 	struct Escapes : exception {};
-	Unifier(Ctxt const& ctxt, std::function<bool(String const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
+	Unifier(Ctxt const& ctxt, std::function<bool(string const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
 private:
-	map<String,unsigned int,less<>> escapes[2];
+	map<string,unsigned int,less<>> escapes[2];
 	StrSet avoids[2];
 
-	static Term sanitize(Term const& t, StrSet& bounds, StrSet const& avoids, map<String,unsigned int,less<>> const& escapes) {
+	static Term sanitize(Term const& t, StrSet& bounds, StrSet const& avoids, map<string,unsigned int,less<>> const& escapes) {
 		if( auto sym = t.sym() ) {
-			String const& x = *sym;
+			string const& x = *sym;
 			if( bounds.contains(x) ) {// local bound variable is OK
 				return x;
 			}
@@ -30,7 +30,7 @@ private:
 		} else if( auto app = t.app() ) {
 			return sanitize(app->first,bounds,avoids,escapes)(sanitize(app->second,bounds,avoids,escapes));
 		} else if( auto abs = t.abs() ) {
-			String const& x = abs->first;
+			string const& x = abs->first;
 			auto const& info = bounds.insert(x);
 			auto const& body = sanitize(abs->second,bounds,avoids,escapes);
 			if( info.second ) {
@@ -44,9 +44,9 @@ private:
 		}
 	}
 
-	void unify1(String const& x, Term const& r) {
+	void unify1(string const& x, Term const& r) {
 		if( auto rsym = r.sym() ) {
-			String const& y = *rsym;
+			string const& y = *rsym;
 			if( x == y ) {
 				return;
 			}
@@ -68,7 +68,7 @@ private:
 	}
 	void unify2(Term const& l, Term const& r, unsigned int index) {
 		if( auto rsym = r.sym() ) {
-			String const& y = *rsym;
+			string const& y = *rsym;
 			if( escapes[1].contains(y) ) { // bound variable cannot match other things
 				throw Mismatch();
 			}
@@ -96,8 +96,8 @@ private:
 		} else if( auto labs = l.abs() ) {
 			if( auto rabs = r.abs() ) {
 				// both are abstraction.
-				String const& x = labs->first;
-				String const& y = rabs->first;
+				string const& x = labs->first;
+				string const& y = rabs->first;
 				auto const& xinfo = escapes[0].insert({x,index});
 				auto const& yinfo = escapes[1].insert({y,index});
 				unify(labs->second,rabs->second,index+1);
@@ -127,7 +127,7 @@ private:
 public:
 	void unify(Term const& l, Term const& r, unsigned int index = 0) {
 		if( auto lsym = l.sym() ) {
-			String const& x = *lsym;
+			string const& x = *lsym;
 			auto const& xesc_it = escapes[0].find(x);
 			if( xesc_it != escapes[0].end() ) {// bound variable must have the same index.
 				if( auto rsym = r.sym() ) {
@@ -168,7 +168,7 @@ public:
 	}
 };
 
-optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(String const&)> const& fvar) {
+optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
 		throw WrongContext();
 	}

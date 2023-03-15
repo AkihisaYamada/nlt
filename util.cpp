@@ -24,7 +24,7 @@ ostream& operator<<(ostream& os, CSubst const& subst) {
 	return os << "\n]";
 }
 
-pair<String, list<Term>> uncurry(Term const& t) {
+pair<string, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
 	for(;;) {
@@ -32,7 +32,7 @@ pair<String, list<Term>> uncurry(Term const& t) {
 			args.push_front(app->second);
 			cur = &app->first;
 		} else if( auto sym = cur->sym() ) {
-			return pair<String,list<Term>>(*sym,args);
+			return pair<string,list<Term>>(*sym,args);
 		} else {
 			throw UnexpectedTerm(*cur);
 		}
@@ -65,8 +65,8 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		}
 	} else if( auto const& abs = pat.abs() ) {
 		if( auto const& abs2 = val.abs() ) {
-			String const& x = abs->first;
-			String const& y = abs2->first;
+			string const& x = abs->first;
+			string const& y = abs2->first;
 			depth++;
 			auto const& lidx_info = lidx.insert({x,depth});
 			auto const& ridx_info = ridx.insert({y,depth});
@@ -131,8 +131,8 @@ Term strip_all(Term t, Ctxt& ctxt) {
 		if( auto app = t.app() ) {
 			if( app->first == ALL ) {
 				if( auto abs = app->second.abs() ) {
-					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
+					string const& v = abs->first;
+					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
 					t = abs->second.subst(abs->first,ctxt.fix(nv));
 					continue;
 				}
@@ -147,8 +147,8 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 		if( auto const& app = thm.app() ) {
 			if( app->first == ALL ) {
 				if( auto const& abs = app->second.abs() ) {
-					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
+					string const& v = abs->first;
+					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
 					thm = thm.allE(ctxt.fix(nv));
 					continue;
 				}
@@ -163,8 +163,8 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 		if( auto app = t.app() ) {
 			if( app->first == ALL ) {
 				if( auto abs = app->second.abs() ) {
-					String const& v = abs->first;
-					String nv = avoid(v,[&](String const& x){ return (bool)ctxt.find_sym(x); });
+					string const& v = abs->first;
+					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
 					t = app->second.inst(ctxt.fix(nv));
 					continue;
 				}
@@ -193,7 +193,7 @@ Thm discharge(Thm thm, Thm arg) try {
 	Thm arg_strip = strip_all(arg,arg_ctxt);
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
-	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](String const& x){
+	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
 	if( !unifier ) throw 3;

@@ -3,18 +3,18 @@
 
 using namespace std;
 
-String avoid(String const& var, function<bool(String const&)> const& test) {
+std::string avoid(std::string const& var, function<bool(std::string const&)> const& test) {
 	if( !test(var) ) {
 		return var;
 	}
-	String str = var;
+	std::string str = var;
 	do {
-		str->push_back('\'');
+		str.push_back('\'');
 	} while( test(str) );
 	return str;
 }
 
-static bool _eq_var(String const& x, String const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
+static bool _eq_var(std::string const& x, std::string const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
 	auto lit = lmap.find(x);
 	auto rit = rmap.find(y);
 	if( lit != lmap.end() ) {
@@ -78,8 +78,8 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 
 void Term::_iter_syms(
 	StrSet& bsyms,
-	function<void(String const&)> const& bsym,
-	function<void(String const&)> const& fsym
+	function<void(std::string const&)> const& bsym,
+	function<void(std::string const&)> const& fsym
 ) const {
 	if( auto sym = this->sym() ) {
 		if( bsyms.contains(*sym) ) {
@@ -108,11 +108,11 @@ void Term::_iter_syms(
 
 StrSet Term::fsyms() const {
 	StrSet bsyms, ret;
-	_iter_syms(bsyms,[](String const&){},[&ret](String const& fsym){ret.insert(fsym);});
+	_iter_syms(bsyms,[](std::string const&){},[&ret](std::string const& fsym){ret.insert(fsym);});
 	return ret;
 }
 
-CSubst& CSubst::_assign(String const& var, CTerm const& val) {
+CSubst& CSubst::_assign(std::string const& var, CTerm const& val) {
 	auto const& info = _map.insert({var,val});
 	if( !info.second ) {
 		info.first->second = val;
@@ -121,20 +121,20 @@ CSubst& CSubst::_assign(String const& var, CTerm const& val) {
 }
 
 Term Term::subst(CSubst const& subst) const {
-	auto f = [&](String const& sym)->Term {
+	auto f = [&](std::string const& sym)->Term {
 		if( auto opt = subst.get(sym) ) {
 			return *opt;
 		} else {
 			return sym;
 		}
 	};
-	auto fixed = [&](String const& sym) {
+	auto fixed = [&](std::string const& sym) {
 		return (bool)subst.ctxt().find_sym(sym);
 	};
 	return map(f,fixed);
 }
 
-static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap<String>& bsyms) {
+static Term subst_var(function<Term(std::string const&)> f, std::string const& sym, StrMap<std::string>& bsyms) {
 	auto const& it = bsyms.find(sym);
 	if( it != bsyms.end() ) {
 		return it->second;
@@ -142,22 +142,22 @@ static Term subst_var(function<Term(String const&)> f, String const& sym, StrMap
 	return f(sym);
 }
 
-Term Term::_map(function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const {
+Term Term::_map(function<Term(std::string const&)> f, std::function<bool(std::string const&)> fixed, StrMap<std::string>& bsyms) const {
 	if( auto sym = this->sym() ) {
 		return subst_var(f,*sym,bsyms);
 	} else if( auto app = this->app() ) {
 		return app->first._map(f,fixed,bsyms)(app->second._map(f,fixed,bsyms));
 	} else if( auto abs = this->abs() ) {
-		String var = abs->first;
+		std::string var = abs->first;
 		Term body = abs->second;
-		String const& newvar = avoid(var,[&](String const& x){ return bsyms.contains(x) || fixed(x); });
+		std::string const& newvar = avoid(var,[&](std::string const& x){ return bsyms.contains(x) || fixed(x); });
 		auto newvar_info = bsyms.insert({newvar,newvar});// the new name should be avoided
 		if( newvar == var ) {// the bound variable is fresh
 			body = body._map(f,fixed,bsyms);
 		} else {
 			// replace the original name
 			auto replace_info = bsyms.insert({abs->first,newvar});
-			String prev;
+			std::string prev;
 			if( !replace_info.second ) {// the variable is bound multiple times
 				prev = replace_info.first->second;// remember the old assignment
 				replace_info.first->second = newvar;// update to the new name
@@ -188,13 +188,12 @@ Term Term::_map(function<Term(String const&)> f, std::function<bool(String const
 	}
 }
 
-String const VOID_var = String("");
-String const IMP_var = String("⟹");
-String const ALL_var = String("∀");
+std::string const IMP_var = "⟹";
+std::string const ALL_var = "∀";
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-TempOpt<String const> Ctxt::find_sym_local(String const& sym) const & {
+TempOpt<std::string const> Ctxt::find_sym_local(std::string const& sym) const & {
 	auto const& it = fvars().find(sym);
 	if( it != fvars().end() ) {
 		return *it;
@@ -206,7 +205,7 @@ TempOpt<String const> Ctxt::find_sym_local(String const& sym) const & {
 	return nullptr;
 }
 
-TempOpt<String const> Ctxt::find_sym(String const& sym) const & {
+TempOpt<std::string const> Ctxt::find_sym(std::string const& sym) const & {
 	if( auto opt = find_sym_local(sym) ) {
 		return opt;
 	} else if( auto parent = find_ctxt() ) {
@@ -216,7 +215,7 @@ TempOpt<String const> Ctxt::find_sym(String const& sym) const & {
 	}
 }
 
-CTerm Ctxt::fix(String const& sym) {
+CTerm Ctxt::fix(std::string const& sym) {
 	if( auto opt = find_sym(sym) ) {
 		return CTerm(*this,*opt);
 	}
@@ -226,19 +225,19 @@ CTerm Ctxt::fix(String const& sym) {
 }
 CTerm Ctxt::enclose(Term const& t) {
 	t.iter_syms(
-		[](String const& sym){},// do nothing on bound ones
-		[this](String const& sym){ fix(sym); }// fix free symbols
+		[](std::string const& sym){},// do nothing on bound ones
+		[this](std::string const& sym){ fix(sym); }// fix free symbols
 	);
 	return CTerm(*this,t);
 }
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms(
-		[](String const& sym){},
-		[&](String const& sym){ if( !find_sym(sym) ) { throw UnboundVariable(sym); } }
+		[](std::string const& sym){},
+		[&](std::string const& sym){ if( !find_sym(sym) ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
-Term Ctxt::_thm(String const& name) const {
+Term Ctxt::_thm(std::string const& name) const {
 	if( auto it = _ref->thms.find(name); it != _ref->thms.end() ) {
 		return it->second;
 	} else if( auto parent = find_ctxt() ) {
@@ -248,12 +247,12 @@ Term Ctxt::_thm(String const& name) const {
 	}
 }
 
-pair<CTerm,Ctxt const> Ctxt::obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs) {
+pair<CTerm,Ctxt const> Ctxt::obtain(std::string const& sym, std::vector<std::pair<std::string,Term>> const& specs) {
 	if( find_sym(sym) ) {
 		throw DoubleFix(sym);
 	}
 	Ctxt obtainer = branch();
-	String thesis = avoid("thesis",[&](String const& x){ return find_sym(x) || sym == x; });
+	std::string thesis = avoid("thesis",[&](std::string const& x){ return find_sym(x) || sym == x; });
 	Term assm = thesis;
 	obtainer._ref->specs.insert({sym,specs});// register the specification
 	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
@@ -303,7 +302,7 @@ Thm Thm::intro() const {
 }
 std::optional<CTerm::StrTerm> CTerm::abs() const {
 	if( auto tabs = Term::abs() ) {
-		String const& var = tabs->first;
+		std::string const& var = tabs->first;
 		Term const& body = tabs->second;
 		Ctxt loc = _ctxt.branch();
 		loc.fix(var);
@@ -324,7 +323,7 @@ CTerm CTerm::lift() const {
 CTerm CTerm::subst(CSubst const& subst) const {
 	auto const& ctxt = subst.ctxt();
 	_ctxt.ensure_ancestor(ctxt);
-	auto f = [&](String const& sym)->Term {
+	auto f = [&](std::string const& sym)->Term {
 		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
 		} else if( auto const& opt2 = ctxt.find_sym(sym) ) {
@@ -333,7 +332,7 @@ CTerm CTerm::subst(CSubst const& subst) const {
 			throw UnboundVariable(sym);
 		}
 	};
-	auto fixed = [&](String const& sym) {
+	auto fixed = [&](std::string const& sym) {
 		return (bool)subst.ctxt().find_sym(sym);
 	};
 	return CTerm(ctxt,map(f,fixed));

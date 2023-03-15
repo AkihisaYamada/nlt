@@ -103,25 +103,25 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	};
 }
 
-optional<String> Syntax::gets_thm_name() {
+optional<std::string> Syntax::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
 		default: return nullopt;
 	}
-	String ret = get_token();
+	std::string ret = get_token();
 	for(;;) {
 		if( !skips(".") ) {
 			return ret;
 		}
-		*ret += '.';
+		ret += '.';
 		if( next_token_type() != Lexer::Word ) {
 			return ret;
 		}
-		*ret += get_token();
+		ret += get_token();
 	}
 }
-String Syntax::get_thm_name() {
+std::string Syntax::get_thm_name() {
 	if( auto const& opt = gets_thm_name() ) {
 		return *opt;
 	} else {
@@ -148,7 +148,7 @@ optional<Term> Syntax::gets_term(int level) {
 			ret = ret(r.value());
 		}
 	} else {
-		String sym = peek;
+		string sym(peek);
 		ignore_token();
 		if( skips(".") ) {
 			if( auto const& t = gets_term(level) ) {

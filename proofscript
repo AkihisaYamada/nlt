@@ -96,7 +96,7 @@ show EQ.prop2: P = Q ⟹ Q ⟹ P;
 setup rewrite EQ.refl EQ.sym EQ.trans EQ.prop1;
 setup cong
 	f x: EQ.cong,
-	!x: EQ.ext;
+	!α: EQ.ext;
 
 prefix λ 0 0;
 

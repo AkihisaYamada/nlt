@@ -12,7 +12,6 @@
 #include<list>
 #include<variant>
 #include"ref.hpp"
-#include"string.hpp"
 
 class Term;
 class Ctxt;
@@ -31,31 +30,31 @@ static bool polluted;
  * @param var variable to be made fresh
  * @param test avoided names
  */
-String avoid(String const& var, std::function<bool(String const&)> const& test);
+std::string avoid(std::string const& var, std::function<bool(std::string const&)> const& test);
 
-extern String const VOID_var;
-extern String const IMP_var;
-extern String const ALL_var;
+extern std::string const VOID_var;
+extern std::string const IMP_var;
+extern std::string const ALL_var;
 extern Term const IMP;
 extern Term const ALL;
 std::ostream& operator<<(std::ostream& os, Term const& t);
 
 template<typename T>
-class StrMap : public std::map<String,T,std::less<>> {};
+class StrMap : public std::map<std::string,T,std::less<>> {};
 
-typedef std::set<String,std::less<>> StrSet;
+typedef std::set<std::string,std::less<>> StrSet;
 
 class Term {
 	struct App : public Ptr<std::pair<Term,Term> const> {
 		 App(Term const& fun, Term const& arg) : Ptr({fun,arg}) {}
 	};
-	struct Abs : Ptr<std::pair<String,Term> const> {
-		Abs(String const& var, Term const& body) : Ptr({var,body}) {}
+	struct Abs : Ptr<std::pair<std::string,Term> const> {
+		Abs(std::string const& var, Term const& body) : Ptr({var,body}) {}
 	};
-	struct Bind : Ptr<std::pair<String,Term> const> {
-		Bind(String const& var, Term const& val) : Ptr({var,val}) {}
+	struct Bind : Ptr<std::pair<std::string,Term> const> {
+		Bind(std::string const& var, Term const& val) : Ptr({var,val}) {}
 	};
-	std::variant<String,App,Abs,Bind> _un;
+	std::variant<std::string,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
 	Term(Abs const& abs) : _un(abs) {}
 	Term(Bind const& bind) : _un(bind) {}
@@ -63,7 +62,7 @@ public:
 	Term() {}
 	~Term() {
 /*		bool fl = false;
-		if( auto s = std::get_if<String>(&_un) ) {
+		if( auto s = std::get_if<std::string>(&_un) ) {
 			fl = s->last();
 		} else if( auto s = std::get_if<App>(&_un) ) {
 			fl = s->last();
@@ -80,7 +79,7 @@ public:
 	/**
 	 * @brief Construct a symbol term
 	 */
-	Term(String const& sym) : _un(sym) {}
+	Term(std::string const& sym) : _un(sym) {}
 	/**
 	 * @brief application
 	 */
@@ -90,7 +89,7 @@ public:
 	/**
 	 * @brief abstraction
 	 */
-	friend Term operator/=(String const& var, Term const& body) {
+	friend Term operator/=(std::string const& var, Term const& body) {
 		return Term(Abs{var,body});
 	}
 	/**
@@ -100,21 +99,21 @@ public:
 	 * @param val 
 	 * @return Term 
 	 */
-	friend Term operator/(String const& binder, Term const& val) {
+	friend Term operator/(std::string const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
 	/**
 	 * @brief Copy the string if the term is a symbol.
 	 */
-	std::optional<String> sym() const && {
-		auto ptr = std::get_if<String>(&_un);
+	std::optional<std::string> sym() const && {
+		auto ptr = std::get_if<std::string>(&_un);
 		return ptr ? std::optional(*ptr) : std::nullopt;
 	}
 	/**
 	 * @brief Reference to the string if the term a symbol.
 	 */
-	TempOpt<String const> sym() const & {
-		return TempOpt(*std::get_if<String>(&_un));
+	TempOpt<std::string const> sym() const & {
+		return TempOpt(*std::get_if<std::string>(&_un));
 	}
 	/**
 	 * @brief Copy the function and argument if the term is an application.
@@ -133,28 +132,28 @@ public:
 	/**
 	 * @brief Copy of the variable and body if the term is an abstraction.
 	 */
-	std::optional<std::pair<String,Term>> abs() const && {
+	std::optional<std::pair<std::string,Term>> abs() const && {
 		auto ptr = std::get_if<Abs>(&_un);
 		return ptr ? std::optional(**ptr) : std::nullopt;
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is an abstraction.
 	 */
-	TempOpt<std::pair<String,Term> const> abs() const & {
+	TempOpt<std::pair<std::string,Term> const> abs() const & {
 		auto ptr = std::get_if<Abs>(&_un);
 		return ptr ? TempOpt(**ptr) : nullptr;
 	}
 	/**
 	 * @brief Copy the variable and body if the term is a binding.
 	 */
-	std::optional<std::pair<String,Term>> fix() const && {
+	std::optional<std::pair<std::string,Term>> fix() const && {
 		auto ptr = std::get_if<Bind>(&_un);
 		return ptr ? std::optional(**ptr) : std::nullopt;
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is a binding.
 	 */
-	TempOpt<std::pair<String,Term> const> fix() const & {
+	TempOpt<std::pair<std::string,Term> const> fix() const & {
 		auto ptr = std::get_if<Bind>(&_un);
 		return ptr ? TempOpt(**ptr) : nullptr;
 	}
@@ -165,14 +164,14 @@ public:
 	 * @param fsym applied on free symbols
 	 */
 	void iter_syms(
-		std::function<void(String const&)> const& bsym,
-		std::function<void(String const&)> const& fsym
+		std::function<void(std::string const&)> const& bsym,
+		std::function<void(std::string const&)> const& fsym
 	) const {
 		StrSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
 	}
 	StrSet fsyms() const;
-	Term subst(String const& var, Term const& val) const;
+	Term subst(std::string const& var, Term const& val) const;
 	/**
 	 * @brief applies a substitution.
 	 * 
@@ -187,17 +186,17 @@ public:
 	 * @param fixed flags fixed variables.
 	 * @return Term 
 	 */
-	Term map(std::function<Term(String const&)> f, std::function<bool(String const&)> fixed) const {
-		StrMap<String> bsyms;
+	Term map(std::function<Term(std::string const&)> f, std::function<bool(std::string const&)> fixed) const {
+		StrMap<std::string> bsyms;
 		return _map(f,fixed,bsyms);
 	};
 private:
 	void _iter_syms(
 		StrSet& bsyms,
-		std::function<void(String const&)> const& bsym,
-		std::function<void(String const&)> const& fsym
+		std::function<void(std::string const&)> const& bsym,
+		std::function<void(std::string const&)> const& fsym
 	) const;
-	Term _map(std::function<Term(String const&)> f, std::function<bool(String const&)> fixed, StrMap<String>& bsyms) const;
+	Term _map(std::function<Term(std::string const&)> f, std::function<bool(std::string const&)> fixed, StrMap<std::string>& bsyms) const;
 	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);// equality test
 
 	friend bool operator==(Term const& l, Term const& r) {
@@ -226,19 +225,19 @@ struct MalformedDischarge : public std::exception {
 	MalformedDischarge(Term const& imp, Term const& arg) : imp(imp), arg(arg) {}
 };
 struct TheoremNotFound : public std::exception {
-	String name;
-	TheoremNotFound(String const& name) : name(name) {}
+	std::string name;
+	TheoremNotFound(std::string const& name) : name(name) {}
 };
 class WrongContext : public std::exception {};
 
 struct DoubleFix : public std::exception {
-	String name;
-	DoubleFix(String const& name) : name(name) {}
+	std::string name;
+	DoubleFix(std::string const& name) : name(name) {}
 };
 
 struct UnboundVariable : public std::exception {
-	String name;
-	UnboundVariable(String const& name) : name(name) {}
+	std::string name;
+	UnboundVariable(std::string const& name) : name(name) {}
 };
 
 class CTerm;
@@ -259,12 +258,12 @@ public:
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	TempOpt<Ctxt const> find_ctxt(String const& name = String()) const &;
+	TempOpt<Ctxt const> find_ctxt(std::string const& name = "") const &;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
 	 */
-	Ctxt ctxt(String const& name = String()) const;
+	Ctxt ctxt(std::string const& name = "") const;
 	/**
 	 * @brief Ensures that this has the given context as an ancestor.
 	 * @exception WrongContext is thrown if it does not.
@@ -279,11 +278,11 @@ public:
 	/**
 	 * @brief The sequence of locally fixed variables.
 	 */
-	std::vector<String> const& fvar_list() const;
+	std::vector<std::string> const& fvar_list() const;
 	/**
 	 * @brief The set of locally obtained constants and their specifications
 	 */
-	StrMap<std::vector<std::pair<String,Term>>> const& specs() const;
+	StrMap<std::vector<std::pair<std::string,Term>>> const& specs() const;
 	/**
 	 * @brief The sequence of local assumptions.
 	 */
@@ -297,19 +296,19 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	TempOpt<String const> find_sym_local(String const& sym) const &;
+	TempOpt<std::string const> find_sym_local(std::string const& sym) const &;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	TempOpt<String const> find_sym(String const& sym) const &;
+	TempOpt<std::string const> find_sym(std::string const& sym) const &;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
-	CTerm fix(String const& sym);
+	CTerm fix(std::string const& sym);
 	/**
 	 * @brief Adds assumption in the context.
 	 */
-	Thm assume(String const& name, Term const& assm);
+	Thm assume(std::string const& name, Term const& assm);
 	/**
 	 * @brief Fixes a symbol with a specification.
 	 * the existence of sym that satisfy spec
@@ -319,7 +318,7 @@ public:
 	 * @return first element the goal stating the existence of such sym,
 	 * and the second is Ctxt assuming the existence and having specs as theorems.
 	 */
-	std::pair<CTerm,Ctxt const> obtain(String const& sym, std::vector<std::pair<String,Term>> const& specs);
+	std::pair<CTerm,Ctxt const> obtain(std::string const& sym, std::vector<std::pair<std::string,Term>> const& specs);
 	/**
 	 * @brief Fixes all free variables of a term, so that it will become a closed term.
 	 * 
@@ -337,7 +336,7 @@ public:
 	 * @brief Adds a named theorem in the context.
 	 * @exception WrongContext is thrown if the theorem doesn't belong to this or an ancestor
 	 */
-	Ctxt& claim(String const& name, Thm const& thm);
+	Ctxt& claim(std::string const& name, Thm const& thm);
 	/**
 	 * @brief Returns the n-th assumption.
 	 */
@@ -346,7 +345,7 @@ public:
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
-	Thm thm(String const& name) const;
+	Thm thm(std::string const& name) const;
 	/**
 	 * @brief Creates a child context.
 	 */
@@ -377,7 +376,7 @@ private:
 	/**
 	 * @brief Obtains the claim of a theorem, accessible from the context.
 	 */
-	Term _thm(String const& name) const;
+	Term _thm(std::string const& name) const;
 };
 
 struct Ctxt::Body {
@@ -392,11 +391,11 @@ struct Ctxt::Body {
 	/**
 	 * @brief The vector of locally fixed variables.
 	 */
-	std::vector<String> fvar_list;
+	std::vector<std::string> fvar_list;
 	/**
 	 * @brief Locally obtained constants and their specifications.
 	 */
-	StrMap<std::vector<std::pair<String,Term>>> specs;
+	StrMap<std::vector<std::pair<std::string,Term>>> specs;
 	std::vector<Term> assms;
 	StrMap<Term const> thms; // table of theorems
 };
@@ -420,21 +419,21 @@ inline Ctxt Ctxt::branch() const {
 inline StrSet const& Ctxt::fvars() const {
 	return _ref->fvars;
 }
-inline std::vector<String> const& Ctxt::fvar_list() const {
+inline std::vector<std::string> const& Ctxt::fvar_list() const {
 	return _ref->fvar_list;
 }
-inline StrMap<std::vector<std::pair<String,Term>>> const& Ctxt::specs() const {
+inline StrMap<std::vector<std::pair<std::string,Term>>> const& Ctxt::specs() const {
 	return _ref->specs;
 }
 
-inline Ctxt Ctxt::ctxt(String const& name) const {
+inline Ctxt Ctxt::ctxt(std::string const& name) const {
 	auto const& it = _ref->ctxts.find(name);
 	if( it == _ref->ctxts.end() ) {
 		throw WrongContext();
 	}
 	return it->second;
 }
-inline TempOpt<Ctxt const> Ctxt::find_ctxt(String const& name) const & {
+inline TempOpt<Ctxt const> Ctxt::find_ctxt(std::string const& name) const & {
 	auto const& it = _ref->ctxts.find(name);
 	return it == _ref->ctxts.end() ? nullptr : TempOpt(it->second);
 }
@@ -462,7 +461,7 @@ private:
 	CTerm() = delete;
 	CTerm* operator&() = delete;
 	typedef std::pair<CTerm const, CTerm const> Pair;
-	typedef std::pair<String const, CTerm const> StrTerm;
+	typedef std::pair<std::string const, CTerm const> StrTerm;
 public:
 	CTerm(CTerm const& other) : _ctxt(other._ctxt), Term(other) {}
 	CTerm(CTerm&& other) : _ctxt(other._ctxt), Term(other) {}
@@ -513,7 +512,7 @@ public:
 	 * @param val must be closed with respect to the same context as this.
 	 * @return CTerm 
 	 */
-	CTerm subst(String const& var, CTerm const& val) const {
+	CTerm subst(std::string const& var, CTerm const& val) const {
 		if( _ctxt != val._ctxt ) {
 			throw WrongContext();
 		}
@@ -605,19 +604,19 @@ public:
 	/**
 	 * @brief (re)assigns a value to a variable
 	 */
-	CSubst& assign(String const& var, Term const& val) {
+	CSubst& assign(std::string const& var, Term const& val) {
 		return _assign(var,_ctxt.enclose(val));
 	}
-	void erase(String const& var) {
+	void erase(std::string const& var) {
 		_map.erase(var);
 	}
 	/**
 	 * @brief (re)assigns a value to a variable
 	 */
-	CSubst& assign(String const& var, CTerm const& val) {
+	CSubst& assign(std::string const& var, CTerm const& val) {
 		return _assign(var,val.subst(_ctxt));// val should be also closed wrt ctxt
 	}
-	std::optional<CTerm> get(String const& var) const {
+	std::optional<CTerm> get(std::string const& var) const {
 		auto const& it = _map.find(var);
 		if( it == _map.end() ) {
 			return std::nullopt;
@@ -626,10 +625,10 @@ public:
 		}
 	}
 private:
-	CSubst& _assign(String const& var, CTerm const& val);
+	CSubst& _assign(std::string const& var, CTerm const& val);
 };
 
-inline Term Term::subst(String const& var, Term const& val) const {
+inline Term Term::subst(std::string const& var, Term const& val) const {
 	return subst(CSubst(Ctxt::root()).assign(var,val));
 }
 
@@ -689,7 +688,7 @@ public:
 	friend Thm sorry(CTerm const&);
 };
 
-inline Thm Ctxt::thm(String const& name) const {
+inline Thm Ctxt::thm(std::string const& name) const {
 	return CTerm(*this,_thm(name));
 }
 inline Thm Ctxt::assm(size_t n) const {
@@ -698,13 +697,13 @@ inline Thm Ctxt::assm(size_t n) const {
 	}
 	return CTerm(*this,_ref->assms[n]);
 }
-inline Thm Ctxt::assume(String const& name, Term const& assm) {
+inline Thm Ctxt::assume(std::string const& name, Term const& assm) {
 	CTerm const& t = enclose(assm);
 	_ref->assms.push_back(assm);
 	_ref->thms.insert({name,assm});
 	return t;
 }
-inline Ctxt& Ctxt::claim(String const& name, Thm const& thm) {
+inline Ctxt& Ctxt::claim(std::string const& name, Thm const& thm) {
 	if( thm._ctxt != *this ) {
 		throw WrongContext();
 	}
