@@ -8,7 +8,7 @@ struct ProverFailure : exception {
 	string message;
 	ProverFailure(string const& message) : message(message) {}
 };
-class UnfinishedProof : std::exception {};
+class UnfinishedProof : exception {};
 
 class Prover {
 	unsigned int _depth;

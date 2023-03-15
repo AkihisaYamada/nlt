@@ -5,7 +5,6 @@
 #include<set>
 #include<map>
 #include"ref.hpp"
-#include"string.hpp"
 
 template<typename _Key, typename _Compare = std::less<_Key>>
 class Graph {

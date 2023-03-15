@@ -3,13 +3,13 @@
 using namespace std;
 
 class Unifier {
-	std::function<bool(string const&)> const& fvar;// free variables
+	function<bool(string const&)> const& fvar;// free variables
 	CSubst subst;
 public:
 	struct Mismatch : exception {};
 	struct Occurs : exception {};
 	struct Escapes : exception {};
-	Unifier(Ctxt const& ctxt, std::function<bool(string const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
+	Unifier(Ctxt const& ctxt, function<bool(string const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
 private:
 	map<string,unsigned int,less<>> escapes[2];
 	StrSet avoids[2];
@@ -168,7 +168,7 @@ public:
 	}
 };
 
-optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(string const&)> const& fvar) {
+optional<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
 		throw WrongContext();
 	}

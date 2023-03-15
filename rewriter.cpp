@@ -162,10 +162,10 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 			return optional<Thm>();
 		}
 	}
-	return std::optional<Thm>();
+	return optional<Thm>();
 }
 
-Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const {
+Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
 	Ctxt const& ctxt = source.ctxt();
 	Thm lrefl = refl.weaken(ctxt);
 	Thm ltrans = trans.weaken(ctxt).allE(source);
@@ -190,7 +190,7 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 	}
 	return eq;
 }
-Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const {
+Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
 	Thm const& eq = steps(rules,source,min,max,pos);
 	auto const& app = eq.app();
 	assert(app);

@@ -2,7 +2,7 @@
 
 using namespace std;
 
-Syntax::Syntax(std::istream& is) : Lexer(is) {
+Syntax::Syntax(istream& is) : Lexer(is) {
 	register_single_op('(');
 	register_single_op(')');
 	register_single_op('[');
@@ -103,13 +103,13 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	};
 }
 
-optional<std::string> Syntax::gets_thm_name() {
+optional<string> Syntax::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
 		default: return nullopt;
 	}
-	std::string ret = get_token();
+	string ret = get_token();
 	for(;;) {
 		if( !skips(".") ) {
 			return ret;
@@ -121,7 +121,7 @@ optional<std::string> Syntax::gets_thm_name() {
 		ret += get_token();
 	}
 }
-std::string Syntax::get_thm_name() {
+string Syntax::get_thm_name() {
 	if( auto const& opt = gets_thm_name() ) {
 		return *opt;
 	} else {

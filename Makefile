@@ -12,7 +12,7 @@ test: test.exe proofscript
 
 $(BUILD)/%.d: %.cpp
 	@mkdir -p $(@D)
-	(echo -n $(BUILD)/; ${CPP} -MM $<) > $@
+	(echo -n $(BUILD)/; ${CPP} -MM $<) > $@ || rm $@
 
 $(BUILD)/%.o: %.cpp
 	${CPP} -c $< -o $@
