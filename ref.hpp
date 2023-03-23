@@ -10,26 +10,26 @@
  * @tparam T the type of the content.
  */
 template<typename T>
-class Ptr {
+class Ref {
 	std::shared_ptr<T> _ptr;
 	T& operator*() && = delete;
 	T* operator->() && = delete;
-	Ptr( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
-	Ptr( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
+	Ref( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
+	Ref( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
 	template<typename S>
-	friend class Ptr;
+	friend class Ref;
 public:
-	Ptr(Ptr const& org) = default;
-	~Ptr() = default;
-	Ptr& operator=(Ptr const& other) = default;
+	Ref(Ref const& org) = default;
+	~Ref() = default;
+	Ref& operator=(Ref const& other) = default;
 	T& operator*() const & {
 		return *_ptr;
 	}
 	T* operator->() const & {
 		return &*_ptr;
 	}
-	operator Ptr<T const>() const {
-		return Ptr<T const>(_ptr);
+	operator Ref<T const>() const {
+		return Ref<T const>(_ptr);
 	};
 	/**
 	 * @brief forks the referenced object.
@@ -46,15 +46,15 @@ public:
 	 * @return a non-null pointer to the constructed object
 	 */
 	template<typename... Ts>
-	static Ptr<T> make(Ts... args...) {
-		return Ptr(std::make_shared<T>(args...));
+	static Ref<T> make(Ts... args...) {
+		return Ref(std::make_shared<T>(args...));
 	}
 	template<typename S>
-	friend bool operator==(Ptr<S> const& l, Ptr<S> const& r);
+	friend bool operator==(Ref<S> const& l, Ref<S> const& r);
 };
 
 template<typename T>
-bool operator==(Ptr<T> const& l, Ptr<T> const& r) {
+bool operator==(Ref<T> const& l, Ref<T> const& r) {
 	return l._ptr == r._ptr;
 };
 
@@ -65,10 +65,10 @@ bool operator==(Ptr<T> const& l, Ptr<T> const& r) {
  */
 template<class T>
 class Mem {
-	Ptr<T> _ptr;
+	Ref<T> _ptr;
 	T operator*() && = delete;
 	T* operator->() && = delete;
-	Mem( Ptr<T> const& ptr ) : _ptr(ptr) {}
+	Mem( Ref<T> const& ptr ) : _ptr(ptr) {}
 public:
 	Mem( Mem const& other ) = default;
 	/**
@@ -99,7 +99,7 @@ public:
 	 */
 	template<typename... Ts>
 	static Mem<T> make(Ts... args...) {
-		return Mem(Ptr<T>::make(args...));
+		return Mem(Ref<T>::make(args...));
 	}
 	template<class S>
 	friend bool operator==(Mem<S> const& l, Mem<S> const& r);

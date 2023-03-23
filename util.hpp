@@ -200,7 +200,7 @@ inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) 
 }
 
 class Definer {
-	Ptr<Rewriter const> rewriter;
+	Ref<Rewriter const> rewriter;
 	std::string const EQ;
 	Term const LAM;
 	Rewriter::Rules beta;
@@ -209,7 +209,7 @@ public:
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
-	Definer(Ptr<Rewriter const> const& rewriter, std::string const& EQ, Term const& LAM, Thm const& beta) :
+	Definer(Ref<Rewriter const> const& rewriter, std::string const& EQ, Term const& LAM, Thm const& beta) :
 		rewriter(rewriter), LAM(LAM), EQ(EQ)
 	{
 		this->beta.add(beta);

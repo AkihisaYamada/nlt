@@ -48,14 +48,14 @@ typedef std::set<std::string,std::less<>> StrSet;
 class Term {
 	typedef std::pair<Term,Term> Pair;
 	typedef std::pair<std::string,Term> StrTerm;
-	struct App : public Ptr<Pair const> {
-		App(Term const& fun, Term const& arg) : Ptr(Ptr<Pair const>::make(fun,arg)) {}
+	struct App : Ref<Pair const> {
+		App(Term const& fun, Term const& arg) : Ref(Ref<Pair const>::make(fun,arg)) {}
 	};
-	struct Abs : Ptr<StrTerm const> {
-		Abs(std::string const& var, Term const& body) : Ptr(Ptr<StrTerm const>::make(var,body)) {}
+	struct Abs : Ref<StrTerm const> {
+		Abs(std::string const& var, Term const& body) : Ref(Ref<StrTerm const>::make(var,body)) {}
 	};
-	struct Bind : Ptr<StrTerm const> {
-		Bind(std::string const& var, Term const& val) : Ptr(Ptr<StrTerm const>::make(var,val)) {}
+	struct Bind : Ref<StrTerm const> {
+		Bind(std::string const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
 	};
 	std::variant<std::string,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
@@ -259,7 +259,7 @@ class CTerm;
 class Ctxt {
 private:
 	struct Body;
-	Ptr<Body> _ref;
+	Ref<Body> _ref;
 	Ctxt();
 public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
@@ -422,7 +422,7 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : _ref(Ptr<Body>::make()) {};
+inline Ctxt::Ctxt() : _ref(Ref<Body>::make()) {};
 
 inline Ctxt Ctxt::branch() const {
 	Ctxt ret;

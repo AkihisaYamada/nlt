@@ -14,11 +14,11 @@ class Prover {
 	unsigned int _depth;
 	Ctxt _ctxt;
 	bool _own_syntax;
-	Ptr<Syntax> _syntax;
+	Ref<Syntax> _syntax;
 	Opt<Thm> _thesis;
 	Concluder _concluder;
-	StrMap<Ptr<Rewriter>> _rewriters;
-	Opt<Ptr<Definer>> _definer;
+	StrMap<Ref<Rewriter>> _rewriters;
+	Opt<Ref<Definer>> _definer;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, Opt<Thm> thesis) :
 		_depth(parent._depth+1),
@@ -38,7 +38,7 @@ public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
 		_ctxt(Ctxt::root()),
-		_syntax(Ptr<Syntax>::make<istream&>(is)),
+		_syntax(Ref<Syntax>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
 		_ctxt.fix(IMP_var);
@@ -82,7 +82,7 @@ public:
 			throw Syntax::Error("expects a theorem");
 		}
 	}
-	Ptr<Rewriter>& _rewriter() {
+	Ref<Rewriter>& _rewriter() {
 		string name;
 		if( _syntax->skips("[") ) {
 			name = _syntax->get_token();
@@ -407,7 +407,7 @@ public:
 					Thm const& sym = get_thm();
 					Thm const& trans = get_thm();
 					Thm const& imp = get_thm();
-					auto const& pair = _rewriters.insert({name,Ptr<Rewriter>::make(refl,sym,trans,imp)});
+					auto const& pair = _rewriters.insert({name,Ref<Rewriter>::make(refl,sym,trans,imp)});
 					cout << "Initialized Rewriter " << name <<
 						"\n\trefl: " << _syntax->pretty_term(refl) <<
 						"\n\tsym: " << _syntax->pretty_term(sym) <<
@@ -442,7 +442,7 @@ public:
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
 					auto const& rewriter = _rewriters.find(string())->second;
-					_definer = Ptr<Definer>::make(rewriter,eq,lam,beta);
+					_definer = Ref<Definer>::make(rewriter,eq,lam,beta);
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
 					Term const& singleton = _syntax->get_term(1000);
