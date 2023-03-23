@@ -14,10 +14,12 @@ class Ptr {
 	std::shared_ptr<T> _ptr;
 	T& operator*() && = delete;
 	T* operator->() && = delete;
+	Ptr( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
 	Ptr( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
+	template<typename S>
+	friend class Ptr;
 public:
 	Ptr(Ptr const& org) = default;
-	Ptr(T const& val) : _ptr(std::make_shared<T>(val)) {}
 	~Ptr() = default;
 	Ptr& operator=(Ptr const& other) = default;
 	T& operator*() const & {
@@ -26,6 +28,9 @@ public:
 	T* operator->() const & {
 		return &*_ptr;
 	}
+	operator Ptr<T const>() const {
+		return Ptr<T const>(_ptr);
+	};
 	/**
 	 * @brief forks the referenced object.
 	 */
@@ -103,6 +108,6 @@ public:
 template<class T>
 bool operator==(Mem<T> const& l, Mem<T> const& r) {
 	return l._ptr == r._ptr || *l == *r;
-};
+}
 
 #endif

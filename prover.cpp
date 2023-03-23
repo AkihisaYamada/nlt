@@ -17,7 +17,7 @@ class Prover {
 	Ptr<Syntax> _syntax;
 	Opt<Thm> _thesis;
 	Concluder _concluder;
-	StrMap<Rewriter> _rewriters;
+	StrMap<Ptr<Rewriter>> _rewriters;
 	Opt<Ptr<Definer>> _definer;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, Opt<Thm> thesis) :
@@ -38,7 +38,7 @@ public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
 		_ctxt(Ctxt::root()),
-		_syntax(is),
+		_syntax(Ptr<Syntax>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
 		_ctxt.fix(IMP_var);
@@ -82,7 +82,7 @@ public:
 			throw Syntax::Error("expects a theorem");
 		}
 	}
-	Rewriter& _rewriter() {
+	Ptr<Rewriter>& _rewriter() {
 		string name;
 		if( _syntax->skips("[") ) {
 			name = _syntax->get_token();
@@ -129,10 +129,10 @@ public:
 						ret = discharge(ret,*arg);
 					}
 				} else if( _syntax->skips("unfolded") ) {
-					Rewriter const& rewriter = _rewriter();
+					auto const& rewriter = *_rewriter();
 					ret = _rewrite(rewriter,loc,ret,{},false);
 				} else if( _syntax->skips("folded") ) {
-					Rewriter const& rewriter = _rewriter();
+					auto const& rewriter = *_rewriter();
 					ret = _rewrite(rewriter,loc,ret,{},true);
 				}
 				_syntax->skip("]");
@@ -326,7 +326,7 @@ public:
 					cerr << "No goal for \"unfold\"" << endl;
 					throw UnfinishedProof();
 				}
-				Rewriter const& rewriter = _rewriter();
+				Rewriter const& rewriter = *_rewriter();
 				Ctxt const& loc = _thesis->ctxt();
 				*_thesis = _rewrite(rewriter,loc,*_thesis,{0});
 				_syntax->skip(";");
@@ -336,7 +336,7 @@ public:
 					cerr << "No goal for \"fold\"" << endl;
 					throw UnfinishedProof();
 				}
-				Rewriter const& rewriter = _rewriter();
+				Rewriter const& rewriter = *_rewriter();
 				Ctxt const& loc = _thesis->ctxt();
 				*_thesis = _rewrite(rewriter,loc,*_thesis,{0},true);
 				_syntax->skip(";");
@@ -407,14 +407,14 @@ public:
 					Thm const& sym = get_thm();
 					Thm const& trans = get_thm();
 					Thm const& imp = get_thm();
-					auto const& pair = _rewriters.insert({name,Rewriter(refl,sym,trans,imp)});
+					auto const& pair = _rewriters.insert({name,Ptr<Rewriter>::make(refl,sym,trans,imp)});
 					cout << "Initialized Rewriter " << name <<
 						"\n\trefl: " << _syntax->pretty_term(refl) <<
 						"\n\tsym: " << _syntax->pretty_term(sym) <<
 						"\n\ttrans: " << _syntax->pretty_term(trans) <<
 						"\n\timp: " << _syntax->pretty_term(imp) << endl;
 				} else if( _syntax->skips("cong") ) {
-					Rewriter& rewriter = _rewriter();
+					Rewriter& rewriter = *_rewriter();
 					cout << "Registering Congruence:" << endl;
 					for(;;) {
 						if( _syntax->skips("!") ) {
@@ -441,7 +441,7 @@ public:
 					string const& lam = _syntax->get_token();
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
-					Rewriter const& rewriter = _rewriters.find(string())->second;
+					auto const& rewriter = _rewriters.find(string())->second;
 					_definer = Ptr<Definer>::make(rewriter,eq,lam,beta);
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
@@ -521,7 +521,7 @@ public:
 private:
 	void _make_own_syntax() {
 		if( !_own_syntax ) {
-			_syntax = Ptr(*_syntax);
+			_syntax.fork();
 			_own_syntax = true;
 		}
 	}

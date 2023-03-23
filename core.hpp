@@ -46,14 +46,16 @@ class StrMap : public std::map<std::string,T,std::less<>> {};
 typedef std::set<std::string,std::less<>> StrSet;
 
 class Term {
-	struct App : public Ptr<std::pair<Term,Term> const> {
-		App(Term const& fun, Term const& arg) : Ptr({fun,arg}) {}
+	typedef std::pair<Term,Term> Pair;
+	typedef std::pair<std::string,Term> StrTerm;
+	struct App : public Ptr<Pair const> {
+		App(Term const& fun, Term const& arg) : Ptr(Ptr<Pair const>::make(fun,arg)) {}
 	};
-	struct Abs : Ptr<std::pair<std::string,Term> const> {
-		Abs(std::string const& var, Term const& body) : Ptr({var,body}) {}
+	struct Abs : Ptr<StrTerm const> {
+		Abs(std::string const& var, Term const& body) : Ptr(Ptr<StrTerm const>::make(var,body)) {}
 	};
-	struct Bind : Ptr<std::pair<std::string,Term> const> {
-		Bind(std::string const& var, Term const& val) : Ptr({var,val}) {}
+	struct Bind : Ptr<StrTerm const> {
+		Bind(std::string const& var, Term const& val) : Ptr(Ptr<StrTerm const>::make(var,val)) {}
 	};
 	std::variant<std::string,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
@@ -420,7 +422,7 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : _ref(Body()) {};
+inline Ctxt::Ctxt() : _ref(Ptr<Body>::make()) {};
 
 inline Ctxt Ctxt::branch() const {
 	Ctxt ret;

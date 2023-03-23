@@ -209,7 +209,7 @@ public:
 		Term term;
 		Error(Term const& term) : term(term) {}
 	};
-	Definer(Rewriter const& rewriter, std::string const& EQ, Term const& LAM, Thm const& beta) :
+	Definer(Ptr<Rewriter const> const& rewriter, std::string const& EQ, Term const& LAM, Thm const& beta) :
 		rewriter(rewriter), LAM(LAM), EQ(EQ)
 	{
 		this->beta.add(beta);
