@@ -103,11 +103,11 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 	};
 }
 
-optional<string> Syntax::gets_thm_name() {
+Opt<string> Syntax::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
-		default: return nullopt;
+		default: return nullptr;
 	}
 	string ret = get_token();
 	for(;;) {
@@ -129,10 +129,10 @@ string Syntax::get_thm_name() {
 	}
 }
 
-optional<Term> Syntax::gets_term(int level) {
+Opt<Term> Syntax::gets_term(int level) {
 	string_view peek = peek_token();
 	if( peek == "" || closers.contains(peek) ) {
-		return nullopt;
+		return nullptr;
 	}
 	Term ret;
 	if( auto opener_it = openers.find(peek); opener_it != openers.end() ) {
@@ -140,22 +140,22 @@ optional<Term> Syntax::gets_term(int level) {
 		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
 	} else if( auto prefix_it = prefixes.find(peek); prefix_it != prefixes.end() ) {
 		if( prefix_it->second.llevel < level ) {
-			return nullopt;
+			return nullptr;
 		}
 		ret = Term(prefix_it->first);
 		ignore_token();
 		if( auto const& r = gets_term(prefix_it->second.rlevel) ) {
-			ret = ret(r.value());
+			ret = ret(*r);
 		}
 	} else {
 		string sym(peek);
 		ignore_token();
 		if( skips(".") ) {
 			if( auto const& t = gets_term(level) ) {
-				ret = sym /= t.value();
+				ret = sym /= *t;
 			}
 		} else if( skips("[") ) {
-			ret = sym / gets_term(-1000).value();
+			ret = sym / *gets_term(-1000);
 			skip("]");
 		} else {
 			ret = Term(sym);
@@ -180,7 +180,7 @@ optional<Term> Syntax::gets_term(int level) {
 			}
 			rlevel = 1000;
 		}
-		if( auto r = gets_term(rlevel) ) {
+		if( auto const& r = gets_term(rlevel) ) {
 			ret = ret(*r);
 		} else {
 			return ret;
@@ -191,8 +191,7 @@ optional<Term> Syntax::gets_term(int level) {
 Term Syntax::get_term(int level) {
 	if( auto const& opt = gets_term(level) ) {
 		return *opt;
-	} else {
-		throw Error("Required a term");
 	}
+	throw Error("Required a term");
 }
 

@@ -12,6 +12,7 @@
 #include<list>
 #include<variant>
 #include"ref.hpp"
+#include"opt.hpp"
 
 class Term;
 class Ctxt;
@@ -46,7 +47,7 @@ typedef std::set<std::string,std::less<>> StrSet;
 
 class Term {
 	struct App : public Ptr<std::pair<Term,Term> const> {
-		 App(Term const& fun, Term const& arg) : Ptr({fun,arg}) {}
+		App(Term const& fun, Term const& arg) : Ptr({fun,arg}) {}
 	};
 	struct Abs : Ptr<std::pair<std::string,Term> const> {
 		Abs(std::string const& var, Term const& body) : Ptr({var,body}) {}
@@ -105,57 +106,68 @@ public:
 	/**
 	 * @brief Copy the string if the term is a symbol.
 	 */
-	std::optional<std::string> sym() const && {
-		auto ptr = std::get_if<std::string>(&_un);
-		return ptr ? std::optional(*ptr) : std::nullopt;
+	Opt<std::string> sym() && {
+		return ref_if<std::string>(std::move(_un));
 	}
 	/**
 	 * @brief Reference to the string if the term a symbol.
 	 */
-	TempOpt<std::string const> sym() const & {
-		return TempOpt(*std::get_if<std::string>(&_un));
+	Opt<std::string const&> sym() const & {
+		return ref_if<std::string>(_un);
 	}
 	/**
 	 * @brief Copy the function and argument if the term is an application.
 	 */
-	std::optional<std::pair<Term,Term>> app() const && {
-		auto ptr = std::get_if<App>(&_un);
-		return ptr ? std::optional(**ptr) : std::nullopt;
+	Opt<std::pair<Term,Term>> app() && {
+		if( auto opt = ref_if<App>(std::move(_un)) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Reference to the function and argument if the term is an application.
 	 */
-	TempOpt<std::pair<Term,Term> const> app() const & {
-		auto ptr = std::get_if<App>(&_un);
-		return ptr ? TempOpt(**ptr) : nullptr;
+	Opt<std::pair<Term,Term> const&> app() const & {
+		if( auto opt = ref_if<App>(_un) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Copy of the variable and body if the term is an abstraction.
 	 */
-	std::optional<std::pair<std::string,Term>> abs() const && {
-		auto ptr = std::get_if<Abs>(&_un);
-		return ptr ? std::optional(**ptr) : std::nullopt;
+	Opt<std::pair<std::string,Term>> abs() && {
+		if( auto opt = ref_if<Abs>(std::move(_un)) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is an abstraction.
 	 */
-	TempOpt<std::pair<std::string,Term> const> abs() const & {
-		auto ptr = std::get_if<Abs>(&_un);
-		return ptr ? TempOpt(**ptr) : nullptr;
+	Opt<std::pair<std::string,Term> const &> abs() const & {
+		if( auto opt = ref_if<Abs>(_un) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Copy the variable and body if the term is a binding.
 	 */
-	std::optional<std::pair<std::string,Term>> fix() const && {
-		auto ptr = std::get_if<Bind>(&_un);
-		return ptr ? std::optional(**ptr) : std::nullopt;
+	Opt<std::pair<std::string,Term>> fix() const && {
+		if( auto opt = ref_if<Bind>(std::move(_un)) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is a binding.
 	 */
-	TempOpt<std::pair<std::string,Term> const> fix() const & {
-		auto ptr = std::get_if<Bind>(&_un);
-		return ptr ? TempOpt(**ptr) : nullptr;
+	Opt<std::pair<std::string,Term> const &> fix() const & {
+		if( auto opt = ref_if<Bind>(_un) ) {
+			return **opt;
+		}
+		return nullptr;
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -258,7 +270,7 @@ public:
 	/**
 	 * @brief Finds the parent or child context.
 	 */
-	TempOpt<Ctxt const> find_ctxt(std::string const& name = "") const &;
+	Opt<Ctxt const &> find_ctxt(std::string const& name = "") const &;
 	/**
 	 * @brief Obtains the parent or child context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -296,11 +308,11 @@ public:
 	/**
 	 * @brief finds a symbol if it is locally fixed.
 	 */
-	TempOpt<std::string const> find_sym_local(std::string const& sym) const &;
+	Opt<std::string const &> find_sym_local(std::string const& sym) const &;
 	/**
 	 * @brief finds a symbol fixed in this or ancestor contexts.
 	 */
-	TempOpt<std::string const> find_sym(std::string const& sym) const &;
+	Opt<std::string const &> find_sym(std::string const& sym) const &;
 	/**
 	 * @brief Fixes a symbol if it is not fixed yet.
 	 */
@@ -372,7 +384,7 @@ public:
 	};
 	friend bool operator==(Ctxt::Body const& l, Ctxt::Body const& r);
 private:
-	Ctxt(std::optional<Ctxt> const& parent);
+	Ctxt(Opt<Ctxt> const& parent);
 	/**
 	 * @brief Obtains the claim of a theorem, accessible from the context.
 	 */
@@ -408,7 +420,7 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : _ref() {};
+inline Ctxt::Ctxt() : _ref(Body()) {};
 
 inline Ctxt Ctxt::branch() const {
 	Ctxt ret;
@@ -433,9 +445,11 @@ inline Ctxt Ctxt::ctxt(std::string const& name) const {
 	}
 	return it->second;
 }
-inline TempOpt<Ctxt const> Ctxt::find_ctxt(std::string const& name) const & {
-	auto const& it = _ref->ctxts.find(name);
-	return it == _ref->ctxts.end() ? nullptr : TempOpt(it->second);
+inline Opt<Ctxt const&> Ctxt::find_ctxt(std::string const& name) const & {
+	if( auto const& it = _ref->ctxts.find(name); it != _ref->ctxts.end() ) {
+		return it->second;
+	}
+	return nullptr;
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
@@ -476,25 +490,23 @@ public:
 	Ctxt const& ctxt() const & {
 		return _ctxt;
 	}
-	std::optional<Pair> app() const {
+	Opt<Pair> app() const {
 		if( auto tapp = Term::app() ) {
 			return Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second));
-		} else {
-			return std::nullopt;
 		}
+		return nullptr;
 	}
 	/**
 	 * @brief Deconstruct closed abstraction.
 	 * 
 	 * @return If this is an abstraction, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
-	std::optional<StrTerm> abs() const;
-	std::optional<StrTerm> fix() const {
+	Opt<StrTerm> abs() const;
+	Opt<StrTerm> fix() const {
 		if( auto tfix = Term::fix() ) {
 			return StrTerm(tfix->first,CTerm(_ctxt,tfix->second));
-		} else {
-			return std::nullopt;
 		}
+		return nullptr;
 	}
 	/**
 	 * @brief Application of closed terms. Both terms should belong to the same context.
@@ -616,13 +628,11 @@ public:
 	CSubst& assign(std::string const& var, CTerm const& val) {
 		return _assign(var,val.subst(_ctxt));// val should be also closed wrt ctxt
 	}
-	std::optional<CTerm> get(std::string const& var) const {
-		auto const& it = _map.find(var);
-		if( it == _map.end() ) {
-			return std::nullopt;
-		} else {
+	Opt<CTerm> get(std::string const& var) const {
+		if( auto it = _map.find(var); it != _map.end() ) {
 			return CTerm(_ctxt,it->second);
 		}
+		return nullptr;
 	}
 private:
 	CSubst& _assign(std::string const& var, CTerm const& val);

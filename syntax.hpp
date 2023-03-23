@@ -25,7 +25,7 @@ class Syntax : public Lexer {
 	struct Opener {
 		std::string closer;
 		int level;
-		std::function<Term(std::function<std::optional<Term>(int)>)> handler;
+		std::function<Term(std::function<Opt<Term>(int)>)> handler;
 	};
 	StrMap<Prefix> prefixes;
 	StrMap<Infix> infixes;
@@ -45,7 +45,7 @@ public:
 	void infix(std::string const& sym, int level, int llevel, int rlevel) {
 		infixes.insert({sym,{level,llevel,rlevel}});
 	}
-	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<std::optional<Term>(int)>)> handler) {
+	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<Opt<Term>(int)>)> handler) {
 		openers.insert({opener,{closer,level,handler}});
 		closers.insert(closer);
 	}
@@ -53,9 +53,9 @@ public:
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
-	std::optional<std::string> gets_thm_name();
+	Opt<std::string> gets_thm_name();
 	std::string get_thm_name();
-	std::optional<Term> gets_term(int level = 0);
+	Opt<Term> gets_term(int level = 0);
 	Term get_term(int level = 0);
 };
 #endif

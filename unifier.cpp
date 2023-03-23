@@ -168,7 +168,7 @@ public:
 	}
 };
 
-optional<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
+Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
 		throw WrongContext();
 	}
@@ -177,6 +177,6 @@ optional<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string cons
 		u.unify(l,r);
 		return u.result();
 	} catch( exception const& e ) {
-		return optional<CSubst>();
+		return nullptr;
 	}
 }

@@ -118,13 +118,13 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 	}
 }
 
-optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
+Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 	CSubst ret = val.ctxt();
 	StrMap<unsigned int> lidx, ridx;
 	if( match(fsyms,pat,val,ret,lidx,ridx,0) ) {
 		return ret;
 	}
-	return optional<CSubst>();
+	return nullptr;
 }
 Term strip_all(Term t, Ctxt& ctxt) {
 	for(;;) {
@@ -193,7 +193,7 @@ Thm discharge(Thm thm, Thm arg) try {
 	Thm arg_strip = strip_all(arg,arg_ctxt);
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
-	optional<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
+	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
 	if( !unifier ) throw 3;

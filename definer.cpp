@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, optional<string> const& name) const {
+void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const& name) const {
 	auto unc = uncurry(l);
 	string const& f = unc.first;
 	// building the rule and the lambda term for f

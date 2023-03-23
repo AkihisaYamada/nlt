@@ -1,86 +1,48 @@
 #ifndef _REF_HPP
 #define _REF_HPP
 
-#include<ostream>
+#include<memory>
+#include<variant>
 
 /**
- * @brief Temporary nullable pointers.
- * An object can only refer to an lvalue, and only accessible in the same scope.
- * Functions returning this type must be sure that the pointed object exists in the scope of the return value.
- * @tparam T 
- */
-template<typename T>
-class TempOpt {
-	T* ptr;
-	/**
-	 * @brief rvalue cannot be pointed.
-	 */
-	TempOpt(T&&) = delete;
-	/**
-	 * @brief Do not substitute, as it may break scope.
-	 */
-	TempOpt& operator=( TempOpt<T> const& ) = delete;
-public:
-	TempOpt( std::nullptr_t = nullptr ) : ptr(nullptr) {}
-	TempOpt( T& l ) : ptr(&l) {}
-	operator bool() const { return ptr; }
-	T& operator*() const { return *ptr; }
-	T* operator->() const { return ptr; }
-};
-
-/**
- * @brief Reference counter.
+ * @brief Non-null shared pointer.
  * 
  * @tparam T the type of the content.
  */
 template<typename T>
 class Ptr {
-	struct Body {
-		unsigned int nref = 0;
-		T body;
-		Body() {}
-		Body(T const& body) : body(body) {}
-		Body(T&& body) : body(std::move(body)) {}
-	};
-	Body* ptr;
-	Ptr(Body* ptr) : ptr(ptr) {}
+	std::shared_ptr<T> _ptr;
+	T& operator*() && = delete;
+	T* operator->() && = delete;
+	Ptr( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
 public:
-	Ptr() : ptr(new Body()) {}
-	Ptr(T const& body) : ptr(new Body(body)) {}
-	Ptr(T&& body) : ptr(new Body(std::move(body))) {}
-	Ptr(Ptr const& org) : ptr(org.ptr) {
-		ptr->nref++;
+	Ptr(Ptr const& org) = default;
+	Ptr(T const& val) : _ptr(std::make_shared<T>(val)) {}
+	~Ptr() = default;
+	Ptr& operator=(Ptr const& other) = default;
+	T& operator*() const & {
+		return *_ptr;
 	}
-	~Ptr() {
-		if( ptr->nref == 0 ) {
-			delete ptr;
-		} else {
-			ptr->nref--;
-		}
-	}
-	Ptr& operator=(Ptr const& other) {
-		this->~Ptr<T>();
-		ptr = other.ptr;
-		ptr->nref++;
-		return *this;
-	}
-	T& operator*() const {
-		return ptr->body;
-	}
-	T* operator->() const {
-		return &ptr->body;
+	T* operator->() const & {
+		return &*_ptr;
 	}
 	/**
 	 * @brief forks the referenced object.
 	 */
 	void fork() {
-		if( ptr->nref != 0 ) {
-			ptr->nref--;
-			ptr = new Body(ptr->body);
+		if( !_ptr.unique() ) {
+			_ptr = std::make_shared<T>(*_ptr);
 		}
 	}
-	bool last() const {
-		return ptr->nref == 0;
+	/**
+	 * @brief Constructing a shared object.
+	 * 
+	 * @param args arguments to the object constructor
+	 * @return a non-null pointer to the constructed object
+	 */
+	template<typename... Ts>
+	static Ptr<T> make(Ts... args...) {
+		return Ptr(std::make_shared<T>(args...));
 	}
 	template<typename S>
 	friend bool operator==(Ptr<S> const& l, Ptr<S> const& r);
@@ -88,36 +50,59 @@ public:
 
 template<typename T>
 bool operator==(Ptr<T> const& l, Ptr<T> const& r) {
-	return l.ptr == r.ptr || *l == *r;
+	return l._ptr == r._ptr;
 };
 
+/**
+ * @brief Memoized object. Modification to the object will not affect other references.
+ * 
+ * @tparam T 
+ */
 template<class T>
-class Safe {
-	Ptr<T> _ref;
+class Mem {
+	Ptr<T> _ptr;
+	T operator*() && = delete;
+	T* operator->() && = delete;
+	Mem( Ptr<T> const& ptr ) : _ptr(ptr) {}
 public:
-	Safe() : _ref() {}
-	Safe(T const& val) : _ref(val) {}
-	Safe(T&& val) : _ref(std::move(val)) {}
-	T const& operator*() const {
-		return *_ref;
+	Mem( Mem const& other ) = default;
+	/**
+	 * @brief Const reference.
+	 */
+	T const& operator*() const & {
+		return *_ptr;
 	}
-	T const* operator->() const {
-		return &*_ref;
+	T const* operator->() const & {
+		return _ptr.operator->();
 	}
-	T& operator*() {
-		_ref.fork();
-		return *_ref;
+	/**
+	 * @brief Modifiable reference. This will be the unique owner of the object.
+	 */
+	T& operator*() & {
+		_ptr.fork();
+		return *_ptr;
 	}
-	T* operator->() {
-		return &operator*();
+	T* operator->() & {
+		_ptr.fork();
+		return _ptr.operator->();
+	}
+	/**
+	 * @brief Constructing a shared object.
+	 * 
+	 * @param args arguments to the object constructor
+	 * @return a non-null pointer to the constructed object
+	 */
+	template<typename... Ts>
+	static Mem<T> make(Ts... args...) {
+		return Mem(Ptr<T>::make(args...));
 	}
 	template<class S>
-	friend bool operator==(Safe<S> const& l, Safe<S> const& r);
+	friend bool operator==(Mem<S> const& l, Mem<S> const& r);
 };
 
 template<class T>
-bool operator==(Safe<T> const& l, Safe<T> const& r) {
-	return l._ref == r._ref;
+bool operator==(Mem<T> const& l, Mem<T> const& r) {
+	return l._ptr == r._ptr || *l == *r;
 };
 
 #endif

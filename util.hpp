@@ -43,7 +43,7 @@ std::pair<std::string,std::list<Term>> uncurry(Term const& t);
  * @param pat 
  * @param val 
  */
-std::optional<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val);
+Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val);
 
 class SubstDag : public CSubst, public Graph<std::string,std::less<>> {
 public:
@@ -82,7 +82,7 @@ public:
  * @param fvar signifies free variables.
  * @return an idempotent, most general unifier iff `l` and `r` are unifiable.
  */
-std::optional<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
+Opt<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
@@ -163,18 +163,18 @@ public:
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 
 	 * @param source the term to be rewritten
-	 * @return std::optional<Thm> 
+	 * @return Opt<Thm> 
 	 */
-	std::optional<Thm> step(Rules const& rules, CTerm const& source) const {
+	Opt<Thm> step(Rules const& rules, CTerm const& source) const {
 		return _step(rules,source,refl.weaken(source.ctxt()));
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
 	 * 
 	 * @param source the term to be rewritten
-	 * @return std::optional<Thm> 
+	 * @return Opt<Thm> 
 	 */
-	std::optional<Thm> step(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
+	Opt<Thm> step(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
 		return _step(rules,source,pos.begin(),pos.end(),refl.weaken(source.ctxt()));
 	}
 	/**
@@ -189,9 +189,9 @@ public:
 	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
 	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
 private:
-	std::optional<Thm> congruence(std::function<std::optional<Thm>(CTerm const&)> inner, CTerm const& source) const;
-	std::optional<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
-	std::optional<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
+	Opt<Thm> congruence(std::function<Opt<Thm>(CTerm const&)> inner, CTerm const& source) const;
+	Opt<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
+	Opt<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
@@ -214,7 +214,7 @@ public:
 	{
 		this->beta.add(beta);
 	}
-	void define(Ctxt& ctxt, Term const& l, Term const& r, std::optional<std::string> const& name) const;
+	void define(Ctxt& ctxt, Term const& l, Term const& r, Opt<std::string> const& name) const;
 };
 
 #endif

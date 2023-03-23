@@ -193,26 +193,24 @@ string const ALL_var = "∀";
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-TempOpt<string const> Ctxt::find_sym_local(string const& sym) const & {
-	auto const& it = fvars().find(sym);
-	if( it != fvars().end() ) {
+Opt<string const&> Ctxt::find_sym_local(string const& sym) const & {
+	if( auto it = fvars().find(sym); it != fvars().end() ) {
 		return *it;
 	}
-	auto const& spec_it = specs().find(sym);
-	if( spec_it != specs().end() ) {
-		return spec_it->first;
+	if( auto it = specs().find(sym); it != specs().end() ) {
+		return it->first;
 	}
 	return nullptr;
 }
 
-TempOpt<string const> Ctxt::find_sym(string const& sym) const & {
+Opt<string const&> Ctxt::find_sym(string const& sym) const & {
 	if( auto opt = find_sym_local(sym) ) {
 		return opt;
-	} else if( auto parent = find_ctxt() ) {
-		return parent->find_sym(sym);
-	} else {
-		return nullptr;
 	}
+	if( auto parent = find_ctxt() ) {
+		return parent->find_sym(sym);
+	}
+	return nullptr;
 }
 
 CTerm Ctxt::fix(string const& sym) {
@@ -300,7 +298,7 @@ Thm Thm::intro() const {
 	}
 	return Thm(CTerm(parent,stmt));
 }
-optional<CTerm::StrTerm> CTerm::abs() const {
+Opt<CTerm::StrTerm> CTerm::abs() const {
 	if( auto tabs = Term::abs() ) {
 		string const& var = tabs->first;
 		Term const& body = tabs->second;
@@ -308,7 +306,7 @@ optional<CTerm::StrTerm> CTerm::abs() const {
 		loc.fix(var);
 		return StrTerm(var,CTerm(loc,body));
 	} else {
-		return nullopt;
+		return nullptr;
 	}
 }
 CTerm CTerm::lift() const {

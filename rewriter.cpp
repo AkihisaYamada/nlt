@@ -47,7 +47,7 @@ static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (ξ x. s) = (ξ x. t)
 }
 
-optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
+Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
 	for( auto const& rule : rules ) {
 		Ctxt const& ctxt = rule.pat.ctxt();
 		if( auto const& m = match(ctxt.fvars(),rule.pat,source) ) {
@@ -74,7 +74,7 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 					break;
 				}
 				if( it == end ) {
-					return nullopt;
+					return nullptr;
 				}
 				ret = discharge(ret,refl.allE(*si));
 			}
@@ -99,13 +99,13 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const
 					}
 				}
 			}
-			return nullopt;
+			return nullptr;
 		}
 	}
-	return nullopt;
+	return nullptr;
 }
 
-optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
+Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
 	if( pos_it == pos_end ) {// rewritable position
 		return _step(rules,source,refl);
 	}
@@ -127,11 +127,10 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 						// rewrite step was successful
 						ret = discharge(ret,*eq);
 						break;
-					} else {// no rewrite step was done
-						return nullopt;
 					}
+					return nullptr;// no rewrite step was done
 				} else if( var_it == var_end ) {
-					return nullopt;
+					return nullptr;
 				} else {
 					ret = discharge(ret,refl.allE(*si));
 					i++;
@@ -159,10 +158,10 @@ optional<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<ch
 					}
 				}
 			}
-			return optional<Thm>();
+			return nullptr;
 		}
 	}
-	return optional<Thm>();
+	return nullptr;
 }
 
 Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {

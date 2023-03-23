@@ -15,12 +15,12 @@ class Prover {
 	Ctxt _ctxt;
 	bool _own_syntax;
 	Ptr<Syntax> _syntax;
-	optional<Thm> _thesis;
+	Opt<Thm> _thesis;
 	Concluder _concluder;
 	StrMap<Rewriter> _rewriters;
-	optional<Ptr<Definer>> _definer;
+	Opt<Ptr<Definer>> _definer;
 	bool _exit_on_error;
-	Prover(Prover const& parent, Ctxt const& ctxt, optional<Thm> thesis) :
+	Prover(Prover const& parent, Ctxt const& ctxt, Opt<Thm> thesis) :
 		_depth(parent._depth+1),
 		_ctxt(ctxt),
 		_syntax(parent._syntax),
@@ -54,8 +54,8 @@ public:
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->encloser("(",")",-1000,[&]( function<optional<Term>(int)> get_inner ){
-			optional<Term> t = get_inner(0);
+		_syntax->encloser("(",")",-1000,[&]( function<Opt<Term>(int)> get_inner ){
+			Opt<Term> t = get_inner(0);
 			_syntax->skip(")");
 			return *t;
 		});
@@ -65,7 +65,7 @@ public:
 		_syntax->infix(":=",-1,-1,-2);
 	}
 	Prover branch() {
-		return Prover(*this,_ctxt.branch(),optional<Thm>());
+		return Prover(*this,_ctxt.branch(),Opt<Thm>());
 	}
 	Prover prove(CTerm const& thesis) {
 		Ctxt const& ctxt = thesis.ctxt();
@@ -111,10 +111,10 @@ public:
 		return rewriter.rewrite(rules,source,min,max,pos);
 	}
 
-	optional<Thm> _gets_thm(Ctxt loc) {
+	Opt<Thm> _gets_thm(Ctxt loc) {
 		auto const& opt = _syntax->gets_thm_name();
 		if( !opt ) {
-			return nullopt;
+			return nullptr;
 		}
 		Thm ret = loc.thm(*opt);
 		for(;;) {
@@ -151,7 +151,7 @@ public:
 		}
 		return ret;
 	}
-	optional<Term> gets_term() {
+	Opt<Term> gets_term() {
 		if( auto const& term = _syntax->gets_term() ) {
 			Term ret = *term;
 			if( _syntax->skips("$") ) {
@@ -164,16 +164,14 @@ public:
 				ret = ret.subst(subst);
 			}
 			return ret;
-		} else {
-			return nullopt;
 		}
+		return nullptr;
 	}
 	Term get_term() {
 		if( auto const& term = gets_term() ) {
 			return *term;
-		} else {
-			throw Syntax::Error("Expects a term");
 		}
+		throw Syntax::Error("Expects a term");
 	}
 
 	vector<pair<string,Term>> get_named_terms() {
@@ -200,7 +198,7 @@ public:
 		}
 		cout << ' ';
 	}
-	optional<Thm> loop() {
+	Opt<Thm> loop() {
 		for(;;) try {
 			_indent();
 			_flush();
@@ -312,7 +310,7 @@ public:
 				_ctxt.import(obtainer.interpret(CSubst(_ctxt),{thm}));
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
-				optional<string> name;
+				Opt<string> name;
 				if( _syntax->skips("(") ) {
 					name = _syntax->get_token();
 					_syntax->skip(")");
@@ -356,7 +354,7 @@ public:
 				Ctxt thm_ctxt = stmt_ctxt.branch();
 				Thm thm_strip = strip_all(thm,thm_ctxt);
 				stmt_strip = stmt_strip.weaken(thm_ctxt);
-				optional<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
+				Opt<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
 				if( !matcher ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
 					throw UnfinishedProof();
@@ -444,14 +442,14 @@ public:
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
 					Rewriter const& rewriter = _rewriters.find(string())->second;
-					_definer = optional(Definer(rewriter,eq,lam,beta));
+					_definer = Ptr<Definer>::make(rewriter,eq,lam,beta);
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
 					Term const& singleton = _syntax->get_term(1000);
 					Term const& collect = _syntax->get_term(1000);
 					Term const& lam = _syntax->get_term(1000);
 					Term const& un = _syntax->get_term(1000);
-					auto handler = [=,*this](function<optional<Term>(int)> get_inner) {
+					auto handler = [=,*this](function<Opt<Term>(int)> get_inner) {
 						auto const& inner = get_inner(0);
 						if( !inner ) {
 							_syntax->skip("}");
@@ -489,7 +487,7 @@ public:
 				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else {
-				return optional<Thm>();
+				return Opt<Thm>();
 			}
 		} catch ( MalformedDischarge const& e ) {
 			cerr << "ERROR: Discharging\n\t" << _syntax->pretty_term(e.imp) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
