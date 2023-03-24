@@ -3,36 +3,40 @@
 
 #include<memory>
 #include<variant>
+#include"opt.hpp"
 
 /**
  * @brief Non-null shared pointer.
  * 
  * @tparam T the type of the content.
  */
-template<typename T>
+template<typename T, bool nullable = false>
 class Ref {
 	std::shared_ptr<T> _ptr;
 	T& operator*() && = delete;
 	T* operator->() && = delete;
 	Ref( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
-	Ref( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
-	template<typename S>
+	template<typename S, bool n>
 	friend class Ref;
 public:
-	Ref(Ref const& org) = default;
+	Ref( nullptr_t const& n = nullptr ) requires nullable {}
+	Ref( Ref const& org ) = default;
 	~Ref() = default;
-	Ref& operator=(Ref const& other) = default;
+	operator bool() const requires nullable {
+		return (bool)_ptr;
+	}
+	Ref& operator=( Ref const& other ) = default;
 	T& operator*() const & {
 		return *_ptr;
 	}
 	T* operator->() const & {
-		return &*_ptr;
+		return _ptr.get();
 	}
 	operator Ref<T const>() const {
 		return Ref<T const>(_ptr);
 	};
 	/**
-	 * @brief forks the referenced object.
+	 * @brief Make the object unique
 	 */
 	void fork() {
 		if( !_ptr.unique() ) {
@@ -46,15 +50,18 @@ public:
 	 * @return a non-null pointer to the constructed object
 	 */
 	template<typename... Ts>
-	static Ref<T> make(Ts... args...) {
+	static Ref make(Ts... args...) {
 		return Ref(std::make_shared<T>(args...));
 	}
-	template<typename S>
-	friend bool operator==(Ref<S> const& l, Ref<S> const& r);
+	template<typename S, bool n1, bool n2>
+	friend bool operator==(Ref<S,n1> const& l, Ref<S,n2> const& r);
 };
 
 template<typename T>
-bool operator==(Ref<T> const& l, Ref<T> const& r) {
+using OptRef = Ref<T,true>;
+
+template<typename T, bool n1, bool n2>
+bool operator==(Ref<T,n1> const& l, Ref<T,n2> const& r) {
 	return l._ptr == r._ptr;
 };
 
@@ -65,10 +72,15 @@ bool operator==(Ref<T> const& l, Ref<T> const& r) {
  */
 template<class T>
 class Mem {
-	Ref<T> _ptr;
+	std::shared_ptr<T> _ptr;
 	T operator*() && = delete;
 	T* operator->() && = delete;
-	Mem( Ref<T> const& ptr ) : _ptr(ptr) {}
+	Mem( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
+	void _fork() {
+		if( !_ptr.unique() ) {
+			_ptr = std::make_shared<T>(*_ptr);
+		}
+	}
 public:
 	Mem( Mem const& other ) = default;
 	/**
@@ -78,18 +90,18 @@ public:
 		return *_ptr;
 	}
 	T const* operator->() const & {
-		return _ptr.operator->();
+		return _ptr.get();
 	}
 	/**
 	 * @brief Modifiable reference. This will be the unique owner of the object.
 	 */
 	T& operator*() & {
-		_ptr.fork();
+		_fork();
 		return *_ptr;
 	}
 	T* operator->() & {
-		_ptr.fork();
-		return _ptr.operator->();
+		_fork();
+		return _ptr.get();
 	}
 	/**
 	 * @brief Constructing a shared object.
@@ -99,7 +111,7 @@ public:
 	 */
 	template<typename... Ts>
 	static Mem<T> make(Ts... args...) {
-		return Mem(Ref<T>::make(args...));
+		return Mem(std::make_shared<T>(args...));
 	}
 	template<class S>
 	friend bool operator==(Mem<S> const& l, Mem<S> const& r);

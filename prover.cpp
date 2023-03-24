@@ -18,7 +18,7 @@ class Prover {
 	Opt<Thm> _thesis;
 	Concluder _concluder;
 	StrMap<Ref<Rewriter>> _rewriters;
-	Opt<Ref<Definer>> _definer;
+	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	Prover(Prover const& parent, Ctxt const& ctxt, Opt<Thm> thesis) :
 		_depth(parent._depth+1),
@@ -319,7 +319,10 @@ public:
 				_syntax->skip(":=");
 				Term r = get_term();
 				_syntax->skip(";");
-				(**_definer).define(_ctxt,l,r,name);
+				if( !_definer ) {
+					throw ProverFailure("definer not setup");
+				}
+				_definer->define(_ctxt,l,r,name);
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
@@ -442,7 +445,7 @@ public:
 					Thm const& beta = get_thm();
 					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
 					auto const& rewriter = _rewriters.find(string())->second;
-					_definer = Ref<Definer>::make(rewriter,eq,lam,beta);
+					_definer = OptRef<Definer>::make(rewriter,eq,lam,beta);
 				} else if( _syntax->skips("set_comprehension") ) {
 					Term const& empty = _syntax->get_term(1000);
 					Term const& singleton = _syntax->get_term(1000);
