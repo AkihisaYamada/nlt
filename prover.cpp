@@ -333,7 +333,7 @@ public:
 				Ctxt const& loc = _thesis->ctxt();
 				*_thesis = _rewrite(rewriter,loc,*_thesis,{0});
 				_syntax->skip(";");
-				cerr << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
+				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("fold") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"fold\"" << endl;
@@ -343,7 +343,7 @@ public:
 				Ctxt const& loc = _thesis->ctxt();
 				*_thesis = _rewrite(rewriter,loc,*_thesis,{0},true);
 				_syntax->skip(";");
-				cerr << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
+				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -368,7 +368,7 @@ public:
 				}
 				arg = arg.intro();
 				Thm const& ret = _thesis->impE(arg);
-				cerr << "Concluded " << _syntax->pretty_thm(ret) << endl;
+				cout << "Concluded " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else if( _syntax->skips("done") ) {
 				if( !_thesis ) {
@@ -376,7 +376,7 @@ public:
 					throw UnfinishedProof();
 				}
 				_syntax->skip(";");
-				cerr << "Done." << endl;
+				cout << "Done." << endl;
 				return _concluder.conclude(*_thesis);
 			} else if( _syntax->skips("prefix") ) {
 				string sym = _syntax->get_token();
