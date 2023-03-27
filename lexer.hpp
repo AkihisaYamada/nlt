@@ -6,6 +6,7 @@
 #include<cassert>
 #include<exception>
 #include<map>
+#include<functional>
 
 class SyntaxError : std::exception {};
 
@@ -45,6 +46,7 @@ private:
 	// writes one character into the buffer
 	int fetch_char();
 	void read_continue( CharType t );
+	void skip_spaces();
 public:
 	Lexer( std::istream& is );
 	void register_single_op( int c ) {
@@ -54,18 +56,17 @@ public:
 		char_map.insert({c,MultiOp});
 	}
 	CharType char_type( int c ) const {
-		auto it = char_map.find(c);
-		return it == char_map.end() ? Other : it->second;
+		if( auto it = char_map.find(c); it != char_map.end() ) {
+			return it->second;
+		}
+		return Other;
 	}
-	void skip_spaces();
 	// peeks (not process) the next token
 	std::string_view peek_token();
 	TokenType next_token_type() {
 		peek_token();
 		return token_type;
 	}
-	// if more token follows
-	bool readable();
 	// checks if the next token is as specified, and if so, skips it
 	bool skips( std::string_view token ) {
 		if( peek_token() == token ) {
@@ -73,6 +74,21 @@ public:
 			return true;
 		} else {
 			return false;
+		}
+	}
+	template<typename T, typename... U>
+	T cases(
+		std::map<std::string,std::function<T(U...)>,std::less<>> map,
+		std::function<T(std::string_view)> def,
+		U... args
+	) {
+		auto token = peek_token();
+		auto const& it = map.find(token);
+		if( it != map.end() ) {
+			token_type = Unset;// skip the token
+			return it->second(args...);
+		} else {
+			return def(token);
 		}
 	}
 	void skip( std::string_view token );

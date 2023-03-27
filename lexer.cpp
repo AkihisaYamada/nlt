@@ -86,16 +86,11 @@ int Lexer::fetch_char() {
 	return ch;
 }
 void Lexer::skip_spaces() {
-	unsigned char c;
 	for(;;) {
-		while( isspace( c = pis->peek() ) ) {
-			pis->ignore();
-		}
-		if( c == '#' ) {
-			while( ! pis->eof() && pis->get() != '\n' );
+		if( fetched_char_type == Blank ) {
+			wp = 0;
+			fetch_char();
 			continue;
-		} else {
-			break;
 		}
 	}
 }
@@ -112,10 +107,11 @@ void Lexer::read_continue( CharType t ) {
 string_view Lexer::peek_token() {
 	if( token_type == Unset ) {// no token is set
 		if( fetched_char_type == Blank ) {// nothing or only a space is prefetched
-			skip_spaces();
-			wp = 0;// start from the top
-			fetch_char();
-			rp = wp;// the first character is always read
+			do {
+				wp = 0;// start from the top
+				fetch_char();
+			} while( fetched_char_type == Blank );
+			rp = wp;// the first non-blank character is read
 		} else {// a significant character is prefetched
 			// move it to the top of buf
 			size_t next_wp = 0;
@@ -170,14 +166,6 @@ string_view Lexer::peek_token() {
 		peeked_token = string_view(buf,rp);
 	}
 	return peeked_token;
-}
-bool Lexer::readable() {
-	if( wp == 0 ) {
-		skip_spaces();
-		return !pis->eof();
-	} else {
-		return true;
-	}
 }
 
 void Lexer::skip( string_view token ) {
