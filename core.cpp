@@ -200,7 +200,7 @@ Opt<string const&> Ctxt::find_sym_local(string const& sym) const & {
 	if( auto it = specs().find(sym); it != specs().end() ) {
 		return it->first;
 	}
-	return nullptr;
+	return {};
 }
 
 Opt<string const&> Ctxt::find_sym(string const& sym) const & {
@@ -210,7 +210,7 @@ Opt<string const&> Ctxt::find_sym(string const& sym) const & {
 	if( auto parent = find_ctxt() ) {
 		return parent->find_sym(sym);
 	}
-	return nullptr;
+	return {};
 }
 
 CTerm Ctxt::fix(string const& sym) {
@@ -306,7 +306,7 @@ Opt<CTerm::StrTerm> CTerm::abs() const {
 		loc.fix(var);
 		return StrTerm(var,CTerm(loc,body));
 	} else {
-		return nullptr;
+		return {};
 	}
 }
 CTerm CTerm::lift() const {

@@ -107,7 +107,7 @@ Opt<string> Syntax::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
-		default: return nullptr;
+		default: return {};
 	}
 	string ret = get_token();
 	for(;;) {
@@ -132,7 +132,7 @@ string Syntax::get_thm_name() {
 Opt<Term> Syntax::gets_term(int level) {
 	string_view peek = peek_token();
 	if( peek == "" || closers.contains(peek) ) {
-		return nullptr;
+		return {};
 	}
 	Term ret;
 	if( auto opener_it = openers.find(peek); opener_it != openers.end() ) {
@@ -140,7 +140,7 @@ Opt<Term> Syntax::gets_term(int level) {
 		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
 	} else if( auto prefix_it = prefixes.find(peek); prefix_it != prefixes.end() ) {
 		if( prefix_it->second.llevel < level ) {
-			return nullptr;
+			return {};
 		}
 		ret = Term(prefix_it->first);
 		ignore_token();

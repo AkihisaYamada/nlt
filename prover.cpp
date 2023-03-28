@@ -114,7 +114,7 @@ public:
 	Opt<Thm> _gets_thm(Ctxt loc) {
 		auto const& opt = _syntax->gets_thm_name();
 		if( !opt ) {
-			return nullptr;
+			return {};
 		}
 		Thm ret = loc.thm(*opt);
 		for(;;) {
@@ -165,7 +165,7 @@ public:
 			}
 			return ret;
 		}
-		return nullptr;
+		return {};
 	}
 	Term get_term() {
 		if( auto const& term = gets_term() ) {

@@ -124,7 +124,7 @@ Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 	if( match(fsyms,pat,val,ret,lidx,ridx,0) ) {
 		return ret;
 	}
-	return nullptr;
+	return {};
 }
 Term strip_all(Term t, Ctxt& ctxt) {
 	for(;;) {

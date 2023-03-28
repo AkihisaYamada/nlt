@@ -2,9 +2,6 @@
 #define _REF_HPP
 
 #include<memory>
-#include<variant>
-#include"opt.hpp"
-
 /**
  * @brief Non-null shared pointer.
  * 

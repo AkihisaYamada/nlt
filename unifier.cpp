@@ -177,6 +177,6 @@ Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> 
 		u.unify(l,r);
 		return u.result();
 	} catch( exception const& e ) {
-		return nullptr;
+		return {};
 	}
 }

@@ -74,7 +74,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 					break;
 				}
 				if( it == end ) {
-					return nullptr;
+					return {};
 				}
 				ret = discharge(ret,refl.allE(*si));
 			}
@@ -99,10 +99,10 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 					}
 				}
 			}
-			return nullptr;
+			return {};
 		}
 	}
-	return nullptr;
+	return {};
 }
 
 Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, Thm const& refl) const {
@@ -128,9 +128,9 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 						ret = discharge(ret,*eq);
 						break;
 					}
-					return nullptr;// no rewrite step was done
+					return {};// no rewrite step was done
 				} else if( var_it == var_end ) {
-					return nullptr;
+					return {};
 				} else {
 					ret = discharge(ret,refl.allE(*si));
 					i++;
@@ -158,10 +158,10 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 					}
 				}
 			}
-			return nullptr;
+			return {};
 		}
 	}
-	return nullptr;
+	return {};
 }
 
 Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {

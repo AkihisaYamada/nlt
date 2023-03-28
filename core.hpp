@@ -8,11 +8,9 @@
 #include<set>
 #include<exception>
 #include<functional>
-#include<optional>
 #include<list>
-#include<variant>
 #include"ref.hpp"
-#include"opt.hpp"
+#include"sum.hpp"
 
 class Term;
 class Ctxt;
@@ -57,7 +55,7 @@ class Term {
 	struct Bind : Ref<StrTerm const> {
 		Bind(std::string const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
 	};
-	std::variant<std::string,App,Abs,Bind> _un;
+	Sum<std::string,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
 	Term(Abs const& abs) : _un(abs) {}
 	Term(Bind const& bind) : _un(bind) {}
@@ -109,67 +107,67 @@ public:
 	 * @brief Copy the string if the term is a symbol.
 	 */
 	Opt<std::string> sym() && {
-		return ref_if<std::string>(std::move(_un));
+		return std::move(_un).ref<std::string>();
 	}
 	/**
 	 * @brief Reference to the string if the term a symbol.
 	 */
 	Opt<std::string const&> sym() const & {
-		return ref_if<std::string>(_un);
+		return _un.ref<std::string>();
 	}
 	/**
 	 * @brief Copy the function and argument if the term is an application.
 	 */
 	Opt<std::pair<Term,Term>> app() && {
-		if( auto opt = ref_if<App>(std::move(_un)) ) {
+		if( auto const& opt = std::move(_un).ref<App>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Reference to the function and argument if the term is an application.
 	 */
 	Opt<std::pair<Term,Term> const&> app() const & {
-		if( auto opt = ref_if<App>(_un) ) {
+		if( auto opt = _un.ref<App>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Copy of the variable and body if the term is an abstraction.
 	 */
 	Opt<std::pair<std::string,Term>> abs() && {
-		if( auto opt = ref_if<Abs>(std::move(_un)) ) {
+		if( auto const& opt = std::move(_un).ref<Abs>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is an abstraction.
 	 */
 	Opt<std::pair<std::string,Term> const &> abs() const & {
-		if( auto opt = ref_if<Abs>(_un) ) {
+		if( auto opt = _un.ref<Abs>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Copy the variable and body if the term is a binding.
 	 */
-	Opt<std::pair<std::string,Term>> fix() const && {
-		if( auto opt = ref_if<Bind>(std::move(_un)) ) {
+	Opt<std::pair<std::string,Term>> fix() && {
+		if( auto const& opt = std::move(_un).ref<Bind>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Reference to the variable and body if the term is a binding.
 	 */
 	Opt<std::pair<std::string,Term> const &> fix() const & {
-		if( auto opt = ref_if<Bind>(_un) ) {
+		if( auto opt = _un.ref<Bind>() ) {
 			return **opt;
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Iterates over bound and free symbols.
@@ -451,7 +449,7 @@ inline Opt<Ctxt const&> Ctxt::find_ctxt(std::string const& name) const & {
 	if( auto const& it = _ref->ctxts.find(name); it != _ref->ctxts.end() ) {
 		return it->second;
 	}
-	return nullptr;
+	return {};
 }
 inline std::vector<Term> const& Ctxt::assms() const {
 	return _ref->assms;
@@ -496,7 +494,7 @@ public:
 		if( auto tapp = Term::app() ) {
 			return Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second));
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Deconstruct closed abstraction.
@@ -508,7 +506,7 @@ public:
 		if( auto tfix = Term::fix() ) {
 			return StrTerm(tfix->first,CTerm(_ctxt,tfix->second));
 		}
-		return nullptr;
+		return {};
 	}
 	/**
 	 * @brief Application of closed terms. Both terms should belong to the same context.
@@ -634,7 +632,7 @@ public:
 		if( auto it = _map.find(var); it != _map.end() ) {
 			return CTerm(_ctxt,it->second);
 		}
-		return nullptr;
+		return {};
 	}
 private:
 	CSubst& _assign(std::string const& var, CTerm const& val);
