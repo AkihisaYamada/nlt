@@ -1,5 +1,6 @@
-*.o
-*.d
+_depend/*
+_build/*
+_debug/*
 *.exe
 *.stackdump
 *.aux
