@@ -2,27 +2,27 @@
 
 using namespace std;
 
-Syntax::Syntax(istream& is) : Lexer(is) {
+Syntax::Syntax() : Lex() {
 	register_single_op('(');
 	register_single_op(')');
 	register_single_op('[');
 	register_single_op(']');
 	register_single_op('{');
 	register_single_op('}');
-	closers.insert("]");
+	_closers.insert("]");
 }
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
 	return [&](ostream& os) -> ostream& {
 		if( auto sym = term.sym() ) {
-			if( prefixes.contains(*sym) || infixes.contains(*sym) ) {
+			if( _prefixes.contains(*sym) || _infixes.contains(*sym) ) {
 				return os << '(' << *sym << ')';
 			}
 			return os << *sym;
 		} else if( auto app = term.app() ) {
 			auto const& fun = app->first, arg = app->second;
 			if( auto sym = fun.sym() ) {
-				if( auto it = prefixes.find(*sym); it != prefixes.end() ) {
+				if( auto it = _prefixes.find(*sym); it != _prefixes.end() ) {
 					auto const& op = it->second;
 					if( level > op.llevel ) {
 						os << '(';
@@ -36,8 +36,8 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 			} else if( auto app_in = fun.app() ) {
 				auto const& fun_in = app_in->first, arg_in = app_in->second;
 				if( auto sym = fun_in.sym() ) {
-					auto it = infixes.find(*sym);
-					if( it != infixes.end() ) {
+					auto it = _infixes.find(*sym);
+					if( it != _infixes.end() ) {
 						auto const& op = it->second;
 						if( level > op.level ) {
 							os << '(';
@@ -95,15 +95,12 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 		for( auto const& assm : ctxt.assms() ) {
 			os << "  assm " << pretty_term(assm) << endl;
 		}
-		for( auto const& thm : ctxt.thms() ) {
-			os << "  thm " << thm.first << ": " << pretty_term(thm.second) << endl;
-		}
 		os << "}" << endl;
 		return os;
 	};
 }
 
-Opt<string> Syntax::gets_thm_name() {
+Opt<string> Parser::gets_thm_name() {
 	switch( next_token_type() ) {
 		case Lexer::Word: break;
 		case Lexer::Number: return get_token();
@@ -121,7 +118,7 @@ Opt<string> Syntax::gets_thm_name() {
 		ret += get_token();
 	}
 }
-string Syntax::get_thm_name() {
+string Parser::get_thm_name() {
 	if( auto const& opt = gets_thm_name() ) {
 		return *opt;
 	} else {
@@ -129,16 +126,16 @@ string Syntax::get_thm_name() {
 	}
 }
 
-Opt<Term> Syntax::gets_term(int level) {
+Opt<Term> Parser::gets_term(int level) {
 	string_view peek = peek_token();
-	if( peek == "" || closers.contains(peek) ) {
+	if( peek == "" || _closers.contains(peek) ) {
 		return {};
 	}
 	Term ret;
-	if( auto opener_it = openers.find(peek); opener_it != openers.end() ) {
+	if( auto opener_it = _openers.find(peek); opener_it != _openers.end() ) {
 		ignore_token();
 		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
-	} else if( auto prefix_it = prefixes.find(peek); prefix_it != prefixes.end() ) {
+	} else if( auto prefix_it = _prefixes.find(peek); prefix_it != _prefixes.end() ) {
 		if( prefix_it->second.llevel < level ) {
 			return {};
 		}
@@ -163,11 +160,11 @@ Opt<Term> Syntax::gets_term(int level) {
 	}
 	for(;;) {
 		string_view peek = peek_token();
-		if( peek == "" || closers.contains(peek) ) {
+		if( peek == "" || _closers.contains(peek) ) {
 			return ret;
 		}
 		int rlevel;
-		if( auto it = infixes.find(peek); it != infixes.end() ) {
+		if( auto it = _infixes.find(peek); it != _infixes.end() ) {
 			if( it->second.llevel < level ) {
 				return ret;
 			}
@@ -188,7 +185,7 @@ Opt<Term> Syntax::gets_term(int level) {
 	}
 }
 
-Term Syntax::get_term(int level) {
+Term Parser::get_term(int level) {
 	if( auto const& opt = gets_term(level) ) {
 		return *opt;
 	}

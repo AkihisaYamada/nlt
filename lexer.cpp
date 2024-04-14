@@ -30,9 +30,8 @@ int int_of_chars( char const* start, int size ) {
 int int_of_chars( char const* start ) {
 	return int_of_chars( start, char_size(start[0]) );
 }
-
-Lexer::Lexer( istream& is ) : pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Blank), buf(),
-	char_map({
+Lex::Lex() :
+	_char_map({
 		{std::char_traits<char>::eof(),Control},
 		{'.',Dot},
 		{'0',Digit},
@@ -82,19 +81,19 @@ int Lexer::fetch_char() {
 		ch = int_of_chars(start,len);
 		break;
 	}
-	fetched_char_type = char_type(ch);
+	fetched_char_type = plex->char_type(ch);
 	return ch;
 }
 void Lexer::skip_spaces() {
 	for(;;) {
-		if( fetched_char_type == Blank ) {
+		if( fetched_char_type == Lex::Blank ) {
 			wp = 0;
 			fetch_char();
 			continue;
 		}
 	}
 }
-void Lexer::read_continue( CharType t ) {
+void Lexer::read_continue( Lex::CharType t ) {
 	for(;;) {
 		fetch_char();
 		if( ( fetched_char_type & t ) == 0 ) {
@@ -106,11 +105,11 @@ void Lexer::read_continue( CharType t ) {
 
 string_view Lexer::peek_token() {
 	if( token_type == Unset ) {// no token is set
-		if( fetched_char_type == Blank ) {// nothing or only a space is prefetched
+		if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
 			do {
 				wp = 0;// start from the top
 				fetch_char();
-			} while( fetched_char_type == Blank );
+			} while( fetched_char_type == Lex::Blank );
 			rp = wp;// the first non-blank character is read
 		} else {// a significant character is prefetched
 			// move it to the top of buf
@@ -121,23 +120,23 @@ string_view Lexer::peek_token() {
 			wp = rp = next_wp;
 		}
 		switch( fetched_char_type ) {
-		case Digit:
-			read_continue(Digit|Dot);
+		case Lex::Digit:
+			read_continue( Lex::Digit | Lex::Dot );
 			token_type = Number;
 			break;
-		case Dot:
+		case Lex::Dot:
 			fetch_char();
 			switch( fetched_char_type ) {
-			case Digit: // dot followed by digits
-				read_continue(Digit|Dot);
+			case Lex::Digit: // dot followed by digits
+				read_continue( Lex::Digit | Lex::Dot );
 				token_type = Number;
 				break;
-			case Dot:
-			case MultiOp:
-				read_continue(MultiOp|Dot);
+			case Lex::Dot:
+			case Lex::MultiOp:
+				read_continue( Lex::MultiOp | Lex::Dot );
 				token_type = Operator;
 				break;
-			case SingleOp:
+			case Lex::SingleOp:
 				rp = wp;
 				token_type = Operator;
 				break;
@@ -146,20 +145,20 @@ string_view Lexer::peek_token() {
 				break;
 			}
 			break;
-		case MultiOp:
-			read_continue(MultiOp|Dot);
+		case Lex::MultiOp:
+			read_continue( Lex::MultiOp | Lex::Dot );
 			token_type = Operator;
 			break;
-		case SingleOp:
+		case Lex::SingleOp:
 			token_type = Operator;
-			fetched_char_type = Blank;
+			fetched_char_type = Lex::Blank;
 			break;
-		case Control:
+		case Lex::Control:
 			token_type = Special;
-			fetched_char_type = Blank;
+			fetched_char_type = Lex::Blank;
 			break;
 		default:
-			read_continue(Other|Digit);
+			read_continue( Lex::Other | Lex::Digit );
 			token_type = Word;
 			break;
 		}

@@ -7,6 +7,7 @@
 #include<exception>
 #include<map>
 #include<functional>
+#include"ref.hpp"
 
 class SyntaxError : std::exception {};
 
@@ -15,7 +16,10 @@ int char_size( char start );
 
 int int_of_chars( char const* start );
 
-class Lexer {
+/**
+ * @brief Lexical grammar
+ */
+class Lex {
 public:
 	enum CharType {
 		Blank = 1 << 0,// space or nothing
@@ -26,41 +30,54 @@ public:
 		MultiOp = 1 << 5,
 		Other = 1 << 6
 	};
+private:
+	std::map<int,CharType> _char_map;
+public:
+	Lex();
+	void register_single_op( int c ) {
+		_char_map.insert({c,SingleOp});
+	}
+	void register_multi_op( int c ) {
+		_char_map.insert({c,MultiOp});
+	}
+	CharType char_type( int c ) const {
+		if( auto it = _char_map.find(c); it != _char_map.end() ) {
+			return it->second;
+		}
+		return Other;
+	}
+	friend CharType operator|( CharType a, CharType b );
+};
+
+inline Lex::CharType operator|( Lex::CharType a, Lex::CharType b ) {
+	return (Lex::CharType)((int)a|(int)b);
+}
+
+class Lexer {
+public:
 	enum TokenType {
 		Unset, Special, Word, Number, Operator, Escaped
 	};
 private:
 	// input stream
 	std::istream* pis;
-	std::map<int,CharType> char_map;
+	Lex const* plex;
 	// stores the next token type
 	TokenType token_type;
 	std::string_view peeked_token;
 	// local buffer
 	char buf[1024];
-	CharType fetched_char_type;
+	Lex::CharType fetched_char_type;
 	// write pointer
 	size_t wp;
 	// read pointer
 	size_t rp;
 	// writes one character into the buffer
 	int fetch_char();
-	void read_continue( CharType t );
+	void read_continue( Lex::CharType t );
 	void skip_spaces();
 public:
-	Lexer( std::istream& is );
-	void register_single_op( int c ) {
-		char_map.insert({c,SingleOp});
-	}
-	void register_multi_op( int c ) {
-		char_map.insert({c,MultiOp});
-	}
-	CharType char_type( int c ) const {
-		if( auto it = char_map.find(c); it != char_map.end() ) {
-			return it->second;
-		}
-		return Other;
-	}
+	Lexer( Lex const& lex, std::istream& is ) : plex(&lex), pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
 	// peeks (not process) the next token
 	std::string_view peek_token();
 	TokenType next_token_type() {
@@ -104,11 +121,6 @@ public:
 		token_type = Unset;
 		return ret;
 	}
-	friend CharType operator|( CharType a, CharType b );
 };
-
-inline Lexer::CharType operator|( Lexer::CharType a, Lexer::CharType b ) {
-	return (Lexer::CharType)((int)a|(int)b);
-}
 
 #endif

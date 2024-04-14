@@ -19,11 +19,9 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const
 	}
 	auto const& pair = ctxt.obtain(f,{{ (name ? *name : f) + ".def", rule }});
 	Ctxt const& obtainer = pair.second;
-	// proving the existence
-	Ctxt prover = ctxt.branch();
 	string thesis = avoid("thesis",[&](string const& x){ return (bool)ctxt.find_sym(x); });
-	prover.fix(thesis);
-	prover.assume( "assm", ALL( f /= rule >>= thesis ) );
+	// proving the existence
+	Ctxt prover = ctxt.branch({thesis},{{"assm", ALL( f /= rule >>= thesis )}});
 	Thm thm = prover.thm("assm");
 	thm = thm.allE(t);
 	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});

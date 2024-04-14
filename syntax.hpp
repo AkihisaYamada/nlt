@@ -12,7 +12,8 @@ inline std::ostream& operator<<(
     return manipulator( stream );
 }
 
-class Syntax : public Lexer {
+class Syntax : public Lex {
+public:
 	struct Prefix {
 		int llevel;
 		int rlevel;
@@ -27,32 +28,38 @@ class Syntax : public Lexer {
 		int level;
 		std::function<Term(std::function<Opt<Term>(int)>)> handler;
 	};
-	StrMap<Prefix> prefixes;
-	StrMap<Infix> infixes;
-	StrMap<Opener> openers;
-	StrSet closers;
+private:
+	StrMap<Prefix> _prefixes;
+	StrMap<Infix> _infixes;
+	StrMap<Opener> _openers;
+	StrSet _closers;
+	friend Parser;
+public:
+	Syntax() {}
+	void prefix(std::string const& sym, int level, int rlevel) {
+		_prefixes.insert({sym,{level,rlevel}});
+	}
+	void infix(std::string const& sym, int level, int llevel, int rlevel) {
+		_infixes.insert({sym,{level,llevel,rlevel}});
+	}
+	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<Opt<Term>(int)>)> handler) {
+		_openers.insert({opener,{closer,level,handler}});
+		_closers.insert(closer);
+	}
+	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
+	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
+	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;
+	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
+};
+
+class Parser : public Syntax, public Lexer {
 
 public:
 	struct Error : std::exception {
 		std::string message;
 		Error(std::string const& message) : message(message) {}
 	};
-	Syntax(std::istream& is);
-
-	void prefix(std::string const& sym, int level, int rlevel) {
-		prefixes.insert({sym,{level,rlevel}});
-	}
-	void infix(std::string const& sym, int level, int llevel, int rlevel) {
-		infixes.insert({sym,{level,llevel,rlevel}});
-	}
-	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<Opt<Term>(int)>)> handler) {
-		openers.insert({opener,{closer,level,handler}});
-		closers.insert(closer);
-	}
-	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const;
-	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const;
-	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const;
-	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const;
+	Parser( Syntax&& syn, std::istream& is ) : Syntax(syn), Lexer(*this,is) {}
 	Opt<std::string> gets_thm_name();
 	std::string get_thm_name();
 	Opt<Term> gets_term(int level = 0);

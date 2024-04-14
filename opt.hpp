@@ -9,10 +9,20 @@
 template<typename T>
 class Opt {
 	std::optional<T> _opt;
+	template<typename U>
+	friend class Opt;
 public:
 	Opt() {}
-	Opt(T const& val) : _opt(val) {}
-	Opt(T && val) : _opt(std::move(val)) {}
+	Opt( Opt&& other ) : _opt(std::move(other._opt)) {}
+	Opt( Opt const& other ) : _opt(other._opt) {}
+	Opt( T&& org ) : _opt(std::move(org)) {}
+	template<typename S> requires std::is_convertible_v<S,T>
+	Opt( S const& org ) : _opt(org) {}
+	/**
+	 * @brief Constructs optional object in-place.
+	 */
+	template<typename... Ts>
+	Opt( std::in_place_t const& t, Ts&&... xs... ) : _opt(t,std::forward<Ts>(xs)...) {}
 	operator bool() const {
 		return (bool)_opt;
 	}
@@ -31,6 +41,10 @@ public:
 	T* operator->() & {
 		return _opt.operator->();
 	}
+	template<class... Args>
+	T& emplace( Args&&... args ) & {
+		return _opt.emplace(std::forward<Args>(args)...);
+	}
 };
 
 /**
@@ -42,6 +56,7 @@ public:
 template<typename T>
 class Opt<T &> {
 	T* _ptr;
+	Opt( T* ptr ) : _ptr(ptr) {}
 	/**
 	 * @brief rvalue cannot be pointed.
 	 */
@@ -50,9 +65,12 @@ class Opt<T &> {
 	 * @brief Do not substitute, as it may break scope.
 	 */
 	Opt& operator=( Opt<T> const& ) = delete;
+	template<typename S>
+	friend class Opt;
 public:
 	Opt() : _ptr(nullptr) {}
 	Opt( T& l ) : _ptr(&l) {}
+	operator Opt<T const&>() { return _ptr; }
 	operator bool() const { return _ptr; }
 	T& operator*() const { return *_ptr; }
 	T* operator->() const { return _ptr; }
