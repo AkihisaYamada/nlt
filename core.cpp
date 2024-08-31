@@ -77,7 +77,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 }
 
 void Term::_iter_syms(
-	StrSet& bsyms,
+	StrMSet& bsyms,
 	function<void(string const&)> const& bsym,
 	function<void(string const&)> const& fsym
 ) const {
@@ -91,9 +91,9 @@ void Term::_iter_syms(
 		app->first._iter_syms(bsyms,bsym,fsym);
 		app->second._iter_syms(bsyms,bsym,fsym);
 	} else if( auto abs = this->abs() ) {
-		bsyms.insert(abs->first);
+		auto it = bsyms.insert(abs->first);
 		abs->second._iter_syms(bsyms,bsym,fsym);
-		bsyms.erase(abs->first);
+		bsyms.erase(it);
 	} else if( auto fix = this->fix() ) {
 		if( bsyms.contains(fix->first) ) {
 			bsym(fix->first);
@@ -126,19 +126,27 @@ Term Term::subst(CSubst const& subst) const {
 		}
 	};
 	auto fixed = [&](string const& sym) {
-		return (bool)subst.ctxt().find_sym(sym);
+		return subst.ctxt().fixed(sym);
 	};
 	return map(f,fixed);
 }
 
-static Term subst_var(function<Term(string const&)> f, string const& sym, StrMap<string>& bsyms) {
+static Term subst_var(
+	function<Term(string const&)> f,
+	string const& sym,
+	StrMap<string>& bsyms
+) {
 	if( auto opt = bsyms.finds(sym) ) {
 		return opt->second;
 	}
 	return f(sym);
 }
 
-Term Term::_map(function<Term(string const&)> f, function<bool(string const&)> fixed, StrMap<string>& bsyms) const {
+Term Term::_map(
+	function<Term(string const&)> f,
+	function<bool(string const&)> fixed,
+	StrMap<string>& bsyms
+) const {
 	if( auto sym = this->sym() ) {
 		return subst_var(f,*sym,bsyms);
 	} else if( auto app = this->app() ) {
@@ -189,86 +197,67 @@ string const ALL_var = "∀";
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
-Opt<string const&> Ctxt::find_sym(string const& sym) const & {
+bool Ctxt::fixed(string const& sym) const & {
 	if( auto opt = find_fvar(sym) ) {
-		return *opt;
+		return true;
 	}
-	if( auto opt = find_constant(sym) ) {
-		return opt->first;
+	if( obtains().contains(sym) ) {
+		return true;
 	}
 	if( auto parent = find_parent() ) {
-		return parent->find_sym(sym);
+		return parent->fixed(sym);
 	}
-	return {};
-}
-
-Ctxt Ctxt::branch(
-	std::vector<std::string>&& fvar_list,
-	std::vector<std::pair<std::string,Term>> const& assms
-) const {
-	StrSet fvars;
-	for( string const& fvar : fvar_list ) {
-		fvars.insert(fvar);
-	}
-	for( auto const& [name,assm] : assms ) {
-		assm.iter_fsyms(
-			[this,&fvars](string const& sym){
-				if( !find_sym(sym) && fvars.contains(sym) ) {
-					throw UnboundVariable(sym);
-				}
-			}
-		);
-	}
-	StrMap<Ctxt const> ctxts;
-	ctxts.emplace("",*this);
-	return Ctxt(Ref<Body>::make(
-		std::move(ctxts),std::move(fvars),std::move(fvar_list),Specs()
-	));
+	return false;
 }
 
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_fsyms(
-		[&](string const& sym){ if( !find_sym(sym) ) { throw UnboundVariable(sym); } }
+		[&](string const& sym){ if( !fixed(sym) ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
-
-pair<CTerm,Ctxt const> Ctxt::obtain(
-	string const& sym,
-	Specs const& specs
-) {
-	if( find_sym(sym) ) {
+Thm Ctxt::assume(Term const& t) & {
+	CTerm ct = cterm(t);// ensure closedness
+	_ref->modifiers.push_back(Assume(ct));
+	return Thm(ct);
+}
+void Ctxt::obtain(Thm const& thm) & {
+	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
+	auto all1 = thm.binder(ALL);
+	if( !all1 ) {
+		throw UnexpectedTerm(thm);
+	}
+	auto thesis = all1->first;
+	auto imp = all1->second.binary(IMP);
+	if( !imp || imp->second != thesis ) {
+		throw UnexpectedTerm(thm);
+	}
+	auto all2 = imp->first.binder(ALL);
+	if( !all2 ) {
+		throw UnexpectedTerm(thm);
+	}
+	auto sym = all2->first;
+	if( fixed(sym) ) {
 		throw DoubleFix(sym);
 	}
-	string thesis = avoid("thesis", [&](string const& x){ return find_sym(x) || sym == x; });
-	Term assm = thesis;
-	vector<Term> thms;
-	for( auto it = specs.rbegin(); it != specs.rend(); it++ ) {
-		auto const& thm = it->second;
-		// check closedness
-		thm.iter_fsyms(
-			[&](string const& x){ if( !find_sym(x) && x != sym ) { throw UnboundVariable(x); } }
+	vector<Term> specs;
+	Term const* in = &all2->second;
+	while( auto imp2 = in->binary(IMP) ) {
+		auto& spec = imp2->first;
+		spec.iter_fsyms(// spec should not contain thesis
+			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(spec); }
 		);
-		assm = thm >>= assm;
-		thms.push_back(thm);
+		specs.push_back(spec);
+		in = &imp2->second;
 	}
-	assm = ALL( thesis /= ALL( sym /= assm ) >>= thesis );
-	StrMap<Ctxt const> ctxts;
-	ctxts.emplace("",*this);
-	StrSet fvars = {sym};
-	vector<string> fvar_list = {sym};
-	vector<Term> assms = {assm};
-	Ctxt obtainer = Ctxt(Ref<Body>::make(
-		std::move(fvars),
-		std::move(fvar_list),
-		std::move(assms),
-		std::move(specs),
-		std::move(thms)
-	));
-	return {CTerm(*this,assm),obtainer};
+	if( *in != thesis ) {
+		throw UnexpectedTerm(thm);
+	}
+	_ref->modifiers.push_back(Obtain(sym,std::move(specs)));
+	_ref->constants.insert(sym);
 }
 Thm Thm::_allE(CTerm const& t) const {
-	if( auto const& a = app() ) {
+	if( auto const& a = capp() ) {
 		if( a->first == ALL ) {
 			return a->second.inst(t);
 		}
@@ -278,9 +267,9 @@ Thm Thm::_allE(CTerm const& t) const {
 
 Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
-		throw WrongContext();
+		throw WrongContext("impE");
 	}
-	if( auto const& app1 = app() ) {
+	if( auto const& app1 = capp() ) {
 		if( auto const& app2 = app1->first.app() ) {
 			if( app2->first == IMP && app2->second == t ) {
 				return app1->second;
@@ -291,23 +280,34 @@ Thm Thm::impE(Thm const& t) const {
 }
 
 Thm Thm::intro() const {
+	if( !_ctxt.obtains().empty() ) {// checks if obtained constants don't escape
+		auto check = [&](auto v){
+			if( _ctxt.obtains().contains(v) ) { throw ConstantEscape(v); }
+		};
+		iter_fsyms(check);
+	}
 	auto const& parent = _ctxt.ctxt();
 	Term stmt = *this;
-	auto const& assms = _ctxt.assms();
-	for( auto it = assms.rbegin(); it != assms.rend(); it++ ) {
-		stmt = *it >>= stmt;
-	}
-	auto const& syms = _ctxt.fvar_list();
-	for( auto it = syms.rbegin(); it != syms.rend(); it++ ) {
-		stmt = ALL(*it /= stmt);
+	auto const& modifiers = _ctxt.modifiers();
+	for( auto it = modifiers.rbegin(); it != modifiers.rend(); it++ ) {
+		if( auto& assm = it->ref<Ctxt::Assume>() ) {
+			stmt = *assm >>= stmt;
+		} else if( auto& fix = it->ref<Ctxt::Fix>() ) {
+			stmt = ALL( *fix /= stmt );
+		} else if( auto& obtain = it->ref<Ctxt::Obtain>() ) {
+			// obtain is safe
+		} else {
+			assert(false);
+		}
 	}
 	return Thm(CTerm(parent,stmt));
 }
-Opt<CTerm::StrTerm> CTerm::abs() const {
+Opt<CTerm::StrTerm> CTerm::cabs() const {
 	if( auto tabs = Term::abs() ) {
 		string const& var = tabs->first;
 		Term const& body = tabs->second;
-		Ctxt loc = _ctxt.branch({var},{});
+		Ctxt loc = _ctxt.branch();
+		loc.fix(var);
 		return StrTerm(var,CTerm(loc,body));
 	} else {
 		return {};
@@ -322,11 +322,10 @@ CTerm CTerm::lift() const {
 	return CTerm(parent,ret);
 }
 
-CTerm CTerm::subst(CSubst const& subst) const {
+CTerm Term::csubst(CSubst const& subst) const {
 	auto const& ctxt = subst.ctxt();
-	_ctxt.ensure_ancestor(ctxt);
 	auto fixed = [&](string const& sym) {
-		return (bool)subst.ctxt().find_sym(sym);
+		return subst.ctxt().fixed(sym);
 	};
 	if( subst.empty() ) {
 		// only check that the term is closed.
@@ -335,37 +334,84 @@ CTerm CTerm::subst(CSubst const& subst) const {
 	auto f = [&](string const& sym)->Term {
 		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
-		} else if( auto const& opt2 = ctxt.find_sym(sym) ) {
-			return *opt2;
+		} else if( ctxt.fixed(sym) ) {
+			return sym;
 		} else {
 			throw UnboundVariable(sym);
 		}
 	};
 	return CTerm(ctxt,map(f,fixed));
 }
-Intp::Intp(Ctxt const& ctxt, CSubst&& subst, std::vector<Thm> const& thms) :
-	_ctxt(ctxt), _subst(std::move(subst)) {
-	for( auto& fvar : _ctxt.fvars() ) {// check that all variables are fixed
-		if( !_subst.closes(fvar) ) {
-			throw UnboundVariable(fvar);
+Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
+	if( auto tgtParent = tgt.find_parent() ) {
+		if( tgtParent != src.find_parent() ) {
+			throw WrongContext("making interpretation");
 		}
 	}
-	auto const& owner = _subst.ctxt();
-	owner.ensure_ancestor(_ctxt.ctxt());// the interpreted context must belong to an ancestor of the owner
-	auto it = thms.begin();
-	for( auto const& assm : _ctxt.assms() ) {// check that the instances of assumptions are discharged
-		if( it == thms.end() ) {
-			throw MalformedDischarge(assm,Term("#context"));
+	return Intp(src,tgt);
+}
+Thm Intp::subst(Thm const& thm) const {
+	if( thm.ctxt() != _src ) {
+		throw WrongContext("interpretation");
+	}
+	if( _src.revision() != _rev ) {
+		throw WrongContext("wrong revision");
+	}
+	return Thm(CTerm(_subst.ctxt(),thm.subst(_subst)));
+}
+void Intp::import_fix(CTerm const& term) {
+	if( _src.revision() <= _rev ) {
+		throw WrongContext("no need for import_fix");
+	}
+	auto fix = _src.modifiers()[_rev].ref<Ctxt::Fix>();
+	if( !fix ) {
+		throw WrongContext("unexpected import_fix");
+	}
+	_subst.assign(*fix,term);
+	_rev++;
+}
+void Intp::import_assume(Thm const& thm) {
+	if( _src.revision() <= _rev ) {
+		throw WrongContext("no need for import_assume");
+	}
+	auto assume = _src.modifiers()[_rev].ref<Ctxt::Assume>();
+	if( !assume ) {
+		throw WrongContext("unexpected import_assume");
+	}
+	Term& exp = assume->subst(_subst);
+	if( exp != thm ) {
+		throw UnexpectedTerm(Term("#expected")(exp)(thm));
+	}
+	_rev++;
+}
+void Intp::import_obtain(CTerm const& term, vector<Thm> const& thms) {
+	if( _src.revision() <= _rev ) {
+		throw WrongContext("no need for import_obtain");
+	}
+	auto obtain = _src.modifiers()[_rev].ref<Ctxt::Obtain>();
+	if( !obtain ) {
+		throw WrongContext("unexpected import_obtain");
+	}
+	auto& specs = obtain->specs();
+	auto spec_it = specs.begin();
+	auto thm_it = thms.begin();
+	for(;;) {
+		if( spec_it == specs.end() ) {
+			if( thm_it == thms.end() ) {
+				_rev++;
+				return;
+			}
+			throw UnexpectedTerm(Term("#too_many_specs")(*thm_it));
 		}
-		if( it->ctxt() != owner ) {
-			throw WrongContext();
+		Term spec = spec_it->subst(_subst);
+		if( thm_it == thms.end() ) {
+			throw MissingProof(spec);
 		}
-		Term const& goal = assm.subst(_subst);
-		if( *it != goal ) {
-			throw MalformedDischarge(goal,*it);
+		if( *thm_it != spec ) {
+			throw UnexpectedTerm(Term("#expected")(spec)(*thm_it));
 		}
-		it++;
+		spec_it++;
+		thm_it++;
 	}
 }
-
 
