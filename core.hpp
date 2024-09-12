@@ -12,6 +12,9 @@
 #include"sum.hpp"
 #include"map.hpp"
 
+#define ALL_char '∀'
+#define IMP_char '⟹'
+
 class Term;
 class Ctxt;
 class Thm;

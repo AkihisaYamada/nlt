@@ -1,6 +1,6 @@
 #include<iostream>
 #include "../core.hpp"
-#include "../core_writer.hpp"
+#include "../syntax.hpp"
 
 using namespace std;
 
@@ -30,6 +30,7 @@ int main() {
 	loc.fix("P");
 	loc.fix("Q");
 	Thm assm = loc.assume("R" &= (P >>= Q >>= R) >>= R);
-	Thm allI = assm.allE(loc.cterm(P & Q)).intro();
+	Thm lem = allI1.weaken(loc).allE(P).allE(Q);
+	Thm allI = assm.allE(loc.cterm(P & Q)).impE(lem).intro();
 	cerr << "proved allI: " << allI << endl;
 }

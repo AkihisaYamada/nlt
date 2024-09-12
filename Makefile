@@ -1,4 +1,4 @@
-CORE_TEST_SRCS=core.cpp core_writer.cpp test/core_test.cpp
+CORE_TEST_SRCS=core.cpp lexer.cpp syntax.cpp test/core_test.cpp
 SRCS=core.cpp util.cpp unifier.cpp lexer.cpp syntax.cpp rewriter.cpp definer.cpp prover.cpp
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend

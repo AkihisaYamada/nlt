@@ -12,6 +12,8 @@ inline std::ostream& operator<<(
     return manipulator( stream );
 }
 
+std::ostream& operator<<(std::ostream& os, Term const& t);
+
 class Parser;
 
 class Syntax : public Lex {
@@ -37,7 +39,7 @@ private:
 	StrSet _closers;
 	friend Parser;
 public:
-	Syntax() {}
+	Syntax();
 	void prefix(std::string const& sym, int level, int rlevel) {
 		_prefixes.insert({sym,{level,rlevel}});
 	}
