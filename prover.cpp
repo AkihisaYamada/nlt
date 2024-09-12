@@ -501,7 +501,7 @@ public:
 		} catch ( TheoremNotFound const& e ) {
 			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
 			_error();
-		} catch ( UnexpectedTerm const& e ) {
+		} catch ( Error const& e ) {
 			cerr << "ERROR: Unexpected term " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( UnboundVariable const& e ) {

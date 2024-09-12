@@ -131,6 +131,16 @@ Term Term::subst(CSubst const& subst) const {
 	return map(f,fixed);
 }
 
+static function<Term(string const&)> unit_map(string const& var, Term const& val) {
+	return [&](std::string const& sym){ return sym == var ? val : Term(sym); };
+}
+Term Term::subst(string const& var, CTerm const& val) const {
+	return map(
+		unit_map(var,val),
+		[&](std::string const& sym){ return val.ctxt().fixed(sym); }
+	);
+}
+
 static Term subst_var(
 	function<Term(string const&)> f,
 	string const& sym,
@@ -183,7 +193,7 @@ Term Term::_map(
 		if( auto nsym = newbox.sym() ) {
 			return *nsym / newval;
 		} else if( auto nabs = newbox.abs() ) {
-			return nabs->second.subst(nabs->first,newval);
+			return nabs->second.map(unit_map(nabs->first,newval));
 		} else {
 			throw UnexpectedTerm(newbox);
 		}
@@ -237,7 +247,7 @@ Thm Ctxt::assume(Term const& t) & {
 	_ref->modifiers.push_back(Assume(ct));
 	return Thm(ct);
 }
-void Ctxt::obtain(Thm const& thm) & {
+vector<Thm> Ctxt::obtain(Thm const& thm) & {
 	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	auto all1 = thm.binder(ALL);
 	if( !all1 ) {
@@ -256,21 +266,24 @@ void Ctxt::obtain(Thm const& thm) & {
 	if( fixed(sym) ) {
 		throw DoubleFix(sym);
 	}
-	vector<Term> specs;
+	vector<Term> props;
+	vector<Thm> thms;
 	Term const* in = &all2->second;
 	while( auto imp2 = in->binary(IMP) ) {
-		auto& spec = imp2->first;
-		spec.iter_fsyms(// spec should not contain thesis
-			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(spec); }
+		auto& prop = imp2->first;
+		prop.iter_fsyms(// spec should not contain thesis
+			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(prop); }
 		);
-		specs.push_back(spec);
+		props.push_back(prop);
+		thms.push_back(CTerm(*this,prop));
 		in = &imp2->second;
 	}
 	if( *in != thesis ) {
 		throw UnexpectedTerm(thm);
 	}
-	_ref->modifiers.push_back(Obtain(sym,std::move(specs)));
+	_ref->modifiers.push_back(Obtain(sym,std::move(props)));
 	_ref->constants.insert(sym);
+	return thms;
 }
 Thm Thm::_allE(CTerm const& t) const {
 	if( auto const& a = capp() ) {

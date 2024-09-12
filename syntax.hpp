@@ -12,8 +12,6 @@ inline std::ostream& operator<<(
     return manipulator( stream );
 }
 
-std::ostream& operator<<(std::ostream& os, Term const& t);
-
 class Parser;
 
 class Syntax : public Lex {

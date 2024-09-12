@@ -260,12 +260,7 @@ public:
 		return !exists_fsym([&](auto v){ return !test(v); });
 	}
 	/** @brief Singleton substitution */
-	Term subst(std::string const& var, Term const& val) const {
-		return map(
-			[&](std::string const& sym){ return sym == var ? val : sym; },
-			[](std::string const& sym){ return false; }
-		);
-	}
+	Term subst(std::string const& var, CTerm const& val) const;
 	/** @brief applies a substitution.
 	 * 
 	 * @param subst
@@ -284,7 +279,10 @@ public:
 	 * @param fixed flags fixed variables.
 	 * @return Term 
 	 */
-	Term map(std::function<Term(std::string const&)> f, std::function<bool(std::string const&)> fixed) const {
+	Term map(
+		std::function<Term(std::string const&)> f,
+		std::function<bool(std::string const&)> fixed = [](std::string const&){ return false; }
+	) const {
 		StrMap<std::string> bsyms;
 		return _map(f,fixed,bsyms);
 	};
@@ -310,44 +308,42 @@ inline Term operator>>=(Term const& l, Term const& r) {
 	return IMP(l)(r);
 }
 
-struct UnexpectedTerm : public std::exception {
+struct Error : public std::exception {
 	Term term;
-	UnexpectedTerm(Term const& term) : term(term) {}
+	Error(Term const& term) : term(term) {}
 };
-struct MalformedInstantiation : public std::exception {
-	Term all, arg;
-	MalformedInstantiation(Term const& all, Term const& arg) : all(all), arg(arg) {}
+struct UnexpectedTerm : public Error {
+	UnexpectedTerm(Term const& term) : Error(Term("#unexpected_term")(term)) {}
 };
-struct MalformedDischarge : public std::exception {
-	Term imp, arg;
-	MalformedDischarge(Term const& imp, Term const& arg) : imp(imp), arg(arg) {}
+struct MalformedInstantiation : public Error {
+	MalformedInstantiation(Term const& all, Term const& arg) :
+		Error(Term("#malformed_instantiation")(all)(arg)) {}
 };
-struct MissingProof : public std::exception {
-	Term term;
-	MissingProof(Term const& term) : term(term) {}
+struct MalformedDischarge : public Error {
+	MalformedDischarge(Term const& imp, Term const& arg) :
+		Error(Term("#malformed_discharge")(imp)(arg)) {}
 };
-struct TheoremNotFound : public std::exception {
-	std::string name;
-	TheoremNotFound(std::string const& name) : name(name) {}
+struct MissingProof : public Error {
+	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
+};
+struct TheoremNotFound : public Error {
+	TheoremNotFound(std::string const& name) : Error(Term("#theorem_not_found")(name)) {}
 };
 struct WrongContext : public std::exception {
 	std::string message;
 	WrongContext(std::string const& msg) : message(msg) {}
 };
 
-struct DoubleFix : public std::exception {
-	std::string name;
-	DoubleFix(std::string const& name) : name(name) {}
+struct DoubleFix : public Error {
+	DoubleFix(std::string const& name) : Error(Term("#double_fix")(name)) {}
 };
 
-struct UnboundVariable : public std::exception {
-	std::string name;
-	UnboundVariable(std::string const& name) : name(name) {}
+struct UnboundVariable : public Error {
+	UnboundVariable(std::string const& name) : Error(Term("#unbound_variable")(name)) {}
 };
 
-struct ConstantEscape : public std::exception {
-	std::string name;
-	ConstantEscape(std::string const& name) : name(name) {}
+struct ConstantEscape : public Error {
+	ConstantEscape(std::string const& name) : Error(Term("#escape")(name)) {}
 };
 
 /** @brief Context */
@@ -434,7 +430,7 @@ public:
 	 * @param thm of form ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	 * @return theorems for the specifications.
 	 */
-	void obtain(Thm const& thm) &;
+	std::vector<Thm> obtain(Thm const& thm) &;
 	
 	/** @brief Creates a child context. */
 	Ctxt branch() const {
@@ -515,7 +511,7 @@ public:
 		Term::operator=((Term)other);
 		return *this;
 	}
-	/** @brief The context the term is from */
+	/** The context the term is from */
 	Ctxt const& ctxt() const & {
 		return _ctxt;
 	}

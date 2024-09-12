@@ -69,7 +69,7 @@ public:
 	}
 	void close() {
 		for( auto const& p : map() ) {
-			CSubst::assign(p.first,get(p.first)->subst(*this));
+			CSubst::assign(p.first,get(p.first)->csubst(*this));
 		}
 	}
 };

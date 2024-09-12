@@ -9,6 +9,9 @@ OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DOBJS=$(SRCS:%.cpp=$(DEBUG)/%.o)
 DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 
+core_test: core_test.exe
+	./$@
+
 core_test.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DCPP} $^ -o $@
 

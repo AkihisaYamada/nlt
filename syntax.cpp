@@ -12,14 +12,8 @@ Syntax::Syntax() : Lex() {
 	_closers.insert("]");
 	register_multi_op(int_of_chars("∀"));
 	register_multi_op(int_of_chars("⟹"));
-	infix("⟹",2,1,1);
+	infix("⟹",0,1,0);
 	prefix("∀",0,0);
-}
-
-static Syntax ROOT;
-
-ostream& operator<<(ostream& os, Term const& t) {
-	return os << ROOT.pretty_term(t,0);
 }
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {

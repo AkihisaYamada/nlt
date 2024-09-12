@@ -34,7 +34,7 @@ pair<string, list<Term>> uncurry(Term const& t) {
 		} else if( auto sym = cur->sym() ) {
 			return pair<string,list<Term>>(*sym,args);
 		} else {
-			throw UnexpectedTerm(*cur);
+			throw Error(*cur);
 		}
 	}
 }
@@ -56,15 +56,15 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		} else {
 			return *sym == val;
 		}
-	} else if( auto app = pat.app() ) {
-		if( auto app2 = val.app() ) {
+	} else if( auto app = pat.capp() ) {
+		if( auto app2 = val.capp() ) {
 			return match(fsyms,app->first,app2->first,matcher,lidx,ridx,depth) &&
 				match(fsyms,app->second,app2->second,matcher,lidx,ridx,depth);
 		} else {
 			return false;
 		}
-	} else if( auto const& abs = pat.abs() ) {
-		if( auto const& abs2 = val.abs() ) {
+	} else if( auto const& abs = pat.cabs() ) {
+		if( auto const& abs2 = val.cabs() ) {
 			string const& x = abs->first;
 			string const& y = abs2->first;
 			depth++;
@@ -98,14 +98,14 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		} else {
 			return false;
 		}
-	} else if( auto fix = pat.fix() ) {
+	} else if( auto fix = pat.cfix() ) {
 		auto const& x = fix->first;
 		if( auto const& opt = matcher.get(x) ) {
 			if( auto const& abs = opt->abs() ) {
 				return match(fsyms,opt->inst(fix->second),val,matcher,lidx,ridx,depth);
 			}
 		}
-		if( auto fix2 = val.fix() ) {
+		if( auto fix2 = val.cfix() ) {
 			if( fsyms.contains(x) ) {
 				matcher.assign(x,fix2->first);
 			}
@@ -132,7 +132,7 @@ Term strip_all(Term t, Ctxt& ctxt) {
 			if( app->first == ALL ) {
 				if( auto abs = app->second.abs() ) {
 					string const& v = abs->first;
-					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
+					string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
 					t = abs->second.subst(abs->first,ctxt.fix(nv));
 					continue;
 				}
@@ -250,6 +250,6 @@ Thm Concluder::conclude(Thm const& thm) {
 			return thm.impE(arg);
 		}
 	}
-	throw UnexpectedTerm(thm);
+	throw Error(thm);
 }
 
