@@ -14,7 +14,7 @@ class Prover {
 	unsigned int _depth;
 	Ctxt _ctxt;
 	bool _own_syntax;
-	Ref<Syntax> _syntax;
+	Ref<Parser> _syntax;
 	Opt<Thm> _thesis;
 	Concluder _concluder;
 	StrMap<Ref<Rewriter>> _rewriters;
@@ -37,8 +37,8 @@ class Prover {
 public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
-		_ctxt(Ctxt::root()),
-		_syntax(Ref<Syntax>::make<istream&>(is)),
+		_ctxt(Ctxt()),
+		_syntax(Ref<Parser>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
 		_ctxt.fix(IMP_var);
@@ -54,8 +54,8 @@ public:
 		_syntax->register_multi_op(':');
 		_syntax->register_multi_op('*');
 		_syntax->register_multi_op('+');
-		_syntax->encloser("(",")",-1000,[&]( function<Opt<Term>(int)> get_inner ){
-			Opt<Term> t = get_inner(0);
+		_syntax->encloser("(",")",-1000,[&]( Parser& parser ){
+			Opt<Term> t = parser.gets_term(0);
 			_syntax->skip(")");
 			return *t;
 		});
@@ -69,9 +69,9 @@ public:
 	}
 	Prover prove(CTerm const& thesis) {
 		Ctxt const& ctxt = thesis.ctxt();
-		Thm thm = ctxt.branch().assume("thesis",thesis).intro();// thesis ⟹ thesis
+		Ctxt loc = ctxt.branch();
+		Thm thm = loc.assume(thesis).intro();// thesis ⟹ thesis
 		Ctxt ctxt2 = ctxt.branch();
-		ctxt2.claim("_thesis",thm.weaken(ctxt2));
 		return Prover(*this,ctxt2,thm);
 	}
 	Thm get_thm() {
@@ -79,7 +79,7 @@ public:
 		if( auto const& thm = _gets_thm(loc) ) {
 			return thm->intro();
 		} else {
-			throw Syntax::Error("expects a theorem");
+			throw Parser::Error("expects a theorem");
 		}
 	}
 	Ref<Rewriter>& _rewriter() {
@@ -452,8 +452,8 @@ public:
 					Term const& collect = _syntax->get_term(1000);
 					Term const& lam = _syntax->get_term(1000);
 					Term const& un = _syntax->get_term(1000);
-					auto handler = [=,*this](function<Opt<Term>(int)> get_inner) {
-						auto const& inner = get_inner(0);
+					auto handler = [=,*this](Parser& parser) {
+						auto const& inner = parser.gets_term(0);
 						if( !inner ) {
 							_syntax->skip("}");
 							return empty;
@@ -464,7 +464,7 @@ public:
 						}
 						Term ret = singleton(*inner);
 						while( _syntax->skips(",") ) {
-							auto const inner2 = get_inner(0);
+							auto const inner2 = parser.gets_term(0);
 							ret = un(ret)(singleton(*inner2));
 						}
 						_syntax->skip("}");

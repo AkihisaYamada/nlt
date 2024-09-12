@@ -302,7 +302,7 @@ private:
 inline bool operator!=(Term const& l, Term const& r) {
 	return !(l == r);
 }
-
+/** implication */
 inline Term operator>>=(Term const& l, Term const& r) {
 	return IMP(l)(r);
 }
@@ -358,21 +358,21 @@ public:
 	class Assume : public Term {};
 	class Obtain {
 		std::string _name;
-		std::vector<Term> _specs;
+		std::vector<Term> _props;
 		friend Ctxt;
 	public:
 		Obtain(std::string const& name, std::vector<Term>&& specs) :
-			_name(name), _specs(std::move(specs)) {}
-		std::vector<Term> const specs() const {
-			return _specs;
+			_name(name), _props(std::move(specs)) {}
+		std::vector<Term> const props() const {
+			return _props;
 		}
 	};
 	using Modifier = Sum<Fix,Assume,Obtain>;
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Ctxt(Ctxt&& other) : _ref(std::move(other._ref)) {}
-	/** @brief The root Ctxt */
+	/** The root Ctxt */
 	Ctxt();
-	/** @brief Optionally returns the parent context. */
+	/** Optionally returns the parent context. */
 	Opt<Ctxt const&> find_parent() const;
 	/** @brief Obtains the parent context.
 	 * @exception WrongContext is thrown if no such context is found.
@@ -390,30 +390,27 @@ public:
 	void ensure_ancestor(Ctxt const& ancestor) const {
 		for( Ctxt cur = *this; cur != ancestor; cur = cur.ctxt() );
 	}
-	/** @brief The set of locally fixed variables.
-	 */
+	/** The set of locally fixed variables. */
 	StrSet const& fvars() const&;
-	/** @brief The sequence of locally fixed variables.
-	 */
+	/** The sequence of locally fixed variables. */
 	std::vector<std::string> const& fvar_list() const;
-	/** @brief Finds locally fixed variable.
-	 */
-	Opt<std::string const&> find_fvar(std::string const& name) const {
-		if( auto it = fvars().find(name); it != fvars().end() ) {
-			return {*it};
-		}
-		return {};
-	}
 	/** Vector of modifiers */
-	std::vector<Modifier const> const& modifiers() const&;
+	std::vector<Modifier> const& modifiers() const&;
 	/** Revision of the context, i.e., how many modifications are made. */
-	unsigned int revision() const& {
+	size_t revision() const& {
 		return modifiers().size();
 	}
-	/** @brief locally obtained constants. */
-	StrSet const& obtains() const&;
-	/** @brief tests if a symbol is fixed in this or ancestor contexts.
-	 */
+	/** Tests if a variable is locally fixed. */
+	bool fixes(std::string const& name) const {
+		return fvars().contains(name);
+	}
+	/** Locally obtained constants. */
+	StrSet const& consts() const&;
+	/** Tests if a variable is locally specified. */
+	bool specifies(std::string const& name) const {
+		return consts().contains(name);
+	}
+	/** tests if a symbol is fixed in this or ancestor contexts. */
 	bool fixed(std::string const& sym) const &;
 	/** Ensures that the term is closed in this context. */
 	CTerm cterm(Term const& t) const;
@@ -454,7 +451,7 @@ struct Ctxt::Body {
 	/** @brief Parent context. */
 	Opt<Ctxt> const ctxt;
 	/** Vector of modifiers */
-	std::vector<Modifier const> modifiers;
+	std::vector<Modifier> modifiers;
 	/** @brief The vector of locally fixed variables. */
 	std::vector<std::string> fvars;
 	/** @brief The vector of local assumptions (axioms) */
@@ -472,15 +469,13 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {}
-
 inline Opt<Ctxt const&> Ctxt::find_parent() const {
 	if( _ref->ctxt ) {
 		return *_ref->ctxt;
 	}
 	return {};
 }
-inline std::vector<Ctxt::Modifier const> const& Ctxt::modifiers() const& {
+inline std::vector<Ctxt::Modifier> const& Ctxt::modifiers() const& {
 	return _ref->modifiers;
 }
 
@@ -490,7 +485,7 @@ inline StrSet const& Ctxt::fvars() const& {
 inline std::vector<std::string> const& Ctxt::fvar_list() const {
 	return _ref->fvars;
 }
-inline StrSet const& Ctxt::obtains() const& {
+inline StrSet const& Ctxt::consts() const& {
 	return _ref->constants;
 }
 inline bool operator!=(Ctxt const& l, Ctxt const& r) {

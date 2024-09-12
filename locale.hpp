@@ -6,22 +6,25 @@
 
 class Sublocale;
 
-class Locale {
-	Opt<Ref<Locale const>> _parent;
-	Ref<Syntax> _syntax;
-	Ctxt _ctxt;
-	StrMap<Thm const> _thms;
-	StrMap<Sublocale const> _sublocs;
+class Locale : public Syntax {
+	struct Body;
+	Ref<Body> _body;
+	Locale( Locale const& parent );
 public:
-	Locale() : _syntax( Ref<Syntax>::make() ) {}
+	Locale();
+	Locale branch() const &;
+	Locale& parent() &;
+	Locale const& parent() const &;
+	Locale& parent() && = delete;
+	Ctxt& ctxt() &;
+	Ctxt const& ctxt() const &;
+	Ctxt& ctxt() && = delete;
 	/**
 	 * @brief Local theorems.
 	 * 
 	 * @return map from the theorem names to the statements.
 	 */
-	StrMap<Thm const> const& thms() const& {
-		return _thms;
-	}
+	StrMap<Thm const> const& thms() const&;
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 */
@@ -52,12 +55,34 @@ public:
 	 */
 	Locale& add_thm(std::string const& name, Thm const& thm) {
 		if( thm.ctxt() != _ctxt ) {
-			throw WrongContext();
+			throw WrongContext("add_thm");
 		}
 		_thms.emplace(name,thm);
 		return *this;
 	}
 
+	Locale& fix(std::string const& sym) {
+		_ctxt.fix(sym);
+		return *this;
+	}
+	Locale& assume(Term const& assm) {
+		_ctxt.assume(assm);
+		return *this;
+	}
+	Locale& obtain(Thm const& thm) {
+		_ctxt.obtain(thm);
+		return *this;
+	}
+};
+
+class Locale::Body {
+	Opt<Locale const> _parent;
+	Ctxt _ctxt;
+	StrMap<Thm const> _thms;
+	StrMap<Sublocale const> _sublocs;
+friend Locale;
+	Body(Locale const& parent) :
+		_parent(parent), _ctxt(parent.ctxt().branch()) {}
 };
 
 #endif

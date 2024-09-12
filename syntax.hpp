@@ -12,6 +12,8 @@ inline std::ostream& operator<<(
     return manipulator( stream );
 }
 
+class Parser;
+
 class Syntax : public Lex {
 public:
 	struct Prefix {
@@ -26,7 +28,7 @@ public:
 	struct Opener {
 		std::string closer;
 		int level;
-		std::function<Term(std::function<Opt<Term>(int)>)> handler;
+		std::function<Term(Parser&)> handler;
 	};
 private:
 	StrMap<Prefix> _prefixes;
@@ -42,7 +44,7 @@ public:
 	void infix(std::string const& sym, int level, int llevel, int rlevel) {
 		_infixes.insert({sym,{level,llevel,rlevel}});
 	}
-	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(std::function<Opt<Term>(int)>)> handler) {
+	void encloser(std::string const& opener, std::string const& closer, int level, std::function<Term(Parser&)> handler) {
 		_openers.insert({opener,{closer,level,handler}});
 		_closers.insert(closer);
 	}
@@ -59,7 +61,7 @@ public:
 		std::string message;
 		Error(std::string const& message) : message(message) {}
 	};
-	Parser( Syntax&& syn, std::istream& is ) : Syntax(syn), Lexer(*this,is) {}
+	Parser( std::istream& is ) : Lexer(*this,is) {}
 	Opt<std::string> gets_thm_name();
 	std::string get_thm_name();
 	Opt<Term> gets_term(int level = 0);

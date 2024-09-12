@@ -92,9 +92,6 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
 		for( auto const& sym : ctxt.fvar_list() ) {
 			os << "  sym " << sym << endl;
 		}
-		for( auto const& assm : ctxt.assms() ) {
-			os << "  assm " << pretty_term(assm) << endl;
-		}
 		os << "}" << endl;
 		return os;
 	};
@@ -132,9 +129,10 @@ Opt<Term> Parser::gets_term(int level) {
 		return {};
 	}
 	Term ret;
-	if( auto opener_it = _openers.find(peek); opener_it != _openers.end() ) {
+	if( auto opener_p = _openers.finds(peek) ) {
 		ignore_token();
-		ret = opener_it->second.handler([this](int level){ return gets_term(level); });
+		auto const& opener = opener_p->second;
+		ret = opener.handler(*this);
 	} else if( auto prefix_it = _prefixes.find(peek); prefix_it != _prefixes.end() ) {
 		if( prefix_it->second.llevel < level ) {
 			return {};

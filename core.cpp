@@ -197,11 +197,16 @@ string const ALL_var = "∀";
 Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
+Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
+	fix(IMP_var);
+	fix(ALL_var);
+}
+
 bool Ctxt::fixed(string const& sym) const & {
-	if( auto opt = find_fvar(sym) ) {
+	if( fixes(sym) ) {
 		return true;
 	}
-	if( obtains().contains(sym) ) {
+	if( specifies(sym) ) {
 		return true;
 	}
 	if( auto parent = find_parent() ) {
@@ -216,6 +221,17 @@ CTerm Ctxt::cterm(Term const& t) const {
 	);
 	return CTerm(*this,t);
 }
+
+CTerm Ctxt::fix(string const& s) & {
+	if( fixes(s)) {
+		throw DoubleFix(s);
+	}
+	_ref->modifiers.push_back(Fix(s));
+	_ref->fvar_set.insert(s);
+	_ref->fvars.push_back(s);
+	return CTerm(*this,s);
+}
+
 Thm Ctxt::assume(Term const& t) & {
 	CTerm ct = cterm(t);// ensure closedness
 	_ref->modifiers.push_back(Assume(ct));
@@ -280,9 +296,9 @@ Thm Thm::impE(Thm const& t) const {
 }
 
 Thm Thm::intro() const {
-	if( !_ctxt.obtains().empty() ) {// checks if obtained constants don't escape
+	if( !_ctxt.consts().empty() ) {// checks if obtained constants don't escape
 		auto check = [&](auto v){
-			if( _ctxt.obtains().contains(v) ) { throw ConstantEscape(v); }
+			if( _ctxt.consts().contains(v) ) { throw ConstantEscape(v); }
 		};
 		iter_fsyms(check);
 	}
@@ -290,11 +306,11 @@ Thm Thm::intro() const {
 	Term stmt = *this;
 	auto const& modifiers = _ctxt.modifiers();
 	for( auto it = modifiers.rbegin(); it != modifiers.rend(); it++ ) {
-		if( auto& assm = it->ref<Ctxt::Assume>() ) {
+		if( auto const& assm = it->ref<Ctxt::Assume>() ) {
 			stmt = *assm >>= stmt;
-		} else if( auto& fix = it->ref<Ctxt::Fix>() ) {
+		} else if( auto const& fix = it->ref<Ctxt::Fix>() ) {
 			stmt = ALL( *fix /= stmt );
-		} else if( auto& obtain = it->ref<Ctxt::Obtain>() ) {
+		} else if( auto const& obtain = it->ref<Ctxt::Obtain>() ) {
 			// obtain is safe
 		} else {
 			assert(false);
@@ -378,7 +394,7 @@ void Intp::import_assume(Thm const& thm) {
 	if( !assume ) {
 		throw WrongContext("unexpected import_assume");
 	}
-	Term& exp = assume->subst(_subst);
+	Term const& exp = assume->subst(_subst);
 	if( exp != thm ) {
 		throw UnexpectedTerm(Term("#expected")(exp)(thm));
 	}
@@ -392,7 +408,7 @@ void Intp::import_obtain(CTerm const& term, vector<Thm> const& thms) {
 	if( !obtain ) {
 		throw WrongContext("unexpected import_obtain");
 	}
-	auto& specs = obtain->specs();
+	auto& specs = obtain->props();
 	auto spec_it = specs.begin();
 	auto thm_it = thms.begin();
 	for(;;) {

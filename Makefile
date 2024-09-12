@@ -1,3 +1,4 @@
+CORE_TEST_SRCS=core.cpp core_writer.cpp test/core_test.cpp
 SRCS=core.cpp util.cpp unifier.cpp lexer.cpp syntax.cpp rewriter.cpp definer.cpp prover.cpp
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend
@@ -7,6 +8,9 @@ DEPS=$(SRCS:%.cpp=$(DEPEND)/%.d)
 OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DOBJS=$(SRCS:%.cpp=$(DEBUG)/%.o)
 DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
+
+core_test.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
+	${DCPP} $^ -o $@
 
 test.exe: ${DOBJS}
 	${DCPP} $^ -o $@
