@@ -394,8 +394,6 @@ public:
 	}
 	/** The set of locally fixed variables. */
 	StrSet const& fvars() const&;
-	/** The sequence of locally fixed variables. */
-	std::vector<std::string> const& fvar_list() const;
 	/** Vector of modifiers */
 	std::vector<Modifier> const& modifiers() const&;
 	/** Revision of the context, i.e., how many modifications are made. */
@@ -456,12 +454,10 @@ struct Ctxt::Body {
 	Opt<Ctxt> const ctxt;
 	/** Vector of modifiers */
 	std::vector<Modifier> modifiers;
-	/** @brief The vector of locally fixed variables. */
-	std::vector<std::string> fvars;
 	/** @brief The vector of local assumptions (axioms) */
 	std::vector<Term> assms;
 	/** @brief The set of locally fixed variables (excluding ancestors). */
-	StrSet fvar_set;
+	StrSet fvars;
 	/** @brief Locally obtained constants and their specifications. */
 	StrSet constants;
 };
@@ -484,9 +480,6 @@ inline std::vector<Ctxt::Modifier> const& Ctxt::modifiers() const& {
 }
 
 inline StrSet const& Ctxt::fvars() const& {
-	return _ref->fvar_set;
-}
-inline std::vector<std::string> const& Ctxt::fvar_list() const {
 	return _ref->fvars;
 }
 inline StrSet const& Ctxt::consts() const& {

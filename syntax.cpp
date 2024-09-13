@@ -2,6 +2,8 @@
 
 using namespace std;
 
+Syntax SYNTAX;
+
 Syntax::Syntax() : Lex() {
 	register_single_op('(');
 	register_single_op(')');
@@ -16,8 +18,8 @@ Syntax::Syntax() : Lex() {
 	prefix("∀",0,0);
 }
 
-function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const {
-	return [&](ostream& os) -> ostream& {
+function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const & {
+	return [this,&term,level](ostream& os) -> ostream& {
 		if( auto sym = term.sym() ) {
 			if( _prefixes.contains(*sym) || _infixes.contains(*sym) ) {
 				return os << '(' << *sym << ')';
@@ -75,14 +77,14 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 	};
 }
 
-function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& thm) const {
-	return [&](ostream& os) -> ostream& {
+function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& thm) const & {
+	return [this,thm](ostream& os) -> ostream& {
 		return os << pretty_term(thm);
 	};
 }
 
-function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const {
-	return [&](ostream& os) -> ostream& {
+function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const & {
+	return [this,&thms](ostream& os) -> ostream& {
 		for( auto const& thm : thms ) {
 			os << "  thm " << thm.first << ": " << pretty_term(thm.second) << endl;
 		}
@@ -90,14 +92,37 @@ function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const 
 	};
 }
 
-function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const {
-	return [&](ostream& os) -> ostream& {
-		os << "ctxt {" << endl;
-		for( auto const& sym : ctxt.fvar_list() ) {
-			os << "  sym " << sym << endl;
+function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
+	return [this,ctxt](ostream& os) -> ostream& {
+		function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
+			os << pretty_term(t);
+		};
+		for( auto mod : ctxt.modifiers() ) {
+			if( auto fix = mod.ref<Ctxt::Fix>() ) {
+				os << "\tfixes " << *fix << ';' << std::endl;
+			} else if( auto assume = mod.ref<Ctxt::Assume>() ) {
+				os << "\tassumes " << pretty_term(*assume) << ';'<< std::endl;
+			} else if( auto obtain = mod.ref<Ctxt::Obtain>() ) {
+				os << "\tobtains " << obtain->name() << "\n\t where ";
+				auto& props = obtain->props();
+				out_sep(os,props.begin(),props.end(),"\n\t  and ",term);
+				os << ';' << std::endl;
+			} else {
+				assert(false);
+			}
 		}
-		os << "}" << endl;
 		return os;
+	};
+}
+
+function<ostream&(ostream&)> Syntax::pretty_subst(CSubst const& subst) const & {
+	function<void(ostream&,std::pair<std::string const,Term> const&)> pair =
+		[&](ostream& os, auto p){ os << pretty_term(p.first) << " := " << pretty_term(p.second); };
+	return [&](ostream& os)->ostream&{
+		os << "[ ";
+		auto& map = subst.map();
+		out_sep(os, map.begin(), map.end(), ",\n  ", pair );
+		return os << "\n]";
 	};
 }
 

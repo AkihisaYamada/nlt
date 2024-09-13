@@ -24,12 +24,14 @@ int main() try {
 		CTerm P = loc.fix("P");
 		return loc.assume(P).intro();
 	}();
+	cout << "proved imp_refl: " << imp_refl << endl;
 	Thm weaken = [&]{
 		Ctxt loc = Root.branch();
 		Thm P = loc.assume(loc.fix("P"));
 		Thm Q = loc.assume(loc.fix("Q"));
 		return P.intro();
 	}();
+	cout << "proved weaken: " << weaken << endl;
 	Thm trueI = [&]{
 		Ctxt loc = Root.branch();
 		loc.fix("thesis");
@@ -37,8 +39,8 @@ int main() try {
 		Thm imp_refl2 = imp_refl.weaken(loc);
 		return Root.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro())[0];
 	}();
-	cout << "context Root:\n" << Root << endl;
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
+	cout << "context Root:\n" << Root << endl;
 	cout << "\n--- And ---" << endl;
 	Ctxt And;
 	And.fix("∧");

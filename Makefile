@@ -1,5 +1,10 @@
 CORE_SRCS=core.cpp lexer.cpp syntax.cpp debug.cpp
-SRCS=$(CORE_SRCS) unifier.cpp rewriter.cpp definer.cpp prover.cpp
+UTIL_SRCS=unifier.cpp rewriter.cpp definer.cpp
+TEST_SRC=test/core_test.cpp
+TEST_SRCS=$(CORE_SRCS) $(TEST_SRC)
+PROVER_SRC=prover.cpp
+PROVER_SRCS=$(CORE_SRCS) $(UTIL_SRCS) $(PROVER_SRC)
+SRCS=$(PROVER_SRCS) $(TEST_SRC)
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend
 BUILD=_build
@@ -9,16 +14,15 @@ OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DOBJS=$(SRCS:%.cpp=$(DEBUG)/%.o)
 DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 
+.PHONY: core_test
+
+core_test.exe: $(TEST_SRCS:%.cpp=$(DEBUG)/%.o)
+	${DCPP} $^ -o $@
+
 core_test: core_test.exe
 	./$@
 
-core_test.exe: $(CORE_SRCS:%.cpp=$(DEBUG)/%.o) $(DEBUG)/test/core_test.o
-	${DCPP} $^ -o $@
-
-test.exe: ${DOBJS}
-	${DCPP} $^ -o $@
-
-nlm.exe: ${OBJS}
+nlm.exe: $(PROVER_SRCS:$(BUILD)/%.o)
 	${CPP} $^ -o $@
 
 test: test.exe proofscript

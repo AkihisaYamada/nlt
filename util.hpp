@@ -79,6 +79,15 @@ public:
  */
 Opt<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
 
+/** Iterate over locally fixed variables. */
+inline void iter_local_vars( Ctxt const& ctxt, std::function<void(std::string const&)> f ) {
+	for( auto const& mod : ctxt.modifiers() ) {
+		if( auto const& fix = mod.ref<Ctxt::Fix>() ) {
+			f(*fix);
+		}
+	}
+}
+
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
  * 

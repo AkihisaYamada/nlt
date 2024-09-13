@@ -155,33 +155,33 @@ Thm discharge(Thm thm, Thm arg) try {
 	if( !unifier ) throw 3;
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
-	for( auto const& x : arg_ctxt.fvar_list() ) {
+	iter_local_vars(arg_ctxt,[&](string const& x){
 		if( !unifier->map().contains(x) ) {
 			ret_ctxt.fix(x);
 		}
-	}
-	for( auto const& x : thm_ctxt.fvar_list() ) {
+	});
+	iter_local_vars(thm_ctxt,[&](string const& x){
 		if( !unifier->map().contains(x) ) {
 			ret_ctxt.fix(x);
 		}
-	}
+	});
 	// instantiating arg according to the unifier
 	// quantify variables as cond
 	Ctxt discharger_ctxt = ret_ctxt.branch();
-	for( auto const& x : cond_ctxt.fvar_list() ) {
+	iter_local_vars(cond_ctxt,[&](string const& x){
 		discharger_ctxt.fix(x);
-	}
+	});
 	arg = arg.weaken(discharger_ctxt);
-	for( auto const& x : arg_ctxt.fvar_list() ) {// TODO: slower than `subst`
+	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
 		arg = arg.allE( discharger_ctxt.cterm( val ? *val : Term(x) ) );
-	}
+	});
 	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
-	for( auto const& x : thm_ctxt.fvar_list() ) {// TODO: slower than `subst`
+	iter_local_vars(thm_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
 		thm = thm.allE( ret_ctxt.cterm( val ? *val : Term(x) ) );
-	}
+	});
 	thm = thm.impE(arg);
 	thm = thm.intro();
 	return thm;
@@ -200,9 +200,9 @@ Thm Concluder::conclude(Thm const& thm) {
 		auto const& pat_ctxt = rule.pat.ctxt();
 		if( auto const& m = match(pat_ctxt.fvars(),rule.pat,source) ) {
 			Thm arg = rule.thm.weaken(source.ctxt());
-			for( auto const& fvar : pat_ctxt.fvar_list() ) {
+			iter_local_vars(pat_ctxt,[&](string const& fvar){
 				arg = arg.allE(*m->get(fvar));
-			}
+			});
 			return thm.impE(arg);
 		}
 	}

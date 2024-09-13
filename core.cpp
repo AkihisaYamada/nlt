@@ -208,10 +208,8 @@ Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
 Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
-	_ref->fvar_set.insert(IMP_var);
-	_ref->fvars.push_back(IMP_var);
-	_ref->fvar_set.insert(ALL_var);
-	_ref->fvars.push_back(ALL_var);
+	_ref->fvars.insert(IMP_var);
+	_ref->fvars.insert(ALL_var);
 }
 
 bool Ctxt::fixed(string const& sym) const & {
@@ -239,8 +237,7 @@ CTerm Ctxt::fix(string const& s) & {
 		throw DoubleFix(s);
 	}
 	_ref->modifiers.push_back(Fix(s));
-	_ref->fvar_set.insert(s);
-	_ref->fvars.push_back(s);
+	_ref->fvars.insert(s);
 	return CTerm(*this,s);
 }
 
@@ -359,8 +356,10 @@ Opt<CTerm::StrTerm> CTerm::cabs() const {
 CTerm CTerm::lift() const {
 	auto const& parent = _ctxt.ctxt();
 	Term ret = *this;
-	for( auto const& sym : _ctxt.fvar_list() ) {
-		ret = sym /= ret;
+	for( auto const& mod : _ctxt.modifiers() ) {
+		if( auto fix = mod.ref<Ctxt::Fix>() ) {
+			ret = *fix /= ret;
+		}
 	}
 	return CTerm(parent,ret);
 }
