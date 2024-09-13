@@ -208,8 +208,10 @@ Term const IMP = Term(IMP_var);
 Term const ALL = Term(ALL_var);
 
 Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
-	fix(IMP_var);
-	fix(ALL_var);
+	_ref->fvar_set.insert(IMP_var);
+	_ref->fvars.push_back(IMP_var);
+	_ref->fvar_set.insert(ALL_var);
+	_ref->fvars.push_back(ALL_var);
 }
 
 bool Ctxt::fixed(string const& sym) const & {
@@ -242,11 +244,23 @@ CTerm Ctxt::fix(string const& s) & {
 	return CTerm(*this,s);
 }
 
-Thm Ctxt::assume(Term const& t) & {
-	CTerm ct = cterm(t);// ensure closedness
-	_ref->modifiers.push_back(Assume(ct));
-	return Thm(ct);
+Thm Ctxt::_assume(Term const& t) & {
+	_ref->modifiers.push_back(Assume(t));
+	return CTerm(*this,t);
 }
+
+Thm Ctxt::assume(Term const& t) & {
+	cterm(t);
+	return _assume(t);
+}
+
+Thm Ctxt::assume(CTerm const& t) & {
+	if( t.ctxt() != *this ) {
+		throw WrongContext("assume");
+	}
+	return _assume(t);
+}
+
 vector<Thm> Ctxt::obtain(Thm const& thm) & {
 	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	auto all1 = thm.binder(ALL);

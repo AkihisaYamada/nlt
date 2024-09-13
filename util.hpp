@@ -2,13 +2,8 @@
 #define _UTIL_HPP_
 
 #include<list>
-#include<ostream>
-#include"core.hpp"
+#include"debug.hpp"
 #include"graph.hpp"
-
-#define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << endl; } while(0)
-
-std::ostream& operator<<(std::ostream& os, CSubst const& subst);
 
 /**
  * @brief strips universal quantifiers.

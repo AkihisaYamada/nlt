@@ -1,5 +1,5 @@
-CORE_TEST_SRCS=core.cpp lexer.cpp syntax.cpp test/core_test.cpp
-SRCS=core.cpp util.cpp unifier.cpp lexer.cpp syntax.cpp rewriter.cpp definer.cpp prover.cpp
+CORE_SRCS=core.cpp lexer.cpp syntax.cpp debug.cpp
+SRCS=$(CORE_SRCS) unifier.cpp rewriter.cpp definer.cpp prover.cpp
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend
 BUILD=_build
@@ -12,7 +12,7 @@ DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 core_test: core_test.exe
 	./$@
 
-core_test.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
+core_test.exe: $(CORE_SRCS:%.cpp=$(DEBUG)/%.o) $(DEBUG)/test/core_test.o
 	${DCPP} $^ -o $@
 
 test.exe: ${DOBJS}

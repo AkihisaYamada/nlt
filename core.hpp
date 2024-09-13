@@ -362,6 +362,9 @@ public:
 	public:
 		Obtain(std::string const& name, std::vector<Term>&& specs) :
 			_name(name), _props(std::move(specs)) {}
+		std::string const name() const {
+			return _name;
+		}
 		std::vector<Term> const props() const {
 			return _props;
 		}
@@ -424,6 +427,7 @@ public:
 	 * @param t the assumption, which should be closed in the context.
 	 * @return the assumed theorem.
 	 */
+	Thm assume(CTerm const& t) &;
 	Thm assume(Term const& t) &;
 	/** @brief Fixes a symbol with a specification.
 	 *
@@ -444,6 +448,7 @@ public:
 	friend bool operator==(Ctxt::Body const& l, Ctxt::Body const& r);
 private:
 	Ctxt(Opt<Ctxt> const& parent);
+	Thm _assume(Term const& t) &;
 };
 
 struct Ctxt::Body {
@@ -543,13 +548,26 @@ public:
 		}
 		return {};
 	}
+	/** @brief Decompose closed binary operation
+	 * 
+	 * @param f the binary function
+	 * @return If this is application of f, then the pair of arguments.
+	 */
+	Opt<Pair> cbinary(Term const& f) const {
+		if( auto bin = binary(f) ) {
+			auto [s,t] = *bin;
+			return Pair(CTerm(_ctxt,s),CTerm(_ctxt,t));
+		}
+		return {};
+	}
 	/** @brief Decompose closed fix
 	 * 
 	 * @return Opt<StrTerm> 
 	 */
-	Opt<StrTerm> cfix() const {
+	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cfix() const {
 		if( auto tfix = Term::fix() ) {
-			return StrTerm(tfix->first,CTerm(_ctxt,tfix->second));
+			auto [v,b] = *tfix;
+			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));
 		}
 		return {};
 	}

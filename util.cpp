@@ -2,28 +2,6 @@
 
 using namespace std;
 
-ostream& operator<<(ostream& os, Term const& t) {
-	if( auto sym = t.sym() ) {
-		return os << *sym;
-	} else if( auto const& app = t.app() ) {
-		return os << '(' << app->first << ' ' << app->second << ')';
-	} else if( auto const& abs = t.abs() ) {
-		return os << abs->first << ". " << abs->second;
-	} else if( auto const& fix = t.fix() ) {
-		return os << fix->first << ".[" << fix->second << ']';
-	} else {
-		assert(false);
-	}
-}
-ostream& operator<<(ostream& os, CSubst const& subst) {
-	char const* punct = "[ ";
-	for( auto const& x : subst.map() ) {
-		os << punct << x.first << " := " << x.second;
-		punct = ",\n  ";
-	}
-	return os << "\n]";
-}
-
 pair<string, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
@@ -99,17 +77,18 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 			return false;
 		}
 	} else if( auto fix = pat.cfix() ) {
-		auto const& x = fix->first;
+		auto [x,_,b] = *fix;
 		if( auto const& opt = matcher.get(x) ) {
 			if( auto const& abs = opt->abs() ) {
-				return match(fsyms,opt->inst(fix->second),val,matcher,lidx,ridx,depth);
+				return match(fsyms,opt->inst(b),val,matcher,lidx,ridx,depth);
 			}
 		}
 		if( auto fix2 = val.cfix() ) {
+			auto [_,x2,b2] = *fix2;
 			if( fsyms.contains(x) ) {
-				matcher.assign(x,fix2->first);
+				matcher.assign(x,x2);
 			}
-			return match(fsyms,fix->second,fix2->second,matcher,lidx,ridx,depth);
+			return match(fsyms,b,b2,matcher,lidx,ridx,depth);
 		} else {
 			return false;
 		}
@@ -127,51 +106,31 @@ Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 	return {};
 }
 Term strip_all(Term t, Ctxt& ctxt) {
-	for(;;) {
-		if( auto app = t.app() ) {
-			if( app->first == ALL ) {
-				if( auto abs = app->second.abs() ) {
-					string const& v = abs->first;
-					string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
-					t = abs->second.subst(abs->first,ctxt.fix(nv));
-					continue;
-				}
-			}
-		}
-		return t;
+	while( auto all = t.binder(ALL) ) {
+		auto [v,b] = *all;
+		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		t = b.subst(v,ctxt.fix(nv));
 	}
+	return t;
 }
 Thm strip_all(Thm thm, Ctxt& ctxt) {
 	thm = thm.weaken(ctxt);
-	for(;;) {
-		if( auto const& app = thm.app() ) {
-			if( app->first == ALL ) {
-				if( auto const& abs = app->second.abs() ) {
-					string const& v = abs->first;
-					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
-					thm = thm.allE(ctxt.fix(nv));
-					continue;
-				}
-			}
-		}
-		return thm;
+	while( auto all = thm.binder(ALL) ) {
+		auto [v,b] = *all;
+		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		thm = thm.allE(ctxt.fix(nv));
 	}
+	return thm;
 }
 CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	t = t.weaken(ctxt);
-	for(;;) {
-		if( auto app = t.app() ) {
-			if( app->first == ALL ) {
-				if( auto abs = app->second.abs() ) {
-					string const& v = abs->first;
-					string nv = avoid(v,[&](string const& x){ return (bool)ctxt.find_sym(x); });
-					t = app->second.inst(ctxt.fix(nv));
-					continue;
-				}
-			}
-		}
-		return t;
+	while( auto all = t.binder(ALL) ) {
+		auto [v,b] = *all;
+		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		auto nvt = ctxt.fix(nv);
+		t = b.csubst(CSubst(ctxt).assign(v,nvt));
 	}
+	return t;
 }
 
 Thm discharge(Thm thm, Thm arg) try {
@@ -179,13 +138,10 @@ Thm discharge(Thm thm, Thm arg) try {
 	// expand thm into cond ⟹ concl
 	Ctxt thm_ctxt = ctxt.branch();
 	Thm thm_strip = strip_all(thm,thm_ctxt);
-	auto const& app1 = thm_strip.app();
-	if( !app1 ) throw 0;
-	auto const& app2 = app1->first.app();
-	if( !app2 ) throw 1;
-	if( app2->first != IMP ) throw 2;
+	auto imp = thm_strip.cbinary(IMP);
+	if( !imp ) throw 0;
 	// expand cond
-	CTerm cond = app2->second;
+	CTerm cond = imp->first;
 	Ctxt cond_ctxt = thm_ctxt.branch();
 	CTerm cond_strip = strip_all(cond,cond_ctxt);
 	// expand arg
@@ -224,7 +180,7 @@ Thm discharge(Thm thm, Thm arg) try {
 	thm = thm.weaken(ret_ctxt);
 	for( auto const& x : thm_ctxt.fvar_list() ) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		thm = thm.allE( ret_ctxt.enclose( val ? *val : Term(x) ) );
+		thm = thm.allE( ret_ctxt.cterm( val ? *val : Term(x) ) );
 	}
 	thm = thm.impE(arg);
 	thm = thm.intro();
@@ -235,9 +191,9 @@ Thm discharge(Thm thm, Thm arg) try {
 
 
 Thm Concluder::conclude(Thm const& thm) {
-	auto const& app1 = thm.app();
+	auto const& app1 = thm.capp();
 	assert(app1);
-	auto const& app2 = app1->first.app();
+	auto const& app2 = app1->first.capp();
 	assert(app2);
 	CTerm const& source = app2->second; // thm = source ⟹ ...
 	for( Rule const& rule : rules ) {
