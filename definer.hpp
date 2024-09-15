@@ -1,7 +1,7 @@
 #ifndef _DEFINER_HPP_
 #define _DEFINER_HPP_
 
-#include "util.hpp"
+#include "rewriter.hpp"
 
 class Definer {
 	Ref<Rewriter const> rewriter;

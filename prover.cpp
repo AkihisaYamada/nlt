@@ -1,6 +1,6 @@
 #include<fstream>
-#include"util.hpp"
-#include"syntax.hpp"
+#include"definer.hpp"
+#include"concluder.hpp"
 
 using namespace std;
 
@@ -41,8 +41,6 @@ public:
 		_syntax(Ref<Parser>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
-		_ctxt.fix(IMP_var);
-		_ctxt.fix(ALL_var);
 		_syntax->register_single_op('(');
 		_syntax->register_single_op(')');
 		_syntax->register_single_op('{');

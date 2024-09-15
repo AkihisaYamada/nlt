@@ -147,6 +147,7 @@ int main() try {
 		return IFF.subst(iffI1).weaken(loc).allE(p).allE(q).impE(pq).impE(qp).intro();
 	}();
 	cout << "proved and_imp_iff: " << and_imp_iff << endl;
+	cout << "=== core test is done ===" << endl;
 } catch( Error const& e ) {
 	cerr << e.term << endl;
 }

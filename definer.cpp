@@ -1,4 +1,4 @@
-#include "util.hpp"
+#include "definer.hpp"
 
 using namespace std;
 
@@ -17,16 +17,15 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const
 			throw Error(l);
 		}
 	}
-	auto const& pair = ctxt.obtain(f,{{ (name ? *name : f) + ".def", rule }});
-	Ctxt const& obtainer = pair.second;
-	string thesis = avoid("thesis",[&](string const& x){ return (bool)ctxt.find_sym(x); });
+	string thesis = avoid("thesis",[&](string const& x){ return ctxt.fixed(x); });
 	// proving the existence
-	Ctxt prover = ctxt.branch({thesis},{{"assm", ALL( f /= rule >>= thesis )}});
-	Thm thm = prover.thm("assm");
+	Ctxt prover = ctxt.branch();
+	prover.fix(thesis);
+	Thm thm = prover.assume( f &= rule >>= thesis );
 	thm = thm.allE(t);
 	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});
 	thm = discharge(thm,rewriter->refl);
 	thm = thm.intro();
-	ctxt.import(obtainer.interpret(ctxt,{thm}));
+	ctxt.obtain(thm);
 }
 

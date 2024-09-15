@@ -7,24 +7,30 @@
 class Sublocale;
 
 class Locale : public Syntax {
-	struct Body;
-	Ref<Body> _body;
+	Opt<Locale const> _parent;
+	Ctxt _ctxt;
+	StrMap<Thm const> _thms;
+	StrMap<Sublocale const> _sublocs;
 	Locale( Locale const& parent );
 public:
 	Locale();
-	Locale branch() const &;
-	Locale& parent() &;
-	Locale const& parent() const &;
-	Locale& parent() && = delete;
-	Ctxt& ctxt() &;
-	Ctxt const& ctxt() const &;
-	Ctxt& ctxt() && = delete;
+	Ref<Locale> branch() const &;
+	Ref<Locale>& parent() &;
+	Ref<Locale> const& parent() const &;
+	Ctxt& ctxt() & {
+		return _ctxt;
+	}
+	Ctxt const& ctxt() const & {
+		return _ctxt;
+	}
 	/**
 	 * @brief Local theorems.
 	 * 
 	 * @return map from the theorem names to the statements.
 	 */
-	StrMap<Thm const> const& thms() const&;
+	StrMap<Thm const> const& thms() const& {
+		return _thms;
+	}
 	/**
 	 * @brief Obtains a named theorem from the context or an ancestor.
 	 */
@@ -33,7 +39,7 @@ public:
 			return opt->second;
 		}
 		if( _parent ) {
-			if( auto opt = (*_parent)->find_thm(name) ) {
+			if( auto opt = _parent->find_thm(name) ) {
 				return *opt;
 			}
 		}
@@ -51,7 +57,7 @@ public:
 	}
 	/**
 	 * @brief Adds a named theorem in the locale.
-	 * @exception WrongContext is thrown if the theorem doesn't belong to this context
+	 * @exception WrongContext is thrown if the theorem doesn't belong to this locale
 	 */
 	Locale& add_thm(std::string const& name, Thm const& thm) {
 		if( thm.ctxt() != _ctxt ) {
@@ -65,24 +71,19 @@ public:
 		_ctxt.fix(sym);
 		return *this;
 	}
-	Locale& assume(Term const& assm) {
-		_ctxt.assume(assm);
+	Locale& assume(std::string const& name, Term const& assm) {
+		add_thm(name,_ctxt.assume(assm));
 		return *this;
 	}
-	Locale& obtain(Thm const& thm) {
-		_ctxt.obtain(thm);
+	template<class I>
+	Locale& obtain(Thm const& thm, I name_it) {
+		for( Thm& prop : _ctxt.obtain(thm) ) {
+			add_thm(*name_it,prop);
+			name_it++;
+		}
 		return *this;
 	}
 };
 
-class Locale::Body {
-	Opt<Locale const> _parent;
-	Ctxt _ctxt;
-	StrMap<Thm const> _thms;
-	StrMap<Sublocale const> _sublocs;
-friend Locale;
-	Body(Locale const& parent) :
-		_parent(parent), _ctxt(parent.ctxt().branch()) {}
-};
 
 #endif
