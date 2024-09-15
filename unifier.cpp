@@ -170,7 +170,7 @@ public:
 
 Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
-		throw WrongContext();
+		throw WrongContext("unify");
 	}
 	Unifier u = Unifier(l.ctxt(),fvar);
 	try {

@@ -8,7 +8,7 @@
 	"name": "(gdb) Launch",
 	"type": "cppdbg",
 	"request": "launch",
-	"program": "${workspaceFolder}/core_test.exe",
+	"program": "${workspaceFolder}/util_test.exe",
 	"args": ["proofscript"],
 	"stopAtEntry": true,
 	"externalConsole": true,
@@ -23,7 +23,7 @@
 			"ignoreFailures": true
 		}
 	],
-	"preLaunchTask": "make"
+	"preLaunchTask": "make util_test.exe"
 }
 ]
 }

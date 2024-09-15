@@ -7,11 +7,11 @@ Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	Ctxt loc = thm.ctxt().branch();
 	Thm body = strip_all(thm,loc);
-	auto const& app = body.app();
+	auto const& app = body.capp();
 	if( !app ) {
 		throw Error(thm);
 	}
-	auto const& app2 = app->first.app();
+	auto const& app2 = app->first.capp();
 	if( !app2 ) {
 		throw Error(thm);
 	}
@@ -26,9 +26,9 @@ static Thm equate_cong(Thm const& cong, Thm const& eq, CTerm const& arg) {
 
 static Thm equate_abs(Thm const& ext, Thm const& eq) {
 	Thm all = eq.intro();// ∀x. s = t
-	auto const& app = eq.app();
+	auto const& app = eq.capp();
 	assert(app);
-	auto const& app2 = app->first.app();
+	auto const& app2 = app->first.capp();
 	assert(app2);
 	CTerm const& s = app2->second.lift();// x. s
 	CTerm const& t = app->second.lift();// x. t
@@ -38,9 +38,9 @@ static Thm equate_abs(Thm const& ext, Thm const& eq) {
 
 static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 	Thm all = eq.intro();// ∀x. s = t
-	auto const& app = eq.app();
+	auto const& app = eq.capp();
 	assert(app);
-	auto const& app2 = app->first.app();
+	auto const& app2 = app->first.capp();
 	assert(app2);
 	CTerm const& s = app2->second.lift();// x. s
 	CTerm const& t = app->second.lift();// x. t
@@ -53,9 +53,9 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 		if( auto const& m = match(ctxt.fvars(),rule.pat,source) ) {
 			// source = lθ
 			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
-			for( auto const& var : ctxt.fvar_list() ) {
+			iter_local_vars(ctxt,[&](std::string const& var) {
 				ret = ret.allE(*m->get(var));
-			}
+			});
 			return ret; // lθ = rθ
 		}
 	}
@@ -90,7 +90,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
 				assert(s);
-				auto const& abs = s->abs();
+				auto const& abs = s->cabs();
 				if( abs ) {
 					CTerm const& s = abs->second;
 					auto const& eq = _step(rules,s,refl.weaken(s.ctxt()));
@@ -149,7 +149,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
 				auto const& s = m->get(var);
 				assert(s);
-				auto const& abs = s->abs();
+				auto const& abs = s->cabs();
 				if( abs ) {
 					pos_it++;
 					auto const& eq = _step(rules,abs->second,pos_it,pos_end,refl);
@@ -180,7 +180,7 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 				return eq;
 			}
 		}
-		auto const& app = step->app();
+		auto const& app = step->capp();
 		assert(app);
 		CTerm const& t = app->second;
 		Thm tr = ltrans.allE(s).allE(t).impE(eq);
@@ -191,7 +191,7 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 }
 Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
 	Thm const& eq = steps(rules,source,min,max,pos);
-	auto const& app = eq.app();
+	auto const& app = eq.capp();
 	assert(app);
 	CTerm const& target = app->second;
 	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);

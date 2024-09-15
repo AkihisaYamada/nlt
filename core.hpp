@@ -394,6 +394,8 @@ public:
 	}
 	/** The set of locally fixed variables. */
 	StrSet const& fvars() const&;
+	/** The list of locally fixed variables. */
+	std::vector<std::string> const& fvar_list() const&;
 	/** Vector of modifiers */
 	std::vector<Modifier> const& modifiers() const&;
 	/** Revision of the context, i.e., how many modifications are made. */
@@ -450,15 +452,15 @@ private:
 };
 
 struct Ctxt::Body {
-	/** @brief Parent context. */
+	/** Parent context. */
 	Opt<Ctxt> const ctxt;
 	/** Vector of modifiers */
 	std::vector<Modifier> modifiers;
-	/** @brief The vector of local assumptions (axioms) */
-	std::vector<Term> assms;
-	/** @brief The set of locally fixed variables (excluding ancestors). */
+	/** The set of locally fixed variables (excluding ancestors). */
 	StrSet fvars;
-	/** @brief Locally obtained constants and their specifications. */
+	/** The vector of locally fixed variables. */
+	std::vector<std::string> fvar_list;
+	/** Locally obtained constants and their specifications. */
 	StrSet constants;
 };
 
@@ -481,6 +483,9 @@ inline std::vector<Ctxt::Modifier> const& Ctxt::modifiers() const& {
 
 inline StrSet const& Ctxt::fvars() const& {
 	return _ref->fvars;
+}
+inline std::vector<std::string> const& Ctxt::fvar_list() const& {
+	return _ref->fvar_list;
 }
 inline StrSet const& Ctxt::consts() const& {
 	return _ref->constants;
@@ -651,7 +656,13 @@ public:
 	}
 	/** @brief (re)assigns a value to a variable */
 	CSubst& assign(std::string const& var, CTerm const& val) {
-		return _assign(var,val.csubst(_ctxt));// val should be also closed wrt ctxt
+		if( val.ctxt() != _ctxt ) {
+			throw WrongContext("CSubst::assign");
+		}
+		return _assign(var,val);
+	}
+	CSubst& assign(std::string const& var, Term const& val) {
+		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
 	Opt<CTerm> get(std::string const& var) const {
 		if( auto it = _map.find(var); it != _map.end() ) {
