@@ -87,6 +87,10 @@ public:
 	std::multimap<std::string,SubLocale,std::less<>> const& sublocales() const & {
 		return _sublocs;
 	}
+	/** Checks closedness */
+	CTerm cterm(Term const& t) {
+		return _ctxt.cterm(t);
+	}
 };
 
 class SubLocale : public Intp {

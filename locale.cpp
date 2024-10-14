@@ -30,7 +30,9 @@ Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& n
 		it++;
 	}
 	if( ancestor && _parent ) {
-		return (**_parent).find_thm(pre,name);
+		if( auto opt = (**_parent).find_thm(pre,name,ancestor) ) {
+			return opt->weaken(_ctxt);
+		}
 	}
 	return {};
 }

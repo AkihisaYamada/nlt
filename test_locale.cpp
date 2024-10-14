@@ -19,6 +19,7 @@ int main() try {
 	auto Preorder = Ref<Locale>::make(Root);
 	Preorder->fix(LE);
 	Preorder->assume( "refl", "x" &= le("x")("x") );
+	Preorder->assume( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
 	auto& imp = Root->sublocale("imp",Preorder);
 	imp.instantiate(Root->ctxt().cterm(IMP));
 	imp.discharge([&]{
@@ -27,7 +28,19 @@ int main() try {
 		loc.assume("P",p);
 		return loc.thm("P").intro();
 	}());
+	imp.discharge([&]{
+		auto loc = Ref<Locale>::make(Root);
+		loc->fix("P");
+		loc->fix("Q");
+		loc->fix("R");
+		loc->assume( "PQ", p >>= q );
+		loc->assume( "QR", q >>= r );
+		auto loc2 = Ref<Locale>::make(loc);
+		loc2->assume("P",p);
+		return ( loc2->thm("QR") << ( loc2->thm("PQ") << loc2->thm("P") ) ).intro().intro();
+	}());
 	cout << "imp.refl: " << Root->thm("imp.refl") << endl;
+	cout << "imp.trans: " << Root->thm("imp.trans") << endl;
 
 	cout << "\n--- True ---" << endl;
 	Term TRUE = "true";
@@ -74,40 +87,46 @@ int main() try {
 	cout << "\n--- Iff ---" << endl;
 	auto Iff = Ref<Locale>::make(Root);
 	Iff->fix(IFF);
-	Iff->assume( "iffI1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
-	Iff->assume( "iffE1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
-	Iff->assume( "iffE2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
-	Iff->add_thm( "iff_refl", Iff->thm("iffI1") << Iff->thm("imp.refl") << Iff->thm("imp.refl") );
-	Thm iff_trans = [&]{
-		auto loc = Ref<Locale>::make(Iff);
-		loc->fix("P");
-		loc->fix("Q");
-		loc->fix("R");
-		loc->assume( "PQ", p <=> q );
-		loc->assume( "QR", q <=> r );
-		loc->add_thm( "PR", [&]{
-			auto loc2 = Ref<Locale>::make(loc);
-			loc2->assume("P",p);
-			loc2->add_thm( "Q", loc2->thm("iffE1") << loc2->thm("PQ") << loc2->thm("P") );
-			return (loc2->thm("iffE1") << loc2->thm("QR") << loc2->thm("Q")).intro();
+	Iff->assume( "I1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
+	Iff->assume( "E1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
+	Iff->assume( "E2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
+	{
+		auto& iff_preorder = Iff->sublocale("",Preorder);
+		iff_preorder.instantiate(Iff->cterm(IFF));
+		iff_preorder.discharge(
+			Iff->thm("I1") << Iff->thm("imp.refl") << Iff->thm("imp.refl")
+		);
+		iff_preorder.discharge( [&]{
+			auto loc = Ref<Locale>::make(Iff);
+			loc->fix("P");
+			loc->fix("Q");
+			loc->fix("R");
+			loc->assume( "PQ", p <=> q );
+			loc->assume( "QR", q <=> r );
+			loc->add_thm( "PR", [&]{
+				auto loc2 = Ref<Locale>::make(loc);
+				loc2->assume("P",p);
+				loc2->add_thm( "Q", loc2->thm("E1") << loc2->thm("PQ") << loc2->thm("P") );
+				return (loc2->thm("E1") << loc2->thm("QR") << loc2->thm("Q")).intro();
+			}() );
+			loc->add_thm( "RP", [&]{
+				auto loc2 = Ref<Locale>::make(loc);
+				loc2->assume("R",r);
+				loc2->add_thm( "Q", loc2->thm("E2") << loc2->thm("QR") << loc2->thm("R") );
+				return (loc2->thm("E2") << loc2->thm("PQ") << loc2->thm("Q")).intro();
+			}() );
+			return ( loc->thm("I1") << loc->thm("PR") << loc->thm("RP") ).intro();
 		}() );
-		loc->add_thm( "RP", [&]{
-			auto loc2 = Ref<Locale>::make(loc);
-			loc2->assume("R",r);
-			loc2->add_thm( "Q", loc2->thm("iffE2") << loc2->thm("QR") << loc2->thm("R") );
-			return (loc2->thm("iffE2") << loc2->thm("PQ") << loc2->thm("Q")).intro();
-		}() );
-		return ( loc->thm("iffI1") << loc->thm("PR") << loc->thm("RP") ).intro();
-	}();
+	}
 	cout << "locale Iff: " << *Iff << endl;
 
 	cout << "\n--- PropLogic ---" << endl;
 	auto Logic = Ref<Locale>::make(Root);
 	import(Logic->sublocale("",True));
-	import(Logic->sublocale("",Iff));
+	import(Logic->sublocale("iff",Iff));
 	import(Logic->sublocale("",And));
 
-	Logic->add_thm( "and_iff", Logic->thm("iffI1") << Logic->thm("andE") << Logic->thm("andI") );
+	Logic->add_thm( "and_iff", Logic->thm("iff.I1") << Logic->thm("andE") << Logic->thm("andI") );
 	Logic->add_thm( "and_imp_iff", [&]{
 		auto loc = Ref<Locale>::make(Logic);
 		loc->fix("P");
@@ -115,7 +134,7 @@ int main() try {
 		loc->assume( "assm", (p>>=q) & (q>>=p) );
 		loc->add_thm( "PQ", loc->thm("andE1") << loc->thm("assm") );
 		loc->add_thm( "QP", loc->thm("andE2") << loc->thm("assm") );
-		return ( loc->thm("iffI1") << loc->thm("PQ") << loc->thm("QP") ).intro();
+		return ( loc->thm("iff.I1") << loc->thm("PQ") << loc->thm("QP") ).intro();
 	}() );
 	cout << "locale Logic: " << *Logic << endl;
 
