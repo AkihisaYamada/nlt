@@ -1,5 +1,5 @@
 #include "misc.hpp"
-#include "../util.hpp"
+#include "util.hpp"
 
 using namespace std;
 

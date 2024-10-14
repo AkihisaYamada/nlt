@@ -1,5 +1,5 @@
 #include<iostream>
-#include "../util.hpp"
+#include "util.hpp"
 
 inline std::string const AND = "∧";
 inline std::string const IFF = "⟺";

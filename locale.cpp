@@ -31,3 +31,11 @@ Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& n
 	}
 	return {};
 }
+
+ostream& operator<<(ostream& os, Locale const& loc) {
+	os << "{ "<< loc.ctxt();
+	for( auto [name,thm] : loc.thms() ) {
+		os << "\t" << name << ": " << thm << endl;
+	}
+	os << "}";
+}

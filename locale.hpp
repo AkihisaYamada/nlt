@@ -18,7 +18,7 @@ public:
 	Locale() {}
 	/** Creates a branch locale. */
 	Locale( Ref<Locale> const& parent ) : _parent(parent), _ctxt(parent->_ctxt.branch()) {}
-	Ref<Locale const> const& parent() const & {
+	Ref<Locale> const& parent() const & {
 		if( !_parent ) {
 			throw Error(Term("#locale"));
 		}
@@ -36,24 +36,18 @@ public:
 	Ctxt const& ctxt() const & {
 		return _ctxt;
 	}
-	/**
-	 * @brief Local theorems.
+	/** @brief Local theorems.
 	 * 
 	 * @return map from the theorem names to the statements.
 	 */
 	StrMap<Thm const> const& thms() const& {
 		return _thms;
 	}
-	/**
-	 * @brief Finds a named theorem from the locale or an ancestor.
-	 */
+	/** @brief Finds a named theorem from the locale or an ancestor. */
 	Opt<Thm> find_thm(std::string_view const& name, bool ancestor = true) const;
-	/**
-	 * @brief Finds a named theorem with prefix from the locale or an ancestor.
-	 */
+	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
 	Opt<Thm> find_thm(std::string_view const& pre, std::string_view const& name, bool ancestor = true) const;
-	/**
-	 * @brief Obtains a named theorem from the locale or an ancestor.
+	/** @brief Obtains a named theorem from the locale or an ancestor.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
 	Thm thm(std::string_view const& name) const {
@@ -62,8 +56,7 @@ public:
 		}
 		throw TheoremNotFound(name);
 	}
-	/**
-	 * @brief Adds a named theorem in the locale.
+	/** @brief Adds a named theorem in the locale.
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
 	Locale& add_thm(std::string_view const& name, Thm const& thm) & {
@@ -113,5 +106,7 @@ public:
 		return {};
 	}
 };
+
+std::ostream& operator<<(std::ostream& os, Locale const& loc);
 
 #endif
