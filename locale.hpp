@@ -13,7 +13,8 @@ class Locale {
 	Opt<Ref<Locale>> _parent;
 	Ctxt _ctxt;
 	StrMap<Thm const> _thms;
-	std::multimap<std::string, SubLocale const,std::less<>> _sublocs;
+	std::multimap<std::string,SubLocale,std::less<>> _sublocs;
+	Locale( Locale const& ) = delete;
 public:
 	Locale() {}
 	/** Creates a branch locale. */
@@ -59,39 +60,36 @@ public:
 	/** @brief Adds a named theorem in the locale.
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
-	Locale& add_thm(std::string_view const& name, Thm const& thm) & {
+	void add_thm(std::string_view const& name, Thm const& thm) & {
 		if( thm.ctxt() != _ctxt ) {
 			throw Error(Term("#locale")(Term("add_thm")));
 		}
 		_thms.emplace(name,thm);
-		return *this;
 	}
 
-	Locale& fix(std::string_view const& sym) & {
+	void fix(std::string_view const& sym) & {
 		_ctxt.fix(sym);
-		return *this;
 	}
-	Locale& assume(std::string_view const& name, Term const& assm) & {
+	void assume(std::string_view const& name, Term const& assm) & {
 		add_thm(name,_ctxt.assume(assm));
-		return *this;
 	}
 	template<class I>
-	Locale& obtain(Thm const& thm, I name_it) & {
-		for( Thm& prop : _ctxt.obtain(thm) ) {
+	void obtain(Thm const& thm, I name_it) & {
+		auto [sym,props] = _ctxt.obtain(thm);
+		for( Thm& prop : props ) {
 			add_thm(*name_it,prop);
 			name_it++;
 		}
-		return *this;
 	}
-	void sublocale(std::string_view const& name, Locale const& loc) &;
+	SubLocale& sublocale(std::string&& name, Ref<Locale> const& loc) &;
 };
 
-class SubLocale {
-	Intp _intp;
+class SubLocale : public Intp {
 	Ref<Locale> _locale;
+	SubLocale(SubLocale const&) = delete;
 public:
 	SubLocale( Ctxt const& ctxt, Ref<Locale> const& loc ) :
-		_intp(Intp::make(loc->ctxt(),ctxt)), _locale(loc) {
+		Intp(Intp::make(loc->ctxt(),ctxt)), _locale(loc) {
 	}
 	/**
 	 * @brief Obtains a theorem in the sublocale.
@@ -101,12 +99,20 @@ public:
 	 */
 	Opt<Thm> find_thm(std::string_view const& name) const {
 		if( auto thm = _locale->find_thm(name,false) ) {
-			return _intp.subst(*thm);
+			return subst(*thm);
 		}
 		return {};
 	}
 };
 
 std::ostream& operator<<(std::ostream& os, Locale const& loc);
+
+inline SubLocale& Locale::sublocale(std::string&& name, Ref<Locale> const& loc) & {
+	auto it = _sublocs.emplace(std::piecewise_construct,
+		std::make_tuple(std::move(name)),
+		std::forward_as_tuple(_ctxt,loc)
+	);
+	return it->second;
+};
 
 #endif

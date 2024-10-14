@@ -9,6 +9,9 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 		if( auto opt = _thms.finds(name) ) {
 			return opt->second;
 		}
+		if( auto ret = find_thm("",name,false) ) {
+			return ret;
+		}
 		if( ancestor && _parent ) {
 			if( auto opt = (**_parent).find_thm(name) ) {
 				return opt->weaken(_ctxt);
@@ -33,9 +36,9 @@ Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& n
 }
 
 ostream& operator<<(ostream& os, Locale const& loc) {
-	os << "{ "<< loc.ctxt();
+	os << "{\n" << loc.ctxt() << " shows" << endl;
 	for( auto [name,thm] : loc.thms() ) {
-		os << "\t" << name << ": " << thm << endl;
+		os << "\t" << name << ": " << thm << ',' << endl;
 	}
-	os << "}";
+	return os << "}";
 }
