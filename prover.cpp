@@ -1,4 +1,5 @@
 #include<fstream>
+#include"parser.hpp"
 #include"definer.hpp"
 #include"concluder.hpp"
 
@@ -9,6 +10,18 @@ struct ProverFailure : exception {
 	ProverFailure(string const& message) : message(message) {}
 };
 class UnfinishedProof : exception {};
+
+Lex LEX = [&]{
+	Lex ret;
+	ret.register_multi_op(int_of_chars("∀"));
+	ret.register_multi_op(int_of_chars("⟹"));
+	ret.register_single_op(',');
+	ret.register_single_op(';');
+	ret.register_multi_op(':');
+	ret.register_multi_op('*');
+	ret.register_multi_op('+');
+	return ret;
+}();
 
 class Prover {
 	unsigned int _depth;
@@ -41,17 +54,6 @@ public:
 		_syntax(Ref<Parser>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
-		_syntax->register_single_op('(');
-		_syntax->register_single_op(')');
-		_syntax->register_single_op('{');
-		_syntax->register_single_op('}');
-		_syntax->register_single_op('[');
-		_syntax->register_single_op(']');
-		_syntax->register_single_op(',');
-		_syntax->register_single_op(';');
-		_syntax->register_multi_op(':');
-		_syntax->register_multi_op('*');
-		_syntax->register_multi_op('+');
 		_syntax->encloser("(",")",-1000,[&]( Parser& parser ){
 			Opt<Term> t = parser.gets_term(0);
 			_syntax->skip(")");

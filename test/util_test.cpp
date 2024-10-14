@@ -9,18 +9,30 @@ int main() try {
 	Term q = Term("Q");
 	Term r = Term("R");
 	Term thesis("thesis");
-	Term True("true");
-	SYNTAX.infix("∧",35,36,36);
-	SYNTAX.infix("⟺",0,1,1);
+	SYNTAX.infix(AND,35,36,36);
+	SYNTAX.infix(IFF,0,1,1);
 	Ctxt Root;
 	Thm imp_refl = [&]{
 		Ctxt loc = Root.branch();
 		return loc.assume(loc.fix("P")).intro();
 	}();
 	cout << "proved imp_refl: " << imp_refl << endl;
+
+	cout << "\n--- True ---" << endl;
+	Term TRUE = "true";
+	Ctxt True = Root.branch();
+	Thm trueI = [&]{
+		Ctxt loc = True.branch();
+		loc.fix("thesis");
+		Thm assm = loc.assume("true" &= TRUE >>= thesis);
+		Thm imp_refl2 = imp_refl.weaken(loc);
+		return True.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro()).second[0];
+	}();
+	cout << True;
+
 	cout << "\n--- And ---" << endl;
 	Ctxt And = Root.branch();
-	And.fix("∧");
+	And.fix(AND);
 	Thm andI1 = And.assume("P" &= "Q" &= p >>= q >>= p & q);
 	Thm andE1 = And.assume("P" &= "Q" &= p & q >>= p);
 	Thm andE2 = And.assume("P" &= "Q" &= p & q >>= q);
@@ -30,7 +42,7 @@ int main() try {
 		loc.fix("P");
 		loc.fix("Q");
 		Thm assm = loc.assume("R" &= (p >>= q >>= r) >>= r);
-		return discharge(assm,andI1).intro();
+		return (assm << andI1).intro();
 	}();
 	cout << "proved andI: " << andI << endl;
 	Thm andE = [&]{
@@ -38,8 +50,8 @@ int main() try {
 		loc.fix("P");
 		loc.fix("Q");
 		Thm pq = loc.assume(p & q);
-		Thm P = discharge(andE1.weaken(loc),pq);
-		Thm Q = discharge(andE2.weaken(loc),pq);
+		Thm P = andE1.weaken(loc) << pq;
+		Thm Q = andE2.weaken(loc) << pq;
 		Ctxt loc2 = loc.branch();
 		loc2.fix("R");
 		Thm pqr = loc2.assume(p >>= q >>= r);
@@ -49,7 +61,7 @@ int main() try {
 
 	cout << "\n--- Iff ---" << endl;
 	Ctxt Iff = Root.branch();
-	Iff.fix("⟺");
+	Iff.fix(IFF);
 	Thm iffI1 = Iff.assume("P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q));
 	Thm iffE1 = Iff.assume("P" &= "Q" &= (p <=> q) >>= p >>= q);
 	Thm iffE2 = Iff.assume("P" &= "Q" &= (p <=> q) >>= q >>= p);
@@ -80,7 +92,29 @@ int main() try {
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
 
-	Rewriter r = 
+	cout << "\n--- PropLogic ---" << endl;
+	Ctxt Logic = Root.branch();
+	Intp Logic_True = Intp::make(True,Logic);
+	import(Logic_True);
+	Intp Logic_Iff = Intp::make(Iff,Logic);
+	import(Logic_Iff);
+	Intp Logic_And = Intp::make(And,Logic);
+	import(Logic_And);
+	cout << Logic << endl;
+
+	Thm and_iff = Logic_Iff.subst(iffI1) << Logic_And.subst(andE) << Logic_And.subst(andI);
+	cout << "proved and_iff: " << and_iff << endl;
+	Thm and_imp_iff	= [&]{
+		Ctxt loc = Logic.branch();
+		loc.fix("P");
+		loc.fix("Q");
+		Thm conj = loc.assume((p>>=q) & (q>>=p));
+		Thm pq = Logic_And.subst(andE1).weaken(loc) << conj;
+		Thm qp = Logic_And.subst(andE2).weaken(loc) << conj;
+		return (Logic_Iff.subst(iffI1).weaken(loc) << pq << qp).intro();
+	}();
+	cout << "proved and_imp_iff: " << and_imp_iff << endl;
+
 	cout << "=== util test is done ===" << endl;
 } catch( Error const& e ) {
 	cerr << e.term << endl;

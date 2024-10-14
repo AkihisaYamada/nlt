@@ -9,8 +9,8 @@ int main() try {
 	Term r = Term("R");
 	Term True("true");
 	Term thesis("thesis");
-	SYNTAX.infix("∧",35,36,36);
-	SYNTAX.infix("⟺",0,1,1);
+	SYNTAX.infix(AND,35,36,36);
+	SYNTAX.infix(IFF,0,1,1);
 
 	{	Term s = "Q" &= p & q;
 		Ctxt loc;
@@ -37,13 +37,13 @@ int main() try {
 		loc.fix("thesis");
 		Thm assm = loc.assume("true" &= True >>= thesis);
 		Thm imp_refl2 = imp_refl.weaken(loc);
-		return Root.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro())[0];
+		return Root.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro()).second[0];
 	}();
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
 	cout << "context Root:\n" << Root << endl;
 	cout << "\n--- And ---" << endl;
 	Ctxt And;
-	And.fix("∧");
+	And.fix(AND);
 	Thm andI1 = And.assume("P" &= "Q" &= p >>= q >>= p & q);
 	cout << "assumed andI1: " << andI1 << endl;
 	Thm andE1 = And.assume("P" &= "Q" &= p & q >>= p);
@@ -108,43 +108,43 @@ int main() try {
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
 	cout << "\n--- PropLogic ---" << endl;
-	Ctxt propLogic;
-	Intp IFF = Intp::make(Iff,propLogic);
-	IFF.import_fix(propLogic.fix("⟺"));
+	Ctxt Logic;
+	Intp Logic_Iff = Intp::make(Iff,Logic);
+	Logic_Iff.instantiate(Logic.fix(IFF));
 	cout << "imported ⟺" << endl;
-	IFF.import_assume(propLogic.assume((Term)iffI1));
-	IFF.import_assume(propLogic.assume((Term)iffE1));
-	IFF.import_assume(propLogic.assume((Term)iffE2));
-	cout << "imported iffI1: " << IFF.subst(iffI1) << endl
-		<< "  and iffE1: " << IFF.subst(iffE1) << endl
-		<< "  and iffE2: " << IFF.subst(iffE2) << endl;
-	Intp AND = Intp::make(And,propLogic);
-	AND.import_fix(propLogic.fix("∧"));
-	AND.import_assume(propLogic.assume((Term)andI1));
-	AND.import_assume(propLogic.assume((Term)andE1));
-	AND.import_assume(propLogic.assume((Term)andE2));
-	cout << "imported andI1: " << AND.subst(andI1) << endl
-		<< "  and andE1: " << AND.subst(andE1) << endl
-		<< "  and andE2: " << AND.subst(andE2) << endl;
+	Logic_Iff.discharge(Logic.assume((Term)iffI1));
+	Logic_Iff.discharge(Logic.assume((Term)iffE1));
+	Logic_Iff.discharge(Logic.assume((Term)iffE2));
+	cout << "imported iffI1: " << Logic_Iff.subst(iffI1) << endl
+		<< "  and iffE1: " << Logic_Iff.subst(iffE1) << endl
+		<< "  and iffE2: " << Logic_Iff.subst(iffE2) << endl;
+	Intp Logic_And = Intp::make(And,Logic);
+	Logic_And.instantiate(Logic.fix(AND));
+	Logic_And.discharge(Logic.assume((Term)andI1));
+	Logic_And.discharge(Logic.assume((Term)andE1));
+	Logic_And.discharge(Logic.assume((Term)andE2));
+	cout << "imported andI1: " << Logic_And.subst(andI1) << endl
+		<< "  and andE1: " << Logic_And.subst(andE1) << endl
+		<< "  and andE2: " << Logic_And.subst(andE2) << endl;
 
 	Thm and_iff = [&]{
-		Ctxt loc = propLogic.branch();
+		Ctxt loc = Logic.branch();
 		loc.fix("P");
 		loc.fix("Q");
-		Thm I = AND.subst(andI).weaken(loc).allE(p).allE(q);
-		Thm E = AND.subst(andE).weaken(loc).allE(p).allE(q);
-		return IFF.subst(iffI1).weaken(loc).allE(p & q).allE("R" &= (p >>= q >>= r) >>= r).impE(E).impE(I).intro();
+		Thm I = Logic_And.subst(andI).weaken(loc).allE(p).allE(q);
+		Thm E = Logic_And.subst(andE).weaken(loc).allE(p).allE(q);
+		return Logic_Iff.subst(iffI1).weaken(loc).allE(p & q).allE("R" &= (p >>= q >>= r) >>= r).impE(E).impE(I).intro();
 	}();
 	cout << "proved and_iff: " << and_iff << endl;
 	Thm and_imp_iff = [&]{
-		Ctxt loc = propLogic.branch();
+		Ctxt loc = Logic.branch();
 		loc.fix("P");
 		loc.fix("Q");
 		Thm assm = loc.assume((p >>= q) & (q >>= p));
 		Term PQ = (p >>= q);
-		Thm pq = AND.subst(andE1).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
-		Thm qp = AND.subst(andE2).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
-		return IFF.subst(iffI1).weaken(loc).allE(p).allE(q).impE(pq).impE(qp).intro();
+		Thm pq = Logic_And.subst(andE1).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
+		Thm qp = Logic_And.subst(andE2).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
+		return Logic_Iff.subst(iffI1).weaken(loc).allE(p).allE(q).impE(pq).impE(qp).intro();
 	}();
 	cout << "proved and_imp_iff: " << and_imp_iff << endl;
 	cout << "=== core test is done ===" << endl;

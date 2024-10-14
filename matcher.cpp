@@ -1,4 +1,4 @@
-#include"unifier.hpp"
+#include"util.hpp"
 
 using namespace std;
 
@@ -133,79 +133,19 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	return t;
 }
 
-Thm discharge(Thm thm, Thm arg) try {
-	Ctxt ctxt = thm.ctxt();
-	// expand thm into cond ⟹ concl
-	Ctxt thm_ctxt = ctxt.branch();
-	Thm thm_strip = strip_all(thm,thm_ctxt);
-	auto imp = thm_strip.cbinary(IMP);
-	if( !imp ) throw 0;
-	// expand cond
-	CTerm cond = imp->first;
-	Ctxt cond_ctxt = thm_ctxt.branch();
-	CTerm cond_strip = strip_all(cond,cond_ctxt);
-	// expand arg
-	Ctxt arg_ctxt = cond_ctxt.branch();
-	Thm arg_strip = strip_all(arg,arg_ctxt);
-	cond_strip = cond_strip.weaken(arg_ctxt);
-	cond = cond.weaken(arg_ctxt);
-	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
-		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
-	} );
-	if( !unifier ) throw 3;
-	// unassigned free variables will be universally quantified in the result
-	Ctxt ret_ctxt = ctxt.branch();
-	iter_local_vars(arg_ctxt,[&](string const& x){
-		if( !unifier->map().contains(x) ) {
-			ret_ctxt.fix(x);
-		}
-	});
-	iter_local_vars(thm_ctxt,[&](string const& x){
-		if( !unifier->map().contains(x) ) {
-			ret_ctxt.fix(x);
-		}
-	});
-	// instantiating arg according to the unifier
-	// quantify variables as cond
-	Ctxt discharger_ctxt = ret_ctxt.branch();
-	iter_local_vars(cond_ctxt,[&](string const& x){
-		discharger_ctxt.fix(x);
-	});
-	arg = arg.weaken(discharger_ctxt);
-	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
-		auto val = unifier->get(x);
-		arg = arg.allE( discharger_ctxt.cterm( val ? *val : Term(x) ) );
-	});
-	arg = arg.intro();
-	thm = thm.weaken(ret_ctxt);
-	iter_local_vars(thm_ctxt,[&](string const& x) {// TODO: slower than `subst`
-		auto val = unifier->get(x);
-		thm = thm.allE( ret_ctxt.cterm( val ? *val : Term(x) ) );
-	});
-	thm = thm.impE(arg);
-	thm = thm.intro();
-	return thm;
-} catch( int n ) {
-	throw MalformedDischarge(thm,arg);
-}
-
-
-Thm Concluder::conclude(Thm const& thm) {
-	auto const& app1 = thm.capp();
-	assert(app1);
-	auto const& app2 = app1->first.capp();
-	assert(app2);
-	CTerm const& source = app2->second; // thm = source ⟹ ...
-	for( Rule const& rule : rules ) {
-		auto const& pat_ctxt = rule.pat.ctxt();
-		if( auto const& m = match(pat_ctxt.fvars(),rule.pat,source) ) {
-			Thm arg = rule.thm.weaken(source.ctxt());
-			iter_local_vars(pat_ctxt,[&](string const& fvar){
-				arg = arg.allE(*m->get(fvar));
-			});
-			return thm.impE(arg);
+void import(Intp& intp) {
+	auto ctxt = intp.ctxt();
+	for(;;) {
+		if( auto v = intp.fixing() ) {
+			intp.instantiate(ctxt.fix(*v));
+		} else if( auto a = intp.assuming() ) {
+			intp.discharge(ctxt.assume(*a));
+		} else if( auto s = intp.obtaining() ) {
+			auto [sym,thms] = ctxt.obtain(*s);
+			intp.retain(sym,thms);
+		} else {
+			return;
 		}
 	}
-	throw Error(thm);
 }
 

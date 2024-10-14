@@ -48,6 +48,12 @@ Lex::Lex() :
 		{'\t',Blank},
 		{'\n',Blank},
 		{'\r',Blank},
+		{'(',SingleOp},
+		{')',SingleOp},
+		{'[',SingleOp},
+		{']',SingleOp},
+		{'{',SingleOp},
+		{'}',SingleOp},
 	}) {}
 
 int Lexer::fetch_char() {

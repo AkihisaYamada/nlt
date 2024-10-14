@@ -52,10 +52,10 @@ class Term {
 		App(Term const& fun, Term const& arg) : Ref(Ref<Pair const>::make(fun,arg)) {}
 	};
 	struct Abs : Ref<StrTerm const> {
-		Abs(std::string const& var, Term const& body) : Ref(Ref<StrTerm const>::make(var,body)) {}
+		Abs(std::string_view const& var, Term const& body) : Ref(Ref<StrTerm const>::make(var,body)) {}
 	};
 	struct Bind : Ref<StrTerm const> {
-		Bind(std::string const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
+		Bind(std::string_view const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
 	};
 	Sum<std::string,App,Abs,Bind> _un;
 	Term(App const& app) : _un(app) {}
@@ -80,13 +80,19 @@ public:
 		}
 */	}
 	/** @brief Construct a symbol term */
+	Term(std::string_view const& sym) : _un(std::string(sym)) {}
+	/** @brief Construct a symbol term */
+	Term(std::string&& sym) : _un(std::move(sym)) {}
+	/** @brief Construct a symbol term */
+	Term(char const* sym) : _un(sym) {}
+	/** @brief Construct a symbol term */
 	Term(std::string const& sym) : _un(sym) {}
 	/** @brief application */
 	Term operator()(Term const& arg) const {
 		return Term(App{*this,arg});
 	}
 	/** @brief abstraction */
-	friend Term operator/=(std::string const& var, Term const& body) {
+	friend Term operator/=(std::string_view const& var, Term const& body) {
 		return Term(Abs{var,body});
 	}
 	/** @brief binding
@@ -95,7 +101,7 @@ public:
 	 * @param val 
 	 * @return Term 
 	 */
-	friend Term operator/(std::string const& binder, Term const& val) {
+	friend Term operator/(std::string_view const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
 	/** @brief Copy the string if the term is a symbol. */
@@ -224,8 +230,8 @@ public:
 	 * @param fsym operation applied on free symbols
 	 */
 	void iter_syms(
-		std::function<void(std::string const&)> const& bsym,
-		std::function<void(std::string const&)> const& fsym
+		std::function<void(std::string_view const&)> const& bsym,
+		std::function<void(std::string_view const&)> const& fsym
 	) const {
 		StrMSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
@@ -235,32 +241,32 @@ public:
 	 * @param fsym operation applied on free symbols
 	 */
 	void iter_fsyms(
-		std::function<void(std::string const&)> const& fsym
+		std::function<void(std::string_view const&)> const& fsym
 	) const {
-		iter_syms([](std::string const&){},fsym);
+		iter_syms([](std::string_view const&){},fsym);
 	}
 	/** @brief The set of free symbols */
 	StrSet fsyms() const {
 		StrSet ret;
-		iter_fsyms([&ret](std::string const& fsym){ret.insert(fsym);});
+		iter_fsyms([&ret](std::string_view const& fsym){ret.emplace(fsym);});
 		return ret;
 	}
-	bool exists_fsym(std::function<bool(std::string const&)> const& test) const {
+	bool exists_fsym(std::function<bool(std::string_view const&)> const& test) const {
 		try {
-			iter_fsyms([&](std::string const& v){ if( test(v) ) throw 0; });
+			iter_fsyms([&](std::string_view const& v){ if( test(v) ) throw 0; });
 			return false;
 		} catch (int x) {
 			return true;
 		}
 	}
-	bool contains_fsym(std::string const& name) const {
-		return exists_fsym([&](std::string const& v){ return v == name; });
+	bool contains_fsym(std::string_view const& name) const {
+		return exists_fsym([&](auto v){ return v == name; });
 	}
-	bool forall_fsyms(std::function<bool(std::string const&)> const& test) const {
+	bool forall_fsyms(std::function<bool(std::string_view const&)> const& test) const {
 		return !exists_fsym([&](auto v){ return !test(v); });
 	}
 	/** @brief Singleton substitution */
-	Term subst(std::string const& var, CTerm const& val) const;
+	Term subst(std::string_view const& var, CTerm const& val) const;
 	/** @brief applies a substitution.
 	 * 
 	 * @param subst
@@ -280,8 +286,8 @@ public:
 	 * @return Term 
 	 */
 	Term map(
-		std::function<Term(std::string const&)> f,
-		std::function<bool(std::string const&)> fixed = [](std::string const&){ return false; }
+		std::function<Term(std::string_view const&)> f,
+		std::function<bool(std::string_view const&)> fixed = [](auto){ return false; }
 	) const {
 		StrMap<std::string> bsyms;
 		return _map(f,fixed,bsyms);
@@ -289,10 +295,10 @@ public:
 private:
 	void _iter_syms(
 		StrMSet& bsyms,
-		std::function<void(std::string const&)> const& bsym,
-		std::function<void(std::string const&)> const& fsym
+		std::function<void(std::string_view const&)> const& bsym,
+		std::function<void(std::string_view const&)> const& fsym
 	) const;
-	Term _map(std::function<Term(std::string const&)> f, std::function<bool(std::string const&)> fixed, StrMap<std::string>& bsyms) const;
+	Term _map(std::function<Term(std::string_view const&)> f, std::function<bool(std::string_view const&)> fixed, StrMap<std::string>& bsyms) const;
 	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);// equality test
 
 	friend bool operator==(Term const& l, Term const& r) {
@@ -327,23 +333,23 @@ struct MissingProof : public Error {
 	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
 };
 struct TheoremNotFound : public Error {
-	TheoremNotFound(std::string const& name) : Error(Term("#theorem_not_found")(name)) {}
+	TheoremNotFound(std::string_view const& name) :
+		Error(Term("#theorem_not_found")(name)) {}
 };
-struct WrongContext : public std::exception {
-	std::string message;
-	WrongContext(std::string const& msg) : message(msg) {}
+struct WrongContext : public Error {
+	WrongContext(std::string_view const& msg) : Error(Term("#wong_context")(msg)) {}
 };
 
 struct DoubleFix : public Error {
-	DoubleFix(std::string const& name) : Error(Term("#double_fix")(name)) {}
+	DoubleFix(std::string_view const& name) : Error(Term("#double_fix")(name)) {}
 };
 
 struct UnboundVariable : public Error {
-	UnboundVariable(std::string const& name) : Error(Term("#unbound_variable")(name)) {}
+	UnboundVariable(std::string_view const& name) : Error(Term("#unbound_variable")(name)) {}
 };
 
 struct ConstantEscape : public Error {
-	ConstantEscape(std::string const& name) : Error(Term("#escape")(name)) {}
+	ConstantEscape(std::string_view const& name) : Error(Term("#escape")(name)) {}
 };
 
 /** @brief Context */
@@ -352,24 +358,13 @@ private:
 	struct Body;
 	Ref<Body> _ref;
 	Ctxt(Ref<Body>&& ref) : _ref(ref) {}
-public:
-	class Fix : public std::string {};
-	class Assume : public Term {};
-	class Obtain {
-		std::string _name;
-		std::vector<Term> _props;
-		friend Ctxt;
-	public:
-		Obtain(std::string const& name, std::vector<Term>&& specs) :
-			_name(name), _props(std::move(specs)) {}
-		std::string const name() const {
-			return _name;
-		}
-		std::vector<Term> const props() const {
-			return _props;
-		}
+	class _Fix : public std::string {
+		using std::string::string;
 	};
-	using Modifier = Sum<Fix,Assume,Obtain>;
+	class _Assume : public Term {};
+	class _Obtain : public Term {};
+	using _Modifier = Sum<_Fix,_Assume,_Obtain>;
+public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Ctxt(Ctxt&& other) : _ref(std::move(other._ref)) {}
 	/** The root Ctxt */
@@ -396,24 +391,26 @@ public:
 	StrSet const& fvars() const&;
 	/** The list of locally fixed variables. */
 	std::vector<std::string> const& fvar_list() const&;
-	/** Vector of modifiers */
-	std::vector<Modifier> const& modifiers() const&;
+	/** @brief If the @param i th modification was assumption,
+	 * returns the assumed theorem.
+	 */
+	Opt<Thm> assumed(size_t i) const;
+	Opt<Thm> obtained(size_t i) const;
+	Opt<std::string> fixed(size_t i) const;
 	/** Revision of the context, i.e., how many modifications are made. */
-	size_t revision() const& {
-		return modifiers().size();
-	}
+	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
-	bool fixes(std::string const& name) const {
+	bool fixes(std::string_view const& name) const {
 		return fvars().contains(name);
 	}
 	/** Locally obtained constants. */
 	StrSet const& consts() const&;
-	/** Tests if a variable is locally specified. */
-	bool specifies(std::string const& name) const {
+	/** Tests if a variable is locally obtained. */
+	bool obtains(std::string_view const& name) const {
 		return consts().contains(name);
 	}
 	/** tests if a symbol is fixed in this or ancestor contexts. */
-	bool fixed(std::string const& sym) const &;
+	bool fixed(std::string_view const& sym) const &;
 	/** Ensures that the term is closed in this context. */
 	CTerm cterm(Term const& t) const;
 	/** @brief Fixes a local variable.
@@ -421,7 +418,7 @@ public:
 	 * @param name 
 	 * @return the closed term for the variable.
 	 */
-	CTerm fix(std::string const& name) &;
+	CTerm fix(std::string_view const& name) &;
 	/** @brief Adds an assumption.
 	 * 
 	 * @param t the assumption, which should be closed in the context.
@@ -434,7 +431,7 @@ public:
 	 * @param thm of form ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	 * @return theorems for the specifications.
 	 */
-	std::vector<Thm> obtain(Thm const& thm) &;
+	std::pair<CTerm,std::vector<Thm>> obtain(Thm const& thm) &;
 	
 	/** @brief Creates a child context. */
 	Ctxt branch() const {
@@ -455,7 +452,7 @@ struct Ctxt::Body {
 	/** Parent context. */
 	Opt<Ctxt> const ctxt;
 	/** Vector of modifiers */
-	std::vector<Modifier> modifiers;
+	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
 	StrSet fvars;
 	/** The vector of locally fixed variables. */
@@ -477,8 +474,16 @@ inline Opt<Ctxt const&> Ctxt::find_parent() const {
 	}
 	return {};
 }
-inline std::vector<Ctxt::Modifier> const& Ctxt::modifiers() const& {
-	return _ref->modifiers;
+inline size_t Ctxt::revision() const {
+	return _ref->modifiers.size();
+}
+inline Opt<std::string> Ctxt::fixed(size_t i) const {
+	if( i < revision() ) {
+		if( auto a = _ref->modifiers[i].ref<_Fix>() ) {
+			return *a;
+		}
+	}
+	return {};
 }
 
 inline StrSet const& Ctxt::fvars() const& {
@@ -641,37 +646,37 @@ public:
 		return _map;
 	}
 	/** @brief Tests if the substitution domain contains a variable. */
-	bool contains(std::string const& var) const {
+	bool contains(std::string_view const& var) const {
 		return _map.contains(var);
 	}
 	/** @brief Tests if a variable is substituted or fixed in the context. */
 	bool closes(std::string const& var) const {
 		return contains(var) || _ctxt.fixed(var);
 	}
-	void erase(std::string const& var) {
+	void erase(std::string_view const& var) {
 		_map.erase(var);
 	}
 	bool empty() const {
 		return _map.empty();
 	}
 	/** @brief (re)assigns a value to a variable */
-	CSubst& assign(std::string const& var, CTerm const& val) {
+	CSubst& assign(std::string_view const& var, CTerm const& val) {
 		if( val.ctxt() != _ctxt ) {
 			throw WrongContext("CSubst::assign");
 		}
 		return _assign(var,val);
 	}
-	CSubst& assign(std::string const& var, Term const& val) {
+	CSubst& assign(std::string_view const& var, Term const& val) {
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
-	Opt<CTerm> get(std::string const& var) const {
+	Opt<CTerm> get(std::string_view const& var) const {
 		if( auto it = _map.find(var); it != _map.end() ) {
 			return CTerm(_ctxt,it->second);
 		}
 		return {};
 	}
 private:
-	CSubst& _assign(std::string const& var, CTerm const& val);
+	CSubst& _assign(std::string_view const& var, CTerm const& val);
 };
 
 class Thm : public CTerm {
@@ -737,31 +742,74 @@ class Intp {
 	int _rev;// supported revision of the source
 	Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {}
 public:
-	/** @brief makes initial interpretation. */
+	/** @brief makes initial interpretation.
+	 @param src the context to be interpreted
+	 @param tgt the context that interprets src
+	 */
 	static Intp make(Ctxt const& src, Ctxt const& tgt);
+	Ctxt ctxt() {
+		return _subst.ctxt();
+	};
+	/** @brief next unprocessed fix. */
+	Opt<std::string> fixing() const {
+		return _src.fixed(_rev);
+	}
+	Opt<CTerm> assuming() const {
+		if( auto a = _src.assumed(_rev) ) {
+			return a->csubst(_subst);
+		}
+		return {};
+	}
+	Opt<Thm> obtaining() const {
+		if( auto o = _src.obtained(_rev) ) {
+			return Thm(o->csubst(_subst));
+		}
+		return {};
+	}
+	/** @brief instantiates a closed term. */
+	CTerm subst(CTerm const& t) const;
 	/** @brief instantiates a theorem. */
-	Thm subst(Thm const& thm) const;
+	Thm subst(Thm const& thm) const {
+		return subst((CTerm)thm);
+	}
 	/** @brief Instantiates a context variable.
 	 * If the interpreted context is modified by fixing a new variable,
 	 * then this method should be used to instantiate the variable.
 	 * @param term 
 	 */
-	void import_fix(CTerm const& term);
+	void instantiate(CTerm const& term);
 	/** @brief Interprets an assumption.
 	 * If the interpreted context is modified by an assumption,
 	 * this method should be used to discharge the instantiated assumption.
 	 * @param thm Proof of the instantiated assumption.
 	 */
-	void import_assume(Thm const& thm);
+	void discharge(Thm const& thm);
 	/** @brief Interprets an obtained constant.
 	 * If the interpreted context is modified by obtaining a constant,
 	 * then this method should be used to instantiate the constant.
 	 * @param term that should play the role of the constant.
 	 * @param thms Proofs that the term satisfies the specification.
 	 */
-	void import_obtain(CTerm const& term, std::vector<Thm> const& thm);
+	void retain(CTerm const& term, std::vector<Thm> const& thm);
 	friend Ctxt;
 };
+
+inline Opt<Thm> Ctxt::assumed(size_t i) const {
+	if( i < revision() ) {
+		if( auto a = _ref->modifiers[i].ref<_Assume>() ) {
+			return Thm(CTerm(*this,*a));
+		}
+	}
+	return {};
+}
+inline Opt<Thm> Ctxt::obtained(size_t i) const {
+	if( i < revision() ) {
+		if( auto a = _ref->modifiers[i].ref<_Obtain>() ) {
+			return Thm(CTerm(*this,*a));
+		}
+	}
+	return {};
+}
 
 // workaround for Visual Studio...?
 //template<> inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;

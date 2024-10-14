@@ -4,16 +4,7 @@ using namespace std;
 
 Syntax SYNTAX;
 
-Syntax::Syntax() : Lex() {
-	register_single_op('(');
-	register_single_op(')');
-	register_single_op('[');
-	register_single_op(']');
-	register_single_op('{');
-	register_single_op('}');
-	_closers.insert("]");
-	register_multi_op(int_of_chars("∀"));
-	register_multi_op(int_of_chars("⟹"));
+Syntax::Syntax() {
 	infix("⟹",0,1,0);
 	prefix("∀",0,0);
 }
@@ -97,15 +88,30 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 		function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
 			os << pretty_term(t);
 		};
-		for( auto mod : ctxt.modifiers() ) {
-			if( auto fix = mod.ref<Ctxt::Fix>() ) {
+		for( int i = 0; i < ctxt.revision(); i++ ) {
+			if( auto fix = ctxt.fixed(i) ) {
 				os << "\tfixes " << *fix << ';' << std::endl;
-			} else if( auto assume = mod.ref<Ctxt::Assume>() ) {
+			} else if( auto assume = ctxt.assumed(i) ) {
 				os << "\tassumes " << pretty_term(*assume) << ';'<< std::endl;
-			} else if( auto obtain = mod.ref<Ctxt::Obtain>() ) {
-				os << "\tobtains " << obtain->name() << "\n\t where ";
-				auto& props = obtain->props();
-				out_sep(os,props.begin(),props.end(),"\n\t  and ",term);
+			} else if( auto obtain = ctxt.obtained(i) ) {
+				auto all1 = obtain->binder(ALL); // ∀thesis. (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
+				assert(all1);
+				auto imp1 = all1->second.binary(IMP); // (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
+				auto all2 = imp1->first.binder(ALL);// ∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis
+				assert(all2);
+				auto [sym,imps] = *all2;
+				os << "\tobtains " << sym << "\n\t where ";
+				auto imp = imps.binary(IMP);
+				assert(imp);
+				auto spec = imp->first;
+				imps = imp->second;
+				os << spec;
+				for(;;) {
+					auto imp2 = imps.binary(IMP);
+					if( !imp2 ) break;
+					os << "\n\t  and " << imp2->first;
+					imps = imp2->second;
+				}
 				os << ';' << std::endl;
 			} else {
 				assert(false);
@@ -116,106 +122,13 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 }
 
 function<ostream&(ostream&)> Syntax::pretty_subst(CSubst const& subst) const & {
-	function<void(ostream&,std::pair<std::string const,Term> const&)> pair =
-		[&](ostream& os, auto p){ os << pretty_term(p.first) << " := " << pretty_term(p.second); };
+	static function<void(ostream&,std::pair<std::string const,Term> const&)> pair = [this](ostream& os, auto p){
+		os << pretty_term(p.first) << " := " << pretty_term(p.second);
+	};
 	return [&](ostream& os)->ostream&{
 		os << "[ ";
 		auto& map = subst.map();
 		out_sep(os, map.begin(), map.end(), ",\n  ", pair );
-		return os << "\n]";
+		return os << " ]";
 	};
 }
-
-Opt<string> Parser::gets_thm_name() {
-	switch( next_token_type() ) {
-		case Lexer::Word: break;
-		case Lexer::Number: return get_token();
-		default: return {};
-	}
-	string ret = get_token();
-	for(;;) {
-		if( !skips(".") ) {
-			return ret;
-		}
-		ret += '.';
-		if( next_token_type() != Lexer::Word ) {
-			return ret;
-		}
-		ret += get_token();
-	}
-}
-string Parser::get_thm_name() {
-	if( auto const& opt = gets_thm_name() ) {
-		return *opt;
-	} else {
-		throw Error("Required a theorem name");
-	}
-}
-
-Opt<Term> Parser::gets_term(int level) {
-	string_view peek = peek_token();
-	if( peek == "" || _closers.contains(peek) ) {
-		return {};
-	}
-	Term ret;
-	if( auto opener_p = _openers.finds(peek) ) {
-		ignore_token();
-		auto const& opener = opener_p->second;
-		ret = opener.handler(*this);
-	} else if( auto prefix_it = _prefixes.find(peek); prefix_it != _prefixes.end() ) {
-		if( prefix_it->second.llevel < level ) {
-			return {};
-		}
-		ret = Term(prefix_it->first);
-		ignore_token();
-		if( auto const& r = gets_term(prefix_it->second.rlevel) ) {
-			ret = ret(*r);
-		}
-	} else {
-		string sym(peek);
-		ignore_token();
-		if( skips(".") ) {
-			if( auto const& t = gets_term(level) ) {
-				ret = sym /= *t;
-			}
-		} else if( skips("[") ) {
-			ret = sym / *gets_term(-1000);
-			skip("]");
-		} else {
-			ret = Term(sym);
-		}
-	}
-	for(;;) {
-		string_view peek = peek_token();
-		if( peek == "" || _closers.contains(peek) ) {
-			return ret;
-		}
-		int rlevel;
-		if( auto it = _infixes.find(peek); it != _infixes.end() ) {
-			if( it->second.llevel < level ) {
-				return ret;
-			}
-			ret = Term(it->first)(ret);
-			ignore_token();
-			rlevel = it->second.rlevel;
-		} else {
-			if( 1000 <= level ) {
-				return ret;
-			}
-			rlevel = 1000;
-		}
-		if( auto const& r = gets_term(rlevel) ) {
-			ret = ret(*r);
-		} else {
-			return ret;
-		}
-	}
-}
-
-Term Parser::get_term(int level) {
-	if( auto const& opt = gets_term(level) ) {
-		return *opt;
-	}
-	throw Error("Required a term");
-}
-

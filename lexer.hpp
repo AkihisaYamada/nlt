@@ -46,12 +46,10 @@ public:
 		}
 		return Other;
 	}
-	friend CharType operator|( CharType a, CharType b );
+	friend CharType operator|( CharType a, CharType b ) {
+		return (CharType)((int)a|(int)b);
+	}
 };
-
-inline Lex::CharType operator|( Lex::CharType a, Lex::CharType b ) {
-	return (Lex::CharType)((int)a|(int)b);
-}
 
 class Lexer {
 public:

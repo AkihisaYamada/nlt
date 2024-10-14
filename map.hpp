@@ -40,8 +40,12 @@ public:
 	Opt<std::pair<K const,T> const&> finds( K const& k ) const & {
 		return finds<K>(k);
 	}
-	void erase( K const& k ) {
-		M::erase(k);
+	template<typename L>
+	void erase( L const& k ) {
+		auto it = M::find(k);
+		if( it != end() ) {
+			M::erase(it);
+		}
 	}
 	iterator erase( iterator const& it ) {
 		return M::erase(it);

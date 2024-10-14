@@ -78,8 +78,8 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 
 void Term::_iter_syms(
 	StrMSet& bsyms,
-	function<void(string const&)> const& bsym,
-	function<void(string const&)> const& fsym
+	function<void(string_view const&)> const& bsym,
+	function<void(string_view const&)> const& fsym
 ) const {
 	if( auto sym = this->sym() ) {
 		if( bsyms.contains(*sym) ) {
@@ -106,7 +106,7 @@ void Term::_iter_syms(
 	}
 }
 
-CSubst& CSubst::_assign(string const& var, CTerm const& val) {
+CSubst& CSubst::_assign(string_view const& var, CTerm const& val) {
 	auto const& info = _map.emplace(var,val);
 	if( !info.second ) {
 		info.first->second = val;
@@ -118,26 +118,26 @@ Term Term::subst(CSubst const& subst) const {
 	if( subst.empty() ) {
 		return *this;
 	}
-	auto f = [&](string const& sym)->Term {
+	auto f = [&](string_view const& sym)->Term {
 		if( auto opt = subst.get(sym) ) {
 			return *opt;
 		} else {
 			return sym;
 		}
 	};
-	auto fixed = [&](string const& sym) {
+	auto fixed = [&](string_view const& sym) {
 		return subst.ctxt().fixed(sym);
 	};
 	return map(f,fixed);
 }
 
-static function<Term(string const&)> unit_map(string const& var, Term const& val) {
-	return [&](std::string const& sym){ return sym == var ? val : Term(sym); };
+static function<Term(string_view const&)> unit_map(string_view const& var, Term const& val) {
+	return [&](auto sym){ return sym == var ? val : Term(sym); };
 }
-Term Term::subst(string const& var, CTerm const& val) const {
+Term Term::subst(string_view const& var, CTerm const& val) const {
 	return map(
 		unit_map(var,val),
-		[&](std::string const& sym){ return val.ctxt().fixed(sym); }
+		[&](auto sym){ return val.ctxt().fixed(sym); }
 	);
 }
 
@@ -153,8 +153,8 @@ static Term subst_var(
 }
 
 Term Term::_map(
-	function<Term(string const&)> f,
-	function<bool(string const&)> fixed,
+	function<Term(string_view const&)> f,
+	function<bool(string_view const&)> fixed,
 	StrMap<string>& bsyms
 ) const {
 	if( auto sym = this->sym() ) {
@@ -212,11 +212,11 @@ Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
 	_ref->fvars.insert(ALL_var);
 }
 
-bool Ctxt::fixed(string const& sym) const & {
+bool Ctxt::fixed(string_view const& sym) const & {
 	if( fixes(sym) ) {
 		return true;
 	}
-	if( specifies(sym) ) {
+	if( obtains(sym) ) {
 		return true;
 	}
 	if( auto parent = find_parent() ) {
@@ -227,22 +227,22 @@ bool Ctxt::fixed(string const& sym) const & {
 
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_fsyms(
-		[&](string const& sym){ if( !fixed(sym) ) { throw UnboundVariable(sym); } }
+		[&](auto sym){ if( !fixed(sym) ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
 
-CTerm Ctxt::fix(string const& s) & {
+CTerm Ctxt::fix(string_view const& s) & {
 	if( fixes(s)) {
 		throw DoubleFix(s);
 	}
-	_ref->modifiers.push_back(Fix(s));
-	_ref->fvars.insert(s);
+	_ref->modifiers.push_back(_Fix(s));
+	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
 }
 
 Thm Ctxt::_assume(Term const& t) & {
-	_ref->modifiers.push_back(Assume(t));
+	_ref->modifiers.push_back(_Assume(t));
 	return CTerm(*this,t);
 }
 
@@ -258,7 +258,7 @@ Thm Ctxt::assume(CTerm const& t) & {
 	return _assume(t);
 }
 
-vector<Thm> Ctxt::obtain(Thm const& thm) & {
+pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	auto all1 = thm.binder(ALL);
 	if( !all1 ) {
@@ -277,7 +277,6 @@ vector<Thm> Ctxt::obtain(Thm const& thm) & {
 	if( fixed(sym) ) {
 		throw DoubleFix(sym);
 	}
-	vector<Term> props;
 	vector<Thm> thms;
 	Term const* in = &all2->second;
 	while( auto imp2 = in->binary(IMP) ) {
@@ -285,16 +284,15 @@ vector<Thm> Ctxt::obtain(Thm const& thm) & {
 		prop.iter_fsyms(// spec should not contain thesis
 			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(prop); }
 		);
-		props.push_back(prop);
 		thms.push_back(CTerm(*this,prop));
 		in = &imp2->second;
 	}
 	if( *in != thesis ) {
 		throw UnexpectedTerm(thm);
 	}
-	_ref->modifiers.push_back(Obtain(sym,std::move(props)));
+	_ref->modifiers.push_back(_Obtain(thm));
 	_ref->constants.insert(sym);
-	return thms;
+	return {CTerm(*this,sym),thms};
 }
 Thm Thm::_allE(CTerm const& t) const {
 	if( auto const& a = capp() ) {
@@ -328,13 +326,14 @@ Thm Thm::intro() const {
 	}
 	auto const& parent = _ctxt.ctxt();
 	Term stmt = *this;
-	auto const& modifiers = _ctxt.modifiers();
-	for( auto it = modifiers.rbegin(); it != modifiers.rend(); it++ ) {
-		if( auto const& assm = it->ref<Ctxt::Assume>() ) {
+	
+	for( size_t i = _ctxt.revision(); i > 0; ) {
+		i--;
+		if( auto const& assm = _ctxt.assumed(i) ) {
 			stmt = *assm >>= stmt;
-		} else if( auto const& fix = it->ref<Ctxt::Fix>() ) {
+		} else if( auto const& fix = _ctxt.fixed(i) ) {
 			stmt = ALL( *fix /= stmt );
-		} else if( auto const& obtain = it->ref<Ctxt::Obtain>() ) {
+		} else if( auto const& obtain = _ctxt.obtained(i) ) {
 			// obtain is safe
 		} else {
 			assert(false);
@@ -356,8 +355,9 @@ Opt<CTerm::StrTerm> CTerm::cabs() const {
 CTerm CTerm::lift() const {
 	auto const& parent = _ctxt.ctxt();
 	Term ret = *this;
-	for( auto const& mod : _ctxt.modifiers() ) {
-		if( auto fix = mod.ref<Ctxt::Fix>() ) {
+	for( size_t i = _ctxt.revision(); i > 0; ) {
+		i--;
+		if( auto fix = _ctxt.fixed(i) ) {
 			ret = *fix /= ret;
 		}
 	}
@@ -366,14 +366,14 @@ CTerm CTerm::lift() const {
 
 CTerm Term::csubst(CSubst const& subst) const {
 	auto const& ctxt = subst.ctxt();
-	auto fixed = [&](string const& sym) {
+	auto fixed = [&](string_view const& sym) {
 		return subst.ctxt().fixed(sym);
 	};
 	if( subst.empty() ) {
 		// only check that the term is closed.
 		return ctxt.cterm(*this);
 	}
-	auto f = [&](string const& sym)->Term {
+	auto f = [&](string_view const& sym)->Term {
 		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
 		} else if( ctxt.fixed(sym) ) {
@@ -392,33 +392,27 @@ Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
 	}
 	return Intp(src,tgt);
 }
-Thm Intp::subst(Thm const& thm) const {
+CTerm Intp::subst(CTerm const& thm) const {
 	if( thm.ctxt() != _src ) {
 		throw WrongContext("interpretation");
 	}
 	if( _src.revision() != _rev ) {
 		throw WrongContext("wrong revision");
 	}
-	return Thm(CTerm(_subst.ctxt(),thm.subst(_subst)));
+	return CTerm(_subst.ctxt(),thm.subst(_subst));
 }
-void Intp::import_fix(CTerm const& term) {
-	if( _src.revision() <= _rev ) {
-		throw WrongContext("no need for import_fix");
-	}
-	auto fix = _src.modifiers()[_rev].ref<Ctxt::Fix>();
+void Intp::instantiate(CTerm const& term) {
+	auto fix = _src.fixed(_rev);
 	if( !fix ) {
-		throw WrongContext("unexpected import_fix");
+		throw WrongContext("unexpected instantiate");
 	}
 	_subst.assign(*fix,term);
 	_rev++;
 }
-void Intp::import_assume(Thm const& thm) {
-	if( _src.revision() <= _rev ) {
-		throw WrongContext("no need for import_assume");
-	}
-	auto assume = _src.modifiers()[_rev].ref<Ctxt::Assume>();
+void Intp::discharge(Thm const& thm) {
+	auto assume = _src.assumed(_rev);
 	if( !assume ) {
-		throw WrongContext("unexpected import_assume");
+		throw WrongContext("unexpected discharge");
 	}
 	Term const& exp = assume->subst(_subst);
 	if( exp != thm ) {
@@ -426,33 +420,38 @@ void Intp::import_assume(Thm const& thm) {
 	}
 	_rev++;
 }
-void Intp::import_obtain(CTerm const& term, vector<Thm> const& thms) {
-	if( _src.revision() <= _rev ) {
-		throw WrongContext("no need for import_obtain");
-	}
-	auto obtain = _src.modifiers()[_rev].ref<Ctxt::Obtain>();
+void Intp::retain(CTerm const& term, vector<Thm> const& thms) {
+	auto obtain = _src.obtained(_rev); // ∀thesis. (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
 	if( !obtain ) {
-		throw WrongContext("unexpected import_obtain");
+		throw WrongContext("unexpected retain");
 	}
-	auto& specs = obtain->props();
-	auto spec_it = specs.begin();
+	auto abs = obtain->binder(ALL);
+	assert( abs );
+	auto [thesis,body1] = *abs; // thesis, (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
+	auto imp = body1.binary(IMP);
+	assert( imp );
+	auto [body2,thesis2] = *imp; // ∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis, thesis
+	assert( thesis == thesis2 );
+	auto abs2 = body2.binder(ALL);
+	assert( abs2 );
+	auto [sym,imps] = *abs2; // sym, p_1 ⟹ ... ⟹ p_n ⟹ thesis
 	auto thm_it = thms.begin();
 	for(;;) {
-		if( spec_it == specs.end() ) {
-			if( thm_it == thms.end() ) {
+		if( thm_it == thms.end() ) {
+			if( imps == thesis ) {
 				_rev++;
 				return;
 			}
+			throw Error("#too_few_specs");
+		}
+		auto imp2 = imps.binary(IMP);
+		if( !imp2 ) {
 			throw UnexpectedTerm(Term("#too_many_specs")(*thm_it));
 		}
-		Term spec = spec_it->subst(_subst);
-		if( thm_it == thms.end() ) {
-			throw MissingProof(spec);
+		if( imp2->first != *thm_it ) {
+			throw UnexpectedTerm(Term("#expect")(imp->first)(*thm_it));
 		}
-		if( *thm_it != spec ) {
-			throw UnexpectedTerm(Term("#expected")(spec)(*thm_it));
-		}
-		spec_it++;
+		imps = imp2->second;
 		thm_it++;
 	}
 }

@@ -4,8 +4,6 @@
 #include<ostream>
 #include"syntax.hpp"
 
-#define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << endl; } while(0)
-
 /** for all */
 inline Term operator&=(std::string const& v, Term const& s) {
 	return ALL(v/=s);
@@ -13,8 +11,8 @@ inline Term operator&=(std::string const& v, Term const& s) {
 
 /** Iterate over locally fixed variables. */
 inline void iter_local_vars( Ctxt const& ctxt, std::function<void(std::string const&)> f ) {
-	for( auto const& mod : ctxt.modifiers() ) {
-		if( auto const& fix = mod.ref<Ctxt::Fix>() ) {
+	for( size_t i = 0; i < ctxt.revision(); i++ ) {
+		if( auto const& fix = ctxt.fixed(i) ) {
 			f(*fix);
 		}
 	}
@@ -85,6 +83,6 @@ inline Thm operator<<(Thm const& t, Thm arg) {
  * @param ctxt 
  * @param target 
  */
-void import(Ctxt ctxt, Ctxt const& target);
+void import(Intp& intp);
 
 #endif

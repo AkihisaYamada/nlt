@@ -1,7 +1,7 @@
 CORE_SRCS=core.cpp lexer.cpp syntax.cpp debug.cpp
 CORE_TEST_SRC=test/core_test.cpp
 CORE_TEST_SRCS=$(CORE_SRCS) $(CORE_TEST_SRC)
-UTIL_SRCS=$(CORE_SRCS) util.cpp unifier.cpp
+UTIL_SRCS=$(CORE_SRCS) matcher.cpp unifier.cpp
 UTIL_TEST_SRC=test/util_test.cpp
 UTIL_TEST_SRCS=$(UTIL_SRCS) $(UTIL_TEST_SRC)
 PROVER_SRC=rewriter.cpp definer.cpp prover.cpp
@@ -18,17 +18,17 @@ DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 
 .PHONY: core_test util_test
 
-core_test.exe: $(TEST_SRCS:%.cpp=$(DEBUG)/%.o)
+core_test.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DCPP} $^ -o $@
 
 core_test: core_test.exe
 	./$@
 
-util_test.exe: $(UTIL_TEST_SRCS:%/cpp=$(DEBUG)/%.o)
+util_test.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DCPP} $^ -o $@
 
 util_test: util_test.exe
-	./$@
+	./$^
 
 nlm.exe: $(PROVER_SRCS:$(BUILD)/%.o)
 	${CPP} $^ -o $@
