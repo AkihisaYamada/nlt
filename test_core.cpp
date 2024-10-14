@@ -12,12 +12,16 @@ int main() try {
 	SYNTAX.infix(AND,35,36,36);
 	SYNTAX.infix(IFF,0,1,1);
 
+	assert( ("x" /= Term("x")) == ("y" /= Term("y")) );
+	assert( ("x" /= Term("F")("x")) == ("y" /= Term("F")("y")) );
+
 	{	Term s = "Q" &= p & q;
 		Ctxt loc;
 		Term t = s.subst("P",loc.fix("Q"));
 		cout << "(" << s << ")(P := Q) = " << t << endl;
 		assert(t == ("Q'" &= q & Term("Q'")));
 	}
+
 	Ctxt Root;
 	Thm imp_refl = [&]{
 		Ctxt loc = Root.branch();

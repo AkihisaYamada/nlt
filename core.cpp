@@ -18,7 +18,7 @@ static bool _eq_var(string const& x, string const& y, StrMap<unsigned int>& lmap
 	auto lopt = lmap.finds(x);
 	auto ropt = rmap.finds(y);
 	if( lopt ) {
-		return ropt && *lopt == *ropt;
+		return ropt && lopt->second == ropt->second;
 	}
 	return !ropt && x == y;
 }

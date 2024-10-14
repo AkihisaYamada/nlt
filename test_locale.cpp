@@ -3,22 +3,31 @@
 
 using namespace std;
 
+string const LE = "≤";
+
 int main() try {
 	cout << "=== locale test ===" << endl;
 	SYNTAX.infix(AND,35,36,36);
 	SYNTAX.infix(IFF,0,1,1);
+	SYNTAX.infix(LE,50,51,51);
 	Term p = Term("P");
 	Term q = Term("Q");
 	Term r = Term("R");
+	Term le = Term(LE);
 	Term thesis = Term("thesis");
 	auto Root = Ref<Locale>::make();
-	Root->add_thm("imp_refl", [&]{
+	auto Preorder = Ref<Locale>::make(Root);
+	Preorder->fix(LE);
+	Preorder->assume( "refl", "x" &= le("x")("x") );
+	auto& imp = Root->sublocale("imp",Preorder);
+	imp.instantiate(Root->ctxt().cterm(IMP));
+	imp.discharge([&]{
 		auto loc = Locale(Root);
 		loc.fix("P");
 		loc.assume("P",p);
 		return loc.thm("P").intro();
 	}());
-	cout << "locale Root: " << *Root << endl;
+	cout << "imp.refl: " << Root->thm("imp.refl") << endl;
 
 	cout << "\n--- True ---" << endl;
 	Term TRUE = "true";
@@ -28,7 +37,7 @@ int main() try {
 		loc.fix("thesis");
 		loc.assume( "assm", "true" &= TRUE >>= thesis );
 		Thm assm = loc.thm("assm");
-		Thm imp_refl2 = loc.thm("imp_refl");
+		Thm imp_refl2 = loc.thm("imp.refl");
 		True->obtain( assm.allE(imp_refl2).impE(imp_refl2).intro(), vector{"trueI"}.begin() );
 	};
 
@@ -68,7 +77,7 @@ int main() try {
 	Iff->assume( "iffI1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
 	Iff->assume( "iffE1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
 	Iff->assume( "iffE2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
-	Iff->add_thm( "iff_refl", Iff->thm("iffI1") << Iff->thm("imp_refl") << Iff->thm("imp_refl") );
+	Iff->add_thm( "iff_refl", Iff->thm("iffI1") << Iff->thm("imp.refl") << Iff->thm("imp.refl") );
 	Thm iff_trans = [&]{
 		auto loc = Ref<Locale>::make(Iff);
 		loc->fix("P");

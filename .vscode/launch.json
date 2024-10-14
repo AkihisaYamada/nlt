@@ -8,7 +8,7 @@
 	"name": "(gdb) Launch",
 	"type": "cppdbg",
 	"request": "launch",
-	"program": "${workspaceFolder}/test_locale.exe",
+	"program": "${workspaceFolder}/test_core.exe",
 	"args": ["proofscript"],
 	"stopAtEntry": true,
 	"externalConsole": true,

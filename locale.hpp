@@ -81,7 +81,12 @@ public:
 			name_it++;
 		}
 	}
+	/** Declares sublocale */
 	SubLocale& sublocale(std::string&& name, Ref<Locale> const& loc) &;
+	/** multimap of sublocales */
+	std::multimap<std::string,SubLocale,std::less<>> const& sublocales() const & {
+		return _sublocs;
+	}
 };
 
 class SubLocale : public Intp {
