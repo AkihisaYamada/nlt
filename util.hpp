@@ -83,6 +83,6 @@ inline Thm operator<<(Thm const& t, Thm arg) {
  * @param ctxt 
  * @param target 
  */
-void import(Intp& intp);
+void import_all(Intp& intp);
 
 #endif

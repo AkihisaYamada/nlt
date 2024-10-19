@@ -22,7 +22,7 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 }
 
 Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& name, bool ancestor) const {
-	auto [it,end] = _ref->sublocs.equal_range(pre);
+	auto [it,end] = _ref->imports.equal_range(pre);
 	while( it != end ) {
 		if( auto opt = it->second.find_thm(name) ) {
 			return opt;

@@ -133,7 +133,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	return t;
 }
 
-void import(Intp& intp) {
+void import_all(Intp& intp) {
 	auto ctxt = intp.ctxt();
 	for(;;) {
 		if( auto v = intp.fixing() ) {

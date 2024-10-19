@@ -4,8 +4,8 @@
 #include"core.hpp"
 #include"syntax.hpp"
 
-class SubLocale;
-using SubLocales = std::multimap<std::string,SubLocale,std::less<>>;
+class Import;
+using Imports = std::multimap<std::string,Import,std::less<>>;
 
 class Locale : public Ctxt {
 	struct _Body;
@@ -54,9 +54,9 @@ public:
 		}
 	}
 	/** Declares sublocale */
-	SubLocale& sublocale(std::string&& name, Locale const& loc) &;
+	Import& import(std::string&& name, Locale const& loc) &;
 	/** multimap of sublocales */
-	SubLocales const& sublocales() const &;
+	Imports const& imports() const &;
 	/** Pretty printer for context */
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax) const &;
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax&& syntax) = delete;
@@ -65,16 +65,16 @@ public:
 struct Locale::_Body {
 	Opt<Locale> parent;
 	StrMap<Thm const> thms;
-	std::multimap<std::string,SubLocale,std::less<>> sublocs;
+	std::multimap<std::string,Import,std::less<>> imports;
 	_Body() {}
 	_Body(Opt<Locale> parent) : parent(parent) {}
 };
 
-class SubLocale : public Intp {
+class Import : public Intp {
 	Locale _locale;
-	SubLocale(SubLocale const&) = delete;
+	Import(Import const&) = delete;
 public:
-	SubLocale( Ctxt const& ctxt, Locale const& loc ) :
+	Import( Ctxt const& ctxt, Locale const& loc ) :
 		Intp(Intp::make(loc,ctxt)), _locale(loc) {
 	}
 	/**
@@ -107,16 +107,16 @@ inline void Locale::add_thm(std::string_view const& name, Thm const& thm) & {
 	}
 	_ref->thms.emplace(name,thm);
 }
-inline SubLocales const& Locale::sublocales() const & {
-	return _ref->sublocs;
+inline Imports const& Locale::imports() const & {
+	return _ref->imports;
 }
 
 inline std::ostream& operator<<(std::ostream& os, Locale const& loc) {
 	return os << loc.pretty(SYNTAX);
 }
 
-inline SubLocale& Locale::sublocale(std::string&& name, Locale const& loc) & {
-	auto it = _ref->sublocs.emplace(std::piecewise_construct,
+inline Import& Locale::import(std::string&& name, Locale const& loc) & {
+	auto it = _ref->imports.emplace(std::piecewise_construct,
 		std::make_tuple(std::move(name)),
 		std::forward_as_tuple(*this,loc)
 	);

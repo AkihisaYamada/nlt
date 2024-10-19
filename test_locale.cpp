@@ -21,7 +21,7 @@ int main() try {
 	Preorder.assume( "refl", "x" &= le("x")("x") );
 	Preorder.assume( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
 	cout << "locale Preorder: " << Preorder << endl;
-	auto& imp = Root.sublocale("imp",Preorder);
+	auto& imp = Root.import("imp",Preorder);
 	imp.instantiate(Root.cterm(IMP));
 	imp.discharge([&]{
 		Locale loc = Root.branch();
@@ -92,7 +92,7 @@ int main() try {
 	Iff.assume( "E1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
 	Iff.assume( "E2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
 	{
-		auto& iff_preorder = Iff.sublocale("",Preorder);
+		auto& iff_preorder = Iff.import("",Preorder);
 		iff_preorder.instantiate(Iff.cterm(IFF));
 		iff_preorder.discharge(
 			Iff.thm("I1") << Iff.thm("imp.refl") << Iff.thm("imp.refl")
@@ -123,9 +123,9 @@ int main() try {
 
 	cout << "\n--- PropLogic ---" << endl;
 	Locale Logic = Root.branch();
-	import(Logic.sublocale("",True));
-	import(Logic.sublocale("iff",Iff));
-	import(Logic.sublocale("",And));
+	import_all(Logic.import("",True));
+	import_all(Logic.import("iff",Iff));
+	import_all(Logic.import("",And));
 
 	Logic.add_thm( "and_iff", Logic.thm("iff.I1") << Logic.thm("andE") << Logic.thm("andI") );
 	Logic.add_thm( "and_imp_iff", [&]{
