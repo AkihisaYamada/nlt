@@ -234,11 +234,22 @@ Opt<CTerm> Ctxt::constant(string_view const& sym) const & {
 }
 
 CTerm Ctxt::cterm(Term const& t) const {
-	t.iter_fsyms(
-		[&](auto sym){ if( !constant(sym) ) { throw UnboundVariable(sym); } }
-	);
+	t.iter_syms( [&](auto sym){
+		if( !constant(sym) ) {
+			throw UnboundVariable(sym);
+		}
+	} );
 	return CTerm(*this,t);
 }
+CTerm Ctxt::enclose(Term const& t) {
+	t.iter_syms( [&](auto sym){
+		if( !constant(sym) ) {
+			fix(sym);
+		}
+	} );
+	return CTerm(*this,t);
+}
+
 CTerm Ctxt::fix(string_view const& s) & {
 	if( fixes(s)) {
 		throw DoubleFix(s);
@@ -288,7 +299,7 @@ pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 	Term const* in = &all2->second;
 	while( auto imp2 = in->binary(IMP) ) {
 		auto& prop = imp2->first;
-		prop.iter_fsyms(// spec should not contain thesis
+		prop.iter_syms(// spec should not contain thesis
 			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(prop); }
 		);
 		thms.push_back(CTerm(*this,prop));

@@ -13,18 +13,6 @@ struct ProverFailure : exception {
 };
 class UnfinishedProof : exception {};
 
-Lex LEX = [&]{
-	Lex ret;
-	ret.register_multi_op(int_of_chars("∀"));
-	ret.register_multi_op(int_of_chars("⟹"));
-	ret.register_single_op(',');
-	ret.register_single_op(';');
-	ret.register_multi_op(':');
-	ret.register_multi_op('*');
-	ret.register_multi_op('+');
-	return ret;
-}();
-
 class Prover {
 	unsigned int _depth;
 	Locale _loc;
@@ -61,6 +49,13 @@ public:
 			_syntax->skip(")");
 			return *t;
 		});
+		_syntax->register_multi_op(int_of_chars("∀"));
+		_syntax->register_multi_op(int_of_chars("⟹"));
+		_syntax->register_single_op(',');
+		_syntax->register_single_op(';');
+		_syntax->register_multi_op(':');
+		_syntax->register_multi_op('*');
+		_syntax->register_multi_op('+');
 		_syntax->infix(",",-1,-1,-2);
 		_syntax->infix(";",-1,-1,-2);
 		_syntax->infix(":",-1,-1,-2);
@@ -70,8 +65,8 @@ public:
 		return Prover(*this,_loc.branch(),Opt<Thm>());
 	}
 	Prover prove(Locale const& loc, CTerm const& thesis) {
-		Ctxt ctxt = loc.branch();
-		Thm thm = ctxt.assume(thesis).intro();// thesis ⟹ thesis
+		Ctxt ctxt = loc.Ctxt::branch();
+		Thm thm = ctxt.assume(thesis.weaken(ctxt)).intro();// thesis ⟹ thesis
 		return Prover(*this,loc.branch(),thm);
 	}
 	Thm get_thm() {
@@ -288,7 +283,7 @@ public:
 					names.push_back(name);
 					cout << name << ": " << _syntax->pretty_term(spec) << ", ";
 				}
-				Ctxt thesis_ctxt = _loc.branch();
+				Ctxt thesis_ctxt = _loc.Ctxt::branch();
 				CTerm thesis = thesis_ctxt.fix(avoid("thesis",[&](auto x){
 					return _loc.constant(x);
 				}));
@@ -474,6 +469,7 @@ public:
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
 				bool solo = _syntax->skips("solo");
+				cerr << "registering symbols" << flush;
 				while( !_syntax->skips(";") ) {
 					string const& sym = _syntax->get_token();
 					int ch = int_of_chars(sym.data());

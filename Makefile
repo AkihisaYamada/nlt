@@ -7,8 +7,8 @@ UTIL_TEST_SRCS=$(UTIL_SRCS) $(UTIL_TEST_SRC)
 LOCALE_SRCS=$(UTIL_SRCS) locale.cpp
 LOCALE_TEST_SRC=test_locale.cpp
 LOCALE_TEST_SRCS=$(LOCALE_SRCS) $(LOCALE_TEST_SRC)
-PROVER_SRC=rewriter.cpp definer.cpp prover.cpp
-PROVER_SRCS=$(UTIL_SRCS) $(PROVER_SRC)
+PROVER_SRC=rewriter.cpp definer.cpp concluder.cpp parser.cpp prover.cpp
+PROVER_SRCS=$(LOCALE_SRCS) $(PROVER_SRC)
 SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(LOCALE_TEST_SRC)
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend
@@ -39,7 +39,10 @@ test_locale.exe: $(LOCALE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 test_locale: test_locale.exe
 	./$^
 
-nlm.exe: $(PROVER_SRCS:$(BUILD)/%.o)
+nlm.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
+	${CPP} $^ -o $@
+
+test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
 	${CPP} $^ -o $@
 
 test: test.exe proofscript

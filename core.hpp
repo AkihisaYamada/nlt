@@ -226,12 +226,12 @@ public:
 	}
 	/** @brief Iterates over bound and free symbols.
 	 * 
-	 * @param bsym operation applied on bound symbols
 	 * @param fsym operation applied on free symbols
+	 * @param bsym operation applied on bound symbols
 	 */
 	void iter_syms(
-		std::function<void(std::string_view const&)> const& bsym,
-		std::function<void(std::string_view const&)> const& fsym
+		std::function<void(std::string_view const&)> const& fsym,
+		std::function<void(std::string_view const&)> const& bsym = [](std::string_view const&){}
 	) const {
 		StrMSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
@@ -248,12 +248,12 @@ public:
 	/** @brief The set of free symbols */
 	StrSet fsyms() const {
 		StrSet ret;
-		iter_fsyms([&ret](std::string_view const& fsym){ret.emplace(fsym);});
+		iter_syms([&ret](std::string_view const& fsym){ret.emplace(fsym);});
 		return ret;
 	}
 	bool exists_fsym(std::function<bool(std::string_view const&)> const& test) const {
 		try {
-			iter_fsyms([&](std::string_view const& v){ if( test(v) ) throw 0; });
+			iter_syms([&](std::string_view const& v){ if( test(v) ) throw 0; });
 			return false;
 		} catch (int x) {
 			return true;
@@ -816,13 +816,6 @@ inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	}
 	return {};
 }
-inline CTerm Ctxt::enclose(Term const& t) {
-	return CTerm(*this,t.map(
-		[&](auto sym){ return fix(sym); },
-		[&](auto sym){ return constant(sym); }
-	));
-}
-
 inline Opt<Thm> Ctxt::assumed(size_t i) const & {
 	if( i < revision() ) {
 		if( auto a = _ref->modifiers[i].ref<_Assume>() ) {

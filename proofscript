@@ -21,7 +21,6 @@ show mp: P ⟹ (P ⟹ Q) ⟹ Q;
 	by PQ[OF P];
 
 show weaken: P ⟹ Q ⟹ P;
-	fix P Q;
 	assume P: P, Q: Q;
 	by P;
 
