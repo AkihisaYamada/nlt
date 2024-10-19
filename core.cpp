@@ -125,8 +125,11 @@ Term Term::subst(CSubst const& subst) const {
 			return sym;
 		}
 	};
-	auto fixed = [&](string_view const& sym) {
-		return subst.ctxt().fixed(sym);
+	auto fixed = [&](string_view const& sym)->Opt<Term> {
+		if( auto t = subst.ctxt().constant(sym) ) {
+			return *t;
+		}
+		return {};
 	};
 	return map(f,fixed);
 }
@@ -137,7 +140,12 @@ static function<Term(string_view const&)> unit_map(string_view const& var, Term 
 Term Term::subst(string_view const& var, CTerm const& val) const {
 	return map(
 		unit_map(var,val),
-		[&](auto sym){ return val.ctxt().fixed(sym); }
+		[&](auto sym)->Opt<Term>{
+			if( auto t = val.ctxt().constant(sym) ) {
+				return *t;
+			}
+			return {};
+		}
 	);
 }
 
@@ -212,26 +220,25 @@ Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
 	_ref->fvars.insert(ALL_var);
 }
 
-bool Ctxt::fixed(string_view const& sym) const & {
-	if( fixes(sym) ) {
-		return true;
+Opt<CTerm> Ctxt::constant(string_view const& sym) const & {
+	if( auto ret = fixes(sym) ) {
+		return ret;
 	}
-	if( obtains(sym) ) {
-		return true;
+	if( auto ret = obtains(sym) ) {
+		return ret;
 	}
 	if( auto parent = find_parent() ) {
-		return parent->fixed(sym);
+		return parent->constant(sym);
 	}
-	return false;
+	return {};
 }
 
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_fsyms(
-		[&](auto sym){ if( !fixed(sym) ) { throw UnboundVariable(sym); } }
+		[&](auto sym){ if( !constant(sym) ) { throw UnboundVariable(sym); } }
 	);
 	return CTerm(*this,t);
 }
-
 CTerm Ctxt::fix(string_view const& s) & {
 	if( fixes(s)) {
 		throw DoubleFix(s);
@@ -274,7 +281,7 @@ pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 		throw UnexpectedTerm(thm);
 	}
 	auto sym = all2->first;
-	if( fixed(sym) ) {
+	if( constant(sym) ) {
 		throw DoubleFix(sym);
 	}
 	vector<Thm> thms;
@@ -366,8 +373,11 @@ CTerm CTerm::lift() const {
 
 CTerm Term::csubst(CSubst const& subst) const {
 	auto const& ctxt = subst.ctxt();
-	auto fixed = [&](string_view const& sym) {
-		return subst.ctxt().fixed(sym);
+	auto fixed = [&](string_view const& sym)->Opt<Term> {
+		if( auto t = subst.ctxt().constant(sym) ) {
+			return *t;
+		}
+		return {};
 	};
 	if( subst.empty() ) {
 		// only check that the term is closed.
@@ -376,7 +386,7 @@ CTerm Term::csubst(CSubst const& subst) const {
 	auto f = [&](string_view const& sym)->Term {
 		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
-		} else if( ctxt.fixed(sym) ) {
+		} else if( ctxt.constant(sym) ) {
 			return sym;
 		} else {
 			throw UnboundVariable(sym);

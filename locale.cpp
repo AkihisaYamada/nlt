@@ -6,15 +6,15 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 	if( auto sep = name.find('.'); sep != string::npos ) {
 		return find_thm(name.substr(0,sep),name.substr(sep+1),ancestor);
 	} else {
-		if( auto opt = _thms.finds(name) ) {
+		if( auto opt = _ref->thms.finds(name) ) {
 			return opt->second;
 		}
 		if( auto ret = find_thm("",name,false) ) {
 			return ret;
 		}
-		if( ancestor && _parent ) {
-			if( auto opt = (**_parent).find_thm(name) ) {
-				return opt->weaken(_ctxt);
+		if( ancestor && _ref->parent ) {
+			if( auto opt = _ref->parent->find_thm(name) ) {
+				return opt->weaken(*this);
 			}
 		}
 	}
@@ -22,26 +22,27 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 }
 
 Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& name, bool ancestor) const {
-	auto [it,end] = _sublocs.equal_range(pre);
+	auto [it,end] = _ref->sublocs.equal_range(pre);
 	while( it != end ) {
 		if( auto opt = it->second.find_thm(name) ) {
 			return opt;
 		}
 		it++;
 	}
-	if( ancestor && _parent ) {
-		if( auto opt = (**_parent).find_thm(pre,name,ancestor) ) {
-			return opt->weaken(_ctxt);
+	if( ancestor && _ref->parent ) {
+		if( auto opt = _ref->parent->find_thm(pre,name,ancestor) ) {
+			return opt->weaken(*this);
 		}
 	}
 	return {};
 }
 
-ostream& operator<<(ostream& os, Locale const& loc) {
-	os << "{\n" << loc.ctxt();
-	os << endl << " shows" << endl;
-	for( auto& [name,thm] : loc.thms() ) {
-		os << "\t" << name << ": " << thm << ',' << endl;
-	}
-	return os << "}";
+function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax) const & {
+	return [&](ostream& os)->ostream& {
+		os << "{\n" << *(Ctxt*)this;
+		for( auto& [name,thm] : _ref->thms ) {
+			os << "\tthm " << name << ": " << thm << ';' << endl;
+		}
+		return os << "}";
+	};
 }

@@ -108,7 +108,7 @@ Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 Term strip_all(Term t, Ctxt& ctxt) {
 	while( auto all = t.binder(ALL) ) {
 		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
 		t = b.subst(v,ctxt.fix(nv));
 	}
 	return t;
@@ -117,7 +117,7 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 	thm = thm.weaken(ctxt);
 	while( auto all = thm.binder(ALL) ) {
 		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
 		thm = thm.allE(ctxt.fix(nv));
 	}
 	return thm;
@@ -126,7 +126,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	t = t.weaken(ctxt);
 	while( auto all = t.binder(ALL) ) {
 		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.fixed(x); });
+		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
 		auto nvt = ctxt.fix(nv);
 		t = b.csubst(CSubst(ctxt).assign(v,nvt));
 	}

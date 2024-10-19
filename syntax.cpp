@@ -100,7 +100,7 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 				auto all2 = imp1->first.binder(ALL);// ∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis
 				assert(all2);
 				auto [sym,imps] = *all2;
-				os << "\tobtains " << sym << "\n\t where ";
+				os << "\tobtains " << sym << "\n\t  where ";
 				auto imp = imps.binary(IMP);
 				assert(imp);
 				auto spec = imp->first;
@@ -109,7 +109,7 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 				for(;;) {
 					auto imp2 = imps.binary(IMP);
 					if( !imp2 ) break;
-					os << "\n\t  and " << imp2->first;
+					os << "\n\t    and " << imp2->first;
 					imps = imp2->second;
 				}
 				os << ';' << std::endl;

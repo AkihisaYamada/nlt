@@ -287,7 +287,8 @@ public:
 	 */
 	Term map(
 		std::function<Term(std::string_view const&)> f,
-		std::function<bool(std::string_view const&)> fixed = [](auto){ return false; }
+		std::function<bool(std::string_view const&)>
+			fixed = [](std::string_view const&){ return false; }
 	) const {
 		StrMap<std::string> bsyms;
 		return _map(f,fixed,bsyms);
@@ -394,25 +395,23 @@ public:
 	/** @brief If the @param i th modification was assumption,
 	 * returns the assumed theorem.
 	 */
-	Opt<Thm> assumed(size_t i) const;
-	Opt<Thm> obtained(size_t i) const;
-	Opt<std::string> fixed(size_t i) const;
+	Opt<Thm> assumed(size_t i) const&;
+	Opt<Thm> obtained(size_t i) const&;
+	Opt<std::string const&> fixed(size_t i) const&;
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
-	bool fixes(std::string_view const& name) const {
-		return fvars().contains(name);
-	}
+	Opt<CTerm> fixes(std::string_view const& name) const;
 	/** Locally obtained constants. */
 	StrSet const& consts() const&;
 	/** Tests if a variable is locally obtained. */
-	bool obtains(std::string_view const& name) const {
-		return consts().contains(name);
-	}
+	Opt<CTerm> obtains(std::string_view const& name) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
-	bool fixed(std::string_view const& sym) const &;
+	Opt<CTerm> constant(std::string_view const& sym) const &;
 	/** Ensures that the term is closed in this context. */
 	CTerm cterm(Term const& t) const;
+	/** Make the term closed by fixing free variables. */
+	CTerm enclose(Term const& t);
 	/** @brief Fixes a local variable.
 	 * 
 	 * @param name 
@@ -477,7 +476,7 @@ inline Opt<Ctxt const&> Ctxt::find_parent() const {
 inline size_t Ctxt::revision() const {
 	return _ref->modifiers.size();
 }
-inline Opt<std::string> Ctxt::fixed(size_t i) const {
+inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
 	if( i < revision() ) {
 		if( auto a = _ref->modifiers[i].ref<_Fix>() ) {
 			return *a;
@@ -622,6 +621,17 @@ public:
 	friend bool operator==(CTerm const& l, CTerm const& r) {
 		return l._ctxt == r._ctxt && (Term)l == (Term)r;
 	}
+	/** closed implication */
+	friend CTerm operator>>=(CTerm const& l, CTerm const& r) {
+		if( l._ctxt != r.ctxt() ) {
+			throw WrongContext("⟹");
+		}
+		return CTerm( l._ctxt, (Term)l >>= r );
+	}
+	/** closed abstraction */
+	friend CTerm operator/=(std::string_view const& v, CTerm const& b) {
+		return CTerm( b._ctxt, v /= (Term)b );
+	}
 };
 inline bool operator!=(CTerm const& l, CTerm const& r) {
 	return !(l == r);
@@ -651,7 +661,7 @@ public:
 	}
 	/** @brief Tests if a variable is substituted or fixed in the context. */
 	bool closes(std::string const& var) const {
-		return contains(var) || _ctxt.fixed(var);
+		return contains(var) || _ctxt.constant(var);
 	}
 	void erase(std::string_view const& var) {
 		_map.erase(var);
@@ -751,7 +761,7 @@ public:
 		return _subst.ctxt();
 	};
 	/** @brief next unprocessed fix. */
-	Opt<std::string> fixing() const {
+	Opt<std::string const&> fixing() const {
 		return _src.fixed(_rev);
 	}
 	Opt<CTerm> assuming() const {
@@ -794,7 +804,26 @@ public:
 	friend Ctxt;
 };
 
-inline Opt<Thm> Ctxt::assumed(size_t i) const {
+inline Opt<CTerm> Ctxt::fixes(std::string_view const& name) const {
+	if( auto it = fvars().find(name); it != fvars().end() ) {
+		return CTerm(*this,*it);
+	}
+	return {};
+}
+inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
+	if( auto it = consts().find(name); it != consts().end() ) {
+		return CTerm(*this,*it);
+	}
+	return {};
+}
+inline CTerm Ctxt::enclose(Term const& t) {
+	return CTerm(*this,t.map(
+		[&](auto sym){ return fix(sym); },
+		[&](auto sym){ return constant(sym); }
+	));
+}
+
+inline Opt<Thm> Ctxt::assumed(size_t i) const & {
 	if( i < revision() ) {
 		if( auto a = _ref->modifiers[i].ref<_Assume>() ) {
 			return Thm(CTerm(*this,*a));
@@ -802,7 +831,7 @@ inline Opt<Thm> Ctxt::assumed(size_t i) const {
 	}
 	return {};
 }
-inline Opt<Thm> Ctxt::obtained(size_t i) const {
+inline Opt<Thm> Ctxt::obtained(size_t i) const & {
 	if( i < revision() ) {
 		if( auto a = _ref->modifiers[i].ref<_Obtain>() ) {
 			return Thm(CTerm(*this,*a));

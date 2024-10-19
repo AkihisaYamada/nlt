@@ -17,7 +17,7 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const
 			throw Error(l);
 		}
 	}
-	string thesis = avoid("thesis",[&](string const& x){ return ctxt.fixed(x); });
+	string thesis = avoid("thesis",[&](string const& x){ return ctxt.constant(x); });
 	// proving the existence
 	Ctxt prover = ctxt.branch();
 	prover.fix(thesis);

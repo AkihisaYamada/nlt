@@ -1,4 +1,6 @@
 #include<fstream>
+#include<ranges>
+#include"locale.hpp"
 #include"parser.hpp"
 #include"definer.hpp"
 #include"concluder.hpp"
@@ -25,7 +27,7 @@ Lex LEX = [&]{
 
 class Prover {
 	unsigned int _depth;
-	Ctxt _ctxt;
+	Locale _loc;
 	bool _own_syntax;
 	Ref<Parser> _syntax;
 	Opt<Thm> _thesis;
@@ -33,9 +35,9 @@ class Prover {
 	StrMap<Ref<Rewriter>> _rewriters;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
-	Prover(Prover const& parent, Ctxt const& ctxt, Opt<Thm> thesis) :
+	Prover(Prover const& parent, Locale const& loc, Opt<Thm> thesis) :
 		_depth(parent._depth+1),
-		_ctxt(ctxt),
+		_loc(loc),
 		_syntax(parent._syntax),
 		_own_syntax(false),
 		_thesis(thesis),
@@ -50,7 +52,7 @@ class Prover {
 public:
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
-		_ctxt(Ctxt()),
+		_loc(),
 		_syntax(Ref<Parser>::make<istream&>(is)),
 		_own_syntax(true),
 		_exit_on_error(exit_on_error) {
@@ -65,17 +67,15 @@ public:
 		_syntax->infix(":=",-1,-1,-2);
 	}
 	Prover branch() {
-		return Prover(*this,_ctxt.branch(),Opt<Thm>());
+		return Prover(*this,_loc.branch(),Opt<Thm>());
 	}
-	Prover prove(CTerm const& thesis) {
-		Ctxt const& ctxt = thesis.ctxt();
-		Ctxt loc = ctxt.branch();
-		Thm thm = loc.assume(thesis).intro();// thesis ⟹ thesis
-		Ctxt ctxt2 = ctxt.branch();
-		return Prover(*this,ctxt2,thm);
+	Prover prove(Locale const& loc, CTerm const& thesis) {
+		Ctxt ctxt = loc.branch();
+		Thm thm = ctxt.assume(thesis).intro();// thesis ⟹ thesis
+		return Prover(*this,loc.branch(),thm);
 	}
 	Thm get_thm() {
-		Ctxt loc = _ctxt.branch();
+		auto loc = _loc.branch();
 		if( auto const& thm = _gets_thm(loc) ) {
 			return thm->intro();
 		} else {
@@ -90,7 +90,7 @@ public:
 		}
 		return _rewriters.find(name)->second;
 	}
-	Thm _rewrite( Rewriter const& rewriter, Ctxt const& loc, Thm const& source, vector<char> pos, bool rev = false ) {
+	Thm _rewrite( Rewriter const& rewriter, Locale& loc, Thm const& source, vector<char> pos, bool rev = false ) {
 		if( _syntax->skips("(") ) {
 			while( !_syntax->skips(")") ) {
 				pos.push_back(_syntax->get_int());
@@ -111,7 +111,7 @@ public:
 		return rewriter.rewrite(rules,source,min,max,pos);
 	}
 
-	Opt<Thm> _gets_thm(Ctxt loc) {
+	Opt<Thm> _gets_thm(Locale& loc) {
 		auto const& opt = _syntax->gets_thm_name();
 		if( !opt ) {
 			return {};
@@ -155,7 +155,7 @@ public:
 		if( auto const& term = _syntax->gets_term() ) {
 			Term ret = *term;
 			if( _syntax->skips("$") ) {
-				CSubst subst = _ctxt.branch();
+				CSubst subst = _loc.branch();
 				do {
 					string sym = _syntax->get_token();
 					_syntax->skip(":=");
@@ -171,7 +171,7 @@ public:
 		if( auto const& term = gets_term() ) {
 			return *term;
 		}
-		throw Syntax::Error("Expects a term");
+		throw Error("Expects a term");
 	}
 
 	vector<pair<string,Term>> get_named_terms() {
@@ -209,13 +209,13 @@ public:
 				cout << "Left context." << endl;
 			} else if( _syntax->skips("ctxt") ) {
 				_syntax->skip(";");
-				cout << _syntax->pretty_ctxt(_ctxt) << endl;
+				cout << _loc.pretty(*_syntax) << endl;
 			} else if( _syntax->skips("fix") ) {
 				cout << "Fixing";
 				for(;;) {
 					if( _syntax->skips(";") ) break;
 					string sym = _syntax->get_token();
-					_ctxt.fix(sym);
+					_loc.fix(sym);
 					cout << ' ' << sym << flush;
 				}
 				cout << ';' << endl;
@@ -226,7 +226,7 @@ public:
 					_syntax->skip(":");
 					Term term = _syntax->get_term(0);
 					cout << name << ": " << _syntax->pretty_term(term) << flush;
-					_ctxt.assume(name,term);
+					_loc.assume(name,term);
 					if( !_syntax->skips(",") ) {
 						break;
 					}
@@ -245,21 +245,14 @@ public:
 			} else if( _syntax->skips("name") ) {
 				string name = _syntax->get_thm_name();
 				_syntax->skip(":");
-				_ctxt.claim(name,get_thm());
+				_loc.add_thm(name,get_thm());
 				_syntax->skip(";");
-				cout << "lemma " << name << ": " << _syntax->pretty_thm(_ctxt.thm(name)) << endl;
-			} else if( _syntax->skips("move") ) {
-				Ctxt pctxt = *_ctxt.find_ctxt();
-				string name = _syntax->get_thm_name();
-				_syntax->skip(":");
-				pctxt.claim(name,get_thm().intro());
-				_syntax->skip(";");
-				cout << "theorem " << name << ": " << _syntax->pretty_thm(pctxt.thm(name)) << endl;
+				cout << "lemma " << name << ": " << _syntax->pretty_thm(_loc.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
 				string thm_name = _syntax->get_thm_name();
 				_syntax->skip(":");
-				Ctxt stmt_ctxt = _ctxt.branch();
-				CTerm stmt = stmt_ctxt.enclose(_syntax->get_term(0));
+				auto stmt_loc = _loc.branch();
+				CTerm stmt = stmt_loc.enclose(_syntax->get_term(0));
 				cout << "Show " << thm_name << ": " << _syntax->pretty_term(stmt);
 				if( _syntax->skips(",") ) {
 					_syntax->skip("assuming");
@@ -269,7 +262,7 @@ public:
 						_syntax->skip(":");
 						Term term = _syntax->get_term(0);
 						cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
-						stmt_ctxt.assume(assm_name,term);
+						stmt_loc.assume(assm_name,term);
 						if( !_syntax->skips(",") ) {
 							break;
 						}
@@ -278,36 +271,44 @@ public:
 				}
 				cout << endl;
 				_syntax->skip(";");
-				auto const& thm = prove(stmt).loop();
+				auto const& thm = prove(stmt_loc,stmt).loop();
 				if( !thm ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				_ctxt.claim(thm_name,thm->intro());
+				_loc.add_thm(thm_name,thm->intro());
 			} else if( _syntax->skips("obtain") ) {
 				string sym = _syntax->get_token();
 				_syntax->skip("where");
 				auto specs = get_named_terms();
 				_syntax->skip(";");
-				auto const& pair = _ctxt.obtain(sym,specs);
-				CTerm const& goal = pair.first;
-				Ctxt const& obtainer = pair.second;
 				cout << "Obtaining " << sym << " where ";
-				for( auto& spec : specs ) {
-					cout << spec.first << ": " << _syntax->pretty_term(spec.second) << ", ";
+				vector<string> names;
+				for( auto& [name,spec] : specs ) {
+					names.push_back(name);
+					cout << name << ": " << _syntax->pretty_term(spec) << ", ";
 				}
+				Ctxt thesis_ctxt = _loc.branch();
+				CTerm thesis = thesis_ctxt.fix(avoid("thesis",[&](auto x){
+					return _loc.constant(x);
+				}));
+				Ctxt spec_ctxt = thesis_ctxt.branch();
+				spec_ctxt.fix(sym);
+				CTerm goal = thesis.weaken(spec_ctxt);
+				for( auto& spec : ranges::reverse_view(specs) ) {
+					goal = spec_ctxt.cterm(spec.second) >>= goal;
+				}
+				goal = goal.lift();
+				goal = thesis_ctxt.cterm(ALL)(goal) >>= thesis;
+				goal = goal.lift();
+
 				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
-				auto const& thm_opt = prove(goal).loop();
+				auto const& thm_opt = prove(_loc,goal).loop();
 				if( !thm_opt ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& thm = *thm_opt;
-				if( goal != thm ) {
-					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
-					throw UnfinishedProof();
-				}
-				_ctxt.import(obtainer.interpret(CSubst(_ctxt),{thm}));
+				_loc.obtain(*thm_opt,names.begin());
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
 				Opt<string> name;
@@ -322,7 +323,7 @@ public:
 				if( !_definer ) {
 					throw ProverFailure("definer not setup");
 				}
-				_definer->define(_ctxt,l,r,name);
+				_definer->define(_loc,l,r,name);
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
@@ -330,8 +331,7 @@ public:
 					throw UnfinishedProof();
 				}
 				Rewriter const& rewriter = *_rewriter();
-				Ctxt const& loc = _thesis->ctxt();
-				*_thesis = _rewrite(rewriter,loc,*_thesis,{0});
+				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
 				_syntax->skip(";");
 				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("fold") ) {
@@ -340,8 +340,7 @@ public:
 					throw UnfinishedProof();
 				}
 				Rewriter const& rewriter = *_rewriter();
-				Ctxt const& loc = _thesis->ctxt();
-				*_thesis = _rewrite(rewriter,loc,*_thesis,{0},true);
+				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
 				_syntax->skip(";");
 				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
@@ -351,7 +350,7 @@ public:
 				}
 				Thm const& thm = get_thm().intro();
 				_syntax->skip(";");
-				CTerm stmt = _thesis->app()->first.app()->second;
+				CTerm stmt = _thesis->capp()->first.capp()->second;
 				Ctxt stmt_ctxt = stmt.ctxt().branch();
 				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
 				Ctxt thm_ctxt = stmt_ctxt.branch();
@@ -421,14 +420,14 @@ public:
 					cout << "Registering Congruence:" << endl;
 					for(;;) {
 						if( _syntax->skips("!") ) {
-							CTerm cong_pat = _ctxt.branch().enclose(get_term());
+							CTerm cong_pat = _loc.branch().enclose(get_term());
 							_syntax->skip(":");
 							Thm const& cong_thm = get_thm();
 							rewriter.register_quantifier_cong(cong_pat,cong_thm);
 							cout << "\tquantifier [" << _syntax->pretty_term(cong_pat) <<
 								 "] " << _syntax->pretty_thm(cong_thm) << endl;
 						} else {
-							CTerm cong_pat = _ctxt.branch().enclose(get_term());
+							CTerm cong_pat = _loc.branch().enclose(get_term());
 							_syntax->skip(":");
 							Thm const& cong_thm = get_thm();
 							rewriter.register_cong(cong_pat,cong_thm);
@@ -486,29 +485,14 @@ public:
 				}
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
-				Thm ret = sorry(_thesis->app()->second);
+				Thm ret = sorry(_thesis->capp()->second);
 				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
 				return ret;
 			} else {
 				return Opt<Thm>();
 			}
-		} catch ( MalformedDischarge const& e ) {
-			cerr << "ERROR: Discharging\n\t" << _syntax->pretty_term(e.imp) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
-			_error();
-		} catch ( MalformedInstantiation const& e ) {
-			cerr << "ERROR: Instantiating\n\t" << _syntax->pretty_term(e.all) << endl << "with\t" << _syntax->pretty_term(e.arg) << endl;
-			_error();
-		} catch ( TheoremNotFound const& e ) {
-			cerr << "ERROR: No thm \"" << e.name << "\" found" << endl;
-			_error();
 		} catch ( Error const& e ) {
-			cerr << "ERROR: Unexpected term " << _syntax->pretty_term(e.term) << endl;
-			_error();
-		} catch ( UnboundVariable const& e ) {
-			cerr << "ERROR: Unbound variable " << e.name << endl;
-			_error();
-		} catch ( Syntax::Error const& e ) {
-			cerr << "Syntax ERROR: " << e.message << endl;
+			cerr << "ERROR: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( Rewriter::TooFewSteps const& e ) {
 			cerr << "Rewriter ERROR: Too few steps on: " << _syntax->pretty_term(e.term) << endl;
