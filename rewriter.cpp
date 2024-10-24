@@ -63,40 +63,41 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 		Ctxt const& ctxt = cong.pat.ctxt();
 		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			auto it = ctxt.fvar_list().begin();
-			auto end = ctxt.fvar_list().end();
+			size_t i = 0, n = ctxt.revision();
 			for(;;) {
-				auto const& si = m->get(*it);
+				auto v = ctxt.fixed(i);
+				auto const& si = m->get(*v);
 				assert(si);
-				it++;
+				i++;
 				if( auto const& eq = _step(rules,*si,refl) ) {
 					ret = discharge(ret,*eq);
 					break;
 				}
-				if( it == end ) {
+				if( i == n ) {
 					return {};
 				}
 				ret = discharge(ret,refl.allE(*si));
 			}
-			for( ; it != end; it++ ) {
-				ret = discharge(ret,refl.allE(*m->get(*it)));
+			for( ; i < n; i++ ) {
+				auto v = ctxt.fixed(i);
+				ret = discharge(ret,refl.allE(*m->get(*v)));
 			}
 			return ret;
 		}
 	}
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
+		assert( ctxt.revision() == 1 ); // should have exactly one variable
 		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source = (ξ) α
-			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
-				auto const& s = m->get(var);
-				assert(s);
-				auto const& abs = s->cabs();
-				if( abs ) {
-					CTerm const& s = abs->second;
-					auto const& eq = _step(rules,s,refl.weaken(s.ctxt()));
-					if( eq ) {
-						return equate_abs(qcong.thm,*eq);
-					}
+			auto const& var = *ctxt.fixed(0);
+			auto const& s = m->get(var);
+			assert(s);
+			auto const& abs = s->cabs();
+			if( abs ) {
+				CTerm const& s = abs->second;
+				auto const& eq = _step(rules,s,refl.weaken(s.ctxt()));
+				if( eq ) {
+					return equate_abs(qcong.thm,*eq);
 				}
 			}
 			return {};
@@ -113,14 +114,14 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 		auto const& ctxt = cong.pat.ctxt();
 		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source = C[s...]
 			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			auto var_it = ctxt.fvar_list().begin();
-			auto var_end = ctxt.fvar_list().end();
-			assert( var_it != var_end );
+			auto var_i = 0;
+			auto var_end = ctxt.revision();
+			assert( var_i != var_end );
 			char i = 0;
 			for(;;) {
-				auto const& si = m->get(*var_it);
+				auto const& si = m->get(*ctxt.fixed(var_i));
 				assert(si);
-				var_it++;
+				var_i++;
 				if( *pos_it == i ) {// rewrite step must occur inside this position
 					pos_it++;
 					if( auto const& eq = _step(rules,*si,pos_it,pos_end,refl) ) {
@@ -129,33 +130,33 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 						break;
 					}
 					return {};// no rewrite step was done
-				} else if( var_it == var_end ) {
+				} else if( var_i == var_end ) {
 					return {};
 				} else {
 					ret = discharge(ret,refl.allE(*si));
 					i++;
 				}
 			}
-			for( ; var_it != var_end; var_it++ ) {// remaining variables are instantiated as is
-				ret = discharge(ret,refl.allE(*m->get(*var_it)));
+			for( ; var_i != var_end; var_i++ ) {// remaining variables are instantiated as is
+				ret = discharge(ret,refl.allE(*m->get(*ctxt.fixed(var_i))));
 			}
 			return ret;
 		}
 	}
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
+		assert( ctxt.revision() == 1 );
 		auto const& m = match(ctxt.fvars(),qcong.pat,source);
 		if( m ) {// source = (ξ) α
-			for( auto const& var : ctxt.fvar_list() ) {// shouldn't loop more than once
-				auto const& s = m->get(var);
-				assert(s);
-				auto const& abs = s->cabs();
-				if( abs ) {
-					pos_it++;
-					auto const& eq = _step(rules,abs->second,pos_it,pos_end,refl);
-					if( eq ) {
-						return equate_abs(qcong.thm,*eq);
-					}
+			auto const& var = *ctxt.fixed(0);
+			auto const& s = m->get(var);
+			assert(s);
+			auto const& abs = s->cabs();
+			if( abs ) {
+				pos_it++;
+				auto const& eq = _step(rules,abs->second,pos_it,pos_end,refl);
+				if( eq ) {
+					return equate_abs(qcong.thm,*eq);
 				}
 			}
 			return {};

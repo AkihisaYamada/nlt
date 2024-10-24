@@ -49,6 +49,8 @@ public:
 			_syntax->skip(")");
 			return *t;
 		});
+		_syntax->closer("}");
+		_syntax->closer("]");
 		_syntax->register_multi_op(int_of_chars("∀"));
 		_syntax->register_multi_op(int_of_chars("⟹"));
 		_syntax->register_single_op(',');
@@ -64,10 +66,10 @@ public:
 	Prover branch() {
 		return Prover(*this,_loc.branch(),Opt<Thm>());
 	}
-	Prover prove(Locale const& loc, CTerm const& thesis) {
+	Opt<Thm> prove(Locale const& loc, CTerm const& thesis) {
 		Ctxt ctxt = loc.Ctxt::branch();
 		Thm thm = ctxt.assume(thesis.weaken(ctxt)).intro();// thesis ⟹ thesis
-		return Prover(*this,loc.branch(),thm);
+		return Prover(*this,loc.branch(),thm).loop();
 	}
 	Thm get_thm() {
 		auto loc = _loc.branch();
@@ -202,9 +204,66 @@ public:
 				branch().loop();
 				_syntax->skip("}");
 				cout << "Left context." << endl;
+			} else if( _syntax->skips("locale") ) {
+				string name = _syntax->get_token();
+				cerr << "Creating locale " << name << endl;
+				if( _syntax->skips("{") ) {
+					Prover(*this,_loc.branch(name),{}).loop();
+					_syntax->skip("}");
+				} else {
+					_syntax->skip(";");
+				}
+				cout << "end" << endl;
+			} else if( _syntax->skips("import") ) {
+				string prefix;
+				string name = _syntax->get_token();
+				if( _syntax->skips(":") ) {
+					prefix = name;
+					name = _syntax->get_token();
+				}
+				cerr << "interpreting " << prefix << ": " << name << endl;
+				auto loc = _loc.locale(name);
+				auto& intp = _loc.import(prefix,loc);
+				for(;;) {
+					auto t = _syntax->gets_term(1000);
+					if( !t ) {
+						break;
+					}
+					auto fix = intp.fixing();
+					if( !fix ) {
+						throw Error(Term{"#unexpected-instantiation"}(*t));
+					}
+					intp.instantiate(_loc.cterm(*t));
+				}
+				if( _syntax->skips(",") ) {
+					for(;;){
+						if( _syntax->skips("end") ) {
+							break;
+						}
+						if( _syntax->skips("discharge") ) {
+							auto assm = intp.assuming();
+							if( !assm ) {
+								throw Error("#unexpected-discharge");
+							}
+							auto thm = prove(_loc,*assm);
+							intp.discharge(*thm);
+						}
+						if( _syntax->skips("admit") ) {
+							auto assm = intp.assuming();
+							if( !assm ) {
+								throw Error("#unexpected-admit");
+							}
+							intp.discharge(_loc.Ctxt::assume(*assm));
+						}
+					}
+				} else {
+					_syntax->skip(";");
+				}
+				import_all(intp);
 			} else if( _syntax->skips("ctxt") ) {
+				string name = _syntax->get_token();
 				_syntax->skip(";");
-				cout << _loc.pretty(*_syntax) << endl;
+				cout << _loc.locale(name).pretty(*_syntax) << endl;
 			} else if( _syntax->skips("fix") ) {
 				cout << "Fixing";
 				for(;;) {
@@ -266,7 +325,7 @@ public:
 				}
 				cout << endl;
 				_syntax->skip(";");
-				auto const& thm = prove(stmt_loc,stmt).loop();
+				auto const& thm = prove(stmt_loc,stmt);
 				if( !thm ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
@@ -298,7 +357,7 @@ public:
 				goal = goal.lift();
 
 				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
-				auto const& thm_opt = prove(_loc,goal).loop();
+				auto const& thm_opt = prove(_loc,goal);
 				if( !thm_opt ) {
 					cout << "ERROR: Nothing proved." << endl;
 					throw UnfinishedProof();
@@ -357,8 +416,10 @@ public:
 					throw UnfinishedProof();
 				}
 				Thm arg = thm.weaken(stmt_ctxt);
-				for( auto const& v : thm_ctxt.fvar_list() ) {
-					arg = arg.allE(matcher->get(v)->subst(stmt_ctxt));
+				for( size_t i = 0; i < thm_ctxt.revision(); i++ ) {
+					auto v = thm_ctxt.fixed(i);
+					assert(v);
+					arg = arg.allE(matcher->get(*v)->subst(stmt_ctxt));
 				}
 				arg = arg.intro();
 				Thm const& ret = _thesis->impE(arg);
@@ -504,7 +565,7 @@ public:
 private:
 	void _make_own_syntax() {
 		if( !_own_syntax ) {
-			_syntax.fork();
+//			_syntax.fork();
 			_own_syntax = true;
 		}
 	}

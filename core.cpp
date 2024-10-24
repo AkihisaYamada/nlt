@@ -265,7 +265,7 @@ Thm Ctxt::_assume(Term const& t) & {
 }
 
 Thm Ctxt::assume(Term const& t) & {
-	cterm(t);
+	enclose(t);
 	return _assume(t);
 }
 

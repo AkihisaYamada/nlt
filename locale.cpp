@@ -21,7 +21,7 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 	return {};
 }
 
-Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& name, bool ancestor) const {
+Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name, bool ancestor) const {
 	auto [it,end] = _ref->imports.equal_range(pre);
 	while( it != end ) {
 		if( auto opt = it->second.find_thm(name) ) {
@@ -33,6 +33,16 @@ Opt<Thm> Locale::find_thm(std::string_view const& pre, std::string_view const& n
 		if( auto opt = _ref->parent->find_thm(pre,name,ancestor) ) {
 			return opt->weaken(*this);
 		}
+	}
+	return {};
+}
+
+Opt<Locale> Locale::find_locale(string_view const &name) {
+	if( auto ret = _ref->locales.finds(name) ) {
+		return ret->second;
+	}
+	if( auto& parent = _ref->parent ) {
+		return parent->find_locale(name);
 	}
 	return {};
 }

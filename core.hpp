@@ -390,14 +390,12 @@ public:
 	}
 	/** The set of locally fixed variables. */
 	StrSet const& fvars() const&;
-	/** The list of locally fixed variables. */
-	std::vector<std::string> const& fvar_list() const&;
-	/** @brief If the @param i th modification was assumption,
-	 * returns the assumed theorem.
-	 */
-	Opt<Thm> assumed(size_t i) const&;
-	Opt<Thm> obtained(size_t i) const&;
+	/** The variable fixed at i-th modification. */
 	Opt<std::string const&> fixed(size_t i) const&;
+	/** The assumption made at the i-th modification. */
+	Opt<Thm> assumed(size_t i) const&;
+	/** The constant name obtained at the i-th modification. */
+	Opt<Thm> obtained(size_t i) const&;
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
@@ -454,8 +452,6 @@ struct Ctxt::Body {
 	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
 	StrSet fvars;
-	/** The vector of locally fixed variables. */
-	std::vector<std::string> fvar_list;
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
 };
@@ -487,9 +483,6 @@ inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
 
 inline StrSet const& Ctxt::fvars() const& {
 	return _ref->fvars;
-}
-inline std::vector<std::string> const& Ctxt::fvar_list() const& {
-	return _ref->fvar_list;
 }
 inline StrSet const& Ctxt::consts() const& {
 	return _ref->constants;

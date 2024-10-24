@@ -16,7 +16,8 @@ int main() try {
 	Term le = Term(LE);
 	Term thesis = Term("thesis");
 	Locale Root;
-	auto Preorder = Root.branch();
+	Root.branch("Preorder");
+	auto Preorder = *Root.find_locale("Preorder");
 	Preorder.fix(LE);
 	Preorder.assume( "refl", "x" &= le("x")("x") );
 	Preorder.assume( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
