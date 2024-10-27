@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const& name) const {
+pair<string,Thm> Definer::define(Ctxt& ctxt, Term const& l, Term const& r) const {
 	auto unc = uncurry(l);
 	string const& f = unc.first;
 	// building the rule and the lambda term for f
@@ -26,6 +26,7 @@ void Definer::define(Ctxt& ctxt, Term const& l, Term const& r, Opt<string> const
 	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});
 	thm = discharge(thm,rewriter->refl);
 	thm = thm.intro();
-	ctxt.obtain(thm);
+	auto[x,props] = ctxt.obtain(thm);
+	return {f,props[0]};
 }
 

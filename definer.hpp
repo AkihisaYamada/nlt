@@ -18,7 +18,7 @@ public:
 	{
 		this->beta.add(beta);
 	}
-	void define(Ctxt& ctxt, Term const& l, Term const& r, Opt<std::string> const& name) const;
+	std::pair<std::string,Thm> define(Ctxt& ctxt, Term const& l, Term const& r) const;
 };
 
 

@@ -84,7 +84,7 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 			}
 		}
 		if( auto fix2 = val.cfix() ) {
-			auto [_,x2,b2] = *fix2;
+			auto [x2,_,b2] = *fix2;
 			if( fsyms.contains(x) ) {
 				matcher.assign(x,x2);
 			}

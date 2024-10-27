@@ -338,7 +338,7 @@ struct TheoremNotFound : public Error {
 		Error(Term("#theorem_not_found")(name)) {}
 };
 struct WrongContext : public Error {
-	WrongContext(std::string_view const& msg) : Error(Term("#wong_context")(msg)) {}
+	WrongContext(std::string_view const& msg) : Error(Term("#wrong_context")(msg)) {}
 };
 
 struct DoubleFix : public Error {

@@ -3,20 +3,19 @@
 using namespace std;
 
 Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
-	if( auto sep = name.find('.'); sep != string::npos ) {
+	if( auto opt = _ref->thms.finds(name) ) {// current locale
+		return opt->second;
+	}
+	if( auto ret = find_thm("",name,false) ) {// unnamed import
+		return ret;
+	}
+	if( ancestor && _ref->parent ) {
+		if( auto opt = _ref->parent->find_thm(name) ) {// parent
+			return opt->weaken(*this);
+		}
+	}
+	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
 		return find_thm(name.substr(0,sep),name.substr(sep+1),ancestor);
-	} else {
-		if( auto opt = _ref->thms.finds(name) ) {
-			return opt->second;
-		}
-		if( auto ret = find_thm("",name,false) ) {
-			return ret;
-		}
-		if( ancestor && _ref->parent ) {
-			if( auto opt = _ref->parent->find_thm(name) ) {
-				return opt->weaken(*this);
-			}
-		}
 	}
 	return {};
 }

@@ -66,10 +66,15 @@ public:
 	Prover branch() {
 		return Prover(*this,_loc.branch(),Opt<Thm>());
 	}
-	Opt<Thm> prove(Locale const& loc, CTerm const& thesis) {
+	Thm prove(Locale const& loc, CTerm const& goal) {
 		Ctxt ctxt = loc.Ctxt::branch();
-		Thm thm = ctxt.assume(thesis.weaken(ctxt)).intro();// thesis ⟹ thesis
-		return Prover(*this,loc.branch(),thm).loop();
+		Thm thesis = ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
+		auto thm = Prover(*this,loc.branch(),thesis).loop();
+		if( !thm ) {
+			cerr << "ERROR: Nothing proved." << endl;
+			_error();
+		}
+		return *thm;
 	}
 	Thm get_thm() {
 		auto loc = _loc.branch();
@@ -233,20 +238,28 @@ public:
 					if( !fix ) {
 						throw Error(Term{"#unexpected-instantiation"}(*t));
 					}
-					intp.instantiate(_loc.cterm(*t));
+					intp.instantiate( *t == "_" ? _loc.fix(*fix) : _loc.cterm(*t) );
+				}
+				for(;;) {
+					auto fix = intp.fixing();
+					if( !fix ) {
+						break;
+					}
+					auto t = _loc.fixes(*fix);
+					intp.instantiate( t ? *t : _loc.fix(*fix) );
 				}
 				if( _syntax->skips(",") ) {
 					for(;;){
-						if( _syntax->skips("end") ) {
-							break;
-						}
 						if( _syntax->skips("discharge") ) {
 							auto assm = intp.assuming();
 							if( !assm ) {
 								throw Error("#unexpected-discharge");
 							}
+							_indent();
+							cerr << "discharging " << _syntax->pretty_term(*assm) << endl;
 							auto thm = prove(_loc,*assm);
-							intp.discharge(*thm);
+							intp.discharge(thm);
+							continue;
 						}
 						if( _syntax->skips("admit") ) {
 							auto assm = intp.assuming();
@@ -254,8 +267,31 @@ public:
 								throw Error("#unexpected-admit");
 							}
 							intp.discharge(_loc.Ctxt::assume(*assm));
+							continue;
 						}
+						if( _syntax->skips("retain") ) {
+							auto obtain = intp.obtaining();
+							if( !obtain ) {
+								throw Error("#unexpected-retain");
+							}
+							auto term = _syntax->get_term();
+							CTerm specs = obtain->cbinder(ALL)->second;
+							vector<Thm> thms;
+							for(;;) {
+								auto imp = specs.cbinary(IMP);
+								if( !imp ) {
+									break;
+								}
+								CTerm spec = imp->first;
+								thms.push_back(prove(_loc,spec));
+								specs = imp->second;
+							}
+							intp.retain(_loc.cterm(term),thms);
+							continue;
+						}
+						break;
 					}
+					_syntax->skip("end");
 				} else {
 					_syntax->skip(";");
 				}
@@ -307,7 +343,7 @@ public:
 				_syntax->skip(":");
 				auto stmt_loc = _loc.branch();
 				CTerm stmt = stmt_loc.enclose(_syntax->get_term(0));
-				cout << "Show " << thm_name << ": " << _syntax->pretty_term(stmt);
+				cout << "Showing " << thm_name << ": " << _syntax->pretty_term(stmt);
 				if( _syntax->skips(",") ) {
 					_syntax->skip("assuming");
 					cout << ", assuming " << flush;
@@ -325,12 +361,8 @@ public:
 				}
 				cout << endl;
 				_syntax->skip(";");
-				auto const& thm = prove(stmt_loc,stmt);
-				if( !thm ) {
-					cout << "ERROR: Nothing proved." << endl;
-					throw UnfinishedProof();
-				}
-				_loc.add_thm(thm_name,thm->intro());
+				auto const& thm = prove(stmt_loc,stmt).intro();
+				_loc.add_thm(thm_name,thm);
 			} else if( _syntax->skips("obtain") ) {
 				string sym = _syntax->get_token();
 				_syntax->skip("where");
@@ -342,27 +374,23 @@ public:
 					names.push_back(name);
 					cout << name << ": " << _syntax->pretty_term(spec) << ", ";
 				}
-				Ctxt thesis_ctxt = _loc.Ctxt::branch();
-				CTerm thesis = thesis_ctxt.fix(avoid("thesis",[&](auto x){
+				auto thesis_loc = _loc.branch();
+				CTerm thesis = thesis_loc.fix(avoid("thesis",[&](auto x){
 					return _loc.constant(x);
 				}));
-				Ctxt spec_ctxt = thesis_ctxt.branch();
+				Ctxt spec_ctxt = thesis_loc.Ctxt::branch();
 				spec_ctxt.fix(sym);
 				CTerm goal = thesis.weaken(spec_ctxt);
 				for( auto& spec : ranges::reverse_view(specs) ) {
 					goal = spec_ctxt.cterm(spec.second) >>= goal;
 				}
 				goal = goal.lift();
-				goal = thesis_ctxt.cterm(ALL)(goal) >>= thesis;
-				goal = goal.lift();
-
-				cout << endl << "Proving " << _syntax->pretty_term(goal) << endl;
-				auto const& thm_opt = prove(_loc,goal);
-				if( !thm_opt ) {
-					cout << "ERROR: Nothing proved." << endl;
-					throw UnfinishedProof();
-				}
-				_loc.obtain(*thm_opt,names.begin());
+				goal = thesis_loc.cterm(ALL)(goal) >>= thesis;
+				cout << endl;
+				_indent();
+				cout << "Prove " << _syntax->pretty_term(goal) << endl;
+				auto const& thm = prove(thesis_loc,goal).intro();
+				_loc.obtain(thm,names.begin());
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
 				Opt<string> name;
@@ -377,7 +405,8 @@ public:
 				if( !_definer ) {
 					throw ProverFailure("definer not setup");
 				}
-				_definer->define(_loc,l,r,name);
+				auto [f,thm] = _definer->define(_loc,l,r);
+				_loc.add_thm( name ? *name : f + "_def", thm );
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
@@ -413,7 +442,7 @@ public:
 				Opt<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
 				if( !matcher ) {
 					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
-					throw UnfinishedProof();
+					_error();
 				}
 				Thm arg = thm.weaken(stmt_ctxt);
 				for( size_t i = 0; i < thm_ctxt.revision(); i++ ) {
