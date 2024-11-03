@@ -21,7 +21,7 @@ public:
 	/** Creates a named branch. */
 	Locale branch(std::string const& name);
 	/** Obtains the parent locale. */
-	Opt<Locale> parent() const;
+	Opt<Locale const> parent() const;
 	/** @brief Local theorems.
 	 * 
 	 * @return map from the theorem names to the statements.
@@ -30,8 +30,8 @@ public:
 	/** @brief Finds a named theorem from the locale or an ancestor. */
 	Opt<Thm> find_thm(std::string_view const& name, bool ancestor = true) const;
 	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
-	Opt<Thm> find_thm(std::string_view const& pre, std::string_view const& name, bool ancestor = true) const;
-	/** @brief Obtains a named theorem from the locale or an ancestor.
+	Opt<Thm> find_thm(std::string_view const& pre, std::string_view const& name) const;
+	/** @brief Obtains a named theorem from the locale.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
 	Thm thm(std::string_view const& name) const {
@@ -64,25 +64,25 @@ public:
 	/** multimap of imports */
 	Imports const& imports() const;
 	/** Finds branch locale */
-	Opt<Locale> find_locale(std::string_view const& name);
-	Locale locale(std::string_view const& name) {
+	Opt<Locale> find_locale(std::string_view const& name, bool ancestor = true) const;
+	Locale locale(std::string_view const& name) const {
 		if( auto x = find_locale(name) ) {
 			return *x;
 		}
 		throw Error(Term("#locale_not_found")(name));
 	}
 	/** Pretty printer for context */
-	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax) const &;
+	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax&& syntax) = delete;
 };
 
 struct Locale::_Body {
-	Opt<Locale> parent;
+	Opt<Locale const> parent;
 	StrMap<Thm const> thms;
-	StrMap<Locale> locales;
+	StrMap<Locale const> locales;
 	std::multimap<std::string,Import,std::less<>> imports;
 	_Body() {}
-	_Body(Opt<Locale> parent) : parent(parent) {}
+	_Body(Opt<Locale const> parent) : parent(parent) {}
 };
 
 class Import : public Intp {
@@ -92,7 +92,7 @@ public:
 		Intp(Intp::make(loc,ctxt)), _locale(loc) {
 	}
 	/**
-	 * @brief Obtains a theorem in the sublocale.
+	 * @brief Obtains a theorem in the interpretation.
 	 * 
 	 * @param name 
 	 * @return Opt<Thm> 
@@ -107,12 +107,16 @@ public:
 
 inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
 inline Locale Locale::branch() const {
-	return Locale(Ref<_Body>::make(*this), Ctxt::branch());
+	auto ret = Locale(Ref<_Body>::make(Opt<Locale const>(*this)), Ctxt::branch());
+DEB( id() << " -> " << ret.pretty(SYNTAX) );
+	return ret;
 }
 inline Locale Locale::branch(std::string const &name) {
-	return _ref->locales.emplace(name,branch()).first->second;
+	auto loc = branch();
+DEB( id() << " -> " << name << ": " );
+	return _ref->locales.emplace(name,loc).first->second;
 }
-inline Opt<Locale> Locale::parent() const
+inline Opt<Locale const> Locale::parent() const
 {
 	return _ref->parent;
 }
@@ -121,7 +125,7 @@ inline StrMap<Thm const> const& Locale::thms() const {
 }
 inline void Locale::add_thm(std::string_view const& name, Thm const& thm) {
 	if( thm.ctxt() != *this ) {
-		throw Error(Term("#locale")(Term("add_thm")));
+		throw Error(Term("#locale")("add_thm")(thm));
 	}
 	_ref->thms.emplace(name,thm);
 }

@@ -8,9 +8,13 @@
 #include<exception>
 #include<functional>
 #include<list>
+#include<iostream>
 #include"ref.hpp"
 #include"sum.hpp"
 #include"map.hpp"
+
+
+#define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << std::endl; } while(0)
 
 #define ALL_char '∀'
 #define IMP_char '⟹'
@@ -370,6 +374,8 @@ public:
 	Ctxt(Ctxt&& other) : _ref(std::move(other._ref)) {}
 	/** The root Ctxt */
 	Ctxt();
+	/** unique ID of the context */
+	void const* id() const;
 	/** Optionally returns the parent context. */
 	Opt<Ctxt const&> find_parent() const;
 	/** @brief Obtains the parent context.
@@ -455,7 +461,9 @@ struct Ctxt::Body {
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
 };
-
+inline void const* Ctxt::id() const {
+	return (void*)&*_ref;
+}
 /** @brief dummy: Contexts are equal only if they have the same reference to the body.
  * Therefore, two context bodies are always considered unequal.
  */
@@ -743,7 +751,9 @@ class Intp {
 	CSubst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
-	Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {}
+	Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
+DEB( src.id() << " --> " << tgt.id() );
+	}
 public:
 	/** @brief makes initial interpretation.
 	 @param src the context to be interpreted

@@ -344,7 +344,6 @@ Thm Thm::intro() const {
 	}
 	auto const& parent = _ctxt.ctxt();
 	Term stmt = *this;
-	
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
 		if( auto const& assm = _ctxt.assumed(i) ) {

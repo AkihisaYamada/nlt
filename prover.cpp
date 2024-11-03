@@ -63,26 +63,27 @@ public:
 		_syntax->infix(":",-1,-1,-2);
 		_syntax->infix(":=",-1,-1,-2);
 	}
-	Prover branch() {
-		return Prover(*this,_loc.branch(),Opt<Thm>());
-	}
 	Thm prove(Locale const& loc, CTerm const& goal) {
 		Ctxt ctxt = loc.Ctxt::branch();
 		Thm thesis = ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
-		auto thm = Prover(*this,loc.branch(),thesis).loop();
+		auto thm = Prover(*this,loc,thesis).loop();
 		if( !thm ) {
-			cerr << "ERROR: Nothing proved." << endl;
-			_error();
+			throw Error("#proof_expected");
 		}
 		return *thm;
 	}
-	Thm get_thm() {
+	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
 		if( auto const& thm = _gets_thm(loc) ) {
 			return thm->intro();
-		} else {
-			throw Parser::Error("expects a theorem");
 		}
+		return {};
+	}
+	Thm get_thm() {
+		if( auto thm = gets_thm() ) {
+			return *thm;
+		}
+		throw Parser::Error("expects a theorem");
 	}
 	Ref<Rewriter>& _rewriter() {
 		string name;
@@ -113,12 +114,13 @@ public:
 		return rewriter.rewrite(rules,source,min,max,pos);
 	}
 
-	Opt<Thm> _gets_thm(Locale& loc) {
+	Opt<Thm> _gets_thm(Locale loc) {
 		auto const& opt = _syntax->gets_thm_name();
 		if( !opt ) {
 			return {};
 		}
 		Thm ret = loc.thm(*opt);
+DEB( loc.id() << " " << _syntax->pretty_thm(ret) );
 		for(;;) {
 			if( _syntax->skips("(") ) {
 				do {
@@ -129,6 +131,7 @@ public:
 				if( _syntax->skips("OF") ) {
 					while( auto const& arg = _gets_thm(loc) ) {
 						ret = discharge(ret,*arg);
+DEB( _syntax->pretty_thm(ret) );
 					}
 				} else if( _syntax->skips("unfolded") ) {
 					auto const& rewriter = *_rewriter();
@@ -139,6 +142,7 @@ public:
 				}
 				_syntax->skip("]");
 			} else {
+DEB( _syntax->pretty_thm(ret) );
 				return ret;
 			}
 		}
@@ -205,10 +209,11 @@ public:
 			_indent();
 			_flush();
 			if( _syntax->skips("{") ) {
-				cout << "Creating context." << endl;
-				branch().loop();
+				Locale loc = _loc.branch("");
+				cout << "Creating context " << loc.id() << endl;
+				Prover(*this,loc,{}).loop();
 				_syntax->skip("}");
-				cout << "Left context." << endl;
+				cout << "Leaving context." << endl;
 			} else if( _syntax->skips("locale") ) {
 				string name = _syntax->get_token();
 				cerr << "Creating locale " << name << endl;
@@ -256,8 +261,11 @@ public:
 								throw Error("#unexpected-discharge");
 							}
 							_indent();
-							cerr << "discharging " << _syntax->pretty_term(*assm) << endl;
-							auto thm = prove(_loc,*assm);
+							cerr << "discharging " << _syntax->pretty_cterm(*assm) << endl;
+							Locale loc = _loc.branch();
+							CTerm goal = assm->weaken(loc);
+DEB(loc);
+							auto thm = prove(loc,goal).intro();
 							intp.discharge(thm);
 							continue;
 						}
@@ -282,8 +290,9 @@ public:
 								if( !imp ) {
 									break;
 								}
-								CTerm spec = imp->first;
-								thms.push_back(prove(_loc,spec));
+								Locale loc = _loc.branch();
+								CTerm spec = imp->first.weaken(loc);
+								thms.push_back(prove(loc,spec).intro());
 								specs = imp->second;
 							}
 							intp.retain(_loc.cterm(term),thms);
@@ -315,8 +324,8 @@ public:
 					string name = _syntax->get_thm_name();
 					_syntax->skip(":");
 					Term term = _syntax->get_term(0);
-					cout << name << ": " << _syntax->pretty_term(term) << flush;
 					_loc.assume(name,term);
+					cout << name << ": " << _syntax->pretty_thm(_loc.thm(name)) << flush;
 					if( !_syntax->skips(",") ) {
 						break;
 					}
@@ -335,9 +344,10 @@ public:
 			} else if( _syntax->skips("name") ) {
 				string name = _syntax->get_thm_name();
 				_syntax->skip(":");
-				_loc.add_thm(name,get_thm());
+				auto const& thm = get_thm();
+				cout << "naming " << name << ": " << _syntax->pretty_thm(thm) << endl;
+				_loc.add_thm(name,thm);
 				_syntax->skip(";");
-				cout << "lemma " << name << ": " << _syntax->pretty_thm(_loc.thm(name)) << endl;
 			} else if( _syntax->skips("show") ) {
 				string thm_name = _syntax->get_thm_name();
 				_syntax->skip(":");
@@ -361,7 +371,7 @@ public:
 				}
 				cout << endl;
 				_syntax->skip(";");
-				auto const& thm = prove(stmt_loc,stmt).intro();
+				auto const& thm = prove(stmt_loc,stmt);
 				_loc.add_thm(thm_name,thm);
 			} else if( _syntax->skips("obtain") ) {
 				string sym = _syntax->get_token();
@@ -431,7 +441,7 @@ public:
 					cerr << "No goal for \"by\"" << endl;
 					throw UnfinishedProof();
 				}
-				Thm const& thm = get_thm().intro();
+				Thm const& thm = get_thm();
 				_syntax->skip(";");
 				CTerm stmt = _thesis->capp()->first.capp()->second;
 				Ctxt stmt_ctxt = stmt.ctxt().branch();
@@ -481,9 +491,12 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("conclude") ) {
-					Thm const& thm = get_thm();
-					_concluder.insert(thm);
-					cout << "Added concluder: " << _syntax->pretty_thm(thm) << endl;
+					cout << "Adding concluder: ";
+					while( auto thm = gets_thm() ) {
+						cout << _syntax->pretty_thm(*thm);
+						_concluder.insert(*thm);
+						cout << "\t" << *thm << endl;
+					}
 				} else if( _syntax->skips("rewrite") ) {
 					string name;
 					if( _syntax->skips("[") ) {
@@ -578,7 +591,7 @@ public:
 				return Opt<Thm>();
 			}
 		} catch ( Error const& e ) {
-			cerr << "ERROR: " << _syntax->pretty_term(e.term) << endl;
+			cerr << _syntax->line_counter() << "ERROR: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( Rewriter::TooFewSteps const& e ) {
 			cerr << "Rewriter ERROR: Too few steps on: " << _syntax->pretty_term(e.term) << endl;

@@ -59,6 +59,7 @@ public:
 private:
 	// input stream
 	std::istream* pis;
+	// lexical definition
 	Lex const* plex;
 	// stores the next token type
 	TokenType token_type;
@@ -70,12 +71,14 @@ private:
 	size_t wp;
 	// read pointer
 	size_t rp;
+	// line counter
+	size_t line_count;
 	// writes one character into the buffer
 	int fetch_char();
 	void read_continue( Lex::CharType t );
 	void skip_spaces();
 public:
-	Lexer( Lex const& lex, std::istream& is ) : plex(&lex), pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
+	Lexer( Lex const& lex, std::istream& is ) : plex(&lex), pis(&is), wp(0), rp(0), line_count(1), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
 	// peeks (not process) the next token
 	std::string_view peek_token();
 	TokenType next_token_type() {
@@ -118,6 +121,9 @@ public:
 		auto ret = std::string(peek_token());
 		token_type = Unset;
 		return ret;
+	}
+	size_t line_counter() const {
+		return line_count;
 	}
 };
 

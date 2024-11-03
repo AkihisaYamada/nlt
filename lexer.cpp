@@ -66,6 +66,9 @@ int Lexer::fetch_char() {
 	if( c == char_traits<char>::eof() ) {
 		return c;
 	}
+	if( c == '\n' ) {
+		line_count++;
+	}
 	char* start = &buf[wp];
 	int len = char_size(c);
 	*start = c;

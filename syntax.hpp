@@ -4,8 +4,6 @@
 #include<iostream>
 #include"core.hpp"
 
-#define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << endl; } while(0)
-
 template<class I, class T>
 void out_sep(
 	std::ostream& os, I it, I const& end, std::string const& sep,
@@ -59,6 +57,7 @@ public:
 		_infixes.insert({sym,{level,llevel,rlevel}});
 	}
 	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const &;
+	std::function<std::ostream&(std::ostream&)> pretty_cterm(CTerm const& term) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const &;

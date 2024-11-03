@@ -68,10 +68,13 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 	};
 }
 
-function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& thm) const & {
-	return [this,thm](ostream& os) -> ostream& {
-		return os << pretty_term(thm);
+function<ostream&(ostream&)> Syntax::pretty_cterm(CTerm const& t) const & {
+	return [this,t](ostream& os) -> ostream& {
+		return os << '@' << t.ctxt().id() << ' ' << pretty_term(t);
 	};
+}
+function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& t) const & {
+	return pretty_cterm(t);
 }
 
 function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const & {
