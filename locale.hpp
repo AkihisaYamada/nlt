@@ -107,14 +107,10 @@ public:
 
 inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
 inline Locale Locale::branch() const {
-	auto ret = Locale(Ref<_Body>::make(Opt<Locale const>(*this)), Ctxt::branch());
-DEB( id() << " -> " << ret.pretty(SYNTAX) );
-	return ret;
+	return Locale(Ref<_Body>::make(Opt<Locale const>(*this)), Ctxt::branch());
 }
 inline Locale Locale::branch(std::string const &name) {
-	auto loc = branch();
-DEB( id() << " -> " << name << ": " );
-	return _ref->locales.emplace(name,loc).first->second;
+	return _ref->locales.emplace(name,branch()).first->second;
 }
 inline Opt<Locale const> Locale::parent() const
 {

@@ -4,6 +4,13 @@ symbol solo ¬;
 prefix ∀ 0 0;
 infix ⟹ 1 0 0;
 
+show mp: Q, assuming P: P, PQ: P ⟹ Q;
+	by PQ[OF P];
+
+show weaken: P ⟹ Q ⟹ P;
+	assume P: P, Q: Q;
+	by P;
+
 infix ≤ 51 51 50;
 
 locale Reflexive {
@@ -31,28 +38,18 @@ locale Equivalence {
 }
 
 import imp: Preorder (⟹),
-	discharge {
+	discharge
 		fix P;
 		assume P: P;
-	} by P;
-	discharge {
+		by P;
+	discharge
 		fix P Q R;
 		assume PQ: P ⟹ Q;
 		assume QR: Q ⟹ R;
 		assume P: P;
-		name Q: PQ[OF P];
-		name R: QR[OF Q];
-	} by R;
+		note Q: PQ[OF P];
+		by QR[OF Q];
 end
-
-show mp: P ⟹ (P ⟹ Q) ⟹ Q;
-	assume P: P;
-	assume PQ: P ⟹ Q;
-	by PQ[OF P];
-
-show weaken: P ⟹ Q ⟹ P;
-	assume P: P, Q: Q;
-	by P;
 
 show imp_commute: (P ⟹ Q ⟹ R) ⟹ Q ⟹ P ⟹ R;
 	assume PQR: P ⟹ Q ⟹ R, Q: Q, P: P;
@@ -79,7 +76,7 @@ locale And {
 		discharge
 			assume PQ: P ∧ Q;
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
-		end
+	end
 	show and_elim: P ∧ Q ⟹ ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 		assume PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R;
 		by PQR[OF and_elim1[OF PQ] and_elim2[OF PQ]];
@@ -178,8 +175,8 @@ locale Iff {
 			fix P Q R;
 			assume PQ: P ⟺ Q;
 			assume QR: Q ⟺ R;
-			name PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
-			name RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
+			note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
+			note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 			by iff_intro[OF PR RP];
 		end
 
@@ -494,7 +491,7 @@ show iff_true_iff: (P ⟺ true) ⟺ P;
 	unfold[iff](0) iff.commute;
 	by true_iff_iff(P);
 
-name iff_true: iff_elim2[OF iff_true_iff];
+note iff_true: iff_elim2[OF iff_true_iff];
 
 show false_imp_false_iff: (false ⟹ false) ⟺ true;
 	by iff_true[OF imp.refl];
@@ -616,8 +613,8 @@ show const_arg: is_const c ⟹ const_arg (c x) = x;
 		assume 3: ∃d. is_const d ∧ c x = d y;
 		obtain d where 4: is_const d ∧ c x = d y;
 			by EX.elim[OF 3];
-		name d: and_elim1[OF 4];
-		name cxdy: and_elim2[OF 4];
+		note d: and_elim1[OF 4];
+		note cxdy: and_elim2[OF 4];
 		show 5: c = d ∧ x = y;
 			by const_app_eq_app[OF c d cxdy];
 		by and_elim2[OF 5];
@@ -977,8 +974,8 @@ show prop_or: prop P ⟹ prop Q ⟹ prop (P ∨ Q);
 
 define pred p := ∀x. prop (p x);
 
-name pred.intro: eq_prop2[OF pred.def];
-name pred.elim: eq_prop1[OF pred.def];
+note pred.intro: eq_prop2[OF pred.def];
+note pred.elim: eq_prop1[OF pred.def];
 
 
 
@@ -988,8 +985,8 @@ name pred.elim: eq_prop1[OF pred.def];
 
 define reflexive A r := ∀a. a ∈ A ⟹ r a a;
 
-name reflexive.intro: eq_prop2[OF reflexive.def];
-name reflexive.elim: eq_prop1[OF reflexive.def];
+note reflexive.intro: eq_prop2[OF reflexive.def];
+note reflexive.elim: eq_prop1[OF reflexive.def];
 
 show imp.reflexive: reflexive UNIV (⟹);
 	show 1: ∀a. a ∈ UNIV ⟹ a ⟹ a;

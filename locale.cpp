@@ -3,17 +3,13 @@
 using namespace std;
 
 Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
-DEB( id() << " " << name << "?" );
 	if( auto opt = _ref->thms.finds(name) ) {// current locale
-DEB( id() << " " << name << " " << opt->second.ctxt().id() );
 		return opt->second;
 	}
 	if( auto ret = find_thm("",name) ) {// unnamed import or child locale
-DEB( id() << " " << name << " " << ret->ctxt().id() );
 		return ret;
 	}
 	if( ancestor && _ref->parent ) {
-DEB( parent()->id() );
 		if( auto opt = _ref->parent->find_thm(name) ) {// parent
 			auto ret = opt->weaken(*this);
 			return ret;
@@ -27,7 +23,6 @@ DEB( parent()->id() );
 
 Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name) const {
 	// pre as interpretations
-DEB( id() << " " << pre << " . " << name << "?" );
 	auto [it,end] = _ref->imports.equal_range(pre);
 	while( it != end ) {
 		if( auto opt = it->second.find_thm(name) ) {
@@ -37,7 +32,6 @@ DEB( id() << " " << pre << " . " << name << "?" );
 	}
 	// pre as child locales
 	if( auto loc = find_locale(pre,false) ) {
-DEB(*this << *loc);
 		if( auto thm = loc->find_thm(name,false) ) {
 			Thm ret = thm->intro();
 			return ret;

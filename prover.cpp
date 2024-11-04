@@ -7,6 +7,14 @@
 
 using namespace std;
 
+using ClaimStatus = pair<bool,Opt<string>>;
+ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
+	if( cs.second ) {
+		os << *cs.second;
+	}
+	return os << ( cs.first ? "! " : ": " );
+}
+
 struct ProverFailure : exception {
 	string message;
 	ProverFailure(string const& message) : message(message) {}
@@ -63,14 +71,10 @@ public:
 		_syntax->infix(":",-1,-1,-2);
 		_syntax->infix(":=",-1,-1,-2);
 	}
-	Thm prove(Locale const& loc, CTerm const& goal) {
-		Ctxt ctxt = loc.Ctxt::branch();
+	Prover prover(Locale const& loc, CTerm const& goal) {
+		Ctxt ctxt = goal.ctxt().branch();
 		Thm thesis = ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
-		auto thm = Prover(*this,loc,thesis).loop();
-		if( !thm ) {
-			throw Error("#proof_expected");
-		}
-		return *thm;
+		return Prover(*this,loc,thesis);
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -120,7 +124,6 @@ public:
 			return {};
 		}
 		Thm ret = loc.thm(*opt);
-DEB( loc.id() << " " << _syntax->pretty_thm(ret) );
 		for(;;) {
 			if( _syntax->skips("(") ) {
 				do {
@@ -131,7 +134,6 @@ DEB( loc.id() << " " << _syntax->pretty_thm(ret) );
 				if( _syntax->skips("OF") ) {
 					while( auto const& arg = _gets_thm(loc) ) {
 						ret = discharge(ret,*arg);
-DEB( _syntax->pretty_thm(ret) );
 					}
 				} else if( _syntax->skips("unfolded") ) {
 					auto const& rewriter = *_rewriter();
@@ -142,7 +144,6 @@ DEB( _syntax->pretty_thm(ret) );
 				}
 				_syntax->skip("]");
 			} else {
-DEB( _syntax->pretty_thm(ret) );
 				return ret;
 			}
 		}
@@ -204,6 +205,104 @@ DEB( _syntax->pretty_thm(ret) );
 		}
 		cout << ' ';
 	}
+	Prover& preproc() & {
+		for(;;) {
+			if( _syntax->skips("assuming") ) {
+				cout << ", assuming " << flush;
+				for(;;) {
+					string assm_name = _syntax->get_thm_name();
+					_syntax->skip(":");
+					Term term = _syntax->get_term(0);
+					cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
+					_loc.assume(assm_name,term);
+					if( !_syntax->skips(",") ) {
+						break;
+					}
+					cout << ", " << flush;
+				}
+				cout << endl;
+			} else if( _syntax->skips("unfolding") ) {
+				if( !_thesis ) {
+					cerr << "No goal for \"unfold\"" << endl;
+					throw UnfinishedProof();
+				}
+				Rewriter const& rewriter = *_rewriter();
+				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
+				_syntax->skip(";");
+				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
+			} else if( _syntax->skips("folding") ) {
+				if( !_thesis ) {
+					cerr << "No goal for \"fold\"" << endl;
+					throw UnfinishedProof();
+				}
+				Rewriter const& rewriter = *_rewriter();
+				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
+				_syntax->skip(";");
+				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
+			} else {
+				break;
+			}
+		}
+		return *this;
+	}
+	Prover&& preproc() && {
+		return std::move(preproc());
+	}
+	ClaimStatus get_claim_status() {
+		ClaimStatus ret;
+		if( _syntax->skips("!") ) {
+			if( !_thesis ) {
+				cerr << "unexpected conclusion!" << endl;
+				throw UnfinishedProof();
+			}
+			ret.first = true;
+		} else {
+			ret.second = _syntax->get_thm_name();
+			if( _syntax->skips("!") ) {
+				ret.first = true;
+			} else {
+				_syntax->skip(":");
+				ret.first = false;
+			}
+		}
+		return move(ret);
+	}
+	void add_claim( ClaimStatus cs, Thm const& thm ) {
+		if( cs.first ) {
+			conclude(thm);
+		}
+		if( cs.second ) {
+			_loc.add_thm(*cs.second,thm);
+		}
+	}
+	void conclude( Thm thm ) {
+		Ctxt thesis_ctxt = _thesis->ctxt();
+		// move the theorem up to the thesis context
+		Thm arg = thm;
+		while( arg.ctxt() != thesis_ctxt ) {
+			arg = arg.intro();
+		}
+		CTerm goal = _thesis->capp()->first.capp()->second;
+		Ctxt goal_vars = thesis_ctxt.branch();
+		CTerm goal_strip = strip_all(goal,goal_vars);
+		arg = arg.weaken(goal_vars);// arg will be instantiated with goal variables
+		Ctxt arg_vars = goal_vars.branch();
+		Thm arg_strip = strip_all(arg,arg_vars);
+		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip);
+		if( !matcher ) {
+			cout << "Proof mismatch: encountered " << _syntax->pretty_thm(arg) << 
+", while expecting " << _syntax->pretty_cterm(goal) << endl;
+			throw Error(Term("#proof-mismatch")(goal)(arg));
+		}
+		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
+			auto v = arg_vars.fixed(i);
+			assert(v);
+			arg = arg.allE(matcher->get(*v)->subst(goal_vars));
+		}
+		arg = arg.intro(); // now quantify the goal variables
+		*_thesis = _thesis->impE(arg);
+		cout << "Concluded " << _syntax->pretty_thm(arg) << endl;
+	}
 	Opt<Thm> loop() {
 		for(;;) try {
 			_indent();
@@ -263,10 +362,8 @@ DEB( _syntax->pretty_thm(ret) );
 							_indent();
 							cerr << "discharging " << _syntax->pretty_cterm(*assm) << endl;
 							Locale loc = _loc.branch();
-							CTerm goal = assm->weaken(loc);
-DEB(loc);
-							auto thm = prove(loc,goal).intro();
-							intp.discharge(thm);
+							auto thm = prover(loc,*assm).loop();
+							intp.discharge(*thm);
 							continue;
 						}
 						if( _syntax->skips("admit") ) {
@@ -292,7 +389,7 @@ DEB(loc);
 								}
 								Locale loc = _loc.branch();
 								CTerm spec = imp->first.weaken(loc);
-								thms.push_back(prove(loc,spec).intro());
+								thms.push_back(prover(loc,spec).loop()->intro());
 								specs = imp->second;
 							}
 							intp.retain(_loc.cterm(term),thms);
@@ -341,38 +438,23 @@ DEB(loc);
 				Term term = get_term();
 				_syntax->skip(";");
 				cout << "term " << _syntax->pretty_term(term) << endl;
-			} else if( _syntax->skips("name") ) {
-				string name = _syntax->get_thm_name();
-				_syntax->skip(":");
+			} else if( _syntax->skips("note") ) {
+				auto cs = get_claim_status();
 				auto const& thm = get_thm();
-				cout << "naming " << name << ": " << _syntax->pretty_thm(thm) << endl;
-				_loc.add_thm(name,thm);
+				cout << "noting " << cs << _syntax->pretty_thm(thm) << endl;
+				add_claim(cs,thm);
 				_syntax->skip(";");
 			} else if( _syntax->skips("show") ) {
-				string thm_name = _syntax->get_thm_name();
-				_syntax->skip(":");
+				auto cs = get_claim_status();
 				auto stmt_loc = _loc.branch();
 				CTerm stmt = stmt_loc.enclose(_syntax->get_term(0));
-				cout << "Showing " << thm_name << ": " << _syntax->pretty_term(stmt);
-				if( _syntax->skips(",") ) {
-					_syntax->skip("assuming");
-					cout << ", assuming " << flush;
-					for(;;) {
-						string assm_name = _syntax->get_thm_name();
-						_syntax->skip(":");
-						Term term = _syntax->get_term(0);
-						cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
-						stmt_loc.assume(assm_name,term);
-						if( !_syntax->skips(",") ) {
-							break;
-						}
-						cout << ", " << flush;
-					}
+				cout << "Showing " << cs << _syntax->pretty_term(stmt) << endl;
+				if( _syntax->skips(",") ) {// may modify the statement locale
+					prover(stmt_loc,stmt).preproc();
 				}
-				cout << endl;
 				_syntax->skip(";");
-				auto const& thm = prove(stmt_loc,stmt);
-				_loc.add_thm(thm_name,thm);
+				auto const& thm = prover(stmt_loc.branch(),stmt).loop()->intro();
+				add_claim(cs,thm);
 			} else if( _syntax->skips("obtain") ) {
 				string sym = _syntax->get_token();
 				_syntax->skip("where");
@@ -398,8 +480,8 @@ DEB(loc);
 				goal = thesis_loc.cterm(ALL)(goal) >>= thesis;
 				cout << endl;
 				_indent();
-				cout << "Prove " << _syntax->pretty_term(goal) << endl;
-				auto const& thm = prove(thesis_loc,goal).intro();
+				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
+				auto const& thm = prover(thesis_loc.branch(),goal).loop()->intro();
 				_loc.obtain(thm,names.begin());
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
@@ -418,24 +500,6 @@ DEB(loc);
 				auto [f,thm] = _definer->define(_loc,l,r);
 				_loc.add_thm( name ? *name : f + "_def", thm );
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
-			} else if( _syntax->skips("unfold") ) {
-				if( !_thesis ) {
-					cerr << "No goal for \"unfold\"" << endl;
-					throw UnfinishedProof();
-				}
-				Rewriter const& rewriter = *_rewriter();
-				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
-				_syntax->skip(";");
-				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
-			} else if( _syntax->skips("fold") ) {
-				if( !_thesis ) {
-					cerr << "No goal for \"fold\"" << endl;
-					throw UnfinishedProof();
-				}
-				Rewriter const& rewriter = *_rewriter();
-				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
-				_syntax->skip(";");
-				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"by\"" << endl;
@@ -443,27 +507,8 @@ DEB(loc);
 				}
 				Thm const& thm = get_thm();
 				_syntax->skip(";");
-				CTerm stmt = _thesis->capp()->first.capp()->second;
-				Ctxt stmt_ctxt = stmt.ctxt().branch();
-				CTerm stmt_strip = strip_all(stmt,stmt_ctxt);
-				Ctxt thm_ctxt = stmt_ctxt.branch();
-				Thm thm_strip = strip_all(thm,thm_ctxt);
-				stmt_strip = stmt_strip.weaken(thm_ctxt);
-				Opt<CSubst> matcher = match(thm_ctxt.fvars(),thm_strip,stmt_strip);
-				if( !matcher ) {
-					cout << "ERROR: Proof mismatch " << _syntax->pretty_term(thm) << endl;
-					_error();
-				}
-				Thm arg = thm.weaken(stmt_ctxt);
-				for( size_t i = 0; i < thm_ctxt.revision(); i++ ) {
-					auto v = thm_ctxt.fixed(i);
-					assert(v);
-					arg = arg.allE(matcher->get(*v)->subst(stmt_ctxt));
-				}
-				arg = arg.intro();
-				Thm const& ret = _thesis->impE(arg);
-				cout << "Concluded " << _syntax->pretty_thm(ret) << endl;
-				return ret;
+				conclude(thm);
+				return _thesis;
 			} else if( _syntax->skips("done") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"done\"" << endl;
