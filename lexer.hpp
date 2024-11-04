@@ -9,7 +9,7 @@
 #include<functional>
 #include"ref.hpp"
 
-class SyntaxError : std::exception {};
+class SyntaxError : public std::exception {};
 
 // returns the size of the character
 int char_size( char start );

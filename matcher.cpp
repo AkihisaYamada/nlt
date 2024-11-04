@@ -29,8 +29,15 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		} else if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
 			return (Term)*map_opt == val;// equal as term (may belong to different context)
 		} else if( fsyms.contains(*sym) ) {// free symbol
-			matcher.assign(*sym,val);// assigning to the variable
-			return true;
+			if( val.ctxt() == matcher.ctxt() ) {
+				matcher.assign(*sym,val);// assigning to the variable
+				return true;
+			}
+			if( auto cval = matcher.ctxt().closed(val) ) {
+				matcher.assign(*sym,*cval);
+				return true;
+			}
+			return false;
 		} else {
 			return *sym == val;
 		}

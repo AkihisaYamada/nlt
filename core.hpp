@@ -326,6 +326,9 @@ struct Error : public std::exception {
 struct UnexpectedTerm : public Error {
 	UnexpectedTerm(Term const& term) : Error(Term("#unexpected_term")(term)) {}
 };
+struct MalformedObtain : public Error {
+	MalformedObtain(Term const& term) : Error(Term("#malformed-obtain")(term)) {}
+};
 struct MalformedInstantiation : public Error {
 	MalformedInstantiation(Term const& all, Term const& arg) :
 		Error(Term("#malformed_instantiation")(all)(arg)) {}
@@ -412,7 +415,9 @@ public:
 	Opt<CTerm> obtains(std::string_view const& name) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	Opt<CTerm> constant(std::string_view const& sym) const &;
-	/** Ensures that the term is closed in this context. */
+	/** Tests if a term is closed in this context. */
+	Opt<CTerm> closed(Term const& t) const;
+	/** Ensures that a term is closed in this context. */
 	CTerm cterm(Term const& t) const;
 	/** Make the term closed by fixing free variables. */
 	CTerm enclose(Term const& t);
@@ -687,7 +692,7 @@ public:
 		return {};
 	}
 private:
-	CSubst& _assign(std::string_view const& var, CTerm const& val);
+	CSubst& _assign(std::string_view const& var, Term const& val);
 };
 
 class Thm : public CTerm {

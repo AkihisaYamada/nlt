@@ -70,11 +70,13 @@ public:
 		_syntax->infix(";",-1,-1,-2);
 		_syntax->infix(":",-1,-1,-2);
 		_syntax->infix(":=",-1,-1,-2);
+		_syntax->prefix("if",-3,-2);
+		_syntax->infix("then",-3,-2,-2);
 	}
-	Prover prover(Locale const& loc, CTerm const& goal) {
+	Thm prove(Locale const& loc, CTerm const& goal) {
 		Ctxt ctxt = goal.ctxt().branch();
 		Thm thesis = ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
-		return Prover(*this,loc,thesis);
+		return Prover(*this,loc,thesis).proof_loop();
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -95,7 +97,11 @@ public:
 			name = _syntax->get_token();
 			_syntax->skip("]");
 		}
-		return _rewriters.find(name)->second;
+		auto const& p = _rewriters.finds(name);
+		if( !p ) {
+			throw Error("#rewriter_not_found");
+		}
+		return p->second;
 	}
 	Thm _rewrite( Rewriter const& rewriter, Locale& loc, Thm const& source, vector<char> pos, bool rev = false ) {
 		if( _syntax->skips("(") ) {
@@ -181,17 +187,16 @@ public:
 		throw Error("Expects a term");
 	}
 
-	vector<pair<string,Term>> get_named_terms() {
-		vector<pair<string,Term>> ret;
+	void get_named_terms( function<void(string const&, Term const&)> const& f ) {
 		for(;;) {
 			auto const& name = _syntax->gets_thm_name();
 			if(!name) {
-				return ret;
+				return;
 			}
 			_syntax->skip(":");
-			ret.push_back({*name,_syntax->get_term(0)});
+			f(*name,_syntax->get_term(0));
 			if( !_syntax->skips(",") ) {
-				return ret;
+				return;
 			}
 		}
 	}
@@ -205,48 +210,35 @@ public:
 		}
 		cout << ' ';
 	}
-	Prover& preproc() & {
+	Thm proof_loop() {
 		for(;;) {
-			if( _syntax->skips("assuming") ) {
-				cout << ", assuming " << flush;
-				for(;;) {
-					string assm_name = _syntax->get_thm_name();
-					_syntax->skip(":");
-					Term term = _syntax->get_term(0);
-					cout << assm_name << ": " << _syntax->pretty_term(term) << flush;
-					_loc.assume(assm_name,term);
-					if( !_syntax->skips(",") ) {
-						break;
-					}
-					cout << ", " << flush;
-				}
-				cout << endl;
-			} else if( _syntax->skips("unfolding") ) {
+			if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"unfold\"" << endl;
 					throw UnfinishedProof();
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
-				_syntax->skip(";");
 				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
-			} else if( _syntax->skips("folding") ) {
+			} else if( _syntax->skips("fold") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"fold\"" << endl;
 					throw UnfinishedProof();
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
-				_syntax->skip(";");
 				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
 			} else {
 				break;
 			}
+			_syntax->skip(";");
 		}
-		return *this;
-	}
-	Prover&& preproc() && {
-		return std::move(preproc());
+		_loc = _loc.branch();
+		auto thm = loop();
+		if( !thm ) {
+			throw Error("#missing-conclusion");
+		}
+		return *thm;
 	}
 	ClaimStatus get_claim_status() {
 		ClaimStatus ret;
@@ -288,7 +280,7 @@ public:
 		arg = arg.weaken(goal_vars);// arg will be instantiated with goal variables
 		Ctxt arg_vars = goal_vars.branch();
 		Thm arg_strip = strip_all(arg,arg_vars);
-		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip);
+		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
 		if( !matcher ) {
 			cout << "Proof mismatch: encountered " << _syntax->pretty_thm(arg) << 
 ", while expecting " << _syntax->pretty_cterm(goal) << endl;
@@ -362,8 +354,7 @@ public:
 							_indent();
 							cerr << "discharging " << _syntax->pretty_cterm(*assm) << endl;
 							Locale loc = _loc.branch();
-							auto thm = prover(loc,*assm).loop();
-							intp.discharge(*thm);
+							intp.discharge(prove(loc,*assm));
 							continue;
 						}
 						if( _syntax->skips("admit") ) {
@@ -389,7 +380,7 @@ public:
 								}
 								Locale loc = _loc.branch();
 								CTerm spec = imp->first.weaken(loc);
-								thms.push_back(prover(loc,spec).loop()->intro());
+								thms.push_back(prove(loc,spec).intro());
 								specs = imp->second;
 							}
 							intp.retain(_loc.cterm(term),thms);
@@ -408,26 +399,16 @@ public:
 				cout << _loc.locale(name).pretty(*_syntax) << endl;
 			} else if( _syntax->skips("fix") ) {
 				cout << "Fixing";
-				for(;;) {
-					if( _syntax->skips(";") ) break;
-					string sym = _syntax->get_token();
-					_loc.fix(sym);
-					cout << ' ' << sym << flush;
+				while( !_syntax->skips(";") ) {
+					cout << ' ' << _loc.fix(_syntax->get_token()) << flush;
 				}
 				cout << ';' << endl;
 			} else if( _syntax->skips("assume") ) {
 				cout << "Assuming ";
-				for(;;) {
-					string name = _syntax->get_thm_name();
-					_syntax->skip(":");
-					Term term = _syntax->get_term(0);
-					_loc.assume(name,term);
-					cout << name << ": " << _syntax->pretty_thm(_loc.thm(name)) << flush;
-					if( !_syntax->skips(",") ) {
-						break;
-					}
-					cout << ", " << flush;
-				}
+				get_named_terms([&](string const& s, Term const& t){
+					_loc.assume(s,t);
+					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << flush;
+				});
 				_syntax->skip(";");
 				cout << endl;
 			} else if( _syntax->skips("thm") ) {
@@ -444,28 +425,59 @@ public:
 				cout << "noting " << cs << _syntax->pretty_thm(thm) << endl;
 				add_claim(cs,thm);
 				_syntax->skip(";");
+			} else if( !_thesis && _syntax->skips("lemma") ) {
+				auto name = _syntax->get_thm_name();
+				auto goal_loc = _loc.branch();
+				for(;;) {
+					if( _syntax->skips("fixes") ) {
+						while( !_syntax->skips(";") ) {
+							cout << ' ' << _loc.fix(_syntax->get_token()) << flush;
+						}
+					} else if( _syntax->skips("assumes") ) {
+						get_named_terms([&](string const& s, Term const& t){
+							cout << s << ": " << _syntax->pretty_term(t) << flush;
+							goal_loc.assume(s,t);
+						});
+						_syntax->skip(";");
+					} else {
+						break;
+					}
+				}
+				_syntax->skips("shows");
+				Term conc = _syntax->get_term(0);
+				CTerm goal = goal_loc.enclose(conc);
+				cout << "Showing " << name << ": " << _syntax->pretty_cterm(goal) << endl;
+				auto const& thm = prove(goal_loc,goal).intro();
+				_loc.add_thm(name,thm);
 			} else if( _syntax->skips("show") ) {
 				auto cs = get_claim_status();
-				auto stmt_loc = _loc.branch();
-				CTerm stmt = stmt_loc.enclose(_syntax->get_term(0));
-				cout << "Showing " << cs << _syntax->pretty_term(stmt) << endl;
-				if( _syntax->skips(",") ) {// may modify the statement locale
-					prover(stmt_loc,stmt).preproc();
+				auto goal_loc = _loc.branch();
+				if( _syntax->skips("if") ) {
+					cout << "assuming " << flush;
+					get_named_terms([&](string const& s, Term const& t){
+						cout << s << ": " << _syntax->pretty_term(t) << flush;
+						goal_loc.assume(s,t);
+					});
+					_syntax->skip("then");
 				}
+				Term conc = _syntax->get_term(0);
 				_syntax->skip(";");
-				auto const& thm = prover(stmt_loc.branch(),stmt).loop()->intro();
+				CTerm goal = goal_loc.enclose(conc);
+				cout << "Showing " << cs << _syntax->pretty_cterm(goal) << endl;
+				auto const& thm = prove(goal_loc,goal).intro();
 				add_claim(cs,thm);
 			} else if( _syntax->skips("obtain") ) {
 				string sym = _syntax->get_token();
 				_syntax->skip("where");
-				auto specs = get_named_terms();
-				_syntax->skip(";");
 				cout << "Obtaining " << sym << " where ";
 				vector<string> names;
-				for( auto& [name,spec] : specs ) {
-					names.push_back(name);
-					cout << name << ": " << _syntax->pretty_term(spec) << ", ";
-				}
+				vector<Term> specs;
+				get_named_terms([&]( string const& s, Term const& t ) {
+					names.push_back(s);
+					specs.push_back(t);
+					cout << s << ": " << _syntax->pretty_term(t) << ", ";
+				});
+				_syntax->skip(";");
 				auto thesis_loc = _loc.branch();
 				CTerm thesis = thesis_loc.fix(avoid("thesis",[&](auto x){
 					return _loc.constant(x);
@@ -474,14 +486,15 @@ public:
 				spec_ctxt.fix(sym);
 				CTerm goal = thesis.weaken(spec_ctxt);
 				for( auto& spec : ranges::reverse_view(specs) ) {
-					goal = spec_ctxt.cterm(spec.second) >>= goal;
+					goal = spec_ctxt.cterm(spec) >>= goal;
 				}
 				goal = goal.lift();
 				goal = thesis_loc.cterm(ALL)(goal) >>= thesis;
+				goal = _loc.cterm(ALL)(goal.lift());
 				cout << endl;
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prover(thesis_loc.branch(),goal).loop()->intro();
+				auto const& thm = prove(_loc.branch(),goal);
 				_loc.obtain(thm,names.begin());
 				cout << "Obtained " << sym << endl;
 			} else if( _syntax->skips("define") ) {
@@ -636,7 +649,7 @@ public:
 				return Opt<Thm>();
 			}
 		} catch ( Error const& e ) {
-			cerr << _syntax->line_counter() << "ERROR: " << _syntax->pretty_term(e.term) << endl;
+			cerr << _syntax->line_counter() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( Rewriter::TooFewSteps const& e ) {
 			cerr << "Rewriter ERROR: Too few steps on: " << _syntax->pretty_term(e.term) << endl;
@@ -645,7 +658,7 @@ public:
 			cerr << "Rewriter ERROR: Too many steps on: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( exception const& e ) {
-			cerr << "Other exception: " << e.what() << endl;
+			cerr << _syntax->line_counter() << ": Other exception: " << e.what() << endl;
 			_error();
 		}
 	}

@@ -106,7 +106,7 @@ void Term::_iter_syms(
 	}
 }
 
-CSubst& CSubst::_assign(string_view const& var, CTerm const& val) {
+CSubst& CSubst::_assign(string_view const& var, Term const& val) {
 	auto const& info = _map.emplace(var,val);
 	if( !info.second ) {
 		info.first->second = val;
@@ -232,7 +232,6 @@ Opt<CTerm> Ctxt::constant(string_view const& sym) const & {
 	}
 	return {};
 }
-
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms( [&](auto sym){
 		if( !constant(sym) ) {
@@ -240,6 +239,13 @@ CTerm Ctxt::cterm(Term const& t) const {
 		}
 	} );
 	return CTerm(*this,t);
+}
+Opt<CTerm> Ctxt::closed(Term const& t) const {
+	try {
+		return cterm(t);
+	} catch( UnboundVariable const& e ) {
+		return {};
+	}
 }
 CTerm Ctxt::enclose(Term const& t) {
 	t.iter_syms( [&](auto sym){
@@ -280,16 +286,16 @@ pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
 	auto all1 = thm.binder(ALL);
 	if( !all1 ) {
-		throw UnexpectedTerm(thm);
+		throw MalformedObtain(thm);
 	}
 	auto thesis = all1->first;
 	auto imp = all1->second.binary(IMP);
 	if( !imp || imp->second != thesis ) {
-		throw UnexpectedTerm(thm);
+		throw MalformedObtain(thm);
 	}
 	auto all2 = imp->first.binder(ALL);
 	if( !all2 ) {
-		throw UnexpectedTerm(thm);
+		throw MalformedObtain(thm);
 	}
 	auto sym = all2->first;
 	if( constant(sym) ) {
@@ -300,13 +306,13 @@ pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 	while( auto imp2 = in->binary(IMP) ) {
 		auto& prop = imp2->first;
 		prop.iter_syms(// spec should not contain thesis
-			[&](auto str){ if( str == thesis ) throw UnexpectedTerm(prop); }
+			[&](auto str){ if( str == thesis ) throw MalformedObtain(prop); }
 		);
 		thms.push_back(CTerm(*this,prop));
 		in = &imp2->second;
 	}
 	if( *in != thesis ) {
-		throw UnexpectedTerm(thm);
+		throw MalformedObtain(thm);
 	}
 	_ref->modifiers.push_back(_Obtain(thm));
 	_ref->constants.insert(sym);
