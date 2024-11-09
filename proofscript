@@ -33,10 +33,11 @@ locale Symmetric {
 }
 locale Equivalence {
 	import Symmetric;
-	import Preorder (~);
+	import Preorder { for (~); }
 }
 
-import imp: Preorder (⟹),
+import imp: Preorder {
+	for (⟹);
 	discharge
 		fix P;
 		assume P: P;
@@ -46,7 +47,7 @@ import imp: Preorder (⟹),
 		assume PQ: P ⟹ Q, QR: Q ⟹ R, P: P;
 		note Q: PQ[OF P];
 		by QR[OF Q];
-end
+}
 
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 	assume Q: Q, P: P;
@@ -66,12 +67,13 @@ locale And {
 	assume and_intro: P ⟹ Q ⟹ P ∧ Q;
 	assume and_elim1: P ∧ Q ⟹ P;
 	assume and_elim2: P ∧ Q ⟹ Q;
-	import and: Symmetric (∧),
+	import and: Symmetric {
+		for (∧);
 		discharge
 			fix P Q;
 			assume PQ: P ∧ Q;
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
-	end
+	}
 	show and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 		fix R;
 		assume PQR: P ⟹ Q ⟹ R;
@@ -87,12 +89,13 @@ locale Or {
 	show or_intro: (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟹ P ∨ Q;
 		assume assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 		by assm[OF or_intro1 or_intro2];
-	import or: Symmetric (∨),
+	import or: Symmetric {
+		for (∨);
 		discharge
 			fix P Q;
 			assume PQ: P ∨ Q;
 			by or_elim[OF PQ or_intro2 or_intro1];
-		end
+	}
 }
 
 prefix ¬ 40 40;
@@ -162,7 +165,8 @@ locale Iff {
 	assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q;
 	assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q;
 	assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
-	import iff: Equivalence (⟺),
+	import iff: Equivalence {
+		for (⟺);
 		discharge
 			fix P Q;
 			assume PQ: P ⟺ Q;
@@ -176,7 +180,7 @@ locale Iff {
 			note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
 			note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 			by iff_intro[OF PR RP];
-		end
+	}
 
 	show iff_commute: (P ⟺ Q) ⟺ (Q ⟺ P);
 		by iff_intro[OF iff.sym iff.sym];

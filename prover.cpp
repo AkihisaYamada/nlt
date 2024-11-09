@@ -339,70 +339,65 @@ public:
 				cerr << "importing " << prefix << ": " << name << endl;
 				auto loc = _loc.locale(name);
 				auto& intp = _loc.import(prefix,loc);
-				for(;;) {
-					auto t = _syntax->gets_term(1000);
-					if( !t ) {
-						break;
-					}
-					auto fix = intp.fixing();
-					if( !fix ) {
-						throw Error(Term{"#unexpected-instantiation"}(*t));
-					}
-					intp.instantiate( *t == "_" ? _loc.fix(*fix) : _loc.cterm(*t) );
-				}
-				for(;;) {
-					auto fix = intp.fixing();
-					if( !fix ) {
-						break;
-					}
-					auto t = _loc.fixes(*fix);
-					intp.instantiate( t ? *t : _loc.fix(*fix) );
-				}
-				if( _syntax->skips(",") ) {
+				if( _syntax->skips("{") ) {
+					_depth++;
 					for(;;){
-						if( _syntax->skips("discharge") ) {
-							auto assm = intp.assuming();
-							if( !assm ) {
-								throw Error("#unexpected-discharge");
-							}
-							_indent();
-							cerr << "discharging " << _syntax->pretty_cterm(*assm) << endl;
-							Locale loc = _loc.branch();
-							intp.discharge(prove(loc,*assm));
-							continue;
-						}
-						if( _syntax->skips("admit") ) {
-							auto assm = intp.assuming();
-							if( !assm ) {
-								throw Error("#unexpected-admit");
-							}
-							intp.discharge(_loc.Ctxt::assume(*assm));
-							continue;
-						}
-						if( _syntax->skips("retain") ) {
-							auto obtain = intp.obtaining();
-							if( !obtain ) {
-								throw Error("#unexpected-retain");
-							}
-							auto term = _syntax->get_term();
-							CTerm specs = obtain->cbinder(ALL)->second;
-							vector<Thm> thms;
-							for(;;) {
-								auto imp = specs.cbinary(IMP);
-								if( !imp ) {
-									break;
+						_indent();
+						if( auto v = intp.fixing() ) {
+							cout << "Instantiate " << *v << endl;
+							if( _syntax->skips("for") ) {
+								if( _syntax->skips("_") ) {
+									if( auto s = _loc.fixes(*v) ) {
+										intp.instantiate(*s);
+									} else {
+										intp.instantiate(_loc.fix(*v));
+									}
+								} else {
+									auto t = _syntax->get_term();
+									intp.instantiate(_loc.enclose(t));
+									cout << "for " << _syntax->pretty_term(t) << endl;
 								}
-								Locale loc = _loc.branch();
-								CTerm spec = imp->first.weaken(loc);
-								thms.push_back(prove(loc,spec).intro());
-								specs = imp->second;
+								_syntax->skip(";");
 							}
-							intp.retain(_loc.cterm(term),thms);
-							continue;
+						} else if( auto assm = intp.assuming() ) {
+							cout << "Discharge " << _syntax->pretty_cterm(*assm) << endl;
+							if( _syntax->skips("discharge") ) {
+								Locale loc = _loc.branch();
+								intp.discharge(prove(loc,*assm));
+							} else if( _syntax->skips("assume") ) {
+								Thm thm = _loc.Ctxt::assume(*assm);
+								intp.discharge(thm);
+								cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
+							} else {
+								break;
+							}
+						} else if( auto obtain = intp.obtaining() ) {
+							cout << "Obtain " << _syntax->pretty_cterm(*obtain) << endl;
+							if( _syntax->skips("obtain") ) {
+								auto term = _syntax->get_term();
+								CTerm specs = obtain->cbinder(ALL)->second;
+								vector<Thm> thms;
+								for(;;) {
+									auto imp = specs.cbinary(IMP);
+									if( !imp ) {
+										break;
+									}
+									Locale loc = _loc.branch();
+									CTerm spec = imp->first.weaken(loc);
+									thms.push_back(prove(loc,spec).intro());
+									specs = imp->second;
+								}
+								intp.retain(_loc.cterm(term),thms);
+							} else {
+								break;
+							}
+						} else {
+							cout << "Complete!" << endl;
+							break;
 						}
-						break;
 					}
-					_syntax->skip("end");
+					_syntax->skip("}");
+					_depth--;
 				} else {
 					_syntax->skip(";");
 				}

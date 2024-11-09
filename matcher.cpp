@@ -144,7 +144,8 @@ void import_all(Intp& intp) {
 	auto ctxt = intp.ctxt();
 	for(;;) {
 		if( auto v = intp.fixing() ) {
-			intp.instantiate(ctxt.fix(*v));
+			auto t = ctxt.fixes(*v);
+			intp.instantiate( t ? *t : ctxt.fix(*v) );
 		} else if( auto a = intp.assuming() ) {
 			intp.discharge(ctxt.assume(*a));
 		} else if( auto s = intp.obtaining() ) {
