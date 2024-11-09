@@ -210,6 +210,12 @@ public:
 		}
 		cout << ' ';
 	}
+	Opt<CTerm> has_goal() {
+		if( _thesis )
+		if( auto bin = _thesis->cbinary(IMP) )
+			return bin->first;
+		return {};
+	}
 	Thm proof_loop() {
 		for(;;) {
 			if( _syntax->skips("unfold") ) {
@@ -219,7 +225,10 @@ public:
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
-				cout << "unfold: " << _syntax->pretty_thm(*_thesis) << endl;
+				auto g = has_goal();
+				assert(g);
+				_indent();
+				cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else if( _syntax->skips("fold") ) {
 				if( !_thesis ) {
 					cerr << "No goal for \"fold\"" << endl;
@@ -227,7 +236,10 @@ public:
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
-				cout << "fold: " << _syntax->pretty_thm(*_thesis) << endl;
+				auto g = has_goal();
+				assert(g);
+				_indent();
+				cout << "folded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else {
 				break;
 			}
@@ -289,7 +301,9 @@ public:
 		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
 			auto v = arg_vars.fixed(i);
 			assert(v);
-			arg = arg.allE(matcher->get(*v)->subst(goal_vars));
+			auto t = matcher->get(*v);
+			assert(t);
+			arg = arg.allE(t->subst(goal_vars));
 		}
 		arg = arg.intro(); // now quantify the goal variables
 		*_thesis = _thesis->impE(arg);
@@ -314,7 +328,7 @@ public:
 				} else {
 					_syntax->skip(";");
 				}
-				cout << "end" << endl;
+				cout << "ending locale " << name << endl;
 			} else if( _syntax->skips("import") ) {
 				string prefix;
 				string name = _syntax->get_token();
@@ -322,7 +336,7 @@ public:
 					prefix = name;
 					name = _syntax->get_token();
 				}
-				cerr << "interpreting " << prefix << ": " << name << endl;
+				cerr << "importing " << prefix << ": " << name << endl;
 				auto loc = _loc.locale(name);
 				auto& intp = _loc.import(prefix,loc);
 				for(;;) {
@@ -393,6 +407,8 @@ public:
 					_syntax->skip(";");
 				}
 				import_all(intp);
+				_indent();
+				cout << "imported " << name << endl;
 			} else if( _syntax->skips("ctxt") ) {
 				string name = _syntax->get_token();
 				_syntax->skip(";");
@@ -406,8 +422,8 @@ public:
 			} else if( _syntax->skips("assume") ) {
 				cout << "Assuming ";
 				get_named_terms([&](string const& s, Term const& t){
-					_loc.assume(s,t);
-					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << flush;
+					_loc.assume(s,_loc.Ctxt::branch().enclose(t).lift(_loc.cterm(ALL)));
+					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << "; " << flush;
 				});
 				_syntax->skip(";");
 				cout << endl;
@@ -425,45 +441,23 @@ public:
 				cout << "noting " << cs << _syntax->pretty_thm(thm) << endl;
 				add_claim(cs,thm);
 				_syntax->skip(";");
-			} else if( !_thesis && _syntax->skips("lemma") ) {
-				auto name = _syntax->get_thm_name();
-				auto goal_loc = _loc.branch();
-				for(;;) {
-					if( _syntax->skips("fixes") ) {
-						while( !_syntax->skips(";") ) {
-							cout << ' ' << _loc.fix(_syntax->get_token()) << flush;
-						}
-					} else if( _syntax->skips("assumes") ) {
-						get_named_terms([&](string const& s, Term const& t){
-							cout << s << ": " << _syntax->pretty_term(t) << flush;
-							goal_loc.assume(s,t);
-						});
-						_syntax->skip(";");
-					} else {
-						break;
-					}
-				}
-				_syntax->skips("shows");
-				Term conc = _syntax->get_term(0);
-				CTerm goal = goal_loc.enclose(conc);
-				cout << "Showing " << name << ": " << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prove(goal_loc,goal).intro();
-				_loc.add_thm(name,thm);
 			} else if( _syntax->skips("show") ) {
 				auto cs = get_claim_status();
+				cout << "Showing " << cs << flush;
 				auto goal_loc = _loc.branch();
 				if( _syntax->skips("if") ) {
-					cout << "assuming " << flush;
+					cout << "if " << flush;
 					get_named_terms([&](string const& s, Term const& t){
-						cout << s << ": " << _syntax->pretty_term(t) << flush;
-						goal_loc.assume(s,t);
+						cout << s << ": " << _syntax->pretty_term(t) << ", " << flush;
+						goal_loc.assume(s,goal_loc.enclose(t));
 					});
 					_syntax->skip("then");
+					cout << "then ";
 				}
 				Term conc = _syntax->get_term(0);
 				_syntax->skip(";");
 				CTerm goal = goal_loc.enclose(conc);
-				cout << "Showing " << cs << _syntax->pretty_cterm(goal) << endl;
+				cout << _syntax->pretty_cterm(goal) << endl;
 				auto const& thm = prove(goal_loc,goal).intro();
 				add_claim(cs,thm);
 			} else if( _syntax->skips("obtain") ) {
@@ -488,9 +482,8 @@ public:
 				for( auto& spec : ranges::reverse_view(specs) ) {
 					goal = spec_ctxt.cterm(spec) >>= goal;
 				}
-				goal = goal.lift();
-				goal = thesis_loc.cterm(ALL)(goal) >>= thesis;
-				goal = _loc.cterm(ALL)(goal.lift());
+				goal = goal.lift(thesis_loc.cterm(ALL)) >>= thesis;
+				goal = goal.lift(_loc.cterm(ALL));
 				cout << endl;
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
@@ -549,11 +542,10 @@ public:
 				cout << "New infix operator " << sym << endl;
 			} else if( _syntax->skips("setup") ) {
 				if( _syntax->skips("conclude") ) {
-					cout << "Adding concluder: ";
+					cout << "Adding concluder:" << endl;
 					while( auto thm = gets_thm() ) {
-						cout << _syntax->pretty_thm(*thm);
+						cout << '\t' << _syntax->pretty_thm(*thm) << endl;
 						_concluder.insert(*thm);
-						cout << "\t" << *thm << endl;
 					}
 				} else if( _syntax->skips("rewrite") ) {
 					string name;

@@ -44,7 +44,8 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm);
-	void assume(std::string_view const& name, Term const& assm) {
+	/** Assuming a closed term. */
+	void assume(std::string_view const& name, CTerm const& assm) {
 		add_thm(name,Ctxt::assume(assm));
 	}
 	template<class I>

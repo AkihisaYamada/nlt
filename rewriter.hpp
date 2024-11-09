@@ -15,10 +15,16 @@ class Rewriter {
 	std::vector<Rule> congs;
 	std::vector<Rule> quantifier_congs;
 public:
-	Thm const refl, sym, trans, imp;
-	struct Error : std::exception {
-		Term term;
-		Error(Term const& term) : term(term) {}
+	/** ∀x. x = x */
+	Thm const refl;
+	/** ∀x y. x = y ⟹ y = x */
+	Thm const sym;
+	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
+	Thm const trans;
+	/** ∀x y. (x = y) ⟹ x ⟹ y */
+	Thm const imp;
+	struct Error : ::Error {
+		Error(Term const& term) : ::Error(Term("#rewriter")(term)) {}
 	};
 	struct TooFewSteps : std::exception {
 		Term term;
@@ -43,7 +49,7 @@ public:
 		congs.push_back({pat,rule});
 	}
 	void register_quantifier_cong(CTerm const& pat, Thm const& rule) {
-		quantifier_congs.push_back({pat,rule});
+		quantifier_congs.emplace_back(pat,rule);
 	}
 	void register_concl(Thm const& rule);
 	/**

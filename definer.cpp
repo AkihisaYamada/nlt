@@ -21,7 +21,7 @@ pair<string,Thm> Definer::define(Ctxt& ctxt, Term const& l, Term const& r) const
 	// proving the existence
 	Ctxt prover = ctxt.branch();
 	prover.fix(thesis);
-	Thm thm = prover.assume( f &= rule >>= thesis );
+	Thm thm = prover.assume( prover.cterm( f &= rule >>= thesis ) );
 	thm = thm.allE(t);
 	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});
 	thm = discharge(thm,rewriter->refl);

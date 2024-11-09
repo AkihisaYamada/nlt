@@ -270,11 +270,6 @@ Thm Ctxt::_assume(Term const& t) & {
 	return CTerm(*this,t);
 }
 
-Thm Ctxt::assume(Term const& t) & {
-	enclose(t);
-	return _assume(t);
-}
-
 Thm Ctxt::assume(CTerm const& t) & {
 	if( t.ctxt() != *this ) {
 		throw WrongContext("assume");
@@ -375,13 +370,16 @@ Opt<CTerm::StrTerm> CTerm::cabs() const {
 		return {};
 	}
 }
-CTerm CTerm::lift() const {
+CTerm CTerm::lift( CTerm const& quantifier ) const {
 	auto const& parent = _ctxt.ctxt();
+	if( quantifier.ctxt() != parent ) {
+		throw WrongContext("lift");
+	}
 	Term ret = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
 		if( auto fix = _ctxt.fixed(i) ) {
-			ret = *fix /= ret;
+			ret = ((Term)quantifier)( *fix /= ret );
 		}
 	}
 	return CTerm(parent,ret);

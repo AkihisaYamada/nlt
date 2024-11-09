@@ -14,11 +14,11 @@ infix ≤ 51 51 50;
 
 locale Reflexive {
 	fix ≤;
-	assume refl: ∀x. x ≤ x;
+	assume refl: x ≤ x;
 }
 locale Transitive {
 	fix ≤;
-	assume trans: ∀x. ∀y. ∀z. x ≤ y ⟹ y ≤ z ⟹ x ≤ z;
+	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z;
 }
 locale Preorder {
 	import Reflexive;
@@ -29,7 +29,7 @@ infix ~ 51 51 50;
 
 locale Symmetric {
 	fix ~;
-	assume sym: ∀x. ∀y. x ~ y ⟹ y ~ x;
+	assume sym: x ~ y ⟹ y ~ x;
 }
 locale Equivalence {
 	import Symmetric;
@@ -63,30 +63,33 @@ show imp_all: if 1: P ⟹ ∀x. α[x] then ∀x. P ⟹ α[x];
 infix ∧ 35 36 36;
 locale And {
 	fix ∧;
-	assume and_intro: ∀P. ∀Q. P ⟹ Q ⟹ P ∧ Q;
-	assume and_elim1: ∀P. ∀Q. P ∧ Q ⟹ P;
-	assume and_elim2: ∀P. ∀Q. P ∧ Q ⟹ Q;
+	assume and_intro: P ⟹ Q ⟹ P ∧ Q;
+	assume and_elim1: P ∧ Q ⟹ P;
+	assume and_elim2: P ∧ Q ⟹ Q;
 	import and: Symmetric (∧),
 		discharge
+			fix P Q;
 			assume PQ: P ∧ Q;
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
 	end
-	show and_elim: P ∧ Q ⟹ ∀R. (P ⟹ Q ⟹ R) ⟹ R;
-		assume PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R;
+	show and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
+		fix R;
+		assume PQR: P ⟹ Q ⟹ R;
 		by PQR[OF and_elim1[OF PQ] and_elim2[OF PQ]];
 }
 
 infix ∨ 30 31 30;
 locale Or {
 	fix ∨;
-	assume or_intro1: ∀P. ∀Q. P ⟹ P ∨ Q;
-	assume or_intro2: ∀P. ∀Q. Q ⟹ P ∨ Q;
-	assume or_elim: ∀P. ∀Q. ∀R. P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+	assume or_intro1: P ⟹ P ∨ Q;
+	assume or_intro2: Q ⟹ P ∨ Q;
+	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 	show or_intro: (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟹ P ∨ Q;
 		assume assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 		by assm[OF or_intro1 or_intro2];
 	import or: Symmetric (∨),
 		discharge
+			fix P Q;
 			assume PQ: P ∨ Q;
 			by or_elim[OF PQ or_intro2 or_intro1];
 		end
@@ -95,8 +98,8 @@ locale Or {
 prefix ¬ 40 40;
 locale MinimalNot {
 	fix ¬ false;
-	assume not_imp_false: ∀P. ¬ P ⟹ P ⟹ false;
-	assume not_intro: ∀P. (P ⟹ false) ⟹ ¬ P;
+	assume not_imp_false: ¬ P ⟹ P ⟹ false;
+	assume not_intro: (P ⟹ false) ⟹ ¬ P;
 	show not_false: ¬false;
 		by not_intro[OF imp.refl];
 
@@ -155,11 +158,13 @@ locale MinimalNot {
 
 infix ⟺ 1 1 0;
 locale Iff {
-	assume iff_intro: ∀P. ∀Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q;
-	assume iff_elim1: ∀P. ∀Q. (P ⟺ Q) ⟹ P ⟹ Q;
-	assume iff_elim2: ∀P. ∀Q. (P ⟺ Q) ⟹ Q ⟹ P;
+	fix ⟺;
+	assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q;
+	assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q;
+	assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
 	import iff: Equivalence (⟺),
 		discharge
+			fix P Q;
 			assume PQ: P ⟺ Q;
 			by iff_intro[OF iff_elim2[OF PQ] iff_elim1[OF PQ]];
 		discharge
@@ -217,7 +222,7 @@ import MinimalNot;
 
 setup conclude imp.refl iff.refl;
 
-setup rewrite[iff] iff.refl iff.sym iff.trans iff_elim1;
+setup rewrite iff.refl iff.sym iff.trans iff_elim1;
 
 show iff_cong_and: (P ⟺ Q) ⟹ (R ⟺ S) ⟹ P ∧ R ⟺ Q ∧ S;
 	assume PQ: P ⟺ Q, RS: R ⟺ S;
@@ -281,7 +286,7 @@ show iff_cong_not: (P ⟺ Q) ⟹ ¬P ⟺ ¬Q;
 		by not_intro[OF P0];
 	by iff_intro[OF 1 2];
 
-setup cong[iff]
+setup cong
 	P ⟹ Q: iff_cong_imp,
 	P ⟺ Q: iff_cong_iff,
 	P ∧ Q: iff_cong_and,
@@ -294,6 +299,7 @@ show and_commute: P ∧ Q ⟺ Q ∧ P;
 
 show or_commute: P ∨ Q ⟺ Q ∨ P;
 	by iff_intro[OF or.sym or.sym];
+
 show and_assoc: P ∧ (Q ∧ R) ⟺ P ∧ Q ∧ R;
 	show 1: P ∧ (Q ∧ R) ⟹ P ∧ Q ∧ R;
 		assume PQR: P ∧ (Q ∧ R);
@@ -309,39 +315,29 @@ show and_assoc: P ∧ (Q ∧ R) ⟺ P ∧ Q ∧ R;
 		by and_intro[OF P and_intro[OF Q R]];
 	by iff_intro[OF 1 2];
 
-
 show or_assoc: P ∨ (Q ∨ R) ⟺ P ∨ Q ∨ R;
-	show 1: P ∨ (Q ∨ R) ⟹ P ∨ Q ∨ R;
-		assume PQR: P ∨ (Q ∨ R);
-		show 1.1: P ⟹ P ∨ Q ∨ R;
-			assume P: P;
+	show 1: if PQR: P ∨ (Q ∨ R) then P ∨ Q ∨ R;
+		show 1.1: if P: P then P ∨ Q ∨ R;
 			by or_intro1[OF or_intro1[OF P]](Q,R);
-		show 1.2: Q ∨ R ⟹ P ∨ Q ∨ R;
-			assume QR: Q ∨ R;
-				show 1.2.1: Q ⟹ P ∨ Q ∨ R;
-					assume Q: Q;
-					by or_intro1[OF or_intro2[OF Q](P)](R);
-				show 1.2.2: R ⟹ P ∨ Q ∨ R; by or_intro2;
+		show 1.2: if QR: Q ∨ R then P ∨ Q ∨ R;
+			show 1.2.1: if Q: Q then P ∨ Q ∨ R;
+				by or_intro1[OF or_intro2[OF Q](P)](R);
+			show 1.2.2: R ⟹ P ∨ Q ∨ R; by or_intro2;
 			by or_elim[OF QR 1.2.1 1.2.2];
 		by or_elim[OF PQR 1.1 1.2];
-	show 2: P ∨ Q ∨ R ⟹ P ∨ (Q ∨ R);
-		assume PQR: P ∨ Q ∨ R;
-		show 1.1: P ∨ Q ⟹ P ∨ (Q ∨ R);
-			assume PQ: P ∨ Q;
-				show 1.1.1: P ⟹ P ∨ (Q ∨ R); by or_intro1;
-				show 1.1.2: Q ⟹ P ∨ (Q ∨ R);
-					assume Q: Q;
-					by or_intro2[OF or_intro1[OF Q](R)](P);
+	show 2: if PQR: P ∨ Q ∨ R then P ∨ (Q ∨ R);
+		show 1.1: if PQ: P ∨ Q then P ∨ (Q ∨ R);
+			show 1.1.1: P ⟹ P ∨ (Q ∨ R); by or_intro1;
+			show 1.1.2: if Q: Q then P ∨ (Q ∨ R);
+				by or_intro2[OF or_intro1[OF Q](R)](P);
 			by or_elim[OF PQ 1.1.1 1.1.2];
-		show 1.2: R ⟹ P ∨ (Q ∨ R);
-			assume R: R;
+		show 1.2: if R: R then P ∨ (Q ∨ R);
 			by or_intro2[OF or_intro2[OF R](Q)](P);
 		by or_elim[OF PQR 1.1 1.2];
 	by iff_intro[OF 1 2];
 
 show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
-	show 1: (P ∨ Q ⟹ R) ⟹ (P ⟹ R) ∧ (Q ⟹ R);
-		assume nor: P ∨ Q ⟹ R;
+	show 1: if nor: P ∨ Q ⟹ R then (P ⟹ R) ∧ (Q ⟹ R);
 		show PR: P ⟹ R;
 			assume P: P;
 			show or: P ∨ Q; by or_intro1[OF P];
@@ -351,8 +347,7 @@ show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 			show or: P ∨ Q; by or_intro2[OF Q];
 			by nor[OF or];
 		by and_intro[OF PR QR];
-	show 2: (P ⟹ R) ∧ (Q ⟹ R) ⟹ P ∨ Q ⟹ R;
-		assume and: (P ⟹ R) ∧ (Q ⟹ R), or: P ∨ Q;
+	show 2: if and: (P ⟹ R) ∧ (Q ⟹ R), or: P ∨ Q then R;
 		show PR: P ⟹ R; by and_elim1[OF and];
 		show QR: Q ⟹ R; by and_elim2[OF and];
 		by or_elim[OF or PR QR];
@@ -362,17 +357,15 @@ show not_iff_imp_false: ¬P ⟺ (P ⟹ false);
 	by iff_intro[OF not_imp_false not_intro];
 
 show nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
-	by or_imp_iff(P)(Q)(false)[folded[iff]* not_iff_imp_false];
+	by or_imp_iff(P)(Q)(false)[folded* not_iff_imp_false];
 
-show not_and1: ¬P ⟹ ¬(P ∧ Q);
-	assume nP: ¬P;
+show not_and1: if nP: ¬P then ¬(P ∧ Q);
 	show 1: P ∧ Q ⟹ false;
 		assume PQ: P ∧ Q;
 		by not_imp_false[OF nP and_elim1[OF PQ]];
 	by not_intro[OF 1];
 
-show not_and2: ¬Q ⟹ ¬(P ∧ Q);
-	assume nQ: ¬Q;
+show not_and2: if nQ: ¬Q then ¬(P ∧ Q);
 	show 1: P ∧ Q ⟹ false;
 		assume PQ: P ∧ Q;
 		by not_imp_false[OF nQ and_elim2[OF PQ]];
@@ -400,7 +393,7 @@ show consistency: ¬(P ∧ ¬P);
 	by not_intro[OF 1];
 
 show nn_excluded_middle: ¬¬(P ∨ ¬P);
-	by consistency(¬P)[folded[iff] nor_iff];
+	by consistency(¬P)[folded nor_iff];
 
 show or_imp_nand: P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
 	assume PQ: P ∨ Q;
@@ -419,7 +412,7 @@ show or_imp_nand: P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
 
 
 show N_nand_N_iff: ¬(¬P ∧ ¬Q) ⟺ ¬¬(P ∨ Q);
-	by iff.refl(¬(¬P ∧ ¬Q))[folded[iff](1) nor_iff];
+	by iff.refl(¬(¬P ∧ ¬Q))[folded(1) nor_iff];
 
 show nnand_imp_NN_and_NN: ¬¬(P ∧ Q) ⟹ ¬¬P ∧ ¬¬Q;
 	assume PQ: ¬¬(P ∧ Q);
@@ -470,7 +463,7 @@ show imp_true_iff: (P ⟹ true) ⟺ true;
 show true_iff_iff: (true ⟺ P) ⟺ P;
 	show 1: (true ⟺ P) ⟹ P;
 		assume P1: true ⟺ P;
-		show P: P; fold[iff] P1; done;
+		show P: P; fold P1; done;
 		by P;
 	show 2: P ⟹ (true ⟺ P);
 		assume P: P;
@@ -482,7 +475,7 @@ show true_iff_iff: (true ⟺ P) ⟺ P;
 	by iff_intro[OF 1 2];
 
 show iff_true_iff: (P ⟺ true) ⟺ P;
-	unfold[iff](0) iff_commute;
+	unfold(0) iff_commute;
 	by true_iff_iff(P);
 
 note iff_true: iff_elim2[OF iff_true_iff];
@@ -506,12 +499,12 @@ show true_and_iff: true ∧ P ⟺ P;
 	by iff_intro[OF 1 2];
 
 show true_and_true: true ∧ true;
-	unfold[iff] true_and_iff;
+	unfold true_and_iff;
 	done;
 
 show and_true_iff: P ∧ true ⟺ P;
-	unfold[iff] and_commute;
-	unfold[iff] true_and_iff;
+	unfold and_commute;
+	unfold true_and_iff;
 	done;
 
 show true_or: true ∨ P;
@@ -525,17 +518,17 @@ show or_true: P ∨ true;
 locale IntuitionisticLogic {
 
 obtain false where false_elim: ∀P. false ⟹ P;
+	fix thesis;
 	assume assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
-	show 1: ∀P. (∀x. x) ⟹ P;
-		fix P;
+	show 1: (∀x. x) ⟹ P;
 		assume 2: ∀x. x;
 		by 2(P);
 	by assm(∀P. P)[OF 1];
 
 import MinimalLogic;
 
-setup rewrite[iff] iff.refl iff.sym iff.trans iff_elim1;
-setup cong[iff]
+setup rewrite iff.refl iff.sym iff.trans iff_elim1;
+setup cong
 	P ⟹ Q: iff_cong_imp,
 	P ⟺ Q: iff_cong_iff,
 	P ∧ Q: iff_cong_and,
@@ -554,488 +547,7 @@ show false_and_iff: false ∧ P ⟺ false;
 	by iff_intro[OF 1 2];
 
 show and_false_iff: P ∧ false ⟺ false;
-	unfold[iff] and_commute;
+	unfold and_commute;
 	by false_and_iff;
 
 }
-
-show true_eq_imp: true = P ⟹ P;
-	assume P1: true = P;
-	by true_intro[unfolded P1];
-
-show eq_true_imp: P = true ⟹ P;
-	unfold[iff] eq_commute;
-	by true_eq_imp;
-
-show true_Neq_false: true ≠ false;
-	show not_true_eq_false: ¬ (true = false);
-		show 1: true = false ⟹ false;
-			assume 2: true = false;
-			by eq_prop1[OF 2][OF true.intro];
-		by not.intro[OF 1];
-	by neq_intro[OF not_true_eq_false];
-
-fix IF;
-assume IF_true: ∀ x. ∀ y. IF true x y = x;
-assume IF_false: ∀ x. ∀ y. IF false x y = y;
-
-
-fix Const is_const;
-
-assume Const.is_const: is_const Const;
-
-assume const_app: ∀ c. is_const c ⟹ ∀ x. is_const (c x);
-
-assume Const_Neq_app: ∀ c. is_const c ⟹ ∀ x. Const ≠ c x;
-
-assume const_app_eq_app:
-  ∀ c. ∀ d. is_const c ⟹ is_const d ⟹ ∀ x. ∀ y. c x = d y ⟹ c = d ∧ x = y;
-
-define inj f := ∀x. ∀y. f x = f y ⟹ x = y;
-
-show const_inj: is_const c ⟹ inj c;
-	assume c: is_const c;
-	show 1: ∀x. ∀y. c x = c y ⟹ x = y;
-		by insert[OF and_elim2][OF const_app_eq_app[OF c c]];
-	by 1[folded inj.def];
-
-define const_arg v := (THE x. ∃ c. is_const c ∧ v = c x);
-
-show const_arg: is_const c ⟹ const_arg (c x) = x;
-	fix c x;
-	assume c: is_const c;
-	show 1: ∃ d. is_const d ∧ c x = d x;
-		by EX.intro1(d. is_const d ∧ c x = d x)[OF and_intro[OF c eq_refl]];
-	show 2: ∀y. (∃d. is_const d ∧ c x = d y) ⟹ x = y;
-		fix y;
-		assume 3: ∃d. is_const d ∧ c x = d y;
-		obtain d where 4: is_const d ∧ c x = d y;
-			by EX.elim[OF 3];
-		note d: and_elim1[OF 4];
-		note cxdy: and_elim2[OF 4];
-		show 5: c = d ∧ x = y;
-			by const_app_eq_app[OF c d cxdy];
-		by and_elim2[OF 5];
-	show 3: ∃!y. ∃d. is_const d ∧ c x = d y;
-		by EX1.intro(y. ∃d. is_const d ∧ c x = d y)[OF 1 2];
-	show 4: ∃ d. is_const d ∧ c x = d (const_arg (c x));
-		by THE.intro[OF 3][folded const_arg.def];
-	obtain d where 5: is_const d ∧ c x = d (const_arg (c x));
-		by EX.elim[OF 4];
-	show d: is_const d;
-		by and_elim1[OF 5];
-	show 6: c x = d (const_arg (c x));
-		by and_elim2[OF 5];
-	show 7: x = const_arg (c x);
-		by and_elim2[OF const_app_eq_app[OF c d 6]];
-	by eq_sym[OF 7];
-
-define Collect := Const true;
-
-show Collect.is_const: is_const Collect;
-	by const_app[OF Const.is_const](true)[folded Collect.def];
-
-infix ∈ 50 50 50;
-obtain ∈ where IN_Collect: ∀x. ∀P. (x ∈ Collect P) = P x;
-	fix thesis;
-	assume 1: ∀ ∈. (∀x. ∀P. (x ∈ Collect P) = P x) ⟹ thesis;
-	define (IN) x ∈ X := const_arg X x;
-	show 2: ∀x. ∀P. (x ∈ Collect P) = P x;
-		fix x P;
-		show 3: (x ∈ Collect P) = const_arg (Collect P) x;
-			by IN.def;
-		show 4: const_arg (Collect P) = P;
-			by const_arg[OF Collect.is_const];
-		by 3[unfolded 4];
-	by 1[OF 2];
-
-define ∅ := Collect (λ x. false);
-
-define Singleton x := Collect (λy. y = x);
-
-infix ∪ 61 60 61;
-define (UN) X ∪ Y := Collect (λx. x ∈ X ∨ x ∈ Y);
-
-setup set_comprehension ∅ Singleton Collect (λ) (∪);
-
-show IN_UN: (x ∈ X ∪ Y) = (x ∈ X ∨ x ∈ Y);
-	unfold* UN.def IN_Collect FUN.def;
-	done;
-
-define UNIV := {x. true};
-
-show IN_Singleton: (x ∈ {y}) = (x = y);
-	unfold* Singleton.def IN_Collect FUN.def;
-	done;
-
-define Prop := {true, false};
-
-show IN_Prop: (P ∈ Prop) = (P = true ∨ P = false);
-	unfold* Prop.def IN_UN IN_Singleton;
-	done;
-
-show true_IN_Prop: true ∈ Prop;
-	unfold IN_Prop;
-	unfold[iff]* iff_true[OF eq_refl] true_imp_iff iff_true[OF true_or] iff_true_iff;
-	done;
-
-show false_IN_Prop: false ∈ Prop;
-	unfold IN_Prop;
-	unfold[iff]* iff_true[OF eq_refl] iff_true[OF or_true] iff_true_iff;
-	done;
-
-assume eq_true: ∀P. P ⟹ P = true;
-
-show eq_true_iff: P = true ⟺ P;
-	by iff_intro[OF eq_true_imp eq_true];
-
-show true_eq: P ⟹ true = P;
-	assume P: P;
-	by eq_sym[OF eq_true[OF P]];
-
-show true_eq_iff: true = P ⟺ P;
-	by iff_intro[OF true_eq_imp true_eq];
-
-show imp_true_eq: (P ⟹ true) = true;
-	by eq_true[OF weaken[OF true.intro]];
-
-show not_false_eq: (¬false) = true;
-	unfold[iff] eq_true_iff;
-	by not_false;
-
-assume true_imp_eq: ∀P. (true ⟹ P) = P;
-
-show not_true_eq: (¬true) = false;
-	unfold not.def;
-	by true_imp_eq(false);
-
-show not_IN_Prop: if p: P ∈ Prop then (¬P) ∈ Prop;
-	show 1: if P1: P = true then (¬P) ∈ Prop;
-		unfold* P1 not_true_eq;
-		by false_IN_Prop;
-	show 2: if P0: P = false then (¬P) ∈ Prop;
-		unfold* P0 not_false_eq;
-		by true_IN_Prop;
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-assume false.def: false = (∀P. P);
-
-show false.elim: false ⟹ P;
-	assume 0: false;
-	by 0[unfolded false.def](P);
-
-show not_imp: ¬P ⟹ P ⟹ Q;
-	assume nP: ¬P, P: P;
-	by false.elim[OF not_imp_false[OF nP P]](Q);
-
-show false_imp_eq: (false ⟹ P) = true;
-	by eq_true[OF false.elim(P)];
-
-show imp_IN_Prop: P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ⟹ Q) ∈ Prop;
-	assume p: P ∈ Prop, q: Q ∈ Prop;
-	show 1: P = true ⟹ (P ⟹ Q) ∈ Prop;
-		assume P1: P = true;
-		show it: (P ⟹ Q) ∈ Prop;
-			unfold* P1 true_imp_eq;
-			by q;
-		by it;
-	show 2: P = false ⟹ (P ⟹ Q) ∈ Prop;
-		assume P0: P = false;
-		show it: (P ⟹ Q) ∈ Prop;
-			unfold* P0 false_imp_eq;
-			by true_IN_Prop;
-		by it;
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-show true_and_true_eq: (true ∧ true) = true;
-	by eq_true[OF true_and_true];
-
-show and_false_eq: (P ∧ false) = false;
-	unfold* and.def false_imp_eq imp_true_eq true_imp_eq;
-	fold false.def;
-	done;
-
-show false_and_eq: (false ∧ P) = false;
-	unfold* and.def false_imp_eq true_imp_eq;
-	fold false.def;
-	done;
-
-show Prop_and: P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ∧ Q) ∈ Prop;
-	assume p: P ∈ Prop, q: Q ∈ Prop;
-	show 1: P = true ⟹ (P ∧ Q) ∈ Prop;
-		assume P1: P = true;
-		show 1.1: Q = true ⟹ (P ∧ Q) ∈ Prop;
-			assume Q1: Q = true;
-			show it: (P ∧ Q) ∈ Prop;
-				unfold* P1 Q1 true_and_true_eq;
-				by true_IN_Prop;
-			by it;
-		show 1.2: Q = false ⟹ (P ∧ Q) ∈ Prop;
-			assume Q0: Q = false;
-			show it: (P ∧ Q) ∈ Prop;
-				unfold* Q0 and_false_eq;
-				by false_IN_Prop;
-			by it;
-		by or_elim[OF q[unfolded IN_Prop] 1.1 1.2];
-	show 2: P = false ⟹ (P ∧ Q) ∈ Prop;
-		assume P0: P = false;
-		show it: (P ∧ Q) ∈ Prop;
-			unfold* P0 false_and_eq;
-			by false_IN_Prop;
-		by it;
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-show true_iff_false_eq: (true ⟺ false) = false;
-	unfold* iff.def true_imp_eq false_and_eq;
-	done;
-
-show false_iff_true_eq: (false ⟺ true) = false;
-	unfold* iff.def true_imp_eq and_false_eq;
-	done;
-
-show false_iff_eq: if p: P ∈ Prop then (false ⟺ P) = (¬P);
-	show 1: if P1: P = true then (false ⟺ P) = (¬P);
-		unfold* P1 false_iff_true_eq not_true_eq;
-		done;
-	show 2: if P0: P = false then (false ⟺ P) = (¬P);
-		unfold* P0 eq_true[OF iff.refl] not_false_eq;
-		done;
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-show true_iff_eq: if p: P ∈ Prop then (true ⟺ P) = P;
-	show 1: if P1: P = true then (true ⟺ P) = P;
-		unfold* P1;
-		by eq_true[OF iff.refl];
-	show 2: if P0: P = false then (true ⟺ P) = P;
-		unfold* P0 true_iff_false_eq;
-		done;
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-show iff_IN_Prop: if p: P ∈ Prop, q: Q ∈ Prop then (P ⟺ Q) ∈ Prop;
-	show 1: if P1: P = true then (P ⟺ Q) ∈ Prop;
-		unfold* P1 true_iff_eq[OF q];
-		by q;
-	show 2: if P0: P = false then (P ⟺ Q) ∈ Prop;
-		unfold* P0 false_iff_eq[OF q];
-		by not_IN_Prop[OF q];
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-show Prop_eq_iff: if p: P ∈ Prop, q: Q ∈ Prop then P = Q ⟺ (P ⟺ Q);
-	show 1: if P: P = true then P = Q ⟺ (P ⟺ Q);
-		unfold* P;
-		unfold[iff]* true_eq_iff true_iff_iff;
-		done;
-	show 2: if P0: P = false then P = Q ⟺ (P ⟺ Q);
-		show 2.1: P = Q ⟹ (P ⟺ Q);
-			by eq_imp_iff;
-		show 2.2: if PQ: P ⟺ Q then P = Q;
-			show 2.2.1: if Q1: Q = true then P = Q;
-				show Q: Q; unfold Q1; done;
-				show P: P; by Q[folded[iff] PQ];
-				show 0: false; by P[unfolded P0];
-				by false.elim[OF 0](P = Q);
-			show 2.2.2: if Q0: Q = false then P = Q;
-				unfold* P0 Q0; done;
-			by or_elim[OF q[unfolded IN_Prop] 2.2.1 2.2.2];
-		by iff_intro[OF 2.1 2.2];
-	by or_elim[OF p[unfolded IN_Prop] 1 2];
-
-
-
-infix ` 100 100 100;
-
-define (IMAGE) f ` X := {y. ∃x. x ∈ X ∧ y = f x};
-
-show IN_IMAGE: (y ∈ f ` X) = (∃x. x ∈ X ∧ y = f x);
-	by eq_refl(y ∈ f ` X)[unfolded(1)* IMAGE.def IN_Collect FUN.def];
-
-show inj_IMAGE: inj f ⟹ f x ∈ f ` X ⟹ x ∈ X;
-	sorry;
-
-infix ⊆ 50 50 50;
-
-define X ⊆ Y := ∀x. x ∈ X ⟹ x ∈ Y;
-
-infix → 61 60 60;
-define (MAP) X → Y := {f. f ` X ⊆ Y};
-
-define Class := Collect ` (UNIV → Prop);
-
-show IN_Class: (X ∈ Class) = (∃p. p ∈ UNIV → Prop ∧ X = Collect p);
-	by eq_refl(X ∈ Class)[unfolded(1)* Class.def IN_IMAGE IN_Collect FUN.def];
-
-
-define (MEET) ⋂ XX := {x. ∀X. X ∈ XX ⟹ x ∈ X};
-
-show MEET_IN_Class: XX ⊆ Class ⟹ ⋂ XX ∈ Class;
-	assume XX: XX ⊆ Class;
-	show 1: ⋂ XX = {x. ∀X. X ∈ XX ⟹ x ∈ X};
-		by MEET.def;
-	show prop: ∀x. (∀X. X ∈ XX ⟹ x ∈ X) ∈ Prop;
-		fix x;
-		
-	show prop: ∀x. prop ((λx. ∀X. X ∈ XX ⟹ x ∈ X) x);
-	show pred: pred (λx. ∀X. X ∈ XX ⟹ x ∈ X);
-		by pred.intro[OF prop];
-	show 1: ∃p. pred p ∧ ⋂ XX = Collect p;
-		sorry;
-	sorry;
-
-infix ∉ 50 50 50;
-define x ∉ X := ¬ x ∈ X;
-
-define Russel := {X. X ∉ X};
-
-define 0 := Const false;
-define Suc := Const 0;
-
-define Nat := ⋂ {X. 0 ∈ X ∧ Suc ` X ⊆ X};
-
-
-
-
-
-define prop P := P ∨ ¬P;
-
-show prop.intro1: P ⟹ prop P;
-	assume P: P;
-	by eq_prop2[OF prop.def or_intro1[OF P]];
-
-show prop.intro2: P = false ⟹ prop P;
-	assume nP: ¬P;
-	by eq_prop2[OF prop.def or_intro2[OF nP]];
-
-show prop.elim: prop P ⟹ (P ⟹ thesis) ⟹ (¬ P ⟹ thesis) ⟹ thesis;
-	assume p: prop P;
-	by or_elim[OF p[unfolded prop.def]](thesis);
-
-
-show prop_imp: prop P ⟹ prop Q ⟹ prop (P ⟹ Q);
-	assume p: prop P, q: prop Q;
-	show 1: P ⟹ prop (P ⟹ Q);
-		assume P: P;
-		show 1.1: Q ⟹ prop (P ⟹ Q);
-			assume Q: Q;
-			show PQ: P ⟹ Q;
-				by weaken[OF Q];
-			by prop.intro1[OF PQ];
-		show 1.2: ¬Q ⟹ prop (P ⟹ Q);
-			assume nQ: ¬Q;
-			show nPQ: ¬ (P ⟹ Q);
-				by imp_not[OF P nQ];
-			by prop.intro2[OF nPQ];
-		by prop.elim[OF q 1.1 1.2];
-	show 2: ¬P ⟹ prop (P ⟹ Q);
-		assume nP: ¬P;
-		show PQ: P ⟹ Q;
-			by not_imp[OF nP];
-		by prop.intro1[OF PQ];
-	by prop.elim[OF p 1 2];
-
-show prop_and: prop P ⟹ prop Q ⟹ prop (P ∧ Q);
-	assume P: prop P, Q: prop Q;
-	show 1: P ⟹ prop (P ∧ Q);
-		assume P: P;
-		show 1.1: Q ⟹ prop (P ∧ Q);
-			assume Q: Q;
-			by prop.intro1[OF and_intro[OF P Q]];
-		show 1.2: ¬Q ⟹ prop (P ∧ Q);
-			assume Q: ¬Q;
-			by prop.intro2[OF not_and2[OF Q]](P);
-		by prop.elim[OF Q 1.1 1.2];
-	show 2: ¬P ⟹ prop (P ∧ Q);
-		assume nP: ¬ P;
-		by prop.intro2[OF not_and1[OF nP]](Q);
-	by prop.elim[OF P 1 2];
-
-show prop_or: prop P ⟹ prop Q ⟹ prop (P ∨ Q);
-	assume p: prop P, q: prop Q;
-	show 1: P ⟹ prop (P ∨ Q);
-		assume P: P;
-		by prop.intro1[OF or_intro1[OF P](Q)];
-	show 2: ¬P ⟹ prop (P ∨ Q);
-		assume nP: ¬P;
-		show 3: Q ⟹ prop (P ∨ Q);
-			assume Q: Q;
-			by prop.intro1[OF or_intro2[OF Q]](P);
-		show 4: ¬Q ⟹ prop (P ∨ Q);
-			assume nQ: ¬Q;
-			show nPnQ: ¬P ∧ ¬Q;
-				by and_intro[OF nP nQ];
-			show nor: ¬(P ∨ Q);
-				by iff_elim2[OF Nor_iff nPnQ];
-			by prop.intro2[OF nor];
-		by prop.elim[OF q 3 4];
-	by prop.elim[OF p 1 2];
-
-
-
-define pred p := ∀x. prop (p x);
-
-note pred.intro: eq_prop2[OF pred.def];
-note pred.elim: eq_prop1[OF pred.def];
-
-
-
-
-
-
-
-define reflexive A r := ∀a. a ∈ A ⟹ r a a;
-
-note reflexive.intro: eq_prop2[OF reflexive.def];
-note reflexive.elim: eq_prop1[OF reflexive.def];
-
-show imp.reflexive: reflexive UNIV (⟹);
-	show 1: ∀a. a ∈ UNIV ⟹ a ⟹ a;
-		fix a;
-		assume aU: a ∈ UNIV;
-		by imp.refl(a);
-	by reflexive.intro[OF 1];
-
-define semi_attractive A r := ∀a. ∀b. ∀c. a ∈ A ⟹ b ∈ A ⟹ c ∈ A ⟹ r a b ⟹ r b a ⟹ r a c ⟹ r b c;
-
-define transitive A r := ∀a. ∀b. ∀c. a ∈ A ⟹ b ∈ A ⟹ c ∈ A ⟹ r a b ⟹ r b c ⟹ r a c;
-
-define antisymmetric A r := ∀a. ∀b. a ∈ A ⟹ b ∈ A ⟹ r a b ⟹ r b a ⟹ a = b;
-
-define quasi_order A r := reflexive A r ∧ transitive A r;
-
-define bound X r b := ∀x. x ∈ X ⟹ r x b;
-
-define extreme X r e := e ∈ X ∧ bound X r e;
-
-define dual r x y := r y x;
-
-define extreme_bound A r X s := extreme (Collect (λ b. b ∈ A ∧ bound X r b)) (dual r) s;
-
-define noetherian A r := ∀X. X ⊆ A ⟹ ∀x. x ≠ ∅ ⟹ ∃e. extreme X r e;
-
-define well_related A r := noetherian A (dual r);
-
-define well_order A r := well_related A r ∧ antisymmetric A r;
-
-define well_complete A r := ∀X. X ⊆ A ⟹ well_order X r ⟹ ∃s. extreme_bound A r X s;
-
-define monotone f A r r' := ∀a. a ∈ A ⟹ ∀b. b ∈ A ⟹ r a b ⟹ r' (f a) (f b);
-
-show fixed_point:
-	well_complete A r ⟹ semi_attractive A r ⟹
-	monotone f A r r' ⟹ well_complete (Collect (λp. p ∈ A ∧ f p = p)) r;
-	sorry;
-
-define extremal X r x := x ∈ X ∧ (∀y. y ∈ X ⟹ ¬ r y x);
-
-define well_founded A r := ∀X. X ⊆ A ⟹ X ≠ ∅ ⟹ ∃x. extremal X r x;
-
-
-
-show NatGen.mono: monotone NatGen Set (⊆) (⊆);
-
-assume eq_true: ∀ P. P ⟹ P = true;
-
-assume eq_false: ∀ P. ¬ P ⟹ P = false;
-
-define INJECTIVE f := (∀x. ∀x'. f x = f x' ⟹ x = x');
-
-

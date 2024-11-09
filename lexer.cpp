@@ -64,6 +64,7 @@ int Lexer::fetch_char() {
 	}
 	char c = pis->get();
 	if( c == char_traits<char>::eof() ) {
+		fetched_char_type = Lex::End;
 		return c;
 	}
 	if( c == '\n' ) {

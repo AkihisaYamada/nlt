@@ -42,6 +42,7 @@ public:
 private:
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
+	bool _print_ctxt = false;
 public:
 	Syntax();
 	void prefix(std::string const& sym, int level, int rlevel) {

@@ -26,25 +26,7 @@ static Thm equate_cong(Thm const& cong, Thm const& eq, CTerm const& arg) {
 
 static Thm equate_abs(Thm const& ext, Thm const& eq) {
 	Thm all = eq.intro();// ∀x. s = t
-	auto const& app = eq.capp();
-	assert(app);
-	auto const& app2 = app->first.capp();
-	assert(app2);
-	CTerm const& s = app2->second.lift();// x. s
-	CTerm const& t = app->second.lift();// x. t
-	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (x. s) = (x. t)
-}
-
-
-static Thm equate_quantified(Thm const& ext, Thm const& eq) {
-	Thm all = eq.intro();// ∀x. s = t
-	auto const& app = eq.capp();
-	assert(app);
-	auto const& app2 = app->first.capp();
-	assert(app2);
-	CTerm const& s = app2->second.lift();// x. s
-	CTerm const& t = app->second.lift();// x. t
-	return ext.weaken(all.ctxt()).allE(s).allE(t).impE(all);// (ξ x. s) = (ξ x. t)
+	return ext.weaken(all.ctxt()) << all;
 }
 
 Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {

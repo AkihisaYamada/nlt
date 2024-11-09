@@ -433,7 +433,6 @@ public:
 	 * @return the assumed theorem.
 	 */
 	Thm assume(CTerm const& t) &;
-	Thm assume(Term const& t) &;
 	/** @brief Fixes a symbol with a specification.
 	 *
 	 * @param thm of form ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
@@ -609,10 +608,10 @@ public:
 		return CTerm(ctxt,*this);
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.
-	 *   Symbols fixed in the context will be abstracted.
+	 *   Symbols fixed in the context will be quantified.
 	 * @return the closed term with respect to the parent.
 	 */
-	CTerm lift() const;
+	CTerm lift(CTerm const& quantifier) const;
 	/** @brief Lifts a closed term to one with respect to the parent context.
 	 * 
 	 * @param subst a substitution in the parent context.
@@ -757,7 +756,6 @@ class Intp {
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
 	Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
-DEB( src.id() << " --> " << tgt.id() );
 	}
 public:
 	/** @brief makes initial interpretation.

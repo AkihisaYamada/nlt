@@ -28,7 +28,8 @@ public:
 		Digit = 1 << 3,
 		SingleOp = 1 << 4,
 		MultiOp = 1 << 5,
-		Other = 1 << 6
+		Other = 1 << 6,
+		End = 1 << 7,
 	};
 private:
 	std::map<int,CharType> _char_map;

@@ -70,7 +70,7 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 
 function<ostream&(ostream&)> Syntax::pretty_cterm(CTerm const& t) const & {
 	return [this,t](ostream& os) -> ostream& {
-		return os << '@' << t.ctxt().id() << ' ' << pretty_term(t);
+		return (_print_ctxt ? os << '@' << t.ctxt().id() << ' ' : os) << pretty_term(t);
 	};
 }
 function<ostream&(ostream&)> Syntax::pretty_thm(Thm const& t) const & {
