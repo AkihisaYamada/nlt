@@ -78,8 +78,20 @@ private:
 	int fetch_char();
 	void read_continue( Lex::CharType t );
 	void skip_spaces();
+	Lexer( Lex&&, std::istream& ) = delete;
 public:
 	Lexer( Lex const& lex, std::istream& is ) : plex(&lex), pis(&is), wp(0), rp(0), line_count(1), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
+	std::istream& get_istream() {
+		return *pis;
+	}
+	void set_istream( std::istream& is ) {
+		assert( wp == rp );
+		line_count = 0;
+		pis = &is;
+		wp = rp = 0;
+		token_type = Unset;
+		fetched_char_type = Lex::Blank;
+	}
 	// peeks (not process) the next token
 	std::string_view peek_token();
 	TokenType next_token_type() {

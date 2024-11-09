@@ -45,8 +45,8 @@ nlm.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
 test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
 	${CPP} $^ -o $@
 
-test: test.exe proofscript
-	./test.exe proofscript
+test: test.exe test.nl
+	./test.exe test
 
 $(DEPEND)/%.d: %.cpp
 	@mkdir -p $(@D)

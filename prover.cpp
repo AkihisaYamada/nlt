@@ -15,11 +15,9 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	return os << ( cs.first ? "! " : ": " );
 }
 
-struct ProverFailure : exception {
-	string message;
-	ProverFailure(string const& message) : message(message) {}
-};
-class UnfinishedProof : exception {};
+fstream file_of_locale( string const& name ) {
+	return fstream(name+".nl");
+}
 
 class Prover {
 	unsigned int _depth;
@@ -39,13 +37,19 @@ class Prover {
 		_thesis(thesis),
 		_concluder(parent._concluder),
 		_rewriters(parent._rewriters),
-		_definer(parent._definer) {}
+		_definer(parent._definer),
+		_exit_on_error(parent._exit_on_error) {}
 	void _error() {
 		if( _exit_on_error ) {
 			exit(-1);
 		}
 	}
 public:
+	struct Error : ::Error {
+		static inline Term const RT = Term("#prover_error");
+		Error( Term const& msg ) : ::Error(RT(msg)) {
+		}
+	};
 	Prover(istream& is, bool exit_on_error) :
 		_depth(0),
 		_loc(),
@@ -72,6 +76,15 @@ public:
 		_syntax->infix(":=",-1,-1,-2);
 		_syntax->prefix("if",-3,-2);
 		_syntax->infix("then",-3,-2,-2);
+	}
+	Prover branch( string const& name ) {
+		return Prover( *this, _loc.branch(name), {});
+	}
+	istream& get_istream() {
+		return _syntax->get_istream();
+	}
+	void set_istream( istream& is ) {
+		_syntax->set_istream(is);
 	}
 	Thm prove(Locale const& loc, CTerm const& goal) {
 		Ctxt ctxt = goal.ctxt().branch();
@@ -220,8 +233,7 @@ public:
 		for(;;) {
 			if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
-					cerr << "No goal for \"unfold\"" << endl;
-					throw UnfinishedProof();
+					throw Error("No goal for \"unfold\"");
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
@@ -231,8 +243,7 @@ public:
 				cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else if( _syntax->skips("fold") ) {
 				if( !_thesis ) {
-					cerr << "No goal for \"fold\"" << endl;
-					throw UnfinishedProof();
+					throw Error("No goal for \"fold\"");
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
@@ -256,8 +267,7 @@ public:
 		ClaimStatus ret;
 		if( _syntax->skips("!") ) {
 			if( !_thesis ) {
-				cerr << "unexpected conclusion!" << endl;
-				throw UnfinishedProof();
+				throw Error("unexpected conclusion");
 			}
 			ret.first = true;
 		} else {
@@ -365,6 +375,7 @@ public:
 								Locale loc = _loc.branch();
 								intp.discharge(prove(loc,*assm));
 							} else if( _syntax->skips("assume") ) {
+								_syntax->skip(";");
 								Thm thm = _loc.Ctxt::assume(*assm);
 								intp.discharge(thm);
 								cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
@@ -496,15 +507,14 @@ public:
 				Term r = get_term();
 				_syntax->skip(";");
 				if( !_definer ) {
-					throw ProverFailure("definer not setup");
+					throw Error("definer not setup");
 				}
 				auto [f,thm] = _definer->define(_loc,l,r);
 				_loc.add_thm( name ? *name : f + "_def", thm );
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _syntax->skips("by") ) {
 				if( !_thesis ) {
-					cerr << "No goal for \"by\"" << endl;
-					throw UnfinishedProof();
+					throw Error("No goal for \"by\"");
 				}
 				Thm const& thm = get_thm();
 				_syntax->skip(";");
@@ -512,8 +522,7 @@ public:
 				return _thesis;
 			} else if( _syntax->skips("done") ) {
 				if( !_thesis ) {
-					cerr << "No goal for \"done\"" << endl;
-					throw UnfinishedProof();
+					throw Error("No goal for \"done\"");
 				}
 				_syntax->skip(";");
 				cout << "Done." << endl;
@@ -617,7 +626,6 @@ public:
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
 				bool solo = _syntax->skips("solo");
-				cerr << "registering symbols" << flush;
 				while( !_syntax->skips(";") ) {
 					string const& sym = _syntax->get_token();
 					int ch = int_of_chars(sym.data());
@@ -627,13 +635,16 @@ public:
 						_syntax->register_multi_op(ch);
 					}
 				}
+				cerr << "registered symbols" << endl;
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
 				Thm ret = sorry(_thesis->capp()->second);
 				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
 				return ret;
-			} else {
+			} else if( _syntax->skips("") || _syntax->peek_token() == "}" ) {
 				return Opt<Thm>();
+			} else {
+				throw Error(Term("unexpected")(_syntax->get_token()));
 			}
 		} catch ( Error const& e ) {
 			cerr << _syntax->line_counter() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
@@ -649,6 +660,21 @@ public:
 			_error();
 		}
 	}
+	void proc( string const& name ) {
+		if( _syntax->skips("base") ) {
+			string const& base = _syntax->get_token();
+			_syntax->skip(";");
+			auto fis = file_of_locale(base);
+			auto& prev = _syntax->get_istream();
+			_syntax->set_istream(fis);
+			proc(base);
+			Prover sub = branch(name);
+			sub.set_istream(prev);
+			sub.loop();
+		} else {
+			loop();
+		}
+	}
 private:
 	void _make_own_syntax() {
 		if( !_own_syntax ) {
@@ -658,17 +684,17 @@ private:
 	}
 };
 
+
 int main(int argc, char* argv[]) {
 	istream* pis;
 	bool exit_on_error = false;
 	if( argc == 1 ) {
-		pis = &cin;
+		Prover(cin,exit_on_error).proc("");
 	} else {
-		pis = new fstream(argv[1]);
-		exit_on_error = true;
+		string name = argv[1];
+		auto fin = file_of_locale(name);
+		Prover(fin,true).proc(name);
 	}
-	Prover prover = Prover(*pis,exit_on_error);
-	prover.loop();
 	cout << "bye!" << endl;
 	return 0;
 }
