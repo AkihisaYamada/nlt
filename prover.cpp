@@ -304,8 +304,6 @@ public:
 		Thm arg_strip = strip_all(arg,arg_vars);
 		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
 		if( !matcher ) {
-			cerr << "Proof mismatch: encountered " << _syntax->pretty_thm(arg) << 
-", while expecting " << _syntax->pretty_cterm(goal) << endl;
 			throw Error(Term("#proof-mismatch")(goal)(arg));
 		}
 		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
@@ -331,7 +329,7 @@ public:
 				cout << "Leaving context." << endl;
 			} else if( _syntax->skips("locale") ) {
 				string name = _syntax->get_token();
-				cerr << "Creating locale " << name << endl;
+				cout << "Creating locale " << name << endl;
 				if( _syntax->skips("{") ) {
 					Prover(*this,_loc.branch(name),{}).loop();
 					_syntax->skip("}");
@@ -346,7 +344,6 @@ public:
 					prefix = name;
 					name = _syntax->get_token();
 				}
-				cerr << "importing " << prefix << ": " << name << endl;
 				auto loc = _loc.locale(name);
 				auto& intp = _loc.import(prefix,loc);
 				if( _syntax->skips("{") ) {
@@ -601,7 +598,7 @@ public:
 					string const& eq = _syntax->get_token();
 					string const& lam = _syntax->get_token();
 					Thm const& beta = get_thm();
-					cerr << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
+					cout << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
 					auto const& rewriter = _rewriters.find(string())->second;
 					_definer = OptRef<Definer>::make(rewriter,eq,lam,beta);
 				} else if( _syntax->skips("set_comprehension") ) {
@@ -633,6 +630,7 @@ public:
 				_syntax->skip(";");
 			} else if( _syntax->skips("symbol") ) {
 				bool solo = _syntax->skips("solo");
+				cout << "registering symbols";
 				while( !_syntax->skips(";") ) {
 					string const& sym = _syntax->get_token();
 					int ch = int_of_chars(sym.data());
@@ -641,8 +639,9 @@ public:
 					} else {
 						_syntax->register_multi_op(ch);
 					}
+					cout << ' ' << sym;
 				}
-				cerr << "registered symbols" << endl;
+				cout << endl;
 			} else if( _syntax->skips("sorry") ) {
 				_syntax->skip(";");
 				Thm ret = sorry(_thesis->capp()->second);
