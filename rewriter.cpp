@@ -160,7 +160,7 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 		auto const& step = _step(rules,s,begin,end,lrefl);
 		if( !step ) {
 			if( i < min ) {
-				throw TooFewSteps(source);
+				throw TooFewSteps(i,min,source);
 			} else {
 				return eq;
 			}

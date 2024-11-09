@@ -233,7 +233,7 @@ public:
 		for(;;) {
 			if( _syntax->skips("unfold") ) {
 				if( !_thesis ) {
-					throw Error("No goal for \"unfold\"");
+					throw Error("\"No goal for unfold\"");
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
@@ -243,7 +243,7 @@ public:
 				cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else if( _syntax->skips("fold") ) {
 				if( !_thesis ) {
-					throw Error("No goal for \"fold\"");
+					throw Error("\"No goal for fold\"");
 				}
 				Rewriter const& rewriter = *_rewriter();
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
@@ -259,7 +259,7 @@ public:
 		_loc = _loc.branch();
 		auto thm = loop();
 		if( !thm ) {
-			throw Error("#missing-conclusion");
+			throw Error("\"missing conclusion\"");
 		}
 		return *thm;
 	}
@@ -267,7 +267,7 @@ public:
 		ClaimStatus ret;
 		if( _syntax->skips("!") ) {
 			if( !_thesis ) {
-				throw Error("unexpected conclusion");
+				throw Error("\"unexpected conclusion\"");
 			}
 			ret.first = true;
 		} else {
@@ -304,7 +304,7 @@ public:
 		Thm arg_strip = strip_all(arg,arg_vars);
 		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
 		if( !matcher ) {
-			cout << "Proof mismatch: encountered " << _syntax->pretty_thm(arg) << 
+			cerr << "Proof mismatch: encountered " << _syntax->pretty_thm(arg) << 
 ", while expecting " << _syntax->pretty_cterm(goal) << endl;
 			throw Error(Term("#proof-mismatch")(goal)(arg));
 		}
@@ -437,6 +437,13 @@ public:
 				Thm thm = get_thm();
 				_syntax->skip(";");
 				cout << "thm " << _syntax->pretty_thm(thm) << endl;
+			} else if( _syntax->skips("goal") ) {
+				_syntax->skip(";");
+				if( auto g = has_goal() ) {
+					cout << "goal: " << *g << endl;
+				} else {
+					cout << "no goal" << endl;
+				}
 			} else if( _syntax->skips("term") ) {
 				Term term = get_term();
 				_syntax->skip(";");
@@ -646,14 +653,8 @@ public:
 			} else {
 				throw Error(Term("unexpected")(_syntax->get_token()));
 			}
-		} catch ( Error const& e ) {
+		} catch ( ::Error const& e ) {
 			cerr << _syntax->line_counter() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
-			_error();
-		} catch ( Rewriter::TooFewSteps const& e ) {
-			cerr << "Rewriter ERROR: Too few steps on: " << _syntax->pretty_term(e.term) << endl;
-			_error();
-		} catch ( Rewriter::TooManySteps const& e ) {
-			cerr << "Rewriter ERROR: Too many steps on: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( exception const& e ) {
 			cerr << _syntax->line_counter() << ": Other exception: " << e.what() << endl;

@@ -24,15 +24,13 @@ public:
 	/** ∀x y. (x = y) ⟹ x ⟹ y */
 	Thm const imp;
 	struct Error : ::Error {
-		Error(Term const& term) : ::Error(Term("#rewriter")(term)) {}
+		static inline Term const RT = "#rewriter";
+		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	struct TooFewSteps : std::exception {
-		Term term;
-		TooFewSteps(Term const& term) : term(term) {}
-	};
-	struct TooManySteps : std::exception {
-		Term term;
-		TooManySteps(Term const& term) : term(term) {}
+	struct TooFewSteps : Error {
+		static inline Term const RT = "#too_few_steps";
+		TooFewSteps(size_t a, size_t e, Term const& term) :
+			Error(RT(std::to_string(a))(std::to_string(e))(term)) {}
 	};
 	class Rules : std::vector<Rule> {
 	public:

@@ -340,10 +340,6 @@ struct MalformedDischarge : public Error {
 struct MissingProof : public Error {
 	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
 };
-struct TheoremNotFound : public Error {
-	TheoremNotFound(std::string_view const& name) :
-		Error(Term("#theorem_not_found")(name)) {}
-};
 struct WrongContext : public Error {
 	WrongContext(std::string_view const& msg) : Error(Term("#wrong_context")(msg)) {}
 };
