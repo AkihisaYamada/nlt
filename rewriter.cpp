@@ -15,7 +15,7 @@ Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 	if( !app2 ) {
 		throw Error(thm);
 	}
-	push_back({app2->second,thm});
+	push_back({app2->second,body});
 	return *this;
 }
 
@@ -49,14 +49,16 @@ static Thm equate_quantified(Thm const& ext, Thm const& eq) {
 
 Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
 	for( auto const& rule : rules ) {
-		Ctxt const& ctxt = rule.pat.ctxt();
-		if( auto const& m = match(ctxt.fvars(),rule.pat,source) ) {
-			// source = lθ
-			Thm ret = rule.thm.weaken(source.ctxt());// ret = ∀x... l = r
-			iter_local_vars(ctxt,[&](std::string const& var) {
-				ret = ret.allE(*m->get(var));
-			});
-			return ret; // lθ = rθ
+		Ctxt const& rule_ctxt = rule.pat.ctxt();
+		if( auto const& m = match(rule_ctxt.fvars(),rule.pat,source) ) {
+			// source = l[m]
+			Intp intp = Intp::make(rule_ctxt,source.ctxt());
+			for( int i = 0; i < rule_ctxt.revision(); i++ ) {
+				auto v = rule_ctxt.fixed(i);
+				assert(v);
+				intp.instantiate(*m->get(*v));
+			}
+			return intp.subst(rule.thm); // l[m] = r[m]
 		}
 	}
 	for( auto const& cong : congs ) {
