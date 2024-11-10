@@ -177,25 +177,17 @@ string_view Lexer::peek_token() {
 	return peeked_token;
 }
 
-void Lexer::skip( string_view token ) {
-	if( !skips(token) ) {
-		cerr << "Expected \"" << token << "\" but encountered \"" <<
-			peeked_token <<'"' << endl;
-		throw SyntaxError();
-	}
-}
-
-int Lexer::get_int() {
-	peek_token();
+int Tokenizer::get_int() {
+	auto const& t = peek_token();
 	int ret;
-	from_chars(buf,buf+rp,ret);
-	token_type = Unset;
+	from_chars(t.data(),t.data()+t.size(),ret);
+	reset();
 	return ret;
 }
-float Lexer::get_float() {
-	peek_token();
+float Tokenizer::get_float() {
+	auto const& t = peek_token();
 	float ret;
-	from_chars(buf,buf+rp,ret);
-	token_type = Unset;
+	from_chars(t.data(),t.data()+t.size(),ret);
+	reset();
 	return ret;
 }

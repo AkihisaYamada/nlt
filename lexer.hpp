@@ -35,6 +35,7 @@ private:
 	std::map<int,CharType> _char_map;
 public:
 	Lex();
+	Lex( Lex const& other ) : _char_map(other._char_map) {}
 	void register_single_op( int c ) {
 		_char_map.insert({c,SingleOp});
 	}
@@ -52,59 +53,32 @@ public:
 	}
 };
 
-class Lexer {
+class Tokenizer {
 public:
 	enum TokenType {
 		Unset, Special, Word, Number, Operator, Escaped
 	};
-private:
-	// input stream
-	std::istream* pis;
-	// lexical definition
-	Lex const* plex;
-	// stores the next token type
-	TokenType token_type;
-	std::string_view peeked_token;
-	// local buffer
-	char buf[1024];
-	Lex::CharType fetched_char_type;
-	// write pointer
-	size_t wp;
-	// read pointer
-	size_t rp;
-	// line counter
-	size_t line_count;
-	// writes one character into the buffer
-	int fetch_char();
-	void read_continue( Lex::CharType t );
-	void skip_spaces();
-	Lexer( Lex&&, std::istream& ) = delete;
-public:
-	Lexer( Lex const& lex, std::istream& is ) : plex(&lex), pis(&is), wp(0), rp(0), line_count(1), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
-	std::istream& get_istream() {
-		return *pis;
+	/** reset peeked token */
+	virtual void reset() = 0;
+	/** peeks (not process) the next token */
+	virtual std::string_view peek_token() = 0;
+	std::string get_token() {
+		auto ret = std::string(peek_token());
+		reset();
+		return ret;
 	}
-	void set_istream( std::istream& is ) {
-		assert( wp == rp );
-		line_count = 0;
-		pis = &is;
-		wp = rp = 0;
-		token_type = Unset;
-		fetched_char_type = Lex::Blank;
-	}
-	// peeks (not process) the next token
-	std::string_view peek_token();
-	TokenType next_token_type() {
-		peek_token();
-		return token_type;
-	}
-	// checks if the next token is as specified, and if so, skips it
+	/** checks if the next token is as specified, and if so, skips it */
 	bool skips( std::string_view token ) {
 		if( peek_token() == token ) {
-			token_type = Unset;
+			reset();
 			return true;
 		} else {
 			return false;
+		}
+	}
+	void skip( std::string_view token ) {
+		if( !skips(token) ) {
+			throw SyntaxError();
 		}
 	}
 	template<typename T, typename... U>
@@ -116,24 +90,65 @@ public:
 		auto token = peek_token();
 		auto const& it = map.find(token);
 		if( it != map.end() ) {
-			token_type = Unset;// skip the token
+			reset();// skip the token
 			return it->second(args...);
 		} else {
 			return def(token);
 		}
 	}
-	void skip( std::string_view token );
 	void ignore_token() {
 		peek_token();
-		token_type = Unset;
+		reset();
 	}
-	// process the next token
 	int get_int();
 	float get_float();
-	std::string get_token() {
-		auto ret = std::string(peek_token());
+	virtual size_t line_counter() const = 0;
+};
+
+class Lexer : public Tokenizer {
+private:
+	/** line counter */
+	size_t line_count = 1;
+	// input stream
+	std::istream* pis;
+	/** Lexical grammar */
+	Lex const* plex;
+	// stores the next token type
+	TokenType token_type;
+	std::string_view peeked_token;
+	// local buffer
+	char buf[1024];
+	Lex::CharType fetched_char_type;
+	// write pointer
+	size_t wp;
+	// read pointer
+	size_t rp;
+	// writes one character into the buffer
+	int fetch_char();
+	void read_continue( Lex::CharType t );
+	void skip_spaces();
+	// to ensure pointer life
+	Lexer( std::istream&, Lex&& ) = delete;
+	// do not copy a lexer, since the internal state and the input stream get inconsistent.
+	Lexer( Lexer const& ) = delete;
+public:
+	Lexer( std::istream& is, Lex const& lex ) : plex(&lex), pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
+	void reset() {
 		token_type = Unset;
-		return ret;
+	}
+	/** references the istream */
+	std::istream& get_istream() const {
+		return *pis;
+	}
+	/** references the lexical grammar */
+	Lex const& get_lex() const {
+		return *plex;
+	}
+	/** peeks (not process) the next token */
+	std::string_view peek_token();
+	TokenType next_token_type() {
+		peek_token();
+		return token_type;
 	}
 	size_t line_counter() const {
 		return line_count;

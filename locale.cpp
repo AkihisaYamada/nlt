@@ -60,11 +60,13 @@ static ostream& mk_indent(ostream& os, size_t n) {
 }
 function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax, size_t n) const & {
 	return [&](ostream& os)->ostream& {
-		os << '@' << id();
-		if( parent() ) {
-			os << " <- @" << parent()->id();
+		if( syntax.prints_ctxt() ) {
+			os << '@' << id() << ' ';
+			if( parent() ) {
+				os << "<- @" << parent()->id() << ' ';
+			}
 		}
-		os << " {" << endl;
+		os << "{" << endl;
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {

@@ -23,7 +23,7 @@ public:
 	/** Creates an anonymous branch locale. */
 	Locale branch() const;
 	/** Creates a named branch. */
-	Locale branch(std::string const& name);
+	Locale branch(std::string_view const& name);
 	/** Obtains the parent locale. */
 	Opt<Locale const> parent() const;
 	/** @brief Local theorems.
@@ -114,7 +114,7 @@ inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
 inline Locale Locale::branch() const {
 	return Locale(Ref<_Body>::make(Opt<Locale const>(*this)), Ctxt::branch());
 }
-inline Locale Locale::branch(std::string const &name) {
+inline Locale Locale::branch( std::string_view const& name ) {
 	return _ref->locales.emplace(name,branch()).first->second;
 }
 inline Opt<Locale const> Locale::parent() const

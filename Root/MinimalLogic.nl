@@ -3,7 +3,7 @@ base Root;
 import And;
 import Or;
 import Iff;
-import MinimalNot;
+import Not;
 
 setup conclude imp.refl iff.refl;
 
