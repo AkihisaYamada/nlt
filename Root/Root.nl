@@ -108,55 +108,46 @@ locale Not {
 
 	show imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
-		show! if PQ: P ⟹ Q then false;
-			note Q: PQ[OF P];
-			by not_imp_false[OF nQ Q];
-	qed;
+		assume PQ: P ⟹ Q;
+		note Q: PQ[OF P];
+		by not_imp_false[OF nQ Q];
 
 	show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
 		apply not_intro;
 		show! if P: P then false;
 			by not_imp_false[OF nQ PQ[OF P]];
-	qed;
+		qed;
 
 	show not_all: if nPx: ¬ P x then ¬(∀y. P y);
 		apply not_intro;
-		show! if all: ∀y. P y then false;
-			show Px: P x;
-				by all;
-			by not_imp_false[OF nPx Px];
-	qed;
+		assume all: ∀y. P y;
+		by not_imp_false[OF nPx all];
 
 	show NN_imp_NN: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
 		apply not_intro;
-		show! if nQ: ¬Q then false;
-			show nP: ¬P;
-				by imp_not_imp[OF PQ nQ];
-			by not_imp_false[OF P nP];
-	qed;
+		assume nQ: ¬Q;
+		show nP: ¬P;
+			by imp_not_imp[OF PQ nQ];
+		by not_imp_false[OF P nP];
 
 	show NN_N_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
-		show! if PQ: P ⟹ Q then false;
-			show Q: ¬¬Q;
-				by NN_imp_NN[OF P PQ];
-			by not_imp_false[OF Q nQ];
-	qed;
+		assume PQ: P ⟹ Q;
+		show Q: ¬¬Q;
+			by NN_imp_NN[OF P PQ];
+		by not_imp_false[OF Q nQ];
 
 	show NN_mp: if P: ¬¬P, PQ: ¬¬(P ⟹ Q) then ¬¬Q;
 		apply not_intro;
-		show! ¬Q ⟹ false;
-			assume nQ: ¬Q;
-			show nPQ: ¬(P ⟹ Q);
-				by NN_N_nimp[OF P nQ];
-			by not_imp_false[OF PQ nPQ];
-	qed;
+		assume nQ: ¬Q;
+		show nPQ: ¬(P ⟹ Q);
+			by NN_N_nimp[OF P nQ];
+		by not_imp_false[OF PQ nPQ];
 
 	show not_not: if P: P then ¬¬P;
 		apply not_intro;
-		show! if nP: ¬P then false;
-			by not_imp_false[OF nP P];
-	qed;
+		assume nP: ¬P;
+		by not_imp_false[OF nP P];
 }
 
 infix ⟺ 1 1 0;
@@ -186,34 +177,32 @@ locale Iff {
 		by iff_intro[OF iff.sym iff.sym];
 
 	show imp_imp_iff: if P: P then (P ⟹ Q) ⟺ Q;
-		show 1: if PQ: P ⟹ Q then Q;
+		apply iff_intro;
+		show! if PQ: P ⟹ Q then Q;
 			by PQ[OF P];
-		show 2: if Q: Q, P2: P then Q;
+		show! if Q: Q, P2: P then Q;
 			by Q;
-		by iff_intro[OF 1 2];
+		qed;
 
-	show iff_cong_imp: (P ⟺ Q) ⟹ (R ⟺ S) ⟹ (P ⟹ R) ⟺ (Q ⟹ S);
-		assume PQ: P ⟺ Q, RS: R ⟺ S;
-		show 1: (P ⟹ R) ⟹ (Q ⟹ S);
-			assume PR: P ⟹ R;
-			show QR: Q ⟹ R; by imp.trans[OF iff_elim2[OF PQ] PR];
+	show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
+		apply iff_intro;
+		show! if PR: P ⟹ R then Q ⟹ S;
+			show QR: Q ⟹ R;
+				by imp.trans[OF iff_elim2[OF PQ] PR];
 			by imp.trans[OF QR iff_elim1[OF RS]];
-		show 2: (Q ⟹ S) ⟹ (P ⟹ R);
-			assume QS: Q ⟹ S;
+		show! if QS: Q ⟹ S then P ⟹ R;
 			show PS: P ⟹ S; by imp.trans[OF iff_elim1[OF PQ] QS];
 			by imp.trans[OF PS iff_elim2[OF RS]];
-		by iff_intro[OF 1 2];
+		qed;
 
-	show iff_cong_iff: (P ⟺ Q) ⟹ (R ⟺ S) ⟹ (P ⟺ R) ⟺ (Q ⟺ S);
-		assume PQ: P ⟺ Q, RS: R ⟺ S;
-		show 1: (P ⟺ R) ⟹ (Q ⟺ S);
-			assume PR: P ⟺ R;
+	show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
+		apply iff_intro;
+		show! if PR: P ⟺ R then Q ⟺ S;
 			show QR: Q ⟺ R; by iff.trans[OF iff.sym[OF PQ] PR];
 			by iff.trans[OF QR RS];
-		show 2: (Q ⟺ S) ⟹ (P ⟺ R);
-			assume QS: Q ⟺ S;
+		show! if QS: Q ⟺ S then P ⟺ R;
 			show PS: P ⟺ S; by iff.trans[OF PQ QS];
 			by iff.trans[OF PS iff.sym[OF RS]];
-		by iff_intro[OF 1 2];
+		qed;
 
 }

@@ -23,11 +23,12 @@ show false_imp_iff: (false ⟹ P) ⟺ true;
 	by iff_true[OF false_elim];
 
 show false_and_iff: false ∧ P ⟺ false;
-	show 1: if fP: false ∧ P then false;
+	apply iff_intro;
+	show! if fP: false ∧ P then false;
 		by and_elim1[OF fP];
-	show 2: if f: false then false ∧ P;
+	show! if f: false then false ∧ P;
 		by false_elim[OF f];
-	by iff_intro[OF 1 2];
+	qed;
 
 show and_false_iff: P ∧ false ⟺ false;
 	unfold and_commute;

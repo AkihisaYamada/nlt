@@ -95,6 +95,9 @@ public:
 		_own_parser(true),
 		_exit_on_error(exit_on_error) {
 	}
+	void set_exit_on_error( bool b ) {
+		_exit_on_error = b;
+	}
 	Prover branch( string_view const& name ) {
 		auto loc = _loc.branch(name);
 		if( _path ) {
@@ -722,10 +725,10 @@ public:
 				throw Error(Term("unexpected")(_parser.get_token()));
 			}
 		} catch ( ::Error const& e ) {
-			cerr << _parser.line_counter() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
+			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
 			_error();
 		} catch ( exception const& e ) {
-			cerr << _parser.line_counter() << ": Other exception: " << e.what() << endl;
+			cerr << _parser.location() << ": Other exception: " << e.what() << endl;
 			_error();
 		}
 	}
@@ -735,7 +738,7 @@ public:
 			auto fis = file_of_locale(dir,name);
 			if( !fis.fail() ) {
 				auto& prev = get_lexer();
-				Lexer local_lexer(fis,*_syntax);
+				Lexer local_lexer(fis,dir+name,*_syntax);
 				local_lexer.skip("base");
 				auto parent_name = local_lexer.get_token();
 				local_lexer.skip(";");
@@ -769,12 +772,13 @@ Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool
 			cerr << "could not find base " << base_name << endl;
 			exit(-1);
 		}
-		auto local_lexer = Lexer(fis,*syntax);
-		Prover base = preload(local_lexer,syntax,base_name,exit_on_error);
+		auto local_lexer = Lexer(fis,base_name,*syntax);
+		Prover base = preload(local_lexer,syntax,base_name,true);
 		base.loop();
 		cout << "Loaded " << base_name << endl;
 		Prover sub = base.branch(name);
 		sub.set_lexer(lexer);
+		sub.set_exit_on_error(exit_on_error);
 		return sub;
 	} else {
 		return Prover(lexer,syntax,exit_on_error);
@@ -786,13 +790,13 @@ int main(int argc, char* argv[]) {
 	auto syntax = make_syntax();
 	bool exit_on_error = false;
 	if( argc == 1 ) {
-		Lexer lexer(cin,*syntax);
+		Lexer lexer(cin,"stdin",*syntax);
 		preload(lexer,syntax,"stdin",false).loop();
 	} else {
 		string name = argv[1];
 		auto fin = file_of_locale("",name);
-		Lexer lexer(fin,*syntax);
-		preload(lexer,syntax,name,false).loop();
+		Lexer lexer(fin,name,*syntax);
+		preload(lexer,syntax,name,true).loop();
 	}
 	cout << "bye!" << endl;
 	return 0;

@@ -102,11 +102,13 @@ public:
 	}
 	int get_int();
 	float get_float();
-	virtual size_t line_counter() const = 0;
+	virtual std::string location() const = 0;
 };
 
 class Lexer : public Tokenizer {
 private:
+	/** file name */
+	std::string const filename;
 	/** line counter */
 	size_t line_count = 1;
 	// input stream
@@ -128,11 +130,11 @@ private:
 	void read_continue( Lex::CharType t );
 	void skip_spaces();
 	// to ensure pointer life
-	Lexer( std::istream&, Lex&& ) = delete;
+	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.
 	Lexer( Lexer const& ) = delete;
 public:
-	Lexer( std::istream& is, Lex const& lex ) : plex(&lex), pis(&is), wp(0), rp(0), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
+	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), wp(0), rp(0), token_type(Unset), fetched_char_type(Lex::Blank), buf() {}
 	void reset() {
 		token_type = Unset;
 	}
@@ -150,8 +152,8 @@ public:
 		peek_token();
 		return token_type;
 	}
-	size_t line_counter() const {
-		return line_count;
+	std::string location() const {
+		return filename + '+' + std::to_string(line_count);
 	}
 };
 
