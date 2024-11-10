@@ -210,14 +210,12 @@ Term Term::_map(
 	}
 }
 
-string const IMP_var = "⟹";
-string const ALL_var = "∀";
-Term const IMP = Term(IMP_var);
-Term const ALL = Term(ALL_var);
+string const IMP = "⟹";
+string const ALL = "∀";
 
 Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
-	_ref->fvars.insert(IMP_var);
-	_ref->fvars.insert(ALL_var);
+	_ref->fvars.insert(IMP);
+	_ref->fvars.insert(ALL);
 }
 
 Opt<CTerm> Ctxt::constant(string_view const& sym) const & {
@@ -326,11 +324,9 @@ Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext("impE");
 	}
-	if( auto const& app1 = capp() ) {
-		if( auto const& app2 = app1->first.app() ) {
-			if( app2->first == IMP && app2->second == t ) {
-				return app1->second;
-			}
+	if( auto const& imp = cbinary(IMP) ) {
+		if( imp->first == t ) {
+			return imp->second;
 		}
 	}
 	throw MalformedDischarge(*this,t);
@@ -350,7 +346,7 @@ Thm Thm::intro() const {
 		if( auto const& assm = _ctxt.assumed(i) ) {
 			stmt = *assm >>= stmt;
 		} else if( auto const& fix = _ctxt.fixed(i) ) {
-			stmt = ALL( *fix /= stmt );
+			stmt = Term(ALL)( *fix /= stmt );
 		} else if( auto const& obtain = _ctxt.obtained(i) ) {
 			// obtain is safe
 		} else {
@@ -410,7 +406,7 @@ CTerm Term::csubst(CSubst const& subst) const {
 }
 Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
 	if( auto tgtParent = tgt.find_parent() ) {
-		if( tgtParent != src.find_parent() ) {
+		if( !src.has_ancestor(*tgtParent) ) {
 			throw WrongContext("making interpretation");
 		}
 	}

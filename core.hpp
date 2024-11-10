@@ -37,10 +37,8 @@ static bool polluted;
 std::string avoid(std::string const& var, std::function<bool(std::string const&)> const& test);
 
 extern std::string const VOID_var;
-extern std::string const IMP_var;
-extern std::string const ALL_var;
-extern Term const IMP;
-extern Term const ALL;
+extern std::string const IMP;
+extern std::string const ALL;
 std::ostream& operator<<(std::ostream& os, Term const& t);
 
 template<typename T>
@@ -161,7 +159,7 @@ public:
 	/** @brief Decompose binders.
 	 * @param b expected binder (quantifier)
 	 */
-	Opt<StrTerm const&> binder(Term const& b) const & {
+	Opt<StrTerm const&> binder( std::string_view const& b ) const & {
 		if( auto opt1 = app() ) {
 			if( opt1->first == b ) {
 				return opt1->second.abs();
@@ -172,7 +170,7 @@ public:
 	/** @brief Decompose binders.
 	 * @param b expected binder (quantifier)
 	 */
-	Opt<StrTerm> binder(Term const& b) && {
+	Opt<StrTerm> binder( std::string_view const& b ) && {
 		if( auto opt = binder(b) ) {
 			return std::move(*opt);
 		}
@@ -183,7 +181,7 @@ public:
 	 * @param f expected function
 	 * @return the argument, if matches
 	 */
-	Opt<Term const&> unary(Term const& f) const & {
+	Opt<Term const&> unary( std::string_view const& f ) const & {
 		if( auto opt = app() ) {
 			if( opt->first == f ) {
 				return opt->second;
@@ -196,7 +194,7 @@ public:
 	 * @param f expected function
 	 * @return the argument, if matches
 	 */
-	Opt<Term> unary(Term const& f) && {
+	Opt<Term> unary( std::string_view const& f ) && {
 		if( auto opt = unary(f) ) {
 			return std::move(*opt);
 		}
@@ -207,7 +205,7 @@ public:
 	 * @param f expected function symbol
 	 * @return the pair of arguments, in case of match
 	 */
-	Opt<std::pair<Term const&,Term const&>> binary(Term const& f) const & {
+	Opt<std::pair<Term const&,Term const&>> binary( std::string_view const& f ) const & {
 		if( auto x = app() ) {
 			if( auto a = x->first.unary(f) ) {
 				return {{*a,x->second}};
@@ -220,7 +218,7 @@ public:
 	 * @param f expected function symbol
 	 * @return the pair of arguments, in case of match
 	 */
-	Opt<Pair> binary(Term const& f) && {
+	Opt<Pair> binary( std::string_view const& f ) && {
 		if( auto x = app() ) {
 			if( auto a = x->first.unary(f) ) {
 				return {{std::move(*a),std::move(x->second)}};
@@ -316,7 +314,7 @@ inline bool operator!=(Term const& l, Term const& r) {
 }
 /** implication */
 inline Term operator>>=(Term const& l, Term const& r) {
-	return IMP(l)(r);
+	return Term(IMP)(l)(r);
 }
 
 struct Error : public std::exception {
@@ -387,11 +385,20 @@ public:
 		}
 		return *opt;
 	}
-	/** @brief Ensures that this has the given context as an ancestor.
-	 * @exception WrongContext is thrown if it does not.
+	/** @brief Tests if this has the given context as an ancestor.
 	 */
-	void ensure_ancestor(Ctxt const& ancestor) const {
-		for( Ctxt cur = *this; cur != ancestor; cur = cur.ctxt() );
+	bool has_ancestor(Ctxt const& ancestor) const {
+		Ctxt cur = *this;
+		for(;;) {
+			if( cur == ancestor ) {
+				return true;
+			}
+			if( auto parent = cur.find_parent() ) {
+				cur = *parent;
+			} else {
+				return false;
+			}
+		}
 	}
 	/** The set of locally fixed variables. */
 	StrSet const& fvars() const&;
@@ -543,7 +550,7 @@ public:
 	 * @param b the binder
 	 * @return If this is binding, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
-	Opt<StrTerm> cbinder(Term const& b) const {
+	Opt<StrTerm> cbinder( std::string_view const& b ) const {
 		if( auto app = capp() ) {
 			if( app->first == b ) {
 				return cabs();
@@ -556,7 +563,7 @@ public:
 	 * @param f the binary function
 	 * @return If this is application of f, then the pair of arguments.
 	 */
-	Opt<Pair> cbinary(Term const& f) const {
+	Opt<Pair> cbinary( std::string_view const& f ) const {
 		if( auto bin = binary(f) ) {
 			auto [s,t] = *bin;
 			return Pair(CTerm(_ctxt,s),CTerm(_ctxt,t));
@@ -600,7 +607,9 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm weaken(Ctxt const& ctxt) const {
-		ctxt.ensure_ancestor(_ctxt);
+		if( !ctxt.has_ancestor(_ctxt) ) {
+			throw WrongContext("weaken");
+		}
 		return CTerm(ctxt,*this);
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.

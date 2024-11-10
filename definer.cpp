@@ -11,7 +11,7 @@ pair<string,Thm> Definer::define(Ctxt& ctxt, Term const& l, Term const& r) const
 	Term t = r;
 	for( auto it = unc.second.rbegin(); it != unc.second.rend(); it++, steps++ ) {
 		if( auto param = it->sym() ) {
-			rule = ALL(*param /= rule);
+			rule = *param &= rule;
 			t = LAM(*param /= t);
 		} else {
 			throw Error(l);

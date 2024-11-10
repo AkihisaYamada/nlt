@@ -107,56 +107,56 @@ locale Not {
 		by not_intro[OF imp.refl];
 
 	show imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
-		show 1: if PQ: P ⟹ Q then false;
-			show Q: Q; by PQ[OF P];
+		apply not_intro;
+		show! if PQ: P ⟹ Q then false;
+			note Q: PQ[OF P];
 			by not_imp_false[OF nQ Q];
-		by not_intro[OF 1];
+	qed;
 
-	show imp_not_imp: (P ⟹ Q) ⟹ ¬Q ⟹ ¬P;
-		assume PQ: P ⟹ Q, nQ: ¬Q;
-		show P0: if P: P then false;
+	show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
+		apply not_intro;
+		show! if P: P then false;
 			by not_imp_false[OF nQ PQ[OF P]];
-		by not_intro[OF P0];
+	qed;
 
-	show not_all: ¬ P x ⟹ ¬(∀y. P y);
-		assume nPx: ¬ P x;
-		show 1: (∀y. P y) ⟹ false;
-			assume 2: ∀y. P y;
+	show not_all: if nPx: ¬ P x then ¬(∀y. P y);
+		apply not_intro;
+		show! if all: ∀y. P y then false;
 			show Px: P x;
-				by 2;
+				by all;
 			by not_imp_false[OF nPx Px];
-		by not_intro[OF 1];
+	qed;
 
-	show NN_imp_NN: ¬¬P ⟹ (P ⟹ Q) ⟹ ¬¬Q;
-		assume P: ¬¬P, PQ: P ⟹ Q;
-		show nQ0: ¬Q ⟹ false;
-			assume nQ: ¬Q;
-			show nP: ¬P; by imp_not_imp[OF PQ nQ];
+	show NN_imp_NN: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
+		apply not_intro;
+		show! if nQ: ¬Q then false;
+			show nP: ¬P;
+				by imp_not_imp[OF PQ nQ];
 			by not_imp_false[OF P nP];
-		by not_intro[OF nQ0];
+	qed;
 
-	show NN_N_nimp: ¬¬P ⟹ ¬Q ⟹ ¬(P ⟹ Q);
-		assume P: ¬¬P, nQ: ¬Q;
-		show PQ0: (P ⟹ Q) ⟹ false;
-			assume PQ: P ⟹ Q;
-			show Q: ¬¬Q; by NN_imp_NN[OF P PQ];
+	show NN_N_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q);
+		apply not_intro;
+		show! if PQ: P ⟹ Q then false;
+			show Q: ¬¬Q;
+				by NN_imp_NN[OF P PQ];
 			by not_imp_false[OF Q nQ];
-		by not_intro[OF PQ0];
+	qed;
 
-	show NN_mp: ¬¬P ⟹ ¬¬(P ⟹ Q) ⟹ ¬¬Q;
-		assume P: ¬¬P, PQ: ¬¬(P ⟹ Q);
-		show nQ0: ¬Q ⟹ false;
+	show NN_mp: if P: ¬¬P, PQ: ¬¬(P ⟹ Q) then ¬¬Q;
+		apply not_intro;
+		show! ¬Q ⟹ false;
 			assume nQ: ¬Q;
-			show nPQ: ¬(P ⟹ Q); by NN_N_nimp[OF P nQ];
+			show nPQ: ¬(P ⟹ Q);
+				by NN_N_nimp[OF P nQ];
 			by not_imp_false[OF PQ nPQ];
-		by not_intro[OF nQ0];
+	qed;
 
-	show not_not: P ⟹ ¬¬P;
-		assume P: P;
-		show 1: ¬P ⟹ false;
-			assume nP: ¬P;
+	show not_not: if P: P then ¬¬P;
+		apply not_intro;
+		show! if nP: ¬P then false;
 			by not_imp_false[OF nP P];
-		by not_intro[OF 1];
+	qed;
 }
 
 infix ⟺ 1 1 0;

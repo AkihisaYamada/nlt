@@ -139,7 +139,41 @@ CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	}
 	return t;
 }
-
+Thm make_rule( Thm const& thm ) {
+	Ctxt loc = thm.ctxt().branch();
+	Thm rule = strip_all(thm,loc);
+	while( auto imp = rule.cbinary(IMP) ) {
+		rule = rule.impE(loc.assume(imp->first));
+	}
+	return rule;
+}
+Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis ) {
+	Ctxt ctxt = thesis.ctxt().branch();
+	Thm tmp = thesis.weaken(ctxt);
+	auto imp = tmp.cbinary(IMP);
+	if( !imp ) {
+		throw Error(Term{"#apply"}(rule)(thesis));
+	}
+	auto const& m = match(rule.ctxt().fvars(),rule,imp->first);
+	if( !m ) {
+		return {};
+	}
+	Intp intp = Intp::make(rule.ctxt(),ctxt);
+	for(;;) {
+		if( auto v = intp.fixing() ) {
+			if( auto val = m->get(*v) ) {
+				intp.instantiate(*val);
+			} else {
+				intp.instantiate(tmp);// dummy
+			}
+		} else if( auto assm = intp.assuming() ) {
+			intp.discharge(ctxt.assume(*assm));
+		} else {
+			break;
+		}
+	}
+	return tmp.impE(intp.subst(rule)).intro();
+}
 void import_all(Intp& intp) {
 	auto ctxt = intp.ctxt();
 	for(;;) {

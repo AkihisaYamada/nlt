@@ -9,8 +9,7 @@ setup conclude imp.refl iff.refl;
 
 setup rewrite iff.refl iff.sym iff.trans iff_elim1;
 
-show iff_cong_and: (P ⟺ Q) ⟹ (R ⟺ S) ⟹ P ∧ R ⟺ Q ∧ S;
-	assume PQ: P ⟺ Q, RS: R ⟺ S;
+show iff_cong_and: if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
 	show 1: P ∧ R ⟹ Q ∧ S;
 		assume PR: P ∧ R;
 		show P: P; by and_elim1[OF PR];

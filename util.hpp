@@ -6,7 +6,7 @@
 
 /** for all */
 inline Term operator&=(std::string const& v, Term const& s) {
-	return ALL(v/=s);
+	return Term(ALL)(v/=s);
 }
 
 /** Iterate over locally fixed variables. */
@@ -36,6 +36,12 @@ CTerm strip_all(CTerm t, Ctxt& loc);
  * @param loc this context will fix the bound variables.
  */
 Thm strip_all(Thm thm, Ctxt& loc);
+
+/** @brief Makes a theorem into the conclusion, whose context contains the conditions. */
+Thm make_rule( Thm const& thm );
+
+/** @brief Applies an inference rule */
+Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis );
 
 /**
  * @brief Uncurrying

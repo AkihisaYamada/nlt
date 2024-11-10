@@ -260,7 +260,22 @@ public:
 	}
 	Thm proof_loop() {
 		for(;;) {
-			if( _parser.skips("unfold") ) {
+			if( _parser.skips("apply") ) {
+				auto rule = make_rule(get_thm());
+				if( !_thesis ) {
+					throw Error("\"No goal for apply\"");
+				}
+				auto res = rule_applies(rule,*_thesis);
+				if( !res ) {
+					throw Error(Term("\"Rule not applicable\"")(rule)(*_thesis));
+				}
+				*_thesis = *res;
+				if( auto g = has_goal() ) {
+					cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
+				} else {
+					cout << "no subgoal!" << endl;
+				}
+			} else if( _parser.skips("unfold") ) {
 				if( !_thesis ) {
 					throw Error("\"No goal for unfold\"");
 				}
@@ -268,7 +283,6 @@ public:
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
 				auto g = has_goal();
 				assert(g);
-				_indent();
 				cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else if( _parser.skips("fold") ) {
 				if( !_thesis ) {
@@ -575,6 +589,13 @@ public:
 				_parser.skip(";");
 				cout << "Done." << endl;
 				return _concluder.conclude(*_thesis);
+			} else if( _parser.skips("qed") ) {
+				_parser.skip(";");
+				if( !_thesis ) {
+					throw Error("No goal for \"qed\"");
+				}
+				cout << "QED" << endl;
+				return _thesis;
 			} else if( _parser.skips("prefix") ) {
 				string sym = _parser.get_token();
 				int rlevel = _parser.get_int();
