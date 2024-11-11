@@ -210,6 +210,14 @@ Term Term::_map(
 	}
 }
 
+inline Term Term::inst(CTerm const& arg) const {
+	auto a = abs();
+	if( !a ) {
+		throw MalformedInstantiation(*this,arg);
+	}
+	return a->second.subst(a->first,arg);
+}
+
 string const IMP = "⟹";
 string const ALL = "∀";
 
@@ -275,8 +283,11 @@ Thm Ctxt::assume(CTerm const& t) & {
 	return _assume(t);
 }
 
-pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
-	// thm should be ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
+pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) & {
+	if( constant(sym) ) {
+		throw DoubleFix(sym);
+	}
+	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
 	auto all1 = thm.binder(ALL);
 	if( !all1 ) {
 		throw MalformedObtain(thm);
@@ -286,36 +297,38 @@ pair<CTerm,vector<Thm>> Ctxt::obtain(Thm const& thm) & {
 	if( !imp || imp->second != thesis ) {
 		throw MalformedObtain(thm);
 	}
-	auto all2 = imp->first.binder(ALL);
+	auto all2 = imp->first.unary(ALL);
 	if( !all2 ) {
 		throw MalformedObtain(thm);
 	}
-	auto sym = all2->first;
-	if( constant(sym) ) {
-		throw DoubleFix(sym);
+	auto abs = all2->abs();
+	if( !abs ) {
+		throw MalformedObtain(thm);
 	}
-	vector<Thm> thms;
-	Term const* in = &all2->second;
+	auto sym2 = abs->first;
+	Term t = abs->second;// props... ⟹ thesis
+	// check that props do not contain thesis
+	Term const* in = &t;
 	while( auto imp2 = in->binary(IMP) ) {
 		auto& prop = imp2->first;
-		prop.iter_syms(// spec should not contain thesis
+		prop.iter_syms(
 			[&](auto str){ if( str == thesis ) throw MalformedObtain(prop); }
 		);
-		thms.push_back(CTerm(*this,prop));
 		in = &imp2->second;
 	}
 	if( *in != thesis ) {
 		throw MalformedObtain(thm);
 	}
-	_ref->modifiers.push_back(_Obtain(thm));
-	_ref->constants.insert(sym);
-	return {CTerm(*this,sym),thms};
+	// (props[var:=sym]... ⟹ thesis) ⟹ thesis
+	_ref->constants.emplace(sym);
+	_ref->modifiers.push_back(_Obtain(string(sym),thm));
+	auto sym_term = CTerm(*this,sym);
+	Thm spec = CTerm( *this, thesis &= all2->inst(sym_term) >>= thesis );
+	return {sym_term,spec};
 }
 Thm Thm::_allE(CTerm const& t) const {
-	if( auto const& a = capp() ) {
-		if( a->first == ALL ) {
-			return a->second.inst(t);
-		}
+	if( auto const& a = cunary(ALL) ) {
+		return a->inst(t);
 	}
 	throw MalformedInstantiation(*this,t);
 }
@@ -346,7 +359,7 @@ Thm Thm::intro() const {
 		if( auto const& assm = _ctxt.assumed(i) ) {
 			stmt = *assm >>= stmt;
 		} else if( auto const& fix = _ctxt.fixed(i) ) {
-			stmt = Term(ALL)( *fix /= stmt );
+			stmt = *fix &= stmt;
 		} else if( auto const& obtain = _ctxt.obtained(i) ) {
 			// obtain is safe
 		} else {
@@ -405,8 +418,8 @@ CTerm Term::csubst(CSubst const& subst) const {
 	return CTerm(ctxt,map(f,fixed));
 }
 Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
-	if( auto tgtParent = tgt.find_parent() ) {
-		if( !src.has_ancestor(*tgtParent) ) {
+	if( auto srcParent = src.find_parent() ) {
+		if( !tgt.has_ancestor(*srcParent) ) {
 			throw WrongContext("making interpretation");
 		}
 	}
@@ -432,47 +445,39 @@ void Intp::instantiate(CTerm const& term) {
 void Intp::discharge(Thm const& thm) {
 	auto assume = _src.assumed(_rev);
 	if( !assume ) {
-		throw WrongContext("unexpected discharge");
+		throw UnexpectedTerm("discharge");
 	}
 	Term const& exp = assume->subst(_subst);
 	if( exp != thm ) {
-		throw UnexpectedTerm(Term("#expected")(exp)(thm));
+		throw MalformedDischarge(exp,thm);
 	}
 	_rev++;
 }
-void Intp::retain(CTerm const& term, vector<Thm> const& thms) {
-	auto obtain = _src.obtained(_rev); // ∀thesis. (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
+void Intp::retain(CTerm const& term, Thm const& thm) {
+	if( thm.ctxt() != _subst.ctxt() ) {
+		throw WrongContext("retain");
+	}
+	auto obtain = _src.obtained(_rev);
 	if( !obtain ) {
-		throw WrongContext("unexpected retain");
+		throw UnexpectedTerm("retain");
 	}
-	auto abs = obtain->binder(ALL);
-	assert( abs );
-	auto [thesis,body1] = *abs; // thesis, (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
-	auto imp = body1.binary(IMP);
+	string const& sym = obtain->first;
+	Term t = obtain->second.subst(_subst);// ∀thesis. (∀sym. specs... ⟹ thesis) ⟹ thesis
+	auto all = t.binder(ALL);
+	assert( all );
+	auto thesis = all->first;
+	t = all->second; // (∀sym. specs... ⟹ thesis) ⟹ thesis
+	auto imp = t.binary(IMP);
 	assert( imp );
-	auto [body2,thesis2] = *imp; // ∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis, thesis
-	assert( thesis == thesis2 );
-	auto abs2 = body2.binder(ALL);
-	assert( abs2 );
-	auto [sym,imps] = *abs2; // sym, p_1 ⟹ ... ⟹ p_n ⟹ thesis
-	auto thm_it = thms.begin();
-	for(;;) {
-		if( thm_it == thms.end() ) {
-			if( imps == thesis ) {
-				_rev++;
-				return;
-			}
-			throw Error("#too_few_specs");
-		}
-		auto imp2 = imps.binary(IMP);
-		if( !imp2 ) {
-			throw UnexpectedTerm(Term("#too_many_specs")(*thm_it));
-		}
-		if( imp2->first != *thm_it ) {
-			throw UnexpectedTerm(Term("#expect")(imp->first)(*thm_it));
-		}
-		imps = imp2->second;
-		thm_it++;
+	t = imp->first; // ∀sym. specs... ⟹ thesis, thesis
+	auto abs = t.unary(ALL);
+	assert( abs );
+	t = abs->inst(term); // specs[sym:=term]... ⟹ thesis
+	t = thesis &= t >>= thesis; // ∀thesis. (specs[sym:=term]... ⟹ thesis) ⟹ thesis
+	if( thm != t ) {
+		throw MalformedRetain(thm);
 	}
+	_subst.assign(sym,term);
+	_rev++;
 }
 

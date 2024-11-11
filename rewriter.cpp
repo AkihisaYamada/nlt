@@ -20,20 +20,28 @@ Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 }
 
 static Thm equate_cong(Thm const& cong, Thm const& eq, CTerm const& arg) {
-	return discharge(cong.weaken(eq.ctxt()),eq) // ∀x. s x = t x
+	return (cong.weaken(eq.ctxt()) << eq) // ∀x. s x = t x
 			.allE(arg);// s arg = t arg
 }
 
-static Thm equate_abs(Thm const& ext, Thm const& eq) {
+static Thm equate_abs(Thm const& thm, Thm const& eq) {
+	// thm: (∀x. α.[x] = β.[x]) ⟹ α = β
+	// eq: s = t
+	CTerm s = eq.capp()->first.capp()->second;
+	CTerm t = eq.capp()->second;
 	Thm all = eq.intro();// ∀x. s = t
-	return ext.weaken(all.ctxt()) << all;
+	CTerm dummy = all.capp()->first;
+	CTerm a = s.lift(dummy).capp()->second;// a: x. s
+	CTerm b = t.lift(dummy).capp()->second;// b: x. t
+	return thm.weaken(all.ctxt()).allE(a).allE(b)
+		 << all;// (x. s) = (x. t)
 }
 
 Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
 	for( auto const& rule : rules ) {
 		Ctxt const& rule_ctxt = rule.pat.ctxt();
 		if( auto const& m = match(rule_ctxt.fvars(),rule.pat,source) ) {
-			// source = l[m]
+			// source: l[m]
 			Intp intp = Intp::make(rule_ctxt,source.ctxt());
 			for( int i = 0; i < rule_ctxt.revision(); i++ ) {
 				auto v = rule_ctxt.fixed(i);
@@ -45,8 +53,9 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 	}
 	for( auto const& cong : congs ) {
 		Ctxt const& ctxt = cong.pat.ctxt();
-		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source = C[s...]
-			Thm ret = cong.thm.weaken(source.ctxt());// ret = ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
+		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
+			Thm ret = cong.thm.weaken(source.ctxt());
+			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			size_t i = 0, n = ctxt.revision();
 			for(;;) {
 				auto v = ctxt.fixed(i);
@@ -54,17 +63,17 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 				assert(si);
 				i++;
 				if( auto const& eq = _step(rules,*si,refl) ) {
-					ret = discharge(ret,*eq);
+					ret = ret << *eq;
 					break;
 				}
 				if( i == n ) {
 					return {};
 				}
-				ret = discharge(ret,refl.allE(*si));
+				ret = ret << refl.allE(*si);
 			}
 			for( ; i < n; i++ ) {
 				auto v = ctxt.fixed(i);
-				ret = discharge(ret,refl.allE(*m->get(*v)));
+				ret = ret << refl.allE(*m->get(*v));
 			}
 			return ret;
 		}
@@ -72,7 +81,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
 		assert( ctxt.revision() == 1 ); // should have exactly one variable
-		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source = (ξ) α
+		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source: (ξ) α
 			auto const& var = *ctxt.fixed(0);
 			auto const& s = m->get(var);
 			assert(s);
@@ -151,9 +160,9 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 
 Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
 	Ctxt const& ctxt = source.ctxt();
-	Thm lrefl = refl.weaken(ctxt);
+	Thm lrefl = refl.weaken(ctxt);// P ⟺ P
+	Thm eq = lrefl.allE(source);// eq: source ⟺ source
 	Thm ltrans = trans.weaken(ctxt).allE(source);
-	Thm eq = lrefl.allE(source);
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
 	for( unsigned int i = 0; i < max; i++ ) {

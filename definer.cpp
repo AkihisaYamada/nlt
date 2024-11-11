@@ -17,16 +17,17 @@ pair<string,Thm> Definer::define(Ctxt& ctxt, Term const& l, Term const& r) const
 			throw Error(l);
 		}
 	}
+	// rule: ∀x... l = r,  t: λx... l
 	string thesis = avoid("thesis",[&](string const& x){ return ctxt.constant(x); });
 	// proving the existence
-	Ctxt prover = ctxt.branch();
-	prover.fix(thesis);
-	Thm thm = prover.assume( prover.cterm( f &= rule >>= thesis ) );
-	thm = thm.allE(t);
-	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});
-	thm = discharge(thm,rewriter->refl);
-	thm = thm.intro();
-	auto[x,props] = ctxt.obtain(thm);
-	return {f,props[0]};
+	Ctxt sub = ctxt.branch();
+	sub.fix(thesis);
+	Thm thm = sub.assume( sub.cterm( f &= rule >>= thesis ) );// (∀f x... l = r) ⟹ thesis
+	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
+	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});// (∀x... r = r) ⟹ thesis
+	thm = thm << rewriter->refl;// thesis
+	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis
+	auto [cf,spec] = ctxt.obtain(f,thm);// f, ((∀x... l = r) ⟹ thesis) ⟹ thesis
+	return {f,spec};
 }
 

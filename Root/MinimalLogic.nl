@@ -1,11 +1,12 @@
 base Root;
 
+import True;
 import And;
 import Or;
 import Iff;
 import Not;
 
-setup conclude imp.refl iff.refl;
+setup conclude true_intro imp.refl iff.refl;
 
 setup rewrite iff.refl iff.sym iff.trans iff_elim1;
 
@@ -72,6 +73,36 @@ setup cong
 	P ∨ Q: iff_cong_or,
 	¬P: iff_cong_not;
 
+show true_imp_iff: (true ⟹ P) ⟺ P;
+	by imp_imp_iff[OF true_intro];
+
+show imp_true_iff: (P ⟹ true) ⟺ true;
+	apply iff_intro;
+	show! if 1.1: P ⟹ true then true;
+		by true_intro;
+	show! if t: true, P: P then true;
+		by true_intro;
+	qed;
+
+show true_iff_iff: (true ⟺ P) ⟺ P;
+	apply iff_intro;
+	show! if P1: true ⟺ P then P;
+		fold P1;
+		by true_intro;
+	show! if P: P then true ⟺ P;
+		apply iff_intro;
+		show! true ⟹ P;
+			by weaken[OF P];
+		show! P ⟹ true;
+			by weaken[OF true_intro];
+		qed;
+	qed;
+
+show iff_true_iff: (P ⟺ true) ⟺ P;
+	unfold(0) iff_commute;
+	by true_iff_iff(P);
+
+note iff_true: iff_elim2[OF iff_true_iff];
 
 show and_commute: P ∧ Q ⟺ Q ∧ P;
 	by iff_intro[OF and.sym and.sym];
@@ -236,44 +267,6 @@ show false_or_false_iff: false ∨ false ⟺ false;
 	show! false ⟹ false ∨ false;
 		by or_intro1;
 	qed;
-
-obtain true where true_intro: true;
-	fix thesis;
-	assume assm: ∀true. true ⟹ thesis;
-	by assm(∀x. x ⟹ x)[OF imp.refl];
-
-setup conclude true_intro;
-
-show true_imp_iff: (true ⟹ P) ⟺ P;
-	by imp_imp_iff[OF true_intro];
-
-show imp_true_iff: (P ⟹ true) ⟺ true;
-	apply iff_intro;
-	show! if 1.1: P ⟹ true then true;
-		by true_intro;
-	show! if t: true, P: P then true;
-		by true_intro;
-	qed;
-
-show true_iff_iff: (true ⟺ P) ⟺ P;
-	apply iff_intro;
-	show! if P1: true ⟺ P then P;
-		fold P1;
-		by true_intro;
-	show! if P: P then true ⟺ P;
-		apply iff_intro;
-		show! true ⟹ P;
-			by weaken[OF P];
-		show! P ⟹ true;
-			by weaken[OF true_intro];
-		qed;
-	qed;
-
-show iff_true_iff: (P ⟺ true) ⟺ P;
-	unfold(0) iff_commute;
-	by true_iff_iff(P);
-
-note iff_true: iff_elim2[OF iff_true_iff];
 
 show false_imp_false_iff: (false ⟹ false) ⟺ true;
 	by iff_true[OF imp.refl];

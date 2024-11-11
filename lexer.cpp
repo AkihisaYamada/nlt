@@ -146,8 +146,9 @@ string_view Lexer::peek_token() {
 				read_continue( Lex::MultiOp | Lex::Dot );
 				token_type = Operator;
 				break;
-			case Lex::SingleOp:
+			case Lex::SingleOp:// dot followed by a single operator is another operator
 				rp = wp;
+				fetched_char_type = Lex::Blank;// no character is prefetched
 				token_type = Operator;
 				break;
 			default:

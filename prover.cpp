@@ -7,15 +7,20 @@
 
 using namespace std;
 
-using ClaimStatus = pair<bool,Opt<string>>;
+struct ClaimStatus {
+	bool is_goal;
+	Opt<string> name;
+	ClaimStatus( string_view const& name, bool is_goal = false ) : is_goal(is_goal), name(in_place,name) {}
+	ClaimStatus() : is_goal(true), name() {}
+};
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
-	if( cs.second ) {
-		os << *cs.second;
+	if( cs.name ) {
+		os << *cs.name;
 	}
-	return os << ( cs.first ? "! " : ": " );
+	return os << ( cs.is_goal ? "! " : ": " );
 }
 
-fstream file_of_locale( string const& dir, string const& name ) {
+fstream file_of_locale( string dir, string_view const& name ) {
 	return fstream(dir+name+".nl");
 }
 
@@ -74,7 +79,9 @@ class Prover {
 		_concluder(parent._concluder),
 		_rewriters(parent._rewriters),
 		_definer(parent._definer),
-		_exit_on_error(parent._exit_on_error) {}
+		_exit_on_error(parent._exit_on_error) {
+		_prompt();
+	}
 	void _error() {
 		if( _exit_on_error ) {
 			exit(-1);
@@ -94,6 +101,7 @@ public:
 		_parser(lexer,*_syntax),
 		_own_parser(true),
 		_exit_on_error(exit_on_error) {
+		_prompt();
 	}
 	void set_exit_on_error( bool b ) {
 		_exit_on_error = b;
@@ -243,23 +251,20 @@ public:
 	void _flush() {
 		cout << flush;
 	}
-	void _indent() {
+	ostream& _indent() {
 		for( int i = 0; i <= _depth; i++ ) {
 			cout << '>';
 		}
-		cout << ' ';
+		return cout << ' ';
+	}
+	void _prompt() {
+		_indent() << flush;
 	}
 	Opt<CTerm> has_goal() {
 		if( _thesis )
 		if( auto bin = _thesis->cbinary(IMP) )
 			return bin->first;
 		return {};
-	}
-	Locale find_locale( string_view const& path ) {
-		if( auto loc = _loc.find_locale(path) ) {
-			return *loc;
-		}
-
 	}
 	Thm proof_loop() {
 		for(;;) {
@@ -295,12 +300,12 @@ public:
 				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
 				auto g = has_goal();
 				assert(g);
-				_indent();
 				cout << "folded goal: " << _syntax->pretty_cterm(*g) << endl;
 			} else {
 				break;
 			}
 			_parser.skip(";");
+			_prompt();
 		}
 		_loc = _loc.branch();
 		auto thm = loop();
@@ -310,29 +315,28 @@ public:
 		return *thm;
 	}
 	ClaimStatus get_claim_status() {
-		ClaimStatus ret;
+		bool is_goal;
 		if( _parser.skips("!") ) {
 			if( !_thesis ) {
 				throw Error("\"unexpected conclusion\"");
 			}
-			ret.first = true;
+			return {};
 		} else {
-			ret.second = _parser.get_thm_name();
+			auto name = _parser.get_thm_name();
 			if( _parser.skips("!") ) {
-				ret.first = true;
+				return {name,true};
 			} else {
 				_parser.skip(":");
-				ret.first = false;
+				return {name,false};
 			}
 		}
-		return move(ret);
 	}
 	void add_claim( ClaimStatus cs, Thm const& thm ) {
-		if( cs.first ) {
+		if( cs.is_goal ) {
 			conclude(thm);
 		}
-		if( cs.second ) {
-			_loc.add_thm(*cs.second,thm);
+		if( cs.name ) {
+			_loc.add_thm(*cs.name,thm);
 		}
 	}
 	void conclude( Thm thm ) {
@@ -361,12 +365,20 @@ public:
 		}
 		arg = arg.intro(); // now quantify the goal variables
 		*_thesis = _thesis->impE(arg);
-		cout << "Concluded " << _syntax->pretty_thm(arg) << endl;
+	}
+	Locale find_locale( string_view const& name ) {
+		auto loc = _loc.find_locale(name);
+		if( !loc ) {
+			load_locale(name);
+			loc = _loc.find_locale(name);
+		}
+		if( !loc ) {
+			throw Error((string("\"unknown locale ") += name) + "\"");
+		}
+		return *loc;
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
-			_indent();
-			_flush();
 			if( _parser.skips("{") ) {
 				Locale loc = _loc.branch("");
 				cout << "Creating context " << loc.id() << endl;
@@ -391,22 +403,15 @@ public:
 					name = _parser.get_token();
 				}
 				bool has_mod = _parser.skips("{") || (_parser.skip(";"), false);
-				auto loc = _loc.find_locale(name);
-				if( !loc ) {
-					load_locale(name);
-					loc = _loc.find_locale(name);
-				}
-				if( !loc ) {
-					throw Error("\"unknown locale " + name + "\"");
-				}
-				auto& intp = _loc.import(prefix,*loc);
+				auto loc = find_locale(name);
+				auto& intp = _loc.import(prefix,loc);
 				if( has_mod ) {
 					cout << "importing " << name << endl;
 					_depth++;
 					for(;;){
-						_indent();
 						if( auto v = intp.fixing() ) {
 							cout << "Instantiate " << *v << endl;
+							_indent();
 							if( _parser.skips("for") ) {
 								if( _parser.skips("_") ) {
 									if( auto s = _loc.fixes(*v) ) {
@@ -423,6 +428,7 @@ public:
 							}
 						} else if( auto assm = intp.assuming() ) {
 							cout << "Discharge " << _syntax->pretty_cterm(*assm) << endl;
+							_indent();
 							if( _parser.skips("discharge") ) {
 								Locale loc = _loc.branch();
 								intp.discharge(prove(loc,*assm));
@@ -435,27 +441,45 @@ public:
 								break;
 							}
 						} else if( auto obtain = intp.obtaining() ) {
-							cout << "Obtain " << _syntax->pretty_cterm(*obtain) << endl;
+							auto [sym,thm] = *obtain;
+							cout << "Obtain " << sym << " in " << _syntax->pretty_cterm(thm) << endl;
+							_indent();
 							if( _parser.skips("obtain") ) {
-								auto term = _parser.get_term();
-								CTerm specs = obtain->cbinder(ALL)->second;
-								vector<Thm> thms;
-								for(;;) {
-									auto imp = specs.cbinary(IMP);
-									if( !imp ) {
-										break;
-									}
-									Locale loc = _loc.branch();
-									CTerm spec = imp->first.weaken(loc);
-									thms.push_back(prove(loc,spec).intro());
-									specs = imp->second;
+								if( _parser.skips(";") ) {
+								} else {
+									sym = _parser.get_token();
+									_parser.skip(";");
 								}
-								intp.retain(_loc.cterm(term),thms);
+								auto [sym_term,spec] = _loc.obtain(sym,thm);
+								intp.retain(sym_term,spec);
+							} else if( _parser.skips("for") ) {
+								Locale thesis_loc = _loc.branch();
+								auto term = thesis_loc.cterm(_parser.get_term());
+								_parser.skip(";");
+								CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
+									return _loc.constant(x);
+								}));
+								CTerm t = thm.capp()->second;
+// var'. (∀sym. props... ⟹ var') ⟹ var'
+								t = t.weaken(thesis_loc).inst(var);
+// (∀sym. props... ⟹ var) ⟹ var
+								t = t.cbinary(IMP)->first;
+// ∀sym. props... ⟹ var
+								t = t.capp()->second.inst(term);
+// props[sym:=term]... ⟹ var
+// assume this
+								Thm rule = thesis_loc.Ctxt::assume(t);
+// and prove var, i.e., props[sym:=term]...
+								Thm thesis = *rule_applies(rule,make_refl(var));
+								auto spec = Prover(*this,thesis_loc,{},{thesis}).proof_loop().intro();
+// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
+								intp.retain(_loc.cterm(term),spec);
 							} else {
 								break;
 							}
 						} else {
 							cout << "Complete!" << endl;
+							_indent();
 							break;
 						}
 					}
@@ -516,11 +540,12 @@ public:
 				auto cs = get_claim_status();
 				cout << "Showing " << cs << flush;
 				auto goal_loc = _loc.branch();
+				vector<pair<string,CTerm>> assms;// delay making assumptions, so that all free variables are fixed first
 				if( _parser.skips("if") ) {
 					cout << "if " << flush;
 					get_named_terms([&](string const& s, Term const& t){
 						cout << s << ": " << _syntax->pretty_term(t) << ", " << flush;
-						goal_loc.assume(s,goal_loc.enclose(t));
+						assms.emplace_back(s,goal_loc.enclose(t));
 					});
 					_parser.skip("then");
 					cout << "then ";
@@ -528,6 +553,9 @@ public:
 				Term conc = _parser.get_term(0);
 				_parser.skip(";");
 				CTerm goal = goal_loc.enclose(conc);
+				for( auto [name,assm] : assms ) {
+					goal_loc.assume(name,assm);
+				}
 				cout << _syntax->pretty_cterm(goal) << endl;
 				auto const& thm = prove(goal_loc,goal).intro();
 				add_claim(cs,thm);
@@ -536,30 +564,55 @@ public:
 				_parser.skip("where");
 				cout << "Obtaining " << sym << " where ";
 				vector<string> names;
-				vector<Term> specs;
+				vector<Term> props;
 				get_named_terms([&]( string const& s, Term const& t ) {
 					names.push_back(s);
-					specs.push_back(t);
+					props.push_back(t);
 					cout << s << ": " << _syntax->pretty_term(t) << ", ";
 				});
 				_parser.skip(";");
 				auto thesis_loc = _loc.branch();
-				CTerm thesis = thesis_loc.fix(avoid("thesis",[&](auto x){
+				CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 					return _loc.constant(x);
 				}));
 				Ctxt spec_ctxt = thesis_loc.Ctxt::branch();
 				spec_ctxt.fix(sym);
-				CTerm goal = thesis.weaken(spec_ctxt);
-				for( auto& spec : ranges::reverse_view(specs) ) {
-					goal = spec_ctxt.cterm(spec) >>= goal;
+				CTerm goal = var.weaken(spec_ctxt);
+				for( auto& prop : ranges::reverse_view(props) ) {
+					goal = spec_ctxt.cterm(prop) >>= goal;
 				}
-				goal = goal.lift(thesis_loc.cterm(ALL)) >>= thesis;
+				goal = goal.lift(thesis_loc.cterm(ALL)) >>= var;
 				goal = goal.lift(_loc.cterm(ALL));
 				cout << endl;
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
 				auto const& thm = prove(_loc.branch(),goal);
-				_loc.obtain(thm,names.begin());
+				auto [sym_term,spec] = _loc.obtain(sym,thm);
+				// register properties
+				auto all = spec.cbinder(ALL);
+				assert(all);
+				auto imp = all->second.cbinary(IMP);
+				assert(imp);
+				auto subst = CSubst(spec.ctxt());// to remove thesis
+				auto name_it = names.begin();
+				Thm refl = _loc.thm("imp.refl");// P ⟹ P
+				Thm weaken = _loc.thm("weaken");// (P ⟹ Q) ⟹ P
+				Thm ignore = _loc.thm("ignore");// ((P ⟹ Q) ⟹ R) ⟹ Q ⟹ R
+				CTerm s = imp->first;// P ⟹ props ⟹ var
+				auto imp2 = s.cbinary(IMP);
+				auto prop = imp2->first;// P
+				s = imp2->second;// props... ⟹ var
+				for(;;) {
+					if( auto imp3 = s.cbinary(IMP) ) {// more props follow
+						s = imp2->second;// props... ⟹ var
+						add_claim( ClaimStatus(*name_it), spec << weaken );// P
+						spec = ignore << spec;// ∀var. (props... ⟹ var) ⟹ var
+						name_it++;
+					} else {// spec: ∀var. (P ⟹ var) ⟹ var
+						add_claim( ClaimStatus(*name_it), spec << refl );// P
+						break;
+					}
+				}
 				cout << "Obtained " << sym << endl;
 			} else if( _parser.skips("define") ) {
 				Opt<string> name;
@@ -574,8 +627,9 @@ public:
 				if( !_definer ) {
 					throw Error("definer not setup");
 				}
-				auto [f,thm] = _definer->define(_loc,l,r);
-				_loc.add_thm( name ? *name : f + "_def", thm );
+				auto [f,spec] = _definer->define(_loc,l,r);
+				Thm def = spec << _loc.thm("imp.refl");
+				_loc.add_thm( name ? *name : f + "_def", def );
 				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _parser.skips("by") ) {
 				if( !_thesis ) {
@@ -584,6 +638,7 @@ public:
 				Thm const& thm = get_thm();
 				_parser.skip(";");
 				conclude(thm);
+				cout << "Concluded " << _syntax->pretty_thm(*_thesis) << endl;
 				return _thesis;
 			} else if( _parser.skips("done") ) {
 				if( !_thesis ) {
@@ -724,6 +779,7 @@ public:
 			} else {
 				throw Error(Term("unexpected")(_parser.get_token()));
 			}
+			_prompt();
 		} catch ( ::Error const& e ) {
 			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
 			_error();
@@ -732,7 +788,7 @@ public:
 			_error();
 		}
 	}
-	void load_locale( string const& name ) {
+	void load_locale( string_view const& name ) {
 		if( _path ) {
 			string dir = _path->dir + _path->name + "/";
 			auto fis = file_of_locale(dir,name);

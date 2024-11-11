@@ -74,7 +74,8 @@ function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax, size_t 
 			} else if( auto assm = assumed(i) ) {
 				mk_indent(os,n) << "assumes " << syntax.pretty_thm(*assm) << endl;
 			} else if( auto obt = obtained(i) ) {
-				mk_indent(os,n) << "obtains " << syntax.pretty_thm(*obt) << endl;
+				auto [sym,thm] = *obt;
+				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(thm) << endl;
 			} else {
 				assert(false);
 			}

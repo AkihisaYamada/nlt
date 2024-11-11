@@ -10,6 +10,12 @@ show mp: if P: P, PQ: P ⟹ Q then Q;
 show weaken: if P: P, Q: Q then P;
 	by P;
 
+show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
+	apply PQR;
+	show! if P: P then Q;
+		by Q;
+	qed;
+
 infix ≤ 51 51 50;
 
 locale Reflexive {
@@ -56,10 +62,27 @@ show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 show insert: (P ⟹ Q) ⟹ (R ⟹ P) ⟹ R ⟹ Q;
 	by imp_commute[OF imp.trans];
 
-show imp_all: if 1: P ⟹ ∀x. α[x] then ∀x. P ⟹ α[x];
+show imp_all: if 1: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
 	fix x;
 	assume P: P;
 	by 1[OF P](x);
+
+locale True {
+	obtain true where true_intro: true;
+		fix thesis;
+		assume assm: ∀true. true ⟹ thesis;
+		by assm(∀x. x ⟹ x)[OF imp.refl];
+}
+
+locale False {
+	obtain false where false_elim: ∀P. false ⟹ P;
+		fix thesis;
+		assume assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
+		show 1: (∀x. x) ⟹ P;
+			assume 2: ∀x. x;
+			by 2(P);
+		by assm(∀P. P)[OF 1];
+}
 
 infix ∧ 35 36 36;
 locale And {
@@ -100,9 +123,10 @@ locale Or {
 
 prefix ¬ 40 40;
 locale Not {
-	fix ¬ false;
+	fix false ¬;
 	assume not_imp_false: ¬ P ⟹ P ⟹ false;
 	assume not_intro: (P ⟹ false) ⟹ ¬ P;
+
 	show not_false: ¬false;
 		by not_intro[OF imp.refl];
 
@@ -205,4 +229,73 @@ locale Iff {
 			by iff.trans[OF PS iff.sym[OF RS]];
 		qed;
 
+	show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]);
+		apply iff_intro;
+		show! if a: ∀x. α.[x] then ∀x. β.[x];
+			fix x;
+			show! β.[x];
+				apply iff_elim1[OF ab];
+				by a;
+			qed;
+		show! if b: ∀x. β.[x] then ∀x. α.[x];
+			fix x;
+			show! α.[x];
+				apply iff_elim2[OF ab];
+				by b;
+			qed;
+		qed;
+}
+
+infix = 51 51 50;
+
+locale Equal {
+	fix =;
+	import eq: Reflexive {
+		for (=);
+	}
+	assume eq_mono: ∀x. ∀y. x = y ⟹ α.[x] ⟹ α.[y];
+
+	import eq: Equivalence {
+		for (=);
+		discharge
+			fix x y;
+			assume xy: x = y;
+			by eq_mono(z. z = x)[OF xy eq.refl];
+		discharge
+			by eq.refl;
+		discharge
+			fix x y z;
+			assume xy: x = y;
+			assume yz: y = z;
+			by eq_mono(w. x = w)[OF yz xy];
+	}
+
+	show arg_cong: if xy: x = y then f x = f y;
+		note 1: eq.refl(f x);
+		by eq_mono(z. f x = f z)[OF xy 1];
+
+	show fun_cong: if fg: f = g then f x = g x;
+		note 1: eq.refl(f x);
+		by eq_mono(h. f x = h x)[OF fg 1];
+
+	show eq_cong: if fg: f = g, xy: x = y then f x = g y;
+		show 1: f x = f y;
+			by arg_cong[OF xy];
+		show 2: f y = g y;
+			by fun_cong[OF fg];
+		by eq.trans[OF 1 2];
+
+	show eq_prop1: P = Q ⟹ P ⟹ Q;
+		by eq_mono(x. x);
+
+	show eq_prop2: if PQ: P = Q then Q ⟹ P;
+		by eq_prop1[OF eq.sym[OF PQ]];
+}
+
+prefix λ 0 0;
+
+locale Lambda {
+	import Equal;
+	fix λ;
+	assume beta: (λ) α s = α.[s];
 }

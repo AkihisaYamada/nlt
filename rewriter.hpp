@@ -12,6 +12,11 @@ class Rewriter {
 		CTerm pat;
 		Thm thm;
 	};
+	struct Cong {
+		CTerm pat;
+		Thm thm;
+		size_t refl_idx;
+	};
 	std::vector<Rule> congs;
 	std::vector<Rule> quantifier_congs;
 public:

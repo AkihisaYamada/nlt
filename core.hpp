@@ -295,6 +295,12 @@ public:
 		StrMap<std::string> bsyms;
 		return _map(f,fixed,bsyms);
 	};
+	/** @brief instantiates the bound variable. This must be an abstraction.
+	 * 
+	 * @param arg should be a closed term, for efficiency
+	 * @return Term 
+	 */
+	Term inst(CTerm const& arg) const;
 private:
 	void _iter_syms(
 		StrMSet& bsyms,
@@ -316,6 +322,10 @@ inline bool operator!=(Term const& l, Term const& r) {
 inline Term operator>>=(Term const& l, Term const& r) {
 	return Term(IMP)(l)(r);
 }
+/** for all */
+inline Term operator&=(std::string const& v, Term const& s) {
+	return Term(ALL)(v/=s);
+}
 
 struct Error : public std::exception {
 	Term term;
@@ -334,6 +344,9 @@ struct MalformedInstantiation : public Error {
 struct MalformedDischarge : public Error {
 	MalformedDischarge(Term const& imp, Term const& arg) :
 		Error(Term("#malformed_discharge")(imp)(arg)) {}
+};
+struct MalformedRetain : public Error {
+	MalformedRetain(Term const& term) : Error(Term("#malformed-retain")(term)) {}
 };
 struct MissingProof : public Error {
 	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
@@ -364,7 +377,10 @@ private:
 		using std::string::string;
 	};
 	class _Assume : public Term {};
-	class _Obtain : public Term {};
+	struct _Obtain {
+		std::string sym;
+		Term thm;
+	};
 	using _Modifier = Sum<_Fix,_Assume,_Obtain>;
 public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
@@ -407,7 +423,7 @@ public:
 	/** The assumption made at the i-th modification. */
 	Opt<Thm> assumed(size_t i) const&;
 	/** The constant name obtained at the i-th modification. */
-	Opt<Thm> obtained(size_t i) const&;
+	Opt<std::pair<std::string,Thm>> obtained(size_t i) const&;
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
@@ -438,10 +454,10 @@ public:
 	Thm assume(CTerm const& t) &;
 	/** @brief Fixes a symbol with a specification.
 	 *
-	 * @param thm of form ∀thesis. (∀sym. spec_1 ⟹ ... ⟹ spec_n ⟹ thesis) ⟹ thesis
-	 * @return theorems for the specifications.
+	 * @param thm of form ∀thesis. (∀sym. props... ⟹ thesis) ⟹ thesis
+	 * @return the fixed sym and theorem stating ∀thesis. (props... ⟹ thesis) ⟹ thesis
 	 */
-	std::pair<CTerm,std::vector<Thm>> obtain(Thm const& thm) &;
+	std::pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm) &;
 	
 	/** @brief Creates a child context. */
 	Ctxt branch() const {
@@ -553,8 +569,19 @@ public:
 	Opt<StrTerm> cbinder( std::string_view const& b ) const {
 		if( auto app = capp() ) {
 			if( app->first == b ) {
-				return cabs();
+				return app->second.cabs();
 			}
+		}
+		return {};
+	}
+	/** @brief Decompose closed unary function.
+	 * 
+	 * @param f expected function
+	 * @return the argument, if matches
+	 */
+	Opt<CTerm const> cunary( std::string_view const& f ) const {
+		if( auto un = unary(f) ) {
+			return CTerm(_ctxt,*un);
 		}
 		return {};
 	}
@@ -595,11 +622,7 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm inst(CTerm const& arg) const {
-		auto a = Term::abs();
-		if( !a ) {
-			throw MalformedInstantiation(*this,arg);
-		}
-		return CTerm(_ctxt,a->second.subst(a->first,arg));
+		return CTerm(_ctxt,Term::inst(arg));
 	}
 	/** @brief Moves a closed term to a descendant context
 	 * 
@@ -653,6 +676,9 @@ private:
 	StrMap<Term> _map;
 	Ctxt _ctxt;
 public:
+	/** @brief Creates a closed substituion
+	 * @param ctxt the context the substitution is closed in
+	 */
 	CSubst(Ctxt const& ctxt) : _ctxt(ctxt) {}
 	/** @brief The context in which the range of the substitution is closed. */
 	Ctxt const& ctxt() const {
@@ -781,9 +807,9 @@ public:
 		}
 		return {};
 	}
-	Opt<Thm> obtaining() const {
+	Opt<std::pair<std::string,Thm>> obtaining() const {
 		if( auto o = _src.obtained(_rev) ) {
-			return Thm(o->csubst(_subst));
+			return {{o->first,Thm(o->second.csubst(_subst))}};
 		}
 		return {};
 	}
@@ -809,9 +835,10 @@ public:
 	 * If the interpreted context is modified by obtaining a constant,
 	 * then this method should be used to instantiate the constant.
 	 * @param term that should play the role of the constant.
-	 * @param thms Proofs that the term satisfies the specification.
+	 * @param thm of form ∀thesis. (props[sym:=term]... ⟹ thesis) ⟹ thesis,
+	 * where the obtained constant is replaced by the term.
 	 */
-	void retain(CTerm const& term, std::vector<Thm> const& thm);
+	void retain(CTerm const& term, Thm const& thm);
 	friend Ctxt;
 };
 
@@ -835,10 +862,10 @@ inline Opt<Thm> Ctxt::assumed(size_t i) const & {
 	}
 	return {};
 }
-inline Opt<Thm> Ctxt::obtained(size_t i) const & {
+inline Opt<std::pair<std::string,Thm>> Ctxt::obtained(size_t i) const & {
 	if( i < revision() ) {
 		if( auto a = _ref->modifiers[i].ref<_Obtain>() ) {
-			return Thm(CTerm(*this,*a));
+			return {{a->sym,Thm(CTerm(*this,a->thm))}};
 		}
 	}
 	return {};

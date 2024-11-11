@@ -52,14 +52,6 @@ public:
 	void assume(std::string_view const& name, CTerm const& assm) {
 		add_thm(name,Ctxt::assume(assm));
 	}
-	template<class I>
-	void obtain(Thm const& thm, I name_it) {
-		auto [sym,props] = Ctxt::obtain(thm);
-		for( Thm& prop : props ) {
-			add_thm(*name_it,prop);
-			name_it++;
-		}
-	}
 	/** Declares import */
 	Import& import(std::string&& name, Locale const& loc);
 	/** Declares import */

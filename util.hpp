@@ -4,9 +4,15 @@
 #include<ostream>
 #include"syntax.hpp"
 
-/** for all */
-inline Term operator&=(std::string const& v, Term const& s) {
-	return Term(ALL)(v/=s);
+inline std::string operator+( std::string x, std::string_view const& y ) {
+	x+=y;
+	return x;
+}
+
+/** makes the theorem t ⟹ t */
+inline Thm make_refl( CTerm const& t ) {
+	Ctxt ctxt = t.ctxt().branch();
+	return ctxt.assume(t.weaken(ctxt)).intro();
 }
 
 /** Iterate over locally fixed variables. */

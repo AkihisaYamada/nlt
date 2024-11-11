@@ -183,8 +183,9 @@ void import_all(Intp& intp) {
 		} else if( auto a = intp.assuming() ) {
 			intp.discharge(ctxt.assume(*a));
 		} else if( auto s = intp.obtaining() ) {
-			auto [sym,thms] = ctxt.obtain(*s);
-			intp.retain(sym,thms);
+			auto [sym,thm] = *s;
+			auto [sym_term,spec] = ctxt.obtain(sym,thm);
+			intp.retain(sym_term,spec);
 		} else {
 			return;
 		}

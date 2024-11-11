@@ -1,12 +1,6 @@
 base Root;
 
-obtain false where false_elim: ∀P. false ⟹ P;
-	fix thesis;
-	assume assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
-	show 1: (∀x. x) ⟹ P;
-		assume 2: ∀x. x;
-		by 2(P);
-	by assm(∀P. P)[OF 1];
+import False;
 
 import MinimalLogic;
 
