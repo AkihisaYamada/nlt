@@ -299,3 +299,20 @@ locale Lambda {
 	fix λ;
 	assume beta: (λ) α s = α.[s];
 }
+
+prefix ∃ 0 0;
+
+locale Ex {
+	fix ∃;
+	assume ex_intro1: α.[t] ⟹ (∃) α;
+	assume ex_elim1: (∃) α ⟹ α.[t];
+
+	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then (∃) α;
+		apply assm;
+		by ex_intro1;
+
+	show ex_elim: if ex: (∃) α, imp: ∀x. α.[x] ⟹ P then P;
+		fix t;
+		note at: ex_elim1[OF ex](t);
+		by imp[OF at];
+}

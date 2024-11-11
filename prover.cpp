@@ -356,15 +356,18 @@ public:
 		if( !matcher ) {
 			throw Error(Term("#proof-mismatch")(goal)(arg));
 		}
+		// instantiate arg variables
+		auto intp = Intp::make(arg_vars,goal_vars);
 		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
 			auto v = arg_vars.fixed(i);
 			assert(v);
-			auto t = matcher->get(*v);
-			assert(t);
-			arg = arg.allE(t->subst(goal_vars));
+			auto val = matcher->get(*v);
+			intp.instantiate( val ? val->csubst(goal_vars) : goal_strip/* dummy */ );
 		}
-		arg = arg.intro(); // now quantify the goal variables
-		*_thesis = _thesis->impE(arg);
+		Thm inst = intp.subst(arg_strip);
+		// quantify the goal variables
+		inst = inst.intro();
+		*_thesis = _thesis->impE(inst);
 	}
 	Locale find_locale( string_view const& name ) {
 		auto loc = _loc.find_locale(name);
