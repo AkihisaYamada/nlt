@@ -82,14 +82,11 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 		Ctxt const& ctxt = qcong.pat.ctxt();
 		assert( ctxt.revision() == 1 ); // should have exactly one variable
 		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source: (ξ) α
-			auto const& var = *ctxt.fixed(0);
-			auto const& s = m->get(var);
-			assert(s);
-			auto const& abs = s->cabs();
-			if( abs ) {
-				CTerm const& s = abs->second;
-				auto const& eq = _step(rules,s,refl.weaken(s.ctxt()));
-				if( eq ) {
+			auto const& val = m->get(*ctxt.fixed(0));
+			assert(val);
+			if( auto const& abs = val->cabs() ) {
+				CTerm const& body = abs->second;
+				if( auto const& eq = _step(rules,body,refl.weaken(body.ctxt())) ) {
 					return equate_abs(qcong.thm,*eq);
 				}
 			}
@@ -139,16 +136,13 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
 		assert( ctxt.revision() == 1 );
-		auto const& m = match(ctxt.fvars(),qcong.pat,source);
-		if( m ) {// source = (ξ) α
-			auto const& var = *ctxt.fixed(0);
-			auto const& s = m->get(var);
-			assert(s);
-			auto const& abs = s->cabs();
-			if( abs ) {
+		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source = (ξ) α
+			auto const& val = m->get(*ctxt.fixed(0));
+			assert(val);
+			if( auto const& abs = val->cabs() ) {
+				auto const& body = abs->second;
 				pos_it++;
-				auto const& eq = _step(rules,abs->second,pos_it,pos_end,refl);
-				if( eq ) {
+				if( auto const& eq = _step(rules,body,pos_it,pos_end,refl.weaken(body.ctxt())) ) {
 					return equate_abs(qcong.thm,*eq);
 				}
 			}

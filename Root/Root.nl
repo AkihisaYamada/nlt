@@ -292,6 +292,15 @@ locale Equal {
 		by eq_prop1[OF eq.sym[OF PQ]];
 }
 
+locale Ext {
+	import Equal;
+	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ α = β;
+	show abs: (x. α.[x]) = α;
+		show 1: ∀x. α.[x] = α.[x];
+			by eq.refl;
+		by eq_ext(x. α.[x])(α)[OF 1];
+}
+
 prefix λ 0 0;
 
 locale Lambda {
@@ -304,15 +313,17 @@ prefix ∃ 0 0;
 
 locale Ex {
 	fix ∃;
-	assume ex_intro1: α.[t] ⟹ (∃) α;
-	assume ex_elim1: (∃) α ⟹ α.[t];
+	assume ex_intro1: α.[t] ⟹ ∃x. α.[x];
+	assume ex_elim1: (∃x. α.[x]) ⟹ α.[t];
 
-	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then (∃) α;
+	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
 		apply assm;
 		by ex_intro1;
 
-	show ex_elim: if ex: (∃) α, imp: ∀x. α.[x] ⟹ P then P;
+	show ex_elim: if ex: ∃x. α.[x], imp: ∀x. α.[x] ⟹ P then P;
+		apply imp;
 		fix t;
-		note at: ex_elim1[OF ex](t);
-		by imp[OF at];
+		show! α.[t];
+			by ex_elim1[OF ex](t);
+		qed;
 }

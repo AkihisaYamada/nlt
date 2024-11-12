@@ -267,7 +267,9 @@ public:
 	bool forall_fsyms(std::function<bool(std::string_view const&)> const& test) const {
 		return !exists_fsym([&](auto v){ return !test(v); });
 	}
-	/** @brief Singleton substitution */
+	/** @brief Singleton substitution
+	 * @param val it must be closed term, so that variables can be avoided from bound variables.
+	 */
 	Term subst(std::string_view const& var, CTerm const& val) const;
 	/** @brief applies a substitution.
 	 * 
@@ -561,6 +563,16 @@ public:
 	 * @return If this is an abstraction, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
 	Opt<StrTerm> cabs() const;
+	/** @brief Decompose closed fix
+	 * returns tuple of string, closed term of the variable, and the argument
+	 */
+	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cfix() const {
+		if( auto tfix = Term::fix() ) {
+			auto [v,b] = *tfix;
+			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));
+		}
+		return {};
+	}
 	/** @brief Decompose closed binders
 	 * 
 	 * @param b the binder
@@ -597,17 +609,6 @@ public:
 		}
 		return {};
 	}
-	/** @brief Decompose closed fix
-	 * 
-	 * @return Opt<StrTerm> 
-	 */
-	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cfix() const {
-		if( auto tfix = Term::fix() ) {
-			auto [v,b] = *tfix;
-			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));
-		}
-		return {};
-	}
 	/** @brief Application of closed terms. Both terms should belong to the same context.
 	 */
 	CTerm operator()(CTerm const& arg) const {
@@ -640,12 +641,6 @@ public:
 	 * @return the closed term with respect to the parent.
 	 */
 	CTerm lift(CTerm const& quantifier) const;
-	/** @brief Lifts a closed term to one with respect to the parent context.
-	 * 
-	 * @param subst a substitution in the parent context.
-	 * @return the instance, closed with respect to the parent.
-	 */
-	CTerm lift(CSubst const& subst) const;
 	friend Term;
 	friend Thm;
 	friend Ctxt;
@@ -662,8 +657,15 @@ public:
 		return CTerm( l._ctxt, (Term)l >>= r );
 	}
 	/** closed abstraction */
-	friend CTerm operator/=(std::string_view const& v, CTerm const& b) {
-		return CTerm( b._ctxt, v /= (Term)b );
+	friend CTerm operator/=(std::string_view const& v, CTerm const& body ) {
+		return CTerm( body._ctxt, v /= (Term)body );
+	}
+	/** closed binding */
+	friend CTerm operator/(std::string_view const& v, CTerm const& arg) {
+		if( !arg._ctxt.constant(v) ) {
+			throw UnboundVariable(v);
+		}
+		return CTerm( arg._ctxt, v / (Term)arg );
 	}
 };
 inline bool operator!=(CTerm const& l, CTerm const& r) {

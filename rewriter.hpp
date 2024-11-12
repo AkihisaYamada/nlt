@@ -54,7 +54,6 @@ public:
 	void register_quantifier_cong(CTerm const& pat, Thm const& rule) {
 		quantifier_congs.emplace_back(pat,rule);
 	}
-	void register_concl(Thm const& rule);
 	/**
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 
@@ -85,7 +84,6 @@ public:
 	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
 	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
 private:
-	Opt<Thm> congruence(std::function<Opt<Thm>(CTerm const&)> inner, CTerm const& source) const;
 	Opt<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
 	Opt<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );

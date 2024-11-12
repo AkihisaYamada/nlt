@@ -17,15 +17,13 @@ pair<string, list<Term>> uncurry(Term const& t) {
 	}
 }
 
-static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& lidx, StrMap<unsigned int>& ridx, unsigned int depth) {
-	if( auto sym = pat.sym() ) {
-		if( auto lidx_it = lidx.find(*sym); lidx_it != lidx.end() ) {// bound variable must be identical
-			if( auto rsym = val.sym() ) {
-				auto ridx_it = ridx.find(*rsym);
-				return ridx_it != ridx.end() && lidx_it->second == ridx_it->second;
-			} else {
-				return false;
+static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubst& matcher, StrMap<unsigned int>& linds, StrMap<unsigned int>& rinds, unsigned int depth) {
+	if( auto sym = pat.sym() ) {// pat is a symbol
+		if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
+			if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
+				return rinds.finds(*rsym) == lind;
 			}
+			return false;
 		} else if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
 			return (Term)*map_opt == val;// equal as term (may belong to different context)
 		} else if( fsyms.contains(*sym) ) {// free symbol
@@ -43,8 +41,8 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		}
 	} else if( auto app = pat.capp() ) {
 		if( auto app2 = val.capp() ) {
-			return match(fsyms,app->first,app2->first,matcher,lidx,ridx,depth) &&
-				match(fsyms,app->second,app2->second,matcher,lidx,ridx,depth);
+			return match(fsyms,app->first,app2->first,matcher,linds,rinds,depth) &&
+				match(fsyms,app->second,app2->second,matcher,linds,rinds,depth);
 		} else {
 			return false;
 		}
@@ -53,29 +51,29 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 			string const& x = abs->first;
 			string const& y = abs2->first;
 			depth++;
-			auto const& lidx_info = lidx.insert({x,depth});
-			auto const& ridx_info = ridx.insert({y,depth});
+			auto const& lind_info = linds.insert({x,depth});
+			auto const& rind_info = rinds.insert({y,depth});
 			unsigned int lpre;
 			unsigned int rpre;
-			if( !lidx_info.second ) {
-				lpre = lidx_info.first->second;// remember the old index
-				lidx_info.first->second = depth;// and update
+			if( !lind_info.second ) {// the variable was bound twice
+				lpre = lind_info.first->second;// remember the old index
+				lind_info.first->second = depth;// and update
 			}
-			if( !ridx_info.second ) {
-				rpre = ridx_info.first->second;// remember the old index
-				ridx_info.first->second = depth;// and update
+			if( !rind_info.second ) {
+				rpre = rind_info.first->second;// remember the old index
+				rind_info.first->second = depth;// and update
 			}
-			if( match(fsyms,abs->second,abs2->second,matcher,lidx,ridx,depth) ) {
+			if( match(fsyms,abs->second,abs2->second,matcher,linds,rinds,depth) ) {
 				// recover the old indices
-				if( lidx_info.second ) {
-					lidx.erase(lidx_info.first);
+				if( lind_info.second ) {
+					linds.erase(lind_info.first);
 				} else {
-					lidx_info.first->second = lpre;
+					lind_info.first->second = lpre;
 				}
-				if( ridx_info.second ) {
-					ridx.erase(ridx_info.first);
+				if( rind_info.second ) {
+					rinds.erase(rind_info.first);
 				} else {
-					ridx_info.first->second = rpre;
+					rind_info.first->second = rpre;
 				}
 				return true;
 			}
@@ -83,19 +81,29 @@ static bool match(StrSet const& fsyms, CTerm const& pat, CTerm const& val, CSubs
 		} else {
 			return false;
 		}
-	} else if( auto fix = pat.cfix() ) {
-		auto [x,_,b] = *fix;
-		if( auto const& opt = matcher.get(x) ) {
-			if( auto const& abs = opt->abs() ) {
-				return match(fsyms,opt->inst(b),val,matcher,lidx,ridx,depth);
-			}
+	} else if( auto fix = pat.cfix() ) {// x[s]
+		auto [x,_,s] = *fix;
+		auto const& opt = matcher.get(x);
+		if( opt ) if( auto const& abs = opt->abs() ) {// the context is instantiated
+			return match(fsyms,opt->inst(s),val,matcher,linds,rinds,depth);
 		}
 		if( auto fix2 = val.cfix() ) {
-			auto [x2,_,b2] = *fix2;
-			if( fsyms.contains(x) ) {
-				matcher.assign(x,x2);
+			auto [x2,_,s2] = *fix2;
+			if( opt ) {// if x is assigned, then it must be x2
+				auto const& sym = opt->sym();
+				if( !sym || *sym != x2 ) {
+					return false;
+				}
 			}
-			return match(fsyms,b,b2,matcher,lidx,ridx,depth);
+			if( fsyms.contains(x) ) {// free variable
+				if( rinds.finds(x2) ) {// cannot be assigned bound variable
+					return false;
+				}
+				matcher.assign(x,x2);
+			} else if( x != x2 ) {// constant
+				return false;
+			}
+			return match(fsyms,s,s2,matcher,linds,rinds,depth);
 		} else {
 			return false;
 		}
