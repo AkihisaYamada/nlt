@@ -97,4 +97,7 @@ inline Thm operator<<(Thm const& t, Thm arg) {
  */
 void import_all(Intp& intp);
 
+/** detects trivial abstraction x. y.[x], and returns y */
+Opt<std::string> virtual_var( CTerm const& t );
+
 #endif

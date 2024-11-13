@@ -354,7 +354,7 @@ public:
 		Thm arg_strip = strip_all(arg,arg_vars);
 		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
 		if( !matcher ) {
-			throw Error(Term("#proof-mismatch")(goal)(arg));
+			throw Error(Term("#proof-mismatch")(goal_strip)(arg_strip));
 		}
 		// instantiate arg variables
 		auto intp = Intp::make(arg_vars,goal_vars);

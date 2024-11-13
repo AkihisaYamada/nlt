@@ -130,6 +130,16 @@ locale Not {
 	show not_false: ¬false;
 		by not_intro[OF imp.refl];
 
+	show nnot_intro: if P: P then ¬¬P;
+		apply not_intro;
+		assume nP: ¬P;
+		by not_imp_false[OF nP P];
+
+	show nnot_imp: if imp: ¬¬P ⟹ Q, P: P then Q;
+		apply imp;
+		apply nnot_intro;
+		by P;
+
 	show imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
 		assume PQ: P ⟹ Q;
@@ -142,36 +152,38 @@ locale Not {
 			by not_imp_false[OF nQ PQ[OF P]];
 		qed;
 
+	show imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
+		apply not_intro;
+		assume P: P;
+		show nQ: ¬Q;
+			by PnQ[OF P];
+		by not_imp_false[OF nQ Q];
+
 	show not_all: if nPx: ¬ P x then ¬(∀y. P y);
 		apply not_intro;
 		assume all: ∀y. P y;
 		by not_imp_false[OF nPx all];
 
-	show NN_imp_NN: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
+	show nnot_imp_nnot: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
 		apply not_intro;
 		assume nQ: ¬Q;
 		show nP: ¬P;
 			by imp_not_imp[OF PQ nQ];
 		by not_imp_false[OF P nP];
 
-	show NN_N_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q);
+	show nnot_not_imp_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
 		assume PQ: P ⟹ Q;
 		show Q: ¬¬Q;
-			by NN_imp_NN[OF P PQ];
+			by nnot_imp_nnot[OF P PQ];
 		by not_imp_false[OF Q nQ];
 
-	show NN_mp: if P: ¬¬P, PQ: ¬¬(P ⟹ Q) then ¬¬Q;
+	show nnot_imp_imp_nnot: if P: ¬¬P, PQ: ¬¬(P ⟹ Q) then ¬¬Q;
 		apply not_intro;
 		assume nQ: ¬Q;
 		show nPQ: ¬(P ⟹ Q);
-			by NN_N_nimp[OF P nQ];
+			by nnot_not_imp_nimp[OF P nQ];
 		by not_imp_false[OF PQ nPQ];
-
-	show not_not: if P: P then ¬¬P;
-		apply not_intro;
-		assume nP: ¬P;
-		by not_imp_false[OF nP P];
 }
 
 infix ⟺ 1 1 0;
@@ -313,17 +325,10 @@ prefix ∃ 0 0;
 
 locale Ex {
 	fix ∃;
-	assume ex_intro1: α.[t] ⟹ ∃x. α.[x];
-	assume ex_elim1: (∃x. α.[x]) ⟹ α.[t];
+	assume ex_intro1: α.[t] ⟹ (∃) α;
+	assume ex_elim: (∃) α ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
-	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
+	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then (∃) α;
 		apply assm;
 		by ex_intro1;
-
-	show ex_elim: if ex: ∃x. α.[x], imp: ∀x. α.[x] ⟹ P then P;
-		apply imp;
-		fix t;
-		show! α.[t];
-			by ex_elim1[OF ex](t);
-		qed;
 }

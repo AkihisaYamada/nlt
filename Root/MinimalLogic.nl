@@ -73,6 +73,12 @@ setup cong
 	P ∨ Q: iff_cong_or,
 	¬P: iff_cong_not;
 
+show imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
+	apply iff_intro;
+	note! imp_not_sym;
+	note! imp_not_sym;
+	qed;
+
 show true_imp_iff: (true ⟹ P) ⟺ P;
 	by imp_imp_iff[OF true_intro];
 
@@ -156,6 +162,19 @@ show or_assoc: P ∨ (Q ∨ R) ⟺ P ∨ Q ∨ R;
 		qed;
 	qed;
 
+show and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+	apply iff_intro;
+	show! if imp: P ∧ Q ⟹ R, P: P, Q: Q then R;
+		apply imp;
+		apply and_intro;
+		apply P;
+		by Q;
+	show! if imp: P ⟹ Q ⟹ R, and: P ∧ Q then R;
+		apply imp;
+		apply and_elim1[OF and];
+		by and_elim2[OF and];
+	qed;
+
 show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
 	show! if nor: P ∨ Q ⟹ R then (P ⟹ R) ∧ (Q ⟹ R);
@@ -177,46 +196,73 @@ show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 show not_iff_imp_false: ¬P ⟺ (P ⟹ false);
 	by iff_intro[OF not_imp_false not_intro];
 
-show nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
-	unfold+ not_iff_imp_false;
-	by or_imp_iff;
-
-show not_and1: if nP: ¬P then ¬(P ∧ Q);
-	apply not_intro;
-	assume PQ: P ∧ Q;
-	show! false;
-		by not_imp_false[OF nP and_elim1[OF PQ]];
-	qed;
-
-show not_and2: if nQ: ¬Q then ¬(P ∧ Q);
-	apply not_intro;
-	assume PQ: P ∧ Q;
-	show! false;
-		by not_imp_false[OF nQ and_elim2[OF PQ]];
-	qed;
-
-show not3: ¬¬¬P ⟺ ¬P;
+show nnnot: ¬¬¬P ⟺ ¬P;
 	apply iff_intro;
 	show! if nnnP: ¬¬¬P then ¬P;
 		apply not_intro;
 		show! if P: P then false;
 			show nnP0: ¬¬P ⟹ false;
 				by not_imp_false[OF nnnP];
-			by nnP0[OF not_not[OF P]];
+			by nnP0[OF nnot_intro[OF P]];
 		qed;
 	show! ¬P ⟹ ¬¬¬P;
-		by not_not;
+		by nnot_intro;
 	qed;
 
-show consistency: ¬(P ∧ ¬P);
+show nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
+	apply iff_intro;
+	show! if imp: ¬¬P ⟹ ¬Q, P: P then ¬Q;
+		apply imp;
+		apply nnot_intro;
+		by P;
+	show! if imp: P ⟹ ¬Q, nnP: ¬¬P then ¬Q;
+		by nnot_imp_nnot[OF nnP imp][unfolded nnnot];
+	qed;
+
+show nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
+	unfold+ not_iff_imp_false;
+	by or_imp_iff;
+
+show nand_intro1: if nP: ¬P then ¬(P ∧ Q);
+	apply not_intro;
+	show! if PQ: P ∧ Q then false;
+		by not_imp_false[OF nP and_elim1[OF PQ]];
+	qed;
+
+show nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
+	apply not_intro;
+	show! if PQ: P ∧ Q then false;
+		by not_imp_false[OF nQ and_elim2[OF PQ]];
+	qed;
+
+show nand_iff_imp_false: ¬(P ∧ Q) ⟺ (P ⟹ Q ⟹ false);
+	unfold+ not_iff_imp_false and_imp_iff;
+	by iff.refl;
+
+show nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
+	unfold+ nand_iff_imp_false;
+	fold+ not_iff_imp_false;
+	unfold nnnot;
+	by iff.refl;
+
+show nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
+	unfold and_commute;
+	unfold nand_nnot_iff;
+	unfold and_commute;
+	by iff.refl;
+
+show non_contradiction: ¬(P ∧ ¬P);
 	apply not_intro;
 	assume and: P ∧ ¬P;
-	show P: P; by and_elim1[OF and];
-	show nP: ¬P; by and_elim2[OF and];
+	show P: P;
+		by and_elim1[OF and];
+	show nP: ¬P;
+		by and_elim2[OF and];
 	by not_imp_false[OF nP P];
 
-show nn_excluded_middle: ¬¬(P ∨ ¬P);
-	by consistency(¬P)[folded nor_iff];
+show nnot_excluded_middle: ¬¬(P ∨ ¬P);
+	unfold nor_iff;
+	by non_contradiction;
 
 show or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 	apply not_intro;
@@ -232,23 +278,27 @@ show or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 		qed;
 	qed;
 
-show N_nand_N_iff: ¬(¬P ∧ ¬Q) ⟺ ¬¬(P ∨ Q);
-	unfold nor_iff;
-	by iff.refl;
+show not_or_imp_imp: if nPQ: ¬P ∨ Q, P: P then Q;
+	apply or_elim[OF nPQ];
+	show! if nP: ¬P then Q;
+		by not_elim[OF nP P];
+	show! if Q: Q then Q;
+		by Q;
+	qed;
 
-show nnand_imp_NN_and_NN: if PQ: ¬¬(P ∧ Q) then ¬¬P ∧ ¬¬Q;
+show nnand_imp_nnot_and_nnot: if PQ: ¬¬(P ∧ Q) then ¬¬P ∧ ¬¬Q;
 	apply and_intro;
 	show! ¬¬P;
 		apply not_intro;
 		assume nP: ¬P;
 		show nPQ: ¬(P ∧ Q);
-			by not_and1[OF nP];
+			by nand_intro1[OF nP];
 		by not_imp_false[OF PQ nPQ];
 	show! ¬¬Q;
 		apply not_intro;
 		assume nQ: ¬Q;
 		show nPQ: ¬(P ∧ Q);
-			by not_and2[OF nQ];
+			by nand_intro2[OF nQ];
 		by not_imp_false[OF PQ nPQ];
 	qed;
 

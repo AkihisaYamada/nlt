@@ -45,8 +45,35 @@ private:
 		}
 	}
 
+	// lhs is variable
+	void unify_lvar(string const& x, CTerm const& r, unsigned int index) {
+		if( auto const& xesc = escapes[0].finds(x) ) {// bound variable must have the same index.
+			if( auto rsym = r.sym() )
+			if( xesc == escapes[1].finds(*rsym) ) {
+				return;
+			}
+			throw Mismatch();
+		}
+		if( x == r ) {
+			return;
+		}
+		// test if substitution is necessary
+		if( auto xval = subst.get(x) ) {
+			avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
+			unify(*xval,r);
+			avoids[1].erase(x);
+			return;
+		}
+		if( fvar(x) ) {// free variables can be assigned
+			StrSet bounds;
+			subst.assign(x,sanitize(r,bounds,avoids[1],escapes[1]));
+			return;
+		}
+		return unify_lvar2(x,r);
+	}
+
 	// lhs is unassigned variable
-	void unify1(string const& x, Term const& r) {
+	void unify_lvar2(string const& x, Term const& r) {
 		if( auto rsym = r.sym() ) {
 			string const& y = *rsym;
 			if( x == y ) {
@@ -57,7 +84,7 @@ private:
 			}
 			// test if y has an assigned value.
 			if( auto const& yval = subst.get(y) ) {
-				unify1(x,*yval);
+				unify_lvar2(x,*yval);
 				return;
 			}
 			if( fvar(y) ) {// free variables can be assigned
@@ -116,13 +143,13 @@ private:
 			}
 			throw Mismatch();
 		} else if( auto labs = l.cabs() ) {
+			auto const& [x,lbody] = *labs;
 			if( auto rabs = r.cabs() ) {
 				// both are abstraction.
-				string const& x = labs->first;
 				string const& y = rabs->first;
 				auto const& xinfo = escapes[0].insert({x,index});
 				auto const& yinfo = escapes[1].insert({y,index});
-				unify(labs->second,rabs->second,index+1);
+				unify(lbody,rabs->second,index+1);
 				// forget the bound variables
 				if( xinfo.second ) {
 					escapes[0].erase(xinfo.first);
@@ -170,9 +197,9 @@ private:
 		throw Mismatch();
 	}
 	// when lhs is a fix
-	void unify3( string const& x, CTerm const& larg, CTerm const& r, unsigned int index ) {
+	void unify_lfix( string const& x, CTerm const& larg, CTerm const& r, unsigned int index ) {
 		if( auto const& rsym = r.sym() ) {
-			unify_rvar(x/larg,*rsym,index);
+			return unify_rvar(x/larg,*rsym,index);
 		} if( auto const& rfix = r.cfix() ) {
 			auto const& [y,_,rarg] = *rfix;
 			// test if substitution is necessary
@@ -182,7 +209,7 @@ private:
 					unify_var(x,*vsym);
 					unify(larg,rarg,index);
 				} else if( auto vabs = val->cabs() ) {
-					unify3(x,larg,val->inst(rarg),index);
+					unify_lfix(x,larg,val->inst(rarg),index);
 				} else {
 					throw Mismatch();
 				}
@@ -198,30 +225,7 @@ private:
 public:
 	void unify(CTerm const& l, CTerm const& r, unsigned int index = 0) {
 		if( auto lsym = l.sym() ) {
-			string const& x = *lsym;
-			if( auto const& xesc = escapes[0].finds(x) ) {// bound variable must have the same index.
-				if( auto rsym = r.sym() )
-				if( xesc == escapes[1].finds(*rsym) ) {
-					return;
-				}
-				throw Mismatch();
-			}
-			if( x == r ) {
-				return;
-			}
-			// test if substitution is necessary
-			if( auto xval = subst.get(x) ) {
-				avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
-				unify(*xval,r);
-				avoids[1].erase(x);
-				return;
-			}
-			if( fvar(x) ) {// free variables can be assigned
-				StrSet bounds;
-				subst.assign(x,sanitize(r,bounds,avoids[1],escapes[1]));
-				return;
-			}
-			return unify1(x,r);
+			return unify_lvar(*lsym,r,index);
 		} else if( auto lfix = l.cfix() ) {
 			auto const& [x,_,larg] = *lfix;
 			// test if substitution is necessary
@@ -237,7 +241,7 @@ public:
 				avoids[1].erase(x);
 				return;
 			}
-			return unify3(x,larg,r,index);
+			return unify_lfix(x,larg,r,index);
 		}
 		unify2(l,r,index);
 	}
