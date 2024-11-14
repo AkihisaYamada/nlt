@@ -62,10 +62,13 @@ show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 show insert: (P ⟹ Q) ⟹ (R ⟹ P) ⟹ R ⟹ Q;
 	by imp_commute[OF imp.trans];
 
-show imp_all: if 1: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
-	fix x;
-	assume P: P;
-	by 1[OF P](x);
+show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
+	show! if P: P then α.[x];
+		by imp[OF P];
+	qed;
+
+show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x];
+	by all[OF P];
 
 locale True {
 	obtain true where true_intro: true;
@@ -171,6 +174,19 @@ locale Not {
 			by imp_not_imp[OF PQ nQ];
 		by not_imp_false[OF P nP];
 
+	show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P then ¬¬Q;
+		apply not_intro;
+		assume nQ: ¬Q;
+		show! false;
+			show nPQ: ¬(P ⟹ Q);
+				apply not_intro;
+				assume PQ: P ⟹ Q;
+				show Q: Q;
+					by PQ[OF P];
+				by not_imp_false[OF nQ Q];
+			by not_imp_false[OF nnPQ nPQ];
+		qed;
+
 	show nnot_not_imp_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
 		assume PQ: P ⟹ Q;
@@ -178,13 +194,10 @@ locale Not {
 			by nnot_imp_nnot[OF P PQ];
 		by not_imp_false[OF Q nQ];
 
-	show nnot_imp_imp_nnot: if P: ¬¬P, PQ: ¬¬(P ⟹ Q) then ¬¬Q;
-		apply not_intro;
-		assume nQ: ¬Q;
-		show nPQ: ¬(P ⟹ Q);
-			by nnot_not_imp_nimp[OF P nQ];
-		by not_imp_false[OF PQ nPQ];
 }
+show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R;
+	apply PQQR;
+	by mp[OF P];
 
 infix ⟺ 1 1 0;
 locale Iff {
@@ -256,6 +269,17 @@ locale Iff {
 				by b;
 			qed;
 		qed;
+
+	show imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
+		apply iff_intro;
+		note! imp2_imp_imp;
+		show! if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q;
+			apply PQQ;
+			by PQ;
+		qed;
+
+	show imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]);
+		by iff_intro[OF imp_all all_imp];
 }
 
 infix = 51 51 50;
@@ -302,6 +326,7 @@ locale Equal {
 
 	show eq_prop2: if PQ: P = Q then Q ⟹ P;
 		by eq_prop1[OF eq.sym[OF PQ]];
+
 }
 
 locale Ext {
@@ -325,7 +350,7 @@ prefix ∃ 0 0;
 
 locale Ex {
 	fix ∃;
-	assume ex_intro1: α.[t] ⟹ (∃) α;
+	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ (∃) α;
 	assume ex_elim: (∃) α ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
 	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then (∃) α;

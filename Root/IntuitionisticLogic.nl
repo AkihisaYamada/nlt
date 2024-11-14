@@ -33,11 +33,11 @@ show not_elim: if nP: ¬P, P: P then Q;
 		by not_imp_false[OF nP P];
 	by false_elim[OF f];
 
-show nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
-	apply iff_intro;
-	note! nnand_imp_nnot_and_nnot;
-	show! if and: ¬¬P ∧ ¬¬Q then ¬¬(P ∧ Q);
-		apply not_intro;
-		assume nand: ¬(P ∧ Q);
-		show 1: if P: P, Q: Q then false;
-		show! false;
+show not_or_imp_imp: if nPQ: ¬P ∨ Q, P: P then Q;
+	apply or_elim[OF nPQ];
+	show! if nP: ¬P then Q;
+		by not_elim[OF nP P];
+	show! if Q: Q then Q;
+		by Q;
+	qed;
+

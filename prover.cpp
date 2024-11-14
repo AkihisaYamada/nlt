@@ -269,10 +269,10 @@ public:
 	Thm proof_loop() {
 		for(;;) {
 			if( _parser.skips("apply") ) {
-				auto rule = make_rule(get_thm());
 				if( !_thesis ) {
 					throw Error("\"No goal for apply\"");
 				}
+				auto rule = get_thm();
 				auto res = rule_applies(rule,*_thesis);
 				if( !res ) {
 					throw Error(Term("\"Rule not applicable\"")(rule)(*_thesis));
@@ -473,8 +473,12 @@ public:
 // assume this
 								Thm rule = thesis_loc.Ctxt::assume(t);
 // and prove var, i.e., props[sym:=term]...
-								Thm thesis = *rule_applies(rule,make_refl(var));
-								auto spec = Prover(*this,thesis_loc,{},{thesis}).proof_loop().intro();
+								Thm thesis = make_refl(var);
+								auto thesis2 = rule_applies(rule,thesis);
+								if( !thesis2 ) {
+									throw Error(rule)(thesis);
+								}
+								auto spec = Prover(*this,thesis_loc,{},{thesis2}).proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 								intp.retain(_loc.cterm(term),spec);
 							} else {

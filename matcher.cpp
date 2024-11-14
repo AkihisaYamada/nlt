@@ -28,19 +28,32 @@ Opt<std::string> virtual_var( CTerm const& t ) {
 	}
 	return {};
 }
+template<class T>
+Opt<size_t> find_last( std::vector<T> const& haystack, T const& needle ) {
+	for( size_t i = haystack.size(); i != 0; ) {
+		i--;
+		if( haystack[i] == needle ) {
+			return i;
+		}
+	}
+	return {};
+}
+
 struct Matcher {
 	CSubst matcher;
 	StrSet const& fsyms;
 	StrMap<unsigned int> linds;
+	vector<string> rbvars;
 	StrMap<unsigned int> rinds;
+	unsigned int depth = 0;
 	Matcher( Ctxt const& ctxt, StrSet const& fsyms ) : matcher(ctxt), fsyms(fsyms) {}
-	Opt<CSubst> match( CTerm const& pat, CTerm const& val ) && {
-		if( match(pat,val,0) ) {
+	Opt<CSubst> matches( CTerm const& pat, CTerm const& val ) && {
+		if( match(pat,val) ) {
 			return std::move(matcher);
 		}
 		return {};
 	}
-	bool match(CTerm const& pat, CTerm const& val, unsigned int depth) {
+	bool match(CTerm const& pat, CTerm const& val) {
 		if( auto sym = pat.sym() ) {// pat is a symbol
 			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
 				if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
@@ -64,17 +77,17 @@ struct Matcher {
 			}
 		} else if( auto app = pat.capp() ) {
 			if( auto app2 = val.capp() ) {
-				return match(app->first,app2->first,depth) &&
-					match(app->second,app2->second,depth);
+				return match(app->first,app2->first) &&
+					match(app->second,app2->second);
 			}
 			return false;
 		} else if( auto const& abs = pat.cabs() ) {
 			if( auto const& abs2 = val.cabs() ) {
 				string const& x = abs->first;
 				string const& y = abs2->first;
-				depth++;
 				auto const& lind_info = linds.insert({x,depth});
 				auto const& rind_info = rinds.insert({y,depth});
+				rbvars.emplace_back(y);
 				unsigned int lpre;
 				unsigned int rpre;
 				if( !lind_info.second ) {// the variable was bound twice
@@ -85,8 +98,10 @@ struct Matcher {
 					rpre = rind_info.first->second;// remember the old index
 					rind_info.first->second = depth;// and update
 				}
-				if( match(abs->second,abs2->second,depth) ) {
+				depth++;
+				if( match(abs->second,abs2->second) ) {
 					// recover the old indices
+					rbvars.pop_back();
 					if( lind_info.second ) {
 						linds.erase(lind_info.first);
 					} else {
@@ -104,31 +119,58 @@ struct Matcher {
 				return false;
 			}
 		} else if( auto fix = pat.cfix() ) {// x[s]
-			auto [x,_,s] = *fix;
+			auto [x,_,pat2] = *fix;
 			auto const& opt = matcher.get(x);
-			if( opt ) if( auto const& abs = opt->abs() ) {// the context is instantiated
-				return match(opt->inst(s),val,depth);
-			}
-			if( auto fix2 = val.cfix() ) {
-				auto [x2,_,s2] = *fix2;
-				if( opt ) {// if x is assigned, then it must be x2
-					auto const& sym = opt->sym();
-					if( !sym || *sym != x2 ) {
+			if( opt ) {// the context is assigned
+				if( auto const& sym = opt->sym() ) {// x is assigned to a variable, then rhs must have the same shape
+					auto fix2 = val.cfix();
+					if( !fix2 ) {
 						return false;
 					}
-				}
-				if( fsyms.contains(x) ) {// free variable
-					if( rinds.finds(x2) ) {// cannot be assigned bound variable
+					auto [y,_,val2] = *fix2;
+					if( *sym != y ) {
 						return false;
 					}
-					matcher.assign(x,x2);
-				} else if( x != x2 ) {// constant
-					return false;
+					return match(pat2,val2);
 				}
-				return match(s,s2,depth);
-			} else {
+				if( auto const& abs = opt->abs() ) {// the context is instantiated
+					return match(opt->inst(pat2),val);
+				}
 				return false;
 			}
+			if( fsyms.contains(x) ) {// applied pattern variable
+				if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
+					if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
+						matcher.assign(x,*abs);
+						return true;
+					}
+					return false;
+				}
+				// otherwise, val must also be abstraction
+				auto vfix = val.cfix();
+				if( !vfix ) {
+					return false;
+				}
+				auto const& [y,cy,val2] = *vfix;
+				if( x != y ) {
+					auto const& cy2 = matcher.ctxt().constant(y);
+					if( !cy2 ) {// bound variable cannot be matched
+						return false;
+					}
+					matcher.assign(x,*cy2);
+				}
+				return match(pat2,val2);
+			}
+			// otherwise, pat and val must have the same shape
+			auto vfix = val.cfix();
+			if( !vfix ) {
+				return false;
+			}
+			auto [y,cy,val2] = *vfix;
+			if( x != y ) {
+				return false;
+			}
+			return match(pat2,val2);
 		} else {
 			assert(false);
 		}
@@ -136,7 +178,7 @@ struct Matcher {
 };
 
 Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
-	return Matcher(val.ctxt(),fsyms).match(pat,val);
+	return Matcher(val.ctxt(),fsyms).matches(pat,val);
 }
 Term strip_all(Term t, Ctxt& ctxt) {
 	while( auto all = t.binder(ALL) ) {
@@ -173,13 +215,19 @@ Thm make_rule( Thm const& thm ) {
 	}
 	return rule;
 }
-Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis ) {
+Term const DUMMY = "_" /= Term("_");
+
+CTerm dummy( Ctxt const& ctxt ) {
+	return ctxt.cterm(DUMMY);
+}
+Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 	Ctxt ctxt = thesis.ctxt().branch();
 	Thm tmp = thesis.weaken(ctxt);
 	auto imp = tmp.cbinary(IMP);
 	if( !imp ) {
-		throw Error(Term{"#apply"}(rule)(thesis));
+		throw Error("#apply")(thesis);
 	}
+	Thm rule = make_rule(thm);
 	auto const& m = match(rule.ctxt().fvars(),rule,imp->first);
 	if( !m ) {
 		return {};
@@ -190,7 +238,7 @@ Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis ) {
 			if( auto val = m->get(*v) ) {
 				intp.instantiate(*val);
 			} else {
-				intp.instantiate(tmp);// dummy
+				intp.instantiate(dummy(ctxt));
 			}
 		} else if( auto assm = intp.assuming() ) {
 			intp.discharge(ctxt.assume(*assm));

@@ -332,6 +332,9 @@ inline Term operator&=(std::string const& v, Term const& s) {
 struct Error : public std::exception {
 	Term term;
 	Error(Term const& term) : term(term) {}
+	Error operator()(Term const& arg) const {
+		return term(arg);
+	}
 };
 struct UnexpectedTerm : public Error {
 	UnexpectedTerm(Term const& term) : Error(Term("#unexpected_term")(term)) {}
@@ -343,10 +346,8 @@ struct MalformedInstantiation : public Error {
 	MalformedInstantiation(Term const& all, Term const& arg) :
 		Error(Term("#malformed_instantiation")(all)(arg)) {}
 };
-struct MalformedDischarge : public Error {
-	MalformedDischarge(Term const& imp, Term const& arg) :
-		Error(Term("#malformed_discharge")(imp)(arg)) {}
-};
+inline Error const MalformedDischarge = Error("#malformed_discharge");
+
 struct MalformedRetain : public Error {
 	MalformedRetain(Term const& term) : Error(Term("#malformed-retain")(term)) {}
 };
@@ -390,13 +391,13 @@ public:
 	/** The root Ctxt */
 	Ctxt();
 	/** unique ID of the context */
-	void const* id() const;
+	void const* id() const &;
 	/** Optionally returns the parent context. */
-	Opt<Ctxt const&> find_parent() const;
+	Opt<Ctxt const&> find_parent() const &;
 	/** @brief Obtains the parent context.
 	 * @exception WrongContext is thrown if no such context is found.
 	 */
-	Ctxt const& ctxt() const {
+	Ctxt const& ctxt() const & {
 		auto opt = find_parent();
 		if( !opt ) {
 			throw WrongContext("parent of root context");
@@ -411,7 +412,7 @@ public:
 			if( cur == ancestor ) {
 				return true;
 			}
-			if( auto parent = cur.find_parent() ) {
+			if( auto const& parent = cur.find_parent() ) {
 				cur = *parent;
 			} else {
 				return false;
@@ -434,6 +435,8 @@ public:
 	StrSet const& consts() const&;
 	/** Tests if a variable is locally obtained. */
 	Opt<CTerm> obtains(std::string_view const& name) const;
+	/** tests if a symbol is fixed in this or ancestor contexts. */
+	bool has_constant(std::string_view const& sym) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	Opt<CTerm> constant(std::string_view const& sym) const &;
 	/** Tests if a term is closed in this context. */
@@ -486,7 +489,7 @@ struct Ctxt::Body {
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
 };
-inline void const* Ctxt::id() const {
+inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
 }
 /** @brief dummy: Contexts are equal only if they have the same reference to the body.
@@ -496,7 +499,7 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 	return false;
 };
 
-inline Opt<Ctxt const&> Ctxt::find_parent() const {
+inline Opt<Ctxt const&> Ctxt::find_parent() const & {
 	if( _ref->ctxt ) {
 		return *_ref->ctxt;
 	}
@@ -800,7 +803,7 @@ public:
 		return _subst.ctxt();
 	};
 	/** @brief next unprocessed fix. */
-	Opt<std::string const&> fixing() const {
+	Opt<std::string const&> fixing() const & {
 		return _src.fixed(_rev);
 	}
 	Opt<CTerm> assuming() const {
@@ -853,6 +856,12 @@ inline Opt<CTerm> Ctxt::fixes(std::string_view const& name) const {
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	if( auto it = consts().find(name); it != consts().end() ) {
 		return CTerm(*this,*it);
+	}
+	return {};
+}
+inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const & {
+	if( has_constant(sym) ) {
+		return CTerm(*this,sym);
 	}
 	return {};
 }

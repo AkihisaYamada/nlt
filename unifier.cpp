@@ -11,9 +11,12 @@ public:
 	struct Escapes : exception {};
 	Unifier(Ctxt const& ctxt, function<bool(string const&)> const& fvar) : subst(ctxt), fvar(fvar) {}
 private:
+	/** stack of bound variables */
+	vector<string> bvars[2];
 	/** index of bound variables */
-	StrMap<unsigned int> escapes[2];
+	StrMap<unsigned int> inds[2];
 	StrSet avoids[2];
+	unsigned int index = 0;
 
 	static Term sanitize(Term const& t, StrSet& bounds, StrSet const& avoids, StrMap<unsigned int> const& escapes) {
 		if( auto sym = t.sym() ) {
@@ -45,11 +48,11 @@ private:
 		}
 	}
 
-	// lhs is variable
-	void unify_lvar(string const& x, CTerm const& r, unsigned int index) {
-		if( auto const& xesc = escapes[0].finds(x) ) {// bound variable must have the same index.
+	// lhs is a symbol
+	void unify_lsym(string const& x, CTerm const& r) {
+		if( auto const& xesc = inds[0].finds(x) ) {// bound variable must have the same index.
 			if( auto rsym = r.sym() )
-			if( xesc == escapes[1].finds(*rsym) ) {
+			if( xesc == inds[1].finds(*rsym) ) {
 				return;
 			}
 			throw Mismatch();
@@ -66,25 +69,23 @@ private:
 		}
 		if( fvar(x) ) {// free variables can be assigned
 			StrSet bounds;
-			subst.assign(x,sanitize(r,bounds,avoids[1],escapes[1]));
+			subst.assign(x,sanitize(r,bounds,avoids[1],inds[1]));
 			return;
 		}
-		return unify_lvar2(x,r);
+		return unify_lsym2(x,r);
 	}
-
-	// lhs is unassigned variable
-	void unify_lvar2(string const& x, Term const& r) {
+	// lhs is a constant
+	void unify_lsym2(string const& x, Term const& r) {
 		if( auto rsym = r.sym() ) {
 			string const& y = *rsym;
 			if( x == y ) {
 				return;
 			}
-			if( escapes[1].contains(y) ) { // this case is already tested
+			if( inds[1].contains(y) ) { // this case is already tested
 				throw Mismatch();
 			}
-			// test if y has an assigned value.
-			if( auto const& yval = subst.get(y) ) {
-				unify_lvar2(x,*yval);
+			if( auto const& yval = subst.get(y) ) {// recurse into the assignment
+				unify_lsym2(x,*yval);
 				return;
 			}
 			if( fvar(y) ) {// free variables can be assigned
@@ -95,50 +96,70 @@ private:
 		}
 		throw Mismatch();
 	}
-	// when lhs is not but rhs is a variable
-	void unify_rvar(CTerm const& l, string const& y, unsigned int index) {
-		if( escapes[1].contains(y) ) { // bound variable cannot match other things
+	// lhs is not a symbol
+	void unify_lnsym( CTerm const& l, CTerm const& r ) {
+		if( auto rsym = r.sym() ) {
+			return unify_rsym(l,*rsym);
+		}
+		if( auto lfix = l.cfix() ) {
+			auto const& [x,_,larg] = *lfix;
+			return unify_lfix(x,larg,r);
+		}
+		if( auto rfix = r.cfix() ) {
+			auto const& [y,_,rarg] = *rfix;
+			return unify_rfix(l,y,rarg);
+		}
+		return unify2(l,r);
+	}
+	// when lhs is not but rhs is a symbol
+	void unify_rsym(CTerm const& l, string const& y) {
+		if( inds[1].contains(y) ) { // bound variable cannot match other things
 			throw Mismatch();
 		}
-		// test if y has an assigned value.
-		if( auto const& yval = subst.get(y) ) {
+		if( auto const& yval = subst.get(y) ) {// recurse into the assignment
 			avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
-			unify2(l,*yval,index);
+			unify_lnsym(l,*yval);
 			avoids[0].erase(y);
 			return;
 		}
 		if( fvar(y) ) {// free variables can be assigned
 			StrSet bounds;
-			subst.assign(y,sanitize(l,bounds,avoids[0],escapes[0]));
+			subst.assign(y,sanitize(l,bounds,avoids[0],inds[0]));
 			return;
 		}
 		throw Mismatch();
 	}
-	// lhs is application or abstraction
-	void unify2(CTerm const& l, CTerm const& r, unsigned int index) {
-		if( auto rsym = r.sym() ) {
-			return unify_rvar(l,*rsym,index);
-		} else if( auto rfix = r.cfix() ) {
-			auto const& [y,_,rarg] = *rfix;
-			// test if substitution is necessary
-			if( auto val = subst.get(y) ) {
-				if( auto vsym = val->sym() ) {
-					avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
-					unify2(l,*vsym/rarg,index);
-					avoids[0].erase(y);
-					return;
-				} else if( auto vabs = val->cabs() ) {
-					avoids[0].insert(y);// this ths cannot be unified with lhs containing y
-					unify2(l,val->inst(rarg),index);
-					avoids[0].erase(y);
-					return;
-				}
+	// lhs is not symbol or context application, rhs is context
+	void unify_rfix( CTerm const& l, string const& y, CTerm const& rarg ) {
+		if( auto const& val = subst.get(y) ) {// substitution is necessary
+			if( auto vsym = val->sym() ) {
+				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
+				unify_rfix(l,*vsym,rarg);
+				avoids[0].erase(y);
+				return;
+			} else if( auto vabs = val->cabs() ) {
+				avoids[0].insert(y);// this ths cannot be unified with lhs containing y
+				unify2(l,val->inst(rarg));
+				avoids[0].erase(y);
+				return;
 			}
-			throw Mismatch();
-		} else if( auto lapp = l.capp() ) {
+		}
+		if( fvar(y) )
+		if( auto argsym = rarg.sym() )
+		if( auto const& opt = inds[1].finds(*argsym) ) {// higher-order pattern
+			auto const& [z,i] = *opt;
+			StrSet bounds;
+			subst.assign(y,sanitize(bvars[0][i]/=l,bounds,avoids[0],inds[0]));
+			return;
+		}
+		throw Mismatch();
+	}
+	// both sides are application or abstraction
+	void unify2(CTerm const& l, CTerm const& r) {
+		if( auto lapp = l.capp() ) {
 			if( auto rapp = r.capp() ) {
-				unify(lapp->first,rapp->first,index);
-				unify(lapp->second,rapp->second,index);
+				unify(lapp->first,rapp->first);
+				unify(lapp->second,rapp->second);
 				return;
 			}
 			throw Mismatch();
@@ -146,16 +167,22 @@ private:
 			auto const& [x,lbody] = *labs;
 			if( auto rabs = r.cabs() ) {
 				// both are abstraction.
-				string const& y = rabs->first;
-				auto const& xinfo = escapes[0].insert({x,index});
-				auto const& yinfo = escapes[1].insert({y,index});
-				unify(lbody,rabs->second,index+1);
+				auto const& [y,rbody] = *rabs;
+				bvars[0].push_back(x);
+				bvars[1].push_back(y);
+				auto const& xinfo = inds[0].insert({x,index});
+				auto const& yinfo = inds[1].insert({y,index});
+				index++;
+				unify(lbody,rbody);
+				index--;
 				// forget the bound variables
+				bvars[0].pop_back();
+				bvars[1].pop_back();
 				if( xinfo.second ) {
-					escapes[0].erase(xinfo.first);
+					inds[0].erase(xinfo.first);
 				}
 				if( yinfo.second ) {
-					escapes[1].erase(yinfo.first);
+					inds[1].erase(yinfo.first);
 				}
 				return;
 			}
@@ -164,86 +191,111 @@ private:
 			assert(false);
 		}
 	}
-	void unify_var( string const& x, string const& y ) {
-		if( auto const& xesc = escapes[0].finds(x) ) {// bound variable must have the same index.
-			if( xesc == escapes[1].finds(y) ) {
-				return;
+	bool eq_syms( string const& x, string const& y ) {
+		if( auto const& xesc = inds[0].finds(x) ) {// bound variable must have the same index.
+			return xesc == inds[1].finds(y);
+		}
+		return x == y;
+	}
+	// lhs is a fix and rhs is not a symbol
+	void unify_lfix( string const& x, CTerm const& larg, CTerm const& r ) {
+		if( auto xval = subst.get(x) ) {// context must be substituted
+			avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
+			if( auto vsym = xval->sym() ) {
+				unify_lfix(*vsym,larg,r);
+			} else if( auto vabs = xval->cabs() ) {
+				unify(xval->inst(larg),r);
+			} else {
+				throw Mismatch();
 			}
-		} else {
-			if( x == y ) {
-				return;
+			avoids[1].erase(x);
+			return;
+		}
+		// if rhs is has same context variable, then the arguments are unified
+		if( auto const& rfix = r.cfix() ) {
+			auto const& [y,_,rarg] = *rfix;
+			if( eq_syms(x,y) ) {
+				return unify(larg,rarg);
 			}
-			if( fvar(x) ) {// free variables can be assigned
-				if( avoids[1].contains(y) ) {
-					throw Occurs();
-				}
-				if( escapes[1].contains(y) ) {
-					throw Escapes();
-				}
-				subst.assign(x,y);
-				return;
-			}
-			if( fvar(y) ) {
-				if( avoids[0].contains(x) ) {
-					throw Occurs();
-				}
-				if( escapes[0].contains(x) ) {
-					throw Escapes();
-				}
-				subst.assign(y,x);
-				return;
-			}
+		}
+		// if lhs is a higher-order pattern, then assign the rhs
+		if( fvar(x) )
+		if( auto argsym = larg.sym() )
+		if( auto const& opt = inds[0].finds(*argsym) ) {
+			auto const& [z,i] = *opt;
+			StrSet bounds;
+			subst.assign(x,sanitize(bvars[1][i]/=r,bounds,avoids[1],inds[1]));
+			return;
+		}
+		return unify_lfix2(x,larg,r);
+	}
+	// lhs is non-pattern context application
+	void unify_lfix2( string const& x, CTerm const& larg, CTerm const& r ) {
+		if( auto const& rsym = r.sym() ) {
+			return unify_rsym(x/larg,*rsym);
+		} if( auto const& rfix = r.cfix() ) {/// rhs is also a context application
+			auto const& [y,_,rarg] = *rfix;
+			return unify_fixes(x,larg,y,rarg);
 		}
 		throw Mismatch();
 	}
-	// when lhs is a fix
-	void unify_lfix( string const& x, CTerm const& larg, CTerm const& r, unsigned int index ) {
-		if( auto const& rsym = r.sym() ) {
-			return unify_rvar(x/larg,*rsym,index);
-		} if( auto const& rfix = r.cfix() ) {
-			auto const& [y,_,rarg] = *rfix;
-			// test if substitution is necessary
-			if( auto val = subst.get(y) ) {
-				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
-				if( auto vsym = val->sym() ) {
-					unify_var(x,*vsym);
-					unify(larg,rarg,index);
-				} else if( auto vabs = val->cabs() ) {
-					unify_lfix(x,larg,val->inst(rarg),index);
-				} else {
-					throw Mismatch();
-				}
-				avoids[0].erase(y);
-				return;
+	// lhs is a non-pattern context and rhs is a context
+	void unify_fixes( string const& x, CTerm const& larg, string const& y, CTerm const& rarg ) {
+		if( auto val = subst.get(y) ) {// right context has assignment
+			avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
+			if( auto vsym = val->sym() ) {
+				unify_fixes(x,larg,*vsym,rarg);
+			} else if( auto vabs = val->cabs() ) {
+				unify_lfix2(x,larg,val->inst(rarg));
 			} else {
-				unify_var(x,y);
-				return unify(larg,rarg,index);
+				throw Mismatch();
 			}
+			avoids[0].erase(y);
+			return;
+		}
+		if( fvar(y) )
+		if( auto argsym = rarg.sym() )
+		if( auto const& opt = inds[1].finds(*argsym) ) {// context pattern
+			auto const& [z,i] = *opt;
+			StrSet bounds;
+			subst.assign(y,sanitize(bvars[0][i]/=x/larg,bounds,avoids[0],inds[0]));
+			return;
+		}
+		unify_syms(x,y);
+		return unify(larg,rarg);
+	}
+	void unify_syms( string const& x, string const& y ) {
+		if( eq_syms(x,y) ) {
+			return;
+		}
+		if( fvar(x) ) {// free variables can be assigned
+			if( avoids[1].contains(y) ) {
+				throw Occurs();
+			}
+			if( inds[1].contains(y) ) {
+				throw Escapes();
+			}
+			subst.assign(x,y);
+			return;
+		}
+		if( fvar(y) ) {
+			if( avoids[0].contains(x) ) {
+				throw Occurs();
+			}
+			if( inds[0].contains(x) ) {
+				throw Escapes();
+			}
+			subst.assign(y,x);
+			return;
 		}
 		throw Mismatch();
 	}
 public:
-	void unify(CTerm const& l, CTerm const& r, unsigned int index = 0) {
+	void unify(CTerm const& l, CTerm const& r) {
 		if( auto lsym = l.sym() ) {
-			return unify_lvar(*lsym,r,index);
-		} else if( auto lfix = l.cfix() ) {
-			auto const& [x,_,larg] = *lfix;
-			// test if substitution is necessary
-			if( auto xval = subst.get(x) ) {
-				avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
-				if( auto vsym = xval->sym() ) {
-					unify(*vsym/larg,r,index);
-				} else if( auto vabs = xval->cabs() ) {
-					unify(xval->inst(larg),r,index);
-				} else {
-					throw Mismatch();
-				}
-				avoids[1].erase(x);
-				return;
-			}
-			return unify_lfix(x,larg,r,index);
+			return unify_lsym(*lsym,r);
 		}
-		unify2(l,r,index);
+		return unify_lnsym(l,r);
 	}
 	CSubst result() {
 		StrSet done;
@@ -267,13 +319,13 @@ Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> 
 	}
 }
 
-Thm discharge(Thm thm, Thm arg) try {
+Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
 	// expand thm into cond ⟹ concl
 	Ctxt thm_ctxt = ctxt.branch();
 	Thm thm_strip = strip_all(thm,thm_ctxt);
 	auto imp = thm_strip.cbinary(IMP);
-	if( !imp ) throw 0;
+	if( !imp ) throw MalformedDischarge(thm_strip)(arg);
 	// expand cond
 	CTerm cond = imp->first;
 	Ctxt cond_ctxt = thm_ctxt.branch();
@@ -286,7 +338,7 @@ Thm discharge(Thm thm, Thm arg) try {
 	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
-	if( !unifier ) throw 3;
+	if( !unifier ) throw MalformedDischarge(thm)(cond_strip)(arg)(arg_strip);
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
 	iter_local_vars(arg_ctxt,[&](string const& x){
@@ -319,6 +371,4 @@ Thm discharge(Thm thm, Thm arg) try {
 	thm = thm.impE(arg);
 	thm = thm.intro();
 	return thm;
-} catch( int n ) {
-	throw MalformedDischarge(thm,arg);
 }

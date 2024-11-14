@@ -226,17 +226,14 @@ Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
 	_ref->fvars.insert(ALL);
 }
 
-Opt<CTerm> Ctxt::constant(string_view const& sym) const & {
-	if( auto ret = fixes(sym) ) {
-		return ret;
-	}
-	if( auto ret = obtains(sym) ) {
-		return ret;
+bool Ctxt::has_constant(string_view const& sym) const {
+	if( fixes(sym) || obtains(sym) ) {
+		return true;
 	}
 	if( auto parent = find_parent() ) {
 		return parent->constant(sym);
 	}
-	return {};
+	return false;
 }
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms( [&](auto sym){
@@ -342,7 +339,7 @@ Thm Thm::impE(Thm const& t) const {
 			return imp->second;
 		}
 	}
-	throw MalformedDischarge(*this,t);
+	throw MalformedDischarge(*this)(t);
 }
 
 Thm Thm::intro() const {
@@ -449,7 +446,7 @@ void Intp::discharge(Thm const& thm) {
 	}
 	Term const& exp = assume->subst(_subst);
 	if( exp != thm ) {
-		throw MalformedDischarge(exp,thm);
+		throw MalformedDischarge(exp)(thm);
 	}
 	_rev++;
 }
