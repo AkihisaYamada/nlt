@@ -7,9 +7,9 @@
 #include<exception>
 #include<map>
 #include<functional>
-#include"ref.hpp"
+#include"core.hpp"
 
-class SyntaxError : public std::exception {};
+extern const Error SyntaxError;
 
 // returns the size of the character
 int char_size( char start );
@@ -78,7 +78,7 @@ public:
 	}
 	void skip( std::string_view token ) {
 		if( !skips(token) ) {
-			throw SyntaxError();
+			throw SyntaxError(peek_token())(token);
 		}
 	}
 	template<typename T, typename... U>
@@ -153,7 +153,7 @@ public:
 		return token_type;
 	}
 	std::string location() const {
-		return filename + '+' + std::to_string(line_count);
+		return filename + ':' + std::to_string(line_count);
 	}
 };
 

@@ -39,6 +39,12 @@ Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name) const
 	}
 	return {};
 }
+Opt<Thm> Locale::find_discharge_thm( Term const& assm ) const {
+	if( auto it = _ref->locale_thms.find(assm); it != _ref->locale_thms.end() ) {
+		return *it;
+	}
+	return {};
+}
 
 Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 	if( auto ret = _ref->locales.finds(name) ) {
@@ -74,8 +80,8 @@ function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax, size_t 
 			} else if( auto assm = assumed(i) ) {
 				mk_indent(os,n) << "assumes " << syntax.pretty_thm(*assm) << endl;
 			} else if( auto obt = obtained(i) ) {
-				auto [sym,thm] = *obt;
-				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(thm) << endl;
+				auto [sym,ex,spec] = *obt;
+				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(spec) << endl;
 			} else {
 				assert(false);
 			}

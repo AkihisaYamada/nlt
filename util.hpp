@@ -8,6 +8,10 @@ inline std::string operator+( std::string x, std::string_view const& y ) {
 	x+=y;
 	return x;
 }
+/** comparison of terms */
+int compare_term( Term const& l, Term const& r );
+/** comparison of terms */
+bool operator<( Term const& l, Term const& r );
 
 /** makes the theorem t ⟹ t */
 inline Thm make_refl( CTerm const& t ) {
@@ -88,14 +92,6 @@ Thm discharge(Thm t, Thm arg);
 inline Thm operator<<(Thm const& t, Thm arg) {
 	return discharge(t,arg);
 }
-
-/**
- * @brief Imports a context into the parent
- * 
- * @param ctxt 
- * @param target 
- */
-void import_all(Intp& intp);
 
 /** detects trivial abstraction x. y.[x], and returns y */
 Opt<std::string> virtual_var( CTerm const& t );

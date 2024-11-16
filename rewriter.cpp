@@ -25,16 +25,18 @@ static Thm equate_cong(Thm const& cong, Thm const& eq, CTerm const& arg) {
 }
 
 static Thm equate_abs(Thm const& thm, Thm const& eq) {
-	// thm: (∀x. α.[x] = β.[x]) ⟹ α = β
+	// thm: ∀α. ∀β. (∀x. α.[x] = β.[x]) ⟹ α = β
 	// eq: s = t
 	CTerm s = eq.capp()->first.capp()->second;
 	CTerm t = eq.capp()->second;
 	Thm all = eq.intro();// ∀x. s = t
 	CTerm dummy = all.capp()->first;
-	CTerm a = s.lift(dummy).capp()->second;// a: x. s
-	CTerm b = t.lift(dummy).capp()->second;// b: x. t
-	return thm.weaken(all.ctxt()).allE(a).allE(b)
-		 << all;// (x. s) = (x. t)
+	Thm rule = make_rule(thm);// fix α β; assume ∀x. α.[x] = β.[x]; ⊢ α = β
+	auto intp = Intp::make(rule.ctxt(),all.ctxt());
+	intp.instantiate(s.lift(dummy).capp()->second);// α ← x. s
+	intp.instantiate(t.lift(dummy).capp()->second);// β ← x. t
+	intp.discharge(all);
+	return intp.subst(rule); // (x. s) = (x. t)
 }
 
 Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& refl) const {
@@ -81,7 +83,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, Thm const& ref
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
 		assert( ctxt.revision() == 1 ); // should have exactly one variable
-		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source: (ξ) α
+		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source: (ξ)x. α.[x]
 			auto const& val = m->get(*ctxt.fixed(0));
 			assert(val);
 			if( auto const& abs = val->cabs() ) {
@@ -136,7 +138,7 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 	for( auto const& qcong : quantifier_congs ) {
 		Ctxt const& ctxt = qcong.pat.ctxt();
 		assert( ctxt.revision() == 1 );
-		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source = (ξ) α
+		if( auto const& m = match(ctxt.fvars(),qcong.pat,source) ) {// source: ξx. α.[x]
 			auto const& val = m->get(*ctxt.fixed(0));
 			assert(val);
 			if( auto const& abs = val->cabs() ) {

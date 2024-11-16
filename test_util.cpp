@@ -11,6 +11,18 @@ int main() try {
 	Term thesis("thesis");
 	SYNTAX.infix(AND,35,36,36);
 	SYNTAX.infix(IFF,0,1,1);
+
+	Ctxt foo;
+	foo.fix("A");
+	auto freeA = [](string_view const x) { return x == "A"; };
+	auto xAx = foo.cterm( "x" /= "A" %= Term("x") );
+	auto yyy = foo.cterm( "y" /= "x" /= Term("y") );
+	auto unifier = unify( xAx, yyy, freeA);
+	assert(unifier);
+	cout << xAx << " unify " << yyy << " via " << *unifier << endl;
+	cout << xAx.subst(*unifier) << endl;
+	assert( xAx.subst(*unifier) == yyy );
+
 	Ctxt Root;
 	Thm imp_refl = [&]{
 		Ctxt loc = Root.branch();
@@ -24,9 +36,9 @@ int main() try {
 	Thm trueI = [&]{
 		Ctxt loc = True.branch();
 		loc.fix("thesis");
-		Thm assm = loc.assume("true" &= TRUE >>= thesis);
+		Thm assm = loc.assume(loc.cterm("true" &= TRUE >>= thesis));
 		Thm imp_refl2 = imp_refl.weaken(loc);
-		return True.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro()).second[0];
+		return True.obtain("true",assm.allE(imp_refl2).impE(imp_refl2).intro()).second;
 	}();
 	cout << True;
 
@@ -91,29 +103,6 @@ int main() try {
 		return (iffI1.weaken(loc) << p_r << r_p).intro();
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
-
-	cout << "\n--- PropLogic ---" << endl;
-	Ctxt Logic = Root.branch();
-	Intp Logic_True = Intp::make(True,Logic);
-	import(Logic_True);
-	Intp Logic_Iff = Intp::make(Iff,Logic);
-	import(Logic_Iff);
-	Intp Logic_And = Intp::make(And,Logic);
-	import(Logic_And);
-	cout << Logic << endl;
-
-	Thm and_iff = Logic_Iff.subst(iffI1) << Logic_And.subst(andE) << Logic_And.subst(andI);
-	cout << "proved and_iff: " << and_iff << endl;
-	Thm and_imp_iff	= [&]{
-		Ctxt loc = Logic.branch();
-		loc.fix("P");
-		loc.fix("Q");
-		Thm conj = loc.assume((p>>=q) & (q>>=p));
-		Thm pq = Logic_And.subst(andE1).weaken(loc) << conj;
-		Thm qp = Logic_And.subst(andE2).weaken(loc) << conj;
-		return (Logic_Iff.subst(iffI1).weaken(loc) << pq << qp).intro();
-	}();
-	cout << "proved and_imp_iff: " << and_imp_iff << endl;
 
 	cout << "=== util test is done ===" << endl;
 } catch( Error const& e ) {

@@ -6,6 +6,8 @@
 
 using namespace std;
 
+const Error SyntaxError = Error("#syntax_error");
+
 int char_size( char start ) {
 	if( (start & 0x80) == 0x00 ) {
 		return 1;

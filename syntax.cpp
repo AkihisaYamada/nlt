@@ -59,7 +59,14 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 			}
 			return os;
 		} else if( auto abs = term.abs() ) {
-			return os << abs->first << ". " << pretty_term(abs->second, 0);
+			if( level > 0 ) {
+				os << '(';
+			}
+			os << abs->first << ". " << pretty_term(abs->second, 0);
+			if( level > 0 ) {
+				os << ')';
+			}
+			return os;
 		} else if( auto fix = term.fix() ) {
 			return os << fix->first << ".[" << pretty_term(fix->second) << ']';
 		} else {
@@ -97,26 +104,8 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 			} else if( auto assume = ctxt.assumed(i) ) {
 				os << "\tassumes " << pretty_term(*assume) << ';'<< std::endl;
 			} else if( auto obtain = ctxt.obtained(i) ) {
-				auto [sym,thm] = *obtain;
-				os << "\tobtains " << sym << "\n\t  where ";
-				auto all1 = thm.binder(ALL); // ∀thesis. (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
-				assert(all1);
-				auto imp1 = all1->second.binary(IMP); // (∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis) ⟹ thesis
-				auto all2 = imp1->first.binder(ALL);// ∀sym. p_1 ⟹ ... ⟹ p_n ⟹ thesis
-				assert(all2);
-				auto [sym2,imps] = *all2;
-				auto imp = imps.binary(IMP);
-				assert(imp);
-				auto spec = imp->first;
-				imps = imp->second;
-				os << spec;
-				for(;;) {
-					auto imp2 = imps.binary(IMP);
-					if( !imp2 ) break;
-					os << "\n\t    and " << imp2->first;
-					imps = imp2->second;
-				}
-				os << ';' << std::endl;
+				auto [sym,thm,spec] = *obtain;
+				os << "\tobtains " << sym << "\n\t  where " << spec << ';' << std::endl;
 			} else {
 				assert(false);
 			}

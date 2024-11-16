@@ -42,7 +42,7 @@ private:
 			}
 			return x /= body;
 		} else if( auto fix = t.fix() ) {
-			return fix->first / sanitize(fix->second,bounds,avoids,escapes);
+			return fix->first %= sanitize(fix->second,bounds,avoids,escapes);
 		} else {
 			assert(false);
 		}

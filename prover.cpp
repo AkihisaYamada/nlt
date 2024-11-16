@@ -49,6 +49,8 @@ Ref<Syntax> make_syntax() {
 	return ret;
 }
 
+static Error const ProofMismatch = Error("#proof-mismatch");
+
 class Prover {
 	Opt<Ref<Prover>> _parent;
 	unsigned int _depth;
@@ -275,7 +277,7 @@ public:
 				auto rule = get_thm();
 				auto res = rule_applies(rule,*_thesis);
 				if( !res ) {
-					throw Error(Term("\"Rule not applicable\"")(rule)(*_thesis));
+					throw Error("\"Rule not applicable\"")(rule)(*_thesis);
 				}
 				*_thesis = *res;
 				if( auto g = has_goal() ) {
@@ -354,7 +356,7 @@ public:
 		Thm arg_strip = strip_all(arg,arg_vars);
 		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
 		if( !matcher ) {
-			throw Error(Term("#proof-mismatch")(goal_strip)(arg_strip));
+			throw ProofMismatch(goal_strip)(arg_strip);
 		}
 		// instantiate arg variables
 		auto intp = Intp::make(arg_vars,goal_vars);
@@ -362,7 +364,7 @@ public:
 			auto v = arg_vars.fixed(i);
 			assert(v);
 			auto val = matcher->get(*v);
-			intp.instantiate( val ? val->csubst(goal_vars) : goal_strip/* dummy */ );
+			intp.instantiate( val ? val->csubst(goal_vars) : goal_vars.cterm("_"/=Term("_"))/* dummy */ );
 		}
 		Thm inst = intp.subst(arg_strip);
 		// quantify the goal variables
@@ -417,11 +419,7 @@ public:
 							_indent();
 							if( _parser.skips("for") ) {
 								if( _parser.skips("_") ) {
-									if( auto s = _loc.fixes(*v) ) {
-										intp.instantiate(*s);
-									} else {
-										intp.instantiate(_loc.fix(*v));
-									}
+									assert( intp.instantiates() );
 								} else {
 									auto t = _parser.get_term();
 									intp.instantiate(_loc.enclose(t));
@@ -444,8 +442,8 @@ public:
 								break;
 							}
 						} else if( auto obtain = intp.obtaining() ) {
-							auto [sym,thm] = *obtain;
-							cout << "Obtain " << sym << " in " << _syntax->pretty_cterm(thm) << endl;
+							auto [sym,thm,spec] = *obtain;
+							cout << "Obtain " << sym << " in " << _syntax->pretty_cterm(spec) << endl;
 							_indent();
 							if( _parser.skips("obtain") ) {
 								if( _parser.skips(";") ) {
@@ -493,7 +491,7 @@ public:
 					_parser.skip("}");
 					_depth--;
 				}
-				import_all(intp);
+				while( intp.instantiates() || intp.discharges() || intp.retains() );
 				if( !has_mod ) {
 					cout << "imported " << name << endl;
 				}
@@ -529,7 +527,7 @@ public:
 			} else if( _parser.skips("goal") ) {
 				_parser.skip(";");
 				if( auto g = has_goal() ) {
-					cout << "goal: " << *g << endl;
+					cout << "goal: " << _syntax->pretty_cterm(*g) << endl;
 				} else {
 					cout << "no goal" << endl;
 				}
@@ -548,6 +546,11 @@ public:
 				cout << "Showing " << cs << flush;
 				auto goal_loc = _loc.branch();
 				vector<pair<string,CTerm>> assms;// delay making assumptions, so that all free variables are fixed first
+				if( _parser.skips("for") ) {
+					while( !_parser.skips(",") ) {
+						goal_loc.fix(_parser.get_token());
+					}
+				}
 				if( _parser.skips("if") ) {
 					cout << "if " << flush;
 					get_named_terms([&](string const& s, Term const& t){
@@ -564,8 +567,11 @@ public:
 					goal_loc.assume(name,assm);
 				}
 				cout << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prove(goal_loc,goal).intro();
-				add_claim(cs,thm);
+				auto const& thm = prove(goal_loc,goal);
+				if( goal != thm ) {
+					throw ProofMismatch(thm)(goal);
+				}
+				add_claim(cs,thm.intro());
 			} else if( _parser.skips("obtain") ) {
 				string sym = _parser.get_token();
 				_parser.skip("where");
@@ -789,6 +795,9 @@ public:
 			_prompt();
 		} catch ( ::Error const& e ) {
 			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
+			_error();
+		} catch( Parser::Error const& e ) {
+			cerr << _parser.location() << ": Parse ERROR: " << e.message << endl;
 			_error();
 		} catch ( exception const& e ) {
 			cerr << _parser.location() << ": Other exception: " << e.what() << endl;

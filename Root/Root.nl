@@ -289,7 +289,7 @@ locale Equal {
 	import eq: Reflexive {
 		for (=);
 	}
-	assume eq_mono: ∀x. ∀y. x = y ⟹ α.[x] ⟹ α.[y];
+	assume eq_mono: ∀α. ∀x. ∀y. x = y ⟹ α.[x] ⟹ α.[y];
 
 	import eq: Equivalence {
 		for (=);
@@ -303,6 +303,9 @@ locale Equal {
 			fix x y z;
 			assume xy: x = y;
 			assume yz: y = z;
+thm eq_mono;
+thm eq_mono(w. x = w);
+thm eq_mono(w. x = w)[OF yz];
 			by eq_mono(w. x = w)[OF yz xy];
 	}
 
@@ -331,11 +334,7 @@ locale Equal {
 
 locale Ext {
 	import Equal;
-	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ α = β;
-	show abs: (x. α.[x]) = α;
-		show 1: ∀x. α.[x] = α.[x];
-			by eq.refl;
-		by eq_ext(x. α.[x])(α)[OF 1];
+	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
 }
 
 prefix λ 0 0;
