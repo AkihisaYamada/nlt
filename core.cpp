@@ -149,42 +149,27 @@ Term Term::subst(string_view const& var, CTerm const& val) const {
 	);
 }
 
-static Term subst_var(
-	function<Term(string const&)> f,
-	string const& sym,
-	StrMap<string>& bsyms
-) {
-	if( auto opt = bsyms.finds(sym) ) {
-		return opt->second;
-	}
-	return f(sym);
-}
-
-Term Term::_map(
-	function<Term(string_view const&)> f,
-	function<bool(string_view const&)> fixed,
-	StrMap<string>& bsyms
-) const {
-	if( auto sym = this->sym() ) {
-		return subst_var(f,*sym,bsyms);
-	} else if( auto app = this->app() ) {
-		return app->first._map(f,fixed,bsyms)(app->second._map(f,fixed,bsyms));
-	} else if( auto abs = this->abs() ) {
-		string var = abs->first;
+Term Term::_Mapper::map( Term const& t ) {
+	if( auto sym = t.sym() ) {
+		return map_var(*sym);
+	} else if( auto app = t.app() ) {
+		return map(app->first)(map(app->second));
+	} else if( auto abs = t.abs() ) {
+		auto const& var = abs->first;
 		Term body = abs->second;
-		string const& newvar = avoid(var,[&](string const& x){ return bsyms.contains(x) || fixed(x); });
+		string const& newvar = rename(var);
 		auto newvar_info = bsyms.emplace(newvar,newvar);// the new name should be avoided
 		if( newvar == var ) {// the bound variable is fresh
-			body = body._map(f,fixed,bsyms);
+			body = map(body);
 		} else {
 			// replace the original name
-			auto replace_info = bsyms.emplace(abs->first,newvar);
+			auto replace_info = bsyms.emplace(var,newvar);
 			string prev;
 			if( !replace_info.second ) {// the variable is bound multiple times
 				prev = replace_info.first->second;// remember the old assignment
 				replace_info.first->second = newvar;// update to the new name
 			}
-			body = body._map(f,fixed,bsyms);
+			body = map(body);
 			// forget/recover replacement
 			if( replace_info.second ) {
 				bsyms.erase(replace_info.first);
@@ -195,15 +180,21 @@ Term Term::_map(
 		// release the new name
 		bsyms.erase(newvar_info.first);
 		return newvar /= body;
-	} else if( auto fix = this->fix() ) {
-		Term newbox = subst_var(f,fix->first,bsyms);
-		Term newval = fix->second._map(f,fixed,bsyms);
-		if( auto nsym = newbox.sym() ) {
-			return *nsym / newval;
-		} else if( auto nabs = newbox.abs() ) {
-			return nabs->second.map(unit_map(nabs->first,newval));
+	} else if( auto fix = t.fix() ) {// map(C[s])
+		auto const& [C,s] = *fix;
+		Term mapC = map_var(C);
+		Term maps = map(s);
+		if( auto nsym = mapC.sym() ) {
+			return *nsym %= maps;
+		} else if( auto nabs = mapC.abs() ) {// (x. t)[s']
+			auto const& [x,t] = *nabs;
+			// return t[x := s'], where bound variables are considered fixed.
+			auto newfixed = [&]( string_view const& sym ) {
+				return fixed(sym) || bsyms.contains(sym);
+			};
+			return t.map(unit_map(x,maps),newfixed);
 		} else {
-			throw UnexpectedTerm(newbox);
+			throw UnexpectedTerm(mapC);
 		}
 	} else {
 		assert(false);
@@ -279,6 +270,9 @@ Thm Ctxt::assume(CTerm const& t) & {
 	}
 	return _assume(t);
 }
+Thm Ctxt::assume(Term const& t) & {
+	return _assume(enclose(t));
+}
 
 pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) & {
 	if( constant(sym) ) {
@@ -317,10 +311,10 @@ pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) & {
 		throw MalformedObtain(thm);
 	}
 	// (props[var:=sym]... ⟹ thesis) ⟹ thesis
-	_ref->constants.emplace(sym);
-	_ref->modifiers.push_back(_Obtain(string(sym),thm));
 	auto sym_term = CTerm(*this,sym);
 	Thm spec = CTerm( *this, thesis &= all2->inst(sym_term) >>= thesis );
+	_ref->constants.emplace(sym);
+	_ref->modifiers.push_back( _Obtain(string(sym), thm, sym/=spec ));
 	return {sym_term,spec};
 }
 Thm Thm::_allE(CTerm const& t) const {
@@ -454,24 +448,12 @@ void Intp::retain(CTerm const& term, Thm const& thm) {
 	if( thm.ctxt() != _subst.ctxt() ) {
 		throw WrongContext("retain");
 	}
-	auto obtain = _src.obtained(_rev);
+	auto obtain = obtaining();
 	if( !obtain ) {
-		throw UnexpectedTerm("retain");
+		throw MalformedRetain;
 	}
-	string const& sym = obtain->first;
-	Term t = obtain->second.subst(_subst);// ∀thesis. (∀sym. specs... ⟹ thesis) ⟹ thesis
-	auto all = t.binder(ALL);
-	assert( all );
-	auto thesis = all->first;
-	t = all->second; // (∀sym. specs... ⟹ thesis) ⟹ thesis
-	auto imp = t.binary(IMP);
-	assert( imp );
-	t = imp->first; // ∀sym. specs... ⟹ thesis, thesis
-	auto abs = t.unary(ALL);
-	assert( abs );
-	t = abs->inst(term); // specs[sym:=term]... ⟹ thesis
-	t = thesis &= t >>= thesis; // ∀thesis. (specs[sym:=term]... ⟹ thesis) ⟹ thesis
-	if( thm != t ) {
+	auto const& [sym,ex,spec] = *obtain;
+	if( spec.inst(term) != thm ) {
 		throw MalformedRetain(thm);
 	}
 	_subst.assign(sym,term);

@@ -7,19 +7,36 @@ int main() try {
 	Term p = Term("P");
 	Term q = Term("Q");
 	Term r = Term("R");
+	Term x = Term("x");
+	Term y = Term("y");
+	Term f = Term("f");
 	Term True("true");
 	Term thesis("thesis");
 	SYNTAX.infix(AND,35,36,36);
 	SYNTAX.infix(IFF,0,1,1);
 
-	assert( ("x" /= Term("x")) == ("y" /= Term("y")) );
-	assert( ("x" /= Term("F")("x")) == ("y" /= Term("F")("y")) );
+	assert( ("x" /= x) == ("y" /= y) );
+	assert( ("x" /= f(x)) == ("y" /= f(y)) );
 
-	{	Term s = "Q" &= p & q;
+	{	Term xyx = "x" &= y & x;
 		Ctxt loc;
-		Term t = s.subst("P",loc.fix("Q"));
-		cout << "(" << s << ")(P := Q) = " << t << endl;
-		assert(t == ("Q'" &= q & Term("Q'")));
+		Term t = xyx.subst("y",loc.fix("x"));
+		cout << "(" << xyx << ")(y := x) = " << t << endl;
+		assert(t == ("x'" &= x & Term("x'")));
+		loc.fix("A");
+		auto u = loc.cterm( "x" /= "A" %= x );
+		auto v = loc.cterm( "y" /= "x" /= y );
+		Term uv = u.subst("A",v);
+		cout << "(" << u << ")(A := " << v << ") = " << uv << endl;
+		assert( uv == v );
+		auto w = loc.cterm( "y" /= x(y) );
+		auto uw = u.subst("A",w);
+		cout << "(" << u << ")(A := " << w << ") = " << uw << endl;
+		assert( uw == w );
+		auto xyAy = loc.cterm( "x" /= "y" /= "A" %= y );
+		auto yx = loc.cterm( "y" /= x );
+		auto r = xyAy.subst("A",yx);
+		cout << "(" << xyAy << ")(A := " << yx << ") = " << r << endl;
 	}
 
 	Ctxt Root;
@@ -41,7 +58,7 @@ int main() try {
 		loc.fix("thesis");
 		Thm assm = loc.assume("true" &= True >>= thesis);
 		Thm imp_refl2 = imp_refl.weaken(loc);
-		return Root.obtain(assm.allE(imp_refl2).impE(imp_refl2).intro()).second[0];
+		return Root.obtain("true",assm.allE(imp_refl2).impE(imp_refl2).intro()).second;
 	}();
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
 	cout << "context Root:\n" << Root << endl;

@@ -60,6 +60,22 @@ class Term {
 		Bind(std::string_view const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
 	};
 	Sum<std::string,App,Abs,Bind> _un;
+	struct _Mapper {
+		std::function<Term(std::string const&)> const& f;
+		std::function<bool(std::string_view const&)> const& fixed;
+		StrMap<std::string> bsyms;
+		std::string rename( std::string const& var ) const {
+			return avoid(var,[&](std::string const& x){ return bsyms.contains(x) || fixed(x); });
+		}
+		Term map_var( std::string const& sym ) {
+			if( auto opt = bsyms.finds(sym) ) {
+				return opt->second;
+			}
+			return f(sym);
+		}
+		Term map_abs( std::string const& var, Term body );
+		Term map( Term const& t );
+	};
 	Term(App const& app) : _un(app) {}
 	Term(Abs const& abs) : _un(abs) {}
 	Term(Bind const& bind) : _un(bind) {}
@@ -103,7 +119,7 @@ public:
 	 * @param val 
 	 * @return Term 
 	 */
-	friend Term operator/(std::string_view const& binder, Term const& val) {
+	friend Term operator%=(std::string_view const& binder, Term const& val) {
 		return Term(Bind{binder,val});
 	}
 	/** @brief Copy the string if the term is a symbol. */
@@ -290,12 +306,11 @@ public:
 	 * @return Term 
 	 */
 	Term map(
-		std::function<Term(std::string_view const&)> f,
-		std::function<bool(std::string_view const&)>
+		std::function<Term(std::string_view const&)> const& f,
+		std::function<bool(std::string_view const&)> const&
 			fixed = [](std::string_view const&){ return false; }
 	) const {
-		StrMap<std::string> bsyms;
-		return _map(f,fixed,bsyms);
+		return _Mapper{f,fixed}.map(*this);
 	};
 	/** @brief instantiates the bound variable. This must be an abstraction.
 	 * 
@@ -309,8 +324,8 @@ private:
 		std::function<void(std::string_view const&)> const& bsym,
 		std::function<void(std::string_view const&)> const& fsym
 	) const;
-	Term _map(std::function<Term(std::string_view const&)> f, std::function<bool(std::string_view const&)> fixed, StrMap<std::string>& bsyms) const;
-	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);// equality test
+	/** equality test */
+	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);
 
 	friend bool operator==(Term const& l, Term const& r) {
 		StrMap<unsigned int> lmap, rmap;
@@ -348,9 +363,8 @@ struct MalformedInstantiation : public Error {
 };
 inline Error const MalformedDischarge = Error("#malformed_discharge");
 
-struct MalformedRetain : public Error {
-	MalformedRetain(Term const& term) : Error(Term("#malformed-retain")(term)) {}
-};
+inline Error const MalformedRetain = Error("#malformed-retain");
+
 struct MissingProof : public Error {
 	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
 };
@@ -382,7 +396,8 @@ private:
 	class _Assume : public Term {};
 	struct _Obtain {
 		std::string sym;
-		Term thm;
+		Term thm;// ∀thesis. (∀sym. prop... ⟹ thesis) ⟹ thesis
+		Term spec;// sym. ∀thesis. (prop... ⟹ thesis) ⟹ thesis
 	};
 	using _Modifier = Sum<_Fix,_Assume,_Obtain>;
 public:
@@ -426,7 +441,7 @@ public:
 	/** The assumption made at the i-th modification. */
 	Opt<Thm> assumed(size_t i) const&;
 	/** The constant name obtained at the i-th modification. */
-	Opt<std::pair<std::string,Thm>> obtained(size_t i) const&;
+	Opt<std::tuple<std::string,Thm,Thm>> obtained(size_t i) const&;
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
@@ -457,6 +472,12 @@ public:
 	 * @return the assumed theorem.
 	 */
 	Thm assume(CTerm const& t) &;
+	/** @brief Adds an assumption. Free variables will be fixed.
+	 * 
+	 * @param t the assumption.
+	 * @return the assumed theorem.
+	 */
+	Thm assume(Term const& t) &;
 	/** @brief Fixes a symbol with a specification.
 	 *
 	 * @param thm of form ∀thesis. (∀sym. props... ⟹ thesis) ⟹ thesis
@@ -668,7 +689,7 @@ public:
 		if( !arg._ctxt.constant(v) ) {
 			throw UnboundVariable(v);
 		}
-		return CTerm( arg._ctxt, v / (Term)arg );
+		return CTerm( arg._ctxt, v %= (Term)arg );
 	}
 };
 inline bool operator!=(CTerm const& l, CTerm const& r) {
@@ -802,6 +823,10 @@ public:
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
+	/** tests if there is no pending modification */
+	bool ready() {
+		return _rev == _src.revision();
+	}
 	/** @brief next unprocessed fix. */
 	Opt<std::string const&> fixing() const & {
 		return _src.fixed(_rev);
@@ -812,9 +837,10 @@ public:
 		}
 		return {};
 	}
-	Opt<std::pair<std::string,Thm>> obtaining() const {
+	Opt<std::tuple<std::string,Thm,Thm>> obtaining() const {
 		if( auto o = _src.obtained(_rev) ) {
-			return {{o->first,Thm(o->second.csubst(_subst))}};
+			auto const& [sym,thm,spec] = *o;
+			return {{sym,Thm(thm.csubst(_subst)),Thm(spec.csubst(_subst))}};
 		}
 		return {};
 	}
@@ -873,10 +899,11 @@ inline Opt<Thm> Ctxt::assumed(size_t i) const & {
 	}
 	return {};
 }
-inline Opt<std::pair<std::string,Thm>> Ctxt::obtained(size_t i) const & {
+inline Opt<std::tuple<std::string,Thm,Thm>> Ctxt::obtained(size_t i) const & {
 	if( i < revision() ) {
-		if( auto a = _ref->modifiers[i].ref<_Obtain>() ) {
-			return {{a->sym,Thm(CTerm(*this,a->thm))}};
+		if( auto o = _ref->modifiers[i].ref<_Obtain>() ) {
+			auto const& [sym,thm,spec] = *o;
+			return {{sym,CTerm(*this,thm),CTerm(*this,spec)}};
 		}
 	}
 	return {};
