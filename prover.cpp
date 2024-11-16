@@ -69,7 +69,7 @@ class Prover {
 	StrMap<Ref<Rewriter>> _rewriters;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
-	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path, Opt<Thm> thesis = {}) :
+	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Thm> thesis = {}) :
 		_parent(Ref<Prover>::make(parent)),
 		_depth(parent._depth+1),
 		_loc(loc),
@@ -82,7 +82,6 @@ class Prover {
 		_rewriters(parent._rewriters),
 		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
-		_prompt();
 	}
 	void _error() {
 		if( _exit_on_error ) {
@@ -122,10 +121,13 @@ public:
 	void set_lexer( Lexer& lexer ) {
 		_parser.set_lexer(lexer);
 	}
-	Thm prove(Locale const& loc, CTerm const& goal) {
+	Thm make_thesis(CTerm const& goal) {
 		Ctxt ctxt = goal.ctxt().branch();
-		Thm thesis = ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
-		return Prover(*this,loc,{},thesis).proof_loop();
+		return ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
+	}
+	Thm prove(Locale const& loc, CTerm const& goal) {
+		_prompt();
+		return Prover(*this,loc,{},make_thesis(goal)).proof_loop();
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -382,6 +384,13 @@ public:
 		}
 		return *loc;
 	}
+	void print_goal() {
+	if( auto g = has_goal() ) {
+			cout << "goal: " << _syntax->pretty_cterm(*g) << endl;
+		} else {
+			cout << "no goal" << endl;
+		}
+	}
 	Opt<Thm> loop() {
 		for(;;) try {
 			if( _parser.skips("{") ) {
@@ -524,13 +533,6 @@ public:
 				Thm thm = get_thm();
 				_parser.skip(";");
 				cout << "thm " << _syntax->pretty_thm(thm) << endl;
-			} else if( _parser.skips("goal") ) {
-				_parser.skip(";");
-				if( auto g = has_goal() ) {
-					cout << "goal: " << _syntax->pretty_cterm(*g) << endl;
-				} else {
-					cout << "no goal" << endl;
-				}
 			} else if( _parser.skips("term") ) {
 				Term term = get_term();
 				_parser.skip(";");
@@ -572,6 +574,7 @@ public:
 					throw ProofMismatch(thm)(goal);
 				}
 				add_claim(cs,thm.intro());
+				print_goal();
 			} else if( _parser.skips("obtain") ) {
 				string sym = _parser.get_token();
 				_parser.skip("where");
@@ -601,36 +604,41 @@ public:
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
 				auto const& thm = prove(_loc.branch(),goal);
 				auto [sym_term,spec] = _loc.obtain(sym,thm);
+				cout << "Obtained " << sym << " where ";
 				// register properties
 				auto all = spec.cbinder(ALL);
 				assert(all);
 				auto imp = all->second.cbinary(IMP);
 				assert(imp);
 				auto subst = CSubst(spec.ctxt());// to remove thesis
-				auto name_it = names.begin();
 				Thm refl = _loc.thm("imp.refl");// P ⟹ P
 				Thm weaken = _loc.thm("weaken");// (P ⟹ Q) ⟹ P
 				Thm ignore = _loc.thm("ignore");// ((P ⟹ Q) ⟹ R) ⟹ Q ⟹ R
-				CTerm s = imp->first;// P ⟹ props ⟹ var
+				CTerm s = imp->first;// prop ⟹ props ⟹ var
 				auto imp2 = s.cbinary(IMP);
-				auto prop = imp2->first;// P
 				s = imp2->second;// props... ⟹ var
-				for(;;) {
+				for(auto name_it = names.begin();;) {
+					if( name_it == names.end() ) {
+						throw Error("\"too few names for obtain\"")(sym);
+					}
 					if( auto imp3 = s.cbinary(IMP) ) {// more props follow
-						s = imp2->second;// props... ⟹ var
-						add_claim( ClaimStatus(*name_it), spec << weaken );// P
+						s = imp3->second;// props... ⟹ var
+						Thm prop = spec << weaken;
+						add_claim( ClaimStatus(*name_it), prop );
+						cout << *name_it << ": " << prop << endl << "\t";
 						spec = ignore << spec;// ∀var. (props... ⟹ var) ⟹ var
 						name_it++;
 					} else {// spec: ∀var. (P ⟹ var) ⟹ var
-						add_claim( ClaimStatus(*name_it), spec << refl );// P
+						Thm prop = spec << refl;
+						add_claim( ClaimStatus(*name_it), prop );
+						cout << *name_it << ": " << prop << ';' << endl;
 						break;
 					}
 				}
-				cout << "Obtained " << sym << endl;
 			} else if( _parser.skips("define") ) {
-				Opt<string> name;
+				Opt<string> name_op;
 				if( _parser.skips("(") ) {
-					name = _parser.get_token();
+					name_op = _parser.get_token();
 					_parser.skip(")");
 				}
 				Term l = get_term();
@@ -642,30 +650,59 @@ public:
 				}
 				auto [f,spec] = _definer->define(_loc,l,r);
 				Thm def = spec << _loc.thm("imp.refl");
-				_loc.add_thm( name ? *name : f + "_def", def );
-				cout << "Defined " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
+				string name = name_op ? *name_op : f + "_def";
+				_loc.add_thm(name,def);
+				cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
+			} else if( _parser.skips("case") ) {
+				auto goal = has_goal();
+				if( !goal ) {
+					throw Error("\"unexpected case\"");
+				}
+				auto subprf = Prover(*this,_loc.branch());
+				CTerm newgoal = goal->weaken(subprf._loc);
+				cout << "Case ";
+				get_named_terms([&](string const& s, Term const& t){
+					auto imp = newgoal.cbinary(IMP);
+					if( !imp ) {
+						throw Error("case")(t);
+					}
+					newgoal = imp->second;
+					if( imp->first != t ) {
+						throw Error("case")(imp->first)(t);
+					}
+					subprf._loc.assume(s,subprf._loc.enclose(t));
+					cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
+				});
+				_parser.skip(";");
+				cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
+				subprf._thesis = make_thesis(newgoal);
+				subprf._prompt();
+				conclude(subprf.proof_loop());
+				print_goal();
+			} else if( _parser.skips("goal") ) {
+				_parser.skip(";");
+				print_goal();
 			} else if( _parser.skips("by") ) {
 				if( !_thesis ) {
 					throw Error("No goal for \"by\"");
 				}
-				Thm const& thm = get_thm();
+				do {
+					Thm const& thm = get_thm();
+					conclude(thm);
+				} while ( _parser.skips(",") );
 				_parser.skip(";");
-				conclude(thm);
-				cout << "Concluded " << _syntax->pretty_thm(*_thesis) << endl;
 				return _thesis;
 			} else if( _parser.skips("done") ) {
 				if( !_thesis ) {
 					throw Error("No goal for \"done\"");
 				}
 				_parser.skip(";");
-				cout << "Done." << endl;
 				return _concluder.conclude(*_thesis);
 			} else if( _parser.skips("qed") ) {
 				_parser.skip(";");
 				if( !_thesis ) {
 					throw Error("No goal for \"qed\"");
 				}
-				cout << "QED" << endl;
 				return _thesis;
 			} else if( _parser.skips("prefix") ) {
 				string sym = _parser.get_token();

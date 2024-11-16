@@ -24,7 +24,6 @@ pair<string,Thm> Definer::define(Ctxt& ctxt, Term const& l, Term const& r) const
 	sub.fix(thesis);
 	Thm thm = sub.assume( f &= rule >>= thesis );// (∀f x... l = r) ⟹ thesis
 	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
-DEB(thm);
 	thm = rewriter->rewrite(beta,thm,steps,steps,{0,1});// (∀x... r = r) ⟹ thesis
 	thm = thm << rewriter->refl;// thesis
 	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis

@@ -227,9 +227,9 @@ locale Iff {
 
 	show imp_imp_iff: if P: P then (P ⟹ Q) ⟺ Q;
 		apply iff_intro;
-		show! if PQ: P ⟹ Q then Q;
+		case PQ: P ⟹ Q;
 			by PQ[OF P];
-		show! if Q: Q, P2: P then Q;
+		case Q: Q, P2: P;
 			by Q;
 		qed;
 
@@ -280,6 +280,19 @@ locale Iff {
 
 	show imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]);
 		by iff_intro[OF imp_all all_imp];
+
+	show imp_iff_iff1: if P: P then (P ⟺ Q) ⟺ Q;
+		apply iff_intro;
+		case PQ: P ⟺ Q;
+			by iff_elim1[OF PQ P];
+		case Q: Q;
+			apply iff_intro;
+			case P: P;
+				by Q;
+			case Q: Q;
+				by P;
+			qed;
+		qed;
 }
 
 infix = 51 51 50;
@@ -303,9 +316,6 @@ locale Equal {
 			fix x y z;
 			assume xy: x = y;
 			assume yz: y = z;
-thm eq_mono;
-thm eq_mono(w. x = w);
-thm eq_mono(w. x = w)[OF yz];
 			by eq_mono(w. x = w)[OF yz xy];
 	}
 
@@ -349,10 +359,11 @@ prefix ∃ 0 0;
 
 locale Ex {
 	fix ∃;
-	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ (∃) α;
-	assume ex_elim: (∃) α ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
+	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
+	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
-	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then (∃) α;
+	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
 		apply assm;
 		by ex_intro1;
 }
+

@@ -324,3 +324,73 @@ show true_or: true ∨ P;
 show or_true: P ∨ true;
 	by or.sym[OF true_or];
 
+show iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
+	apply iff_intro;
+	case PQ: P ⟺ Q;
+		apply and_intro;
+		by iff_elim1[OF PQ], iff_elim2[OF PQ];
+	case and: (P ⟹ Q) ∧ (Q ⟹ P);
+		apply and_elim[OF and];
+		by iff_intro;
+	qed;
+
+fix defined;
+assume defined_iff: defined P ⟺ P ∨ ¬P;
+
+show imp_defined: if P: P then defined P;
+	unfold defined_iff;
+	by or_intro1[OF P];
+
+show not_imp_defined: if P: ¬P then defined P;
+	unfold defined_iff;
+	by or_intro2[OF P];
+
+show iff_cong_defined: if PQ: P ⟺ Q then defined P ⟺ defined Q;
+	unfold+ defined_iff PQ;
+	by iff.refl;
+
+setup cong defined P: iff_cong_defined;
+
+show defined_elim: if P: defined P then (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q;
+	by or_elim[OF P[unfolded defined_iff]];
+
+show nnot_defined: ¬¬ defined P;
+	unfold defined_iff;
+	by nnot_excluded_middle;
+
+show false_defined: defined false;
+	by not_imp_defined[OF not_false];
+
+show true_defined: defined true;
+	by imp_defined[OF true_intro];
+
+show and_defined: if dP: defined P, dQ: defined Q then defined (P ∧ Q);
+	apply defined_elim[OF dP];
+	case P: P;
+		apply defined_elim[OF dQ];
+		case Q: Q;
+			apply imp_defined;
+			by and_intro[OF P Q];
+		case nQ: ¬Q;
+			apply not_imp_defined;
+			by nand_intro2[OF nQ];
+		qed;
+	case nP: ¬P;
+		apply not_imp_defined;
+		by nand_intro1[OF nP];
+	qed;
+
+show or_defined: if dP: defined P, dQ: defined Q then defined (P ∨ Q);
+	apply defined_elim[OF dP];
+	case P: P;
+		by imp_defined[OF or_intro1[OF P]];
+	case nP: ¬P;
+		apply defined_elim[OF dQ];
+		case Q: Q;
+			by imp_defined[OF or_intro2[OF Q]];
+		case nQ: ¬Q;
+			apply not_imp_defined;
+			unfold nor_iff_and;
+			by and_intro[OF nP nQ];
+		qed;
+	qed;
