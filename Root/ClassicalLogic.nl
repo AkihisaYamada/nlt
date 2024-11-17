@@ -34,7 +34,9 @@ show nall_iff_ex_not: if arg: ∀x. defined α.[x] then ¬(∀x. α.[x]) ⟺ (�
 	case nall: ¬(∀x. α.[x]);
 		show exd: defined (∃x. ¬α.[x]);
 			apply ex_defined;
-			by all_all_imp(x. defined α.[x])(x. defined (¬α.[x]))[OF arg not_defined];
+			case for x;
+				by not_defined[OF arg];
+			qed;
 		apply defined_elim[OF exd];
 		case exn: ∃x. ¬α.[x];
 			by exn;
