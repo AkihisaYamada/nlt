@@ -261,7 +261,7 @@ public:
 	void iter_fsyms(
 		std::function<void(std::string_view const&)> const& fsym
 	) const {
-		iter_syms([](std::string_view const&){},fsym);
+		iter_syms(fsym,[](std::string_view const&){});
 	}
 	/** @brief The set of free symbols */
 	StrSet fsyms() const {
