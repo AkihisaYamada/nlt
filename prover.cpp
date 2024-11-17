@@ -270,54 +270,6 @@ public:
 			return bin->first;
 		return {};
 	}
-	Thm proof_loop() {
-		for(;;) {
-			if( _parser.skips("apply") ) {
-				if( !_thesis ) {
-					throw Error("\"No goal for apply\"");
-				}
-				auto rule = get_thm();
-				auto res = rule_applies(rule,*_thesis);
-				if( !res ) {
-					throw Error("\"Rule not applicable\"")(rule)(*_thesis);
-				}
-				*_thesis = *res;
-				if( auto g = has_goal() ) {
-					cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
-				} else {
-					cout << "no subgoal!" << endl;
-				}
-			} else if( _parser.skips("unfold") ) {
-				if( !_thesis ) {
-					throw Error("\"No goal for unfold\"");
-				}
-				Rewriter const& rewriter = *_rewriter();
-				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
-				auto g = has_goal();
-				assert(g);
-				cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
-			} else if( _parser.skips("fold") ) {
-				if( !_thesis ) {
-					throw Error("\"No goal for fold\"");
-				}
-				Rewriter const& rewriter = *_rewriter();
-				*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
-				auto g = has_goal();
-				assert(g);
-				cout << "folded goal: " << _syntax->pretty_cterm(*g) << endl;
-			} else {
-				break;
-			}
-			_parser.skip(";");
-			_prompt();
-		}
-		_loc = _loc.branch();
-		auto thm = loop();
-		if( !thm ) {
-			throw Error("\"missing conclusion\"");
-		}
-		return *thm;
-	}
 	ClaimStatus get_claim_status() {
 		bool is_goal;
 		if( _parser.skips("!") ) {
@@ -391,6 +343,43 @@ public:
 			cout << "no goal" << endl;
 		}
 	}
+	Thm proof_loop() {
+		auto ret = loop();
+		if( !ret ) {
+			throw Error("no_proof");
+		}
+		return *ret;
+	}
+	Thm show() {
+		auto goal_loc = _loc.branch();
+		vector<pair<string,CTerm>> assms;// delay making assumptions, so that all free variables are fixed first
+		if( _parser.skips("for") ) {
+			while( !_parser.skips(",") ) {
+				goal_loc.fix(_parser.get_token());
+			}
+		}
+		if( _parser.skips("if") ) {
+			cout << "if " << flush;
+			get_named_terms([&](string const& s, Term const& t){
+				cout << s << ": " << _syntax->pretty_term(t) << ", " << flush;
+				assms.emplace_back(s,goal_loc.enclose(t));
+			});
+			_parser.skip("then");
+			cout << "then ";
+		}
+		Term conc = _parser.get_term(0);
+		_parser.skip(";");
+		CTerm goal = goal_loc.enclose(conc);
+		for( auto [name,assm] : assms ) {
+			goal_loc.assume(name,assm);
+		}
+		cout << _syntax->pretty_cterm(goal) << endl;
+		auto const& thm = prove(goal_loc,goal);
+		if( goal != thm ) {
+			throw ProofMismatch(thm)(goal);
+		}
+		return thm;
+	}
 	Opt<Thm> loop() {
 		for(;;) try {
 			if( _parser.skips("{") ) {
@@ -440,8 +429,7 @@ public:
 							cout << "Discharge " << _syntax->pretty_cterm(*assm) << endl;
 							_indent();
 							if( _parser.skips("discharge") ) {
-								Locale loc = _loc.branch();
-								intp.discharge(prove(loc,*assm));
+								intp.discharge(show().intro());
 							} else if( _parser.skips("assume") ) {
 								_parser.skip(";");
 								Thm thm = _loc.Ctxt::assume(*assm);
@@ -515,20 +503,6 @@ public:
 					_parser.skip(";");
 					cout << _loc.locale(name).pretty(*_syntax) << endl;
 				}
-			} else if( _parser.skips("fix") ) {
-				cout << "Fixing";
-				while( !_parser.skips(";") ) {
-					cout << ' ' << _loc.fix(_parser.get_token()) << flush;
-				}
-				cout << ';' << endl;
-			} else if( _parser.skips("assume") ) {
-				cout << "Assuming ";
-				get_named_terms([&](string const& s, Term const& t){
-					_loc.assume(s,_loc.Ctxt::branch().enclose(t).lift(_loc.cterm(ALL)));
-					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << "; " << flush;
-				});
-				_parser.skip(";");
-				cout << endl;
 			} else if( _parser.skips("thm") ) {
 				Thm thm = get_thm();
 				_parser.skip(";");
@@ -546,34 +520,7 @@ public:
 			} else if( _parser.skips("show") ) {
 				auto cs = get_claim_status();
 				cout << "Showing " << cs << flush;
-				auto goal_loc = _loc.branch();
-				vector<pair<string,CTerm>> assms;// delay making assumptions, so that all free variables are fixed first
-				if( _parser.skips("for") ) {
-					while( !_parser.skips(",") ) {
-						goal_loc.fix(_parser.get_token());
-					}
-				}
-				if( _parser.skips("if") ) {
-					cout << "if " << flush;
-					get_named_terms([&](string const& s, Term const& t){
-						cout << s << ": " << _syntax->pretty_term(t) << ", " << flush;
-						assms.emplace_back(s,goal_loc.enclose(t));
-					});
-					_parser.skip("then");
-					cout << "then ";
-				}
-				Term conc = _parser.get_term(0);
-				_parser.skip(";");
-				CTerm goal = goal_loc.enclose(conc);
-				for( auto [name,assm] : assms ) {
-					goal_loc.assume(name,assm);
-				}
-				cout << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prove(goal_loc,goal);
-				if( goal != thm ) {
-					throw ProofMismatch(thm)(goal);
-				}
-				add_claim(cs,thm.intro());
+				add_claim(cs,show().intro());
 				print_goal();
 			} else if( _parser.skips("obtain") ) {
 				string sym = _parser.get_token();
@@ -602,7 +549,7 @@ public:
 				cout << endl;
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prove(_loc.branch(),goal);
+				auto const& thm = prove(_loc,goal);
 				auto [sym_term,spec] = _loc.obtain(sym,thm);
 				cout << "Obtained " << sym << " where ";
 				// register properties
@@ -653,57 +600,115 @@ public:
 				string name = name_op ? *name_op : f + "_def";
 				_loc.add_thm(name,def);
 				cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
-			} else if( _parser.skips("case") ) {
-				auto goal = has_goal();
-				if( !goal ) {
-					throw Error("\"unexpected case\"");
+			} else if( _thesis ) {
+				if( _parser.skips("apply") ) {
+					auto rule = get_thm();
+					_parser.skip(";");
+					auto res = rule_applies(rule,*_thesis);
+					if( !res ) {
+						throw Error("\"Rule not applicable\"")(rule)(*_thesis);
+					}
+					*_thesis = *res;
+					if( auto g = has_goal() ) {
+						cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
+					} else {
+						cout << "no subgoal!" << endl;
+					}
+				} else if( _parser.skips("unfold") ) {
+					Rewriter const& rewriter = *_rewriter();
+					*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
+					_parser.skip(";");
+					auto g = has_goal();
+					assert(g);
+					cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
+				} else if( _parser.skips("fold") ) {
+					Rewriter const& rewriter = *_rewriter();
+					*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
+					_parser.skip(";");
+					auto g = has_goal();
+					assert(g);
+					cout << "folded goal: " << _syntax->pretty_cterm(*g) << endl;
+				} else if( _parser.skips("case") ) {
+					auto goal = has_goal();
+					if( !goal ) {
+						throw Error("\"unexpected case\"");
+					}
+					auto subprf = Prover(*this,_loc.branch());
+					CTerm newgoal = goal->weaken(subprf._loc);
+					cout << "Case ";
+					if( _parser.skips("(") ) {// instantiate variables as long as names are given
+						newgoal = strip_all(newgoal,subprf._loc,[&](string_view const& v)->Opt<string> {
+							if( _parser.peek_token() == ")" ) {
+								return {};
+							}
+							return _parser.get_token();
+						});
+						_parser.skip(")");
+					}
+					get_named_terms([&](string const& s, Term const& t){
+						auto imp = newgoal.cbinary(IMP);
+						if( !imp ) {
+							throw Error("case")(t);
+						}
+						newgoal = imp->second;
+						if( imp->first != t ) {
+							throw Error("case")(imp->first)(t);
+						}
+						subprf._loc.assume(s,subprf._loc.enclose(t));
+						cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
+					});
+					_parser.skip(";");
+					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
+					subprf._thesis = make_thesis(newgoal);
+					subprf._prompt();
+					conclude(subprf.proof_loop());
+					print_goal();
+				} else if( _parser.skips("goal") ) {
+					_parser.skip(";");
+					print_goal();
+				} else if( _parser.skips("by") ) {
+					if( !_thesis ) {
+						throw Error("No goal for \"by\"");
+					}
+					while( auto const& thm = gets_thm() ) {
+						conclude(*thm);
+					}
+					_parser.skip(";");
+					return _thesis;
+				} else if( _parser.skips("done") ) {
+					if( !_thesis ) {
+						throw Error("No goal for \"done\"");
+					}
+					_parser.skip(";");
+					return _concluder.conclude(*_thesis);
+				} else if( _parser.skips("qed") ) {
+					_parser.skip(";");
+					if( !_thesis ) {
+						throw Error("No goal for \"qed\"");
+					}
+					return _thesis;
+				} else if( _parser.skips("sorry") ) {
+					_parser.skip(";");
+					Thm ret = sorry(_thesis->capp()->second);
+					cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
+					return ret;
+				} else {
+					throw Error("unexpected")(_parser.get_token());
 				}
-				auto subprf = Prover(*this,_loc.branch());
-				CTerm newgoal = goal->weaken(subprf._loc);
-				cout << "Case ";
+			} else if( _parser.skips("fix") ) {
+				cout << "Fixing";
+				while( !_parser.skips(";") ) {
+					cout << ' ' << _loc.fix(_parser.get_token()) << flush;
+				}
+				cout << ';' << endl;
+			} else if( _parser.skips("assume") ) {
+				cout << "Assuming ";
 				get_named_terms([&](string const& s, Term const& t){
-					auto imp = newgoal.cbinary(IMP);
-					if( !imp ) {
-						throw Error("case")(t);
-					}
-					newgoal = imp->second;
-					if( imp->first != t ) {
-						throw Error("case")(imp->first)(t);
-					}
-					subprf._loc.assume(s,subprf._loc.enclose(t));
-					cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
+					_loc.assume(s,_loc.Ctxt::branch().enclose(t).lift(_loc.cterm(ALL)));
+					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << "; " << flush;
 				});
 				_parser.skip(";");
-				cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
-				subprf._thesis = make_thesis(newgoal);
-				subprf._prompt();
-				conclude(subprf.proof_loop());
-				print_goal();
-			} else if( _parser.skips("goal") ) {
-				_parser.skip(";");
-				print_goal();
-			} else if( _parser.skips("by") ) {
-				if( !_thesis ) {
-					throw Error("No goal for \"by\"");
-				}
-				do {
-					Thm const& thm = get_thm();
-					conclude(thm);
-				} while ( _parser.skips(",") );
-				_parser.skip(";");
-				return _thesis;
-			} else if( _parser.skips("done") ) {
-				if( !_thesis ) {
-					throw Error("No goal for \"done\"");
-				}
-				_parser.skip(";");
-				return _concluder.conclude(*_thesis);
-			} else if( _parser.skips("qed") ) {
-				_parser.skip(";");
-				if( !_thesis ) {
-					throw Error("No goal for \"qed\"");
-				}
-				return _thesis;
+				cout << endl;
 			} else if( _parser.skips("prefix") ) {
 				string sym = _parser.get_token();
 				int rlevel = _parser.get_int();
@@ -819,11 +824,6 @@ public:
 					cout << ' ' << sym;
 				}
 				cout << endl;
-			} else if( _parser.skips("sorry") ) {
-				_parser.skip(";");
-				Thm ret = sorry(_thesis->capp()->second);
-				cerr << "!!! SORRY !!! " << _syntax->pretty_thm(ret) << endl;
-				return ret;
 			} else if( _parser.skips("") || _parser.peek_token() == "}" ) {
 				return Opt<Thm>();
 			} else {

@@ -61,6 +61,6 @@ show imp_defined: if P: defined P, Q: defined Q then defined (P ⟹ Q);
 show iff_defined: if dP: defined P, dQ: defined Q then defined (P ⟺ Q);
 	unfold iff_iff_and;
 	apply and_defined;
-	by imp_defined[OF dP dQ], imp_defined[OF dQ dP];
+	by imp_defined[OF dP dQ] imp_defined[OF dQ dP];
 
 

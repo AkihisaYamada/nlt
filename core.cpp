@@ -3,15 +3,15 @@
 
 using namespace std;
 
-string avoid(string const& var, function<bool(string const&)> const& test) {
-	if( !test(var) ) {
-		return var;
+string avoid(string_view const& var, function<bool(string const&)> const& test) {
+	string ret(var);
+	if( !test(ret) ) {
+		return ret;
 	}
-	string str = var;
 	do {
-		str.push_back('\'');
-	} while( test(str) );
-	return str;
+		ret.push_back('\'');
+	} while( test(ret) );
+	return ret;
 }
 
 static bool _eq_var(string const& x, string const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {

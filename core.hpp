@@ -34,7 +34,7 @@ static bool polluted;
  * @param var variable to be made fresh
  * @param test avoided names
  */
-std::string avoid(std::string const& var, std::function<bool(std::string const&)> const& test);
+std::string avoid(std::string_view const& var, std::function<bool(std::string const&)> const& test);
 
 extern std::string const VOID_var;
 extern std::string const IMP;
@@ -64,8 +64,8 @@ class Term {
 		std::function<Term(std::string const&)> const& f;
 		std::function<bool(std::string_view const&)> const& fixed;
 		StrMap<std::string> bsyms;
-		std::string rename( std::string const& var ) const {
-			return avoid(var,[&](std::string const& x){ return bsyms.contains(x) || fixed(x); });
+		std::string rename( std::string_view const& var ) const {
+			return avoid(var,[&](std::string_view const& x){ return bsyms.contains(x) || fixed(x); });
 		}
 		Term map_var( std::string const& sym ) {
 			if( auto opt = bsyms.finds(sym) ) {

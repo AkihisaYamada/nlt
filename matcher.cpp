@@ -2,6 +2,12 @@
 
 using namespace std;
 
+Renamer avoider(Ctxt& ctxt) {
+	return [&](string_view const& v)->Opt<string>{
+		return avoid(v,[&](string const& x){ return ctxt.constant(x); });
+	};
+}
+
 pair<string, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
 	list<Term> args;
@@ -197,15 +203,20 @@ Thm strip_all(Thm thm, Ctxt& ctxt) {
 	}
 	return thm;
 }
-CTerm strip_all(CTerm t, Ctxt& ctxt) {
+CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	t = t.weaken(ctxt);
-	while( auto all = t.binder(ALL) ) {
-		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
-		auto nvt = ctxt.fix(nv);
-		t = b.csubst(CSubst(ctxt).assign(v,nvt));
+	auto subst = CSubst(ctxt);
+	for(;;) {
+		auto all = t.cbinder(ALL);
+		if( !all ) break;
+		auto const& v = all->first;
+		auto nv = renamer(v);
+		if( !nv ) break;
+		auto nvt = ctxt.fix(*nv);
+		subst.assign(v,nvt);
+		t = all->second;
 	}
-	return t;
+	return t.csubst(subst);
 }
 Thm make_rule( Thm const& thm ) {
 	Ctxt loc = thm.ctxt().branch();

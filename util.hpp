@@ -34,12 +34,36 @@ inline void iter_local_vars( Ctxt const& ctxt, std::function<void(std::string co
  * @param loc this context will fix the bound variables.
  */
 Term strip_all(Term t, Ctxt& loc);
+
+using Renamer = std::function<Opt<std::string>(std::string_view const&)>;
+
+/**
+ * @brief default renamer.
+ * 
+ * @param ctxt 
+ * @return function that always gives a fresh name in the context.
+ */
+Renamer avoider(Ctxt& ctxt);
+
 /**
  * @brief strips universal quantifiers.
  * @param t 
- * @param loc this context will fix the bound variables.
+ * @param ctxt this context will fix the bound variables.
+ * @param renamer
  */
-CTerm strip_all(CTerm t, Ctxt& loc);
+CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer );
+
+/**
+ * @brief 
+ * 
+ * @param t 
+ * @param ctxt 
+ * @return CTerm 
+ */
+inline CTerm strip_all(CTerm t, Ctxt& ctxt) {
+	return strip_all(t,ctxt,avoider(ctxt));
+}
+
 /**
  * @brief strips universal quantifiers.
  * @param thm the theorem to be stripped.
