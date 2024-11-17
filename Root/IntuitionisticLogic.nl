@@ -63,4 +63,17 @@ show iff_defined: if dP: defined P, dQ: defined Q then defined (P ⟺ Q);
 	apply and_defined;
 	by imp_defined[OF dP dQ] imp_defined[OF dQ dP];
 
+show nnot_iff: if P: defined P then ¬¬P ⟺ P;
+	apply defined_elim[OF P];
+	case P: P;
+		unfold+ iff_true[OF P] not_true_iff not_false_iff;
+		by iff.refl;
+	case nP: ¬P;
+		apply iff_intro;
+		case nnP: ¬¬P;
+			by not_elim[OF nnP nP];
+		by nnot_intro;
+	qed;
+
+
 

@@ -67,16 +67,19 @@ show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
 show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x];
 	by all[OF P];
 
+show all_all_imp: if a: ∀x. α.[x], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x];
+	by imp[OF a];
+
 locale True {
 	obtain true where true_intro: true;
-		case (thesis) assm: ∀true. true ⟹ thesis;
+		case for thesis, assm: ∀true. true ⟹ thesis;
 			by assm(∀x. x ⟹ x)[OF imp.refl];
 		qed;
 }
 
 locale False {
 	obtain false where false_elim: ∀P. false ⟹ P;
-		case (thesis) assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
+		case for thesis, assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
 			show 1: if 2: ∀x. x then P;
 				by 2;
 			by assm(∀P. P)[OF 1];
@@ -95,7 +98,7 @@ locale And {
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
 	}
 	show and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
-		case (R) PQR: P ⟹ Q ⟹ R;
+		case for R, PQR: P ⟹ Q ⟹ R;
 			by PQR[OF and_elim1[OF PQ] and_elim2[OF PQ]];
 		qed;
 }
@@ -156,12 +159,6 @@ locale Not {
 			by not_imp_false[OF nQ Q];
 		qed;
 
-	show not_all: if nPx: ¬ P x then ¬(∀y. P y);
-		apply not_intro;
-		case all: ∀y. P y;
-			by not_imp_false[OF nPx all];
-		qed;
-
 	show nnot_imp_nnot: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
 		apply not_intro;
 		case nQ: ¬Q;
@@ -189,6 +186,14 @@ locale Not {
 			show Q: ¬¬Q;
 				by nnot_imp_nnot[OF P PQ];
 			by not_imp_false[OF Q nQ];
+		qed;
+
+	show not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]);
+		apply not_intro;
+		case a: ∀y. α.[y];
+			show ax: α.[x];
+				by a;
+			by not_imp_false[OF nax ax];
 		qed;
 }
 show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R;
@@ -248,14 +253,24 @@ locale Iff {
 	show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]);
 		apply iff_intro;
 		show! if a: ∀x. α.[x] then ∀x. β.[x];
-			case (x);
+			case for x;
 				apply iff_elim1[OF ab];
 				by a;
 			qed;
 		show! if b: ∀x. β.[x] then ∀x. α.[x];
-			case (x);
+			case for x;
 				apply iff_elim2[OF ab];
 				by b;
+			qed;
+		qed;
+
+	show all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
+		apply iff_intro;
+		case all: ∀Q. (P ⟹ Q) ⟹ Q;
+			by all[OF imp.refl];
+		case P: P;
+			case for Q, PQ: P ⟹ Q;
+				by PQ[OF P];
 			qed;
 		qed;
 
@@ -349,5 +364,12 @@ locale Ex {
 	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
 		apply assm;
 		by ex_intro1;
+
+	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, all: ∀x. α.[x] then P;
+		apply ex_elim[OF ex];
+		case for x, imp: α.[x] ⟹ P;
+			by imp[OF all];
+		qed;
+
 }
 

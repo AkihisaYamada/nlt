@@ -73,6 +73,14 @@ setup cong
 	P ∨ Q: iff_cong_or,
 	¬P: iff_cong_not;
 
+show iff_true: if P: P then P ⟺ true;
+	apply iff_intro;
+	case P: P;
+		by true_intro;
+	case t: true;
+		by P;
+	qed;
+
 show true_imp_iff: (true ⟹ P) ⟺ P;
 	by imp_imp_iff[OF true_intro];
 
@@ -90,19 +98,13 @@ show true_iff_iff: (true ⟺ P) ⟺ P;
 		fold P1;
 		by true_intro;
 	show! if P: P then true ⟺ P;
-		apply iff_intro;
-		show! true ⟹ P;
-			by weaken[OF P];
-		show! P ⟹ true;
-			by weaken[OF true_intro];
-		qed;
+		unfold iff_true[OF P];
+		by iff.refl;
 	qed;
 
 show iff_true_iff: (P ⟺ true) ⟺ P;
 	unfold(0) iff_commute;
 	by true_iff_iff(P);
-
-note iff_true: iff_elim2[OF iff_true_iff];
 
 show and_commute: P ∧ Q ⟺ Q ∧ P;
 	by iff_intro[OF and.sym and.sym];
@@ -211,6 +213,20 @@ show nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 		by nnimp_imp_nnot[OF nnimp P][unfolded nnnot];
 	by nnot_intro;
 
+show not_true_iff: ¬true ⟺ false;
+	apply iff_intro;
+	show! if nt: ¬true then false;
+		by not_imp_false[OF nt true_intro];
+	show! if f: false then ¬true;
+		apply not_intro;
+		case t: true;
+			by f;
+		qed;
+	qed;
+
+show not_false_iff: ¬false ⟺ true;
+	by iff_true[OF not_false];
+
 show nor_iff_and: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 	unfold+ not_iff_imp_false;
 	by or_imp_iff;
@@ -290,17 +306,6 @@ show false_or_false_iff: false ∨ false ⟺ false;
 show false_imp_false_iff: (false ⟹ false) ⟺ true;
 	by iff_true[OF imp.refl];
 
-show not_true_iff: ¬true ⟺ false;
-	apply iff_intro;
-	show! if nt: ¬true then false;
-		by not_imp_false[OF nt true_intro];
-	show! if f: false then ¬true;
-		apply not_intro;
-		case t: true;
-			by f;
-		qed;
-	qed;
-
 show true_and_iff: true ∧ P ⟺ P;
 	apply iff_intro;
 	show! true ∧ P ⟹ P;
@@ -351,6 +356,10 @@ show iff_cong_defined: if PQ: P ⟺ Q then defined P ⟺ defined Q;
 
 setup cong defined P: iff_cong_defined;
 
+show defined_intro: if 1: ∀Q. (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q then defined P;
+	unfold defined_iff;
+	by or_intro[OF 1];
+
 show defined_elim: if P: defined P then (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q;
 	by or_elim[OF P[unfolded defined_iff]];
 
@@ -363,6 +372,13 @@ show false_defined: defined false;
 
 show true_defined: defined true;
 	by imp_defined[OF true_intro];
+
+show not_defined: if dP: defined P then defined (¬P);
+	apply defined_elim[OF dP];
+	case P: P;
+		apply not_imp_defined;
+		by nnot_intro[OF P];
+	by imp_defined;
 
 show and_defined: if dP: defined P, dQ: defined Q then defined (P ∧ Q);
 	apply defined_elim[OF dP];

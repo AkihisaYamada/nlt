@@ -77,6 +77,9 @@ Thm make_rule( Thm const& thm );
 /** @brief Applies an inference rule */
 Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis );
 
+/** @brief Applies one of inference rules */
+Opt<Thm> rules_apply( std::set<Thm> const& rules, Thm const& thesis );
+
 /**
  * @brief Uncurrying
  * 

@@ -260,3 +260,11 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 	return tmp.impE(intp.subst(rule)).intro();
 }
 
+Opt<Thm> rules_apply( set<Thm> const& rules, Thm const& thesis ) {
+	for( auto const& rule : rules ) {
+		if( auto ret = rule_applies(rule,thesis) ) {
+			return ret;
+		}
+	}
+	return {};
+}

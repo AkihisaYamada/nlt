@@ -126,8 +126,9 @@ public:
 		return ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
 	}
 	Thm prove(Locale const& loc, CTerm const& goal) {
-		_prompt();
-		return Prover(*this,loc,{},make_thesis(goal)).proof_loop();
+		auto sub = Prover(*this,loc,{},make_thesis(goal));
+		sub._prompt();
+		return sub.proof_loop();
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -602,13 +603,29 @@ public:
 				cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 			} else if( _thesis ) {
 				if( _parser.skips("apply") ) {
-					auto rule = get_thm();
-					_parser.skip(";");
-					auto res = rule_applies(rule,*_thesis);
-					if( !res ) {
-						throw Error("\"Rule not applicable\"")(rule)(*_thesis);
+					int min, max;
+					if( _parser.skips("+") ) {
+						min = 1;
+						max = 255;
+					} else {
+						min = max = 1;
 					}
-					*_thesis = *res;
+					set<Thm> rules;
+					while( auto const& rule = gets_thm() ) {
+						rules.insert(*rule);
+					}
+					_parser.skip(";");
+					for( int i = 0;; i++ ) {
+						if( i == max ) break;
+						if( auto res = rules_apply(rules,*_thesis) ) {
+							*_thesis = *res;
+							continue;
+						}
+						if( i < min ) {
+							throw Error("\"Rule not applicable\"");
+						}
+						break;
+					}
 					if( auto g = has_goal() ) {
 						cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
 					} else {
@@ -636,14 +653,14 @@ public:
 					auto subprf = Prover(*this,_loc.branch());
 					CTerm newgoal = goal->weaken(subprf._loc);
 					cout << "Case ";
-					if( _parser.skips("(") ) {// instantiate variables as long as names are given
+					if( _parser.skips("for") ) {// instantiate variables as long as names are given
 						newgoal = strip_all(newgoal,subprf._loc,[&](string_view const& v)->Opt<string> {
-							if( _parser.peek_token() == ")" ) {
-								return {};
+							if( auto sym = _parser.gets(Tokenizer::Word) ) {
+								return sym;
 							}
-							return _parser.get_token();
+							return {};
 						});
-						_parser.skip(")");
+						_parser.skips(",");
 					}
 					get_named_terms([&](string const& s, Term const& t){
 						auto imp = newgoal.cbinary(IMP);
