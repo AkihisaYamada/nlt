@@ -88,7 +88,7 @@ locale True {
 
 -- Obtains false, which derives contradiction.
 locale False {
-	obtain false where false_elim: ∀P. false ⟹ P;
+	obtain false where false_imp: ∀P. false ⟹ P;
 		case for thesis, assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
 			show 1: if 2: ∀x. x then P;
 				by 2;
@@ -357,7 +357,7 @@ prefix λ 0 0;
 locale Lambda {
 	import Equal;
 	fix (λ);
-	assume beta: (λ) α s = α.[s];
+	assume beta: (λx. α.[x]) s = α.[s];
 }
 
 prefix ∃ 0 0;

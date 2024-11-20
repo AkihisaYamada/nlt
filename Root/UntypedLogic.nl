@@ -26,14 +26,14 @@ show false_or_iff: false ∨ P ⟺ P;
 	apply iff_intro;
 	case or: false ∨ P;
 		apply or_elim[OF or];
-		by false_elim imp.refl;
+		by false_imp imp.refl;
 	by or_intro2;
 
 show or_false_iff: P ∨ false ⟺ P;
 	apply iff_intro;
 	case or: P ∨ false;
 		apply or_elim[OF or];
-		by imp.refl false_elim;
+		by imp.refl false_imp;
 	by or_intro1;
 
 
