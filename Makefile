@@ -1,4 +1,4 @@
-CORE_SRCS=core.cpp lexer.cpp syntax.cpp debug.cpp
+CORE_SRCS=core.cpp lexer.cpp syntax.cpp
 CORE_TEST_SRC=test_core.cpp
 CORE_TEST_SRCS=$(CORE_SRCS) $(CORE_TEST_SRC)
 UTIL_SRCS=$(CORE_SRCS) matcher.cpp unifier.cpp
