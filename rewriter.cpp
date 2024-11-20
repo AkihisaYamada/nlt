@@ -6,7 +6,7 @@ using namespace std;
 Rewriter::Rules& Rewriter::Rules::add(Thm const& thm) {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	Ctxt loc = thm.ctxt().branch();
-	Thm body = strip_all(thm,loc);
+	Thm body = strip_all(thm,loc,fresh_maker());
 	auto const& app = body.capp();
 	if( !app ) {
 		throw Error(thm);

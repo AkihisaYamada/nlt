@@ -31,13 +31,6 @@ inline void iter_local_vars( Ctxt const& ctxt, std::function<void(std::string co
 	}
 }
 
-/**
- * @brief strips universal quantifiers.
- * @param t 
- * @param loc this context will fix the bound variables.
- */
-Term strip_all(Term t, Ctxt& loc);
-
 using Renamer = std::function<Opt<std::string>(std::string_view const&)>;
 
 /**
@@ -48,20 +41,19 @@ using Renamer = std::function<Opt<std::string>(std::string_view const&)>;
  */
 Renamer avoider(Ctxt& ctxt);
 
+/** Fresh variable maker */
+Renamer fresh_maker();
+
 /**
  * @brief strips universal quantifiers.
  * @param t 
  * @param ctxt this context will fix the bound variables.
  * @param renamer
  */
-CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer );
+CTerm strip_all( CTerm t, Ctxt& ctxt, Renamer const& renamer );
 
 /**
- * @brief 
- * 
- * @param t 
- * @param ctxt 
- * @return CTerm 
+ * @brief strips universal quantifiers with default renaming
  */
 inline CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	return strip_all(t,ctxt,avoider(ctxt));
@@ -72,7 +64,10 @@ inline CTerm strip_all(CTerm t, Ctxt& ctxt) {
  * @param thm the theorem to be stripped.
  * @param loc this context will fix the bound variables.
  */
-Thm strip_all(Thm thm, Ctxt& loc);
+Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer );
+inline Thm strip_all( Thm thm, Ctxt& ctxt ) {
+	return strip_all(thm,ctxt,avoider(ctxt));
+}
 
 /** @brief Makes a theorem into the conclusion, whose context contains the conditions. */
 Thm make_rule( Thm const& thm );

@@ -9,6 +9,18 @@ Renamer avoider(Ctxt& ctxt) {
 		return avoid(v,[&](string const& x){ return ctxt.constant(x); });
 	};
 }
+class FreshMaker {
+	int i = 0;
+public:
+	string operator()( string_view const& ) {
+		i++;
+		return "?" + std::to_string(i);
+	}
+};
+Renamer fresh_maker() {
+	return FreshMaker();
+}
+
 
 pair<string, list<Term>> uncurry(Term const& t) {
 	Term const* cur = &t;
@@ -197,20 +209,13 @@ struct Matcher {
 Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
 	return Matcher(val.ctxt(),fsyms).matches(pat,val);
 }
-Term strip_all(Term t, Ctxt& ctxt) {
-	while( auto all = t.binder(ALL) ) {
-		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
-		t = b.subst(v,ctxt.fix(nv));
-	}
-	return t;
-}
-Thm strip_all(Thm thm, Ctxt& ctxt) {
+Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer ) {
 	thm = thm.weaken(ctxt);
 	while( auto all = thm.binder(ALL) ) {
 		auto [v,b] = *all;
-		string nv = avoid(v,[&](string const& x){ return ctxt.constant(x); });
-		thm = thm.allE(ctxt.fix(nv));
+		auto nv = renamer(v);
+		if( !nv ) break;
+		thm = thm.allE(ctxt.fix(*nv));
 	}
 	return thm;
 }
