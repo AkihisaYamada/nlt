@@ -65,6 +65,39 @@ int Lexer::fetch_char() {
 		exit(-1);
 	}
 	char c = pis->get();
+	while( c == '-' && pis->peek() == '-' ) {// comment starts with "--"
+		unsigned int n = 0;
+		for(;;) {// count the number of '-'
+			pis->ignore();
+			if( pis->peek() != '-' ) break;
+			n++;
+		}
+		if( n == 0 ) {// line comment
+			while( pis->peek() != '\n' ) pis->ignore();
+			line_count++;
+		} else {// block comment
+			pis->ignore();
+			unsigned int m;
+			for(;;) {
+				char c = pis->get();
+				if( c == pis->eof() ) {
+					break;
+				} else if( c == '\n' ) {
+					line_count++;
+				} else if( c == '-' ) {
+					m = 0;
+					while( pis->peek() == '-' ) {
+						pis->ignore();
+						m++;
+					}
+					if( m > n ) {// enough '-'s to close the comment
+						break;
+					}
+				}
+			}
+		}
+		c = pis->get();
+	}
 	if( c == char_traits<char>::eof() ) {
 		fetched_char_type = Lex::End;
 		return c;

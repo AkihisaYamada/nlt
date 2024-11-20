@@ -154,14 +154,18 @@ Opt<Thm> Rewriter::_step(Rules const& rules, CTerm const& source, vector<char>::
 	return {};
 }
 
-Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
+Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos) const {
 	Ctxt const& ctxt = source.ctxt();
 	Thm lrefl = refl.weaken(ctxt);// P ⟺ P
 	Thm eq = lrefl.allE(source);// eq: source ⟺ source
 	Thm ltrans = trans.weaken(ctxt).allE(source);
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
-	for( unsigned int i = 0; i < max; i++ ) {
+	for( unsigned int i = 0;; i++ ) {
+		if( i == max ) {
+			if( safe ) break;
+			throw Error("\"rewrite limit exceeded\"")(to_string(max));
+		}
 		auto const& step = _step(rules,s,begin,end,lrefl);
 		if( !step ) {
 			if( i < min ) {
@@ -179,8 +183,8 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 	}
 	return eq;
 }
-Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, vector<char> const& pos) const {
-	Thm const& eq = steps(rules,source,min,max,pos);
+Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos) const {
+	Thm const& eq = steps(rules,source,min,max,safe,pos);
 	auto const& app = eq.capp();
 	assert(app);
 	CTerm const& target = app->second;

@@ -51,7 +51,12 @@ public:
 	/** adds to locale discharge database */
 	void add_discharge_thm( Thm const& thm );
 	/** finds in locale discharge database */
-	Opt<Thm> find_discharge_thm( Term const& thm ) const;
+	Opt<Thm> find_discharge_thm( Term const& thm ) const {
+		if( auto const& ret = _find_discharge_thm(thm) ) {
+			return ret;
+		}
+		return _find_discharge_thm(thm,*this);
+	}
 	/** Assuming a closed term. */
 	void assume(std::string_view const& name, CTerm const& assm) {
 		Thm const& thm = Ctxt::assume(assm);
@@ -77,6 +82,9 @@ public:
 	/** Pretty printer for context */
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax&& syntax) = delete;
+private:
+	Opt<Thm> _find_discharge_thm( Term const& thm ) const;
+	Opt<Thm> _find_discharge_thm( Term const& thm, Ctxt const& orig ) const;
 };
 
 struct Locale::_Body {
@@ -121,6 +129,18 @@ public:
 		Intp::discharge(thm);
 		_tgt.add_discharge_thm(thm);
 	}
+	void know() & {
+		auto assm = assuming();
+		if( !assm ) {
+			throw Error("\"unexpected know\"");
+		}
+		// if this assumption is already discharged, then reuse it
+		auto opt = _tgt.find_discharge_thm(*assm);
+		if( !opt ) {
+			throw Error("\"failed know\"");
+		}
+		Intp::discharge(*opt);
+	}
 	/** automatic discharge */
 	bool discharges() & {
 		auto assm = assuming();
@@ -141,6 +161,18 @@ public:
 		Intp::retain(c,thm);
 		_tgt.add_discharge_thm(thm);
 	}
+	void retain( CTerm c ) {
+		auto o = obtaining();
+		if( !o ) {
+			throw Error(c);
+		}
+		auto [sym,ex,spec] = *o;
+		auto const& thm = _tgt.find_discharge_thm(spec.inst(c));
+		if(!thm) {
+			throw Error(sym)(c);
+		}
+		Intp::retain(c,*thm);
+	}
 	/** automatic retain */
 	bool retains() {
 		auto o = obtaining();
@@ -157,6 +189,7 @@ public:
 		} else {
 			auto [sym_term,spec] = _tgt.obtain(sym,ex);
 			retain(sym_term,spec);
+			_tgt.add_discharge_thm(spec);
 			return true;
 		}
 	}

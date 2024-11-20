@@ -39,9 +39,18 @@ Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name) const
 	}
 	return {};
 }
-Opt<Thm> Locale::find_discharge_thm( Term const& assm ) const {
+Opt<Thm> Locale::_find_discharge_thm( Term const& assm ) const {
 	if( auto it = _ref->locale_thms.find(assm); it != _ref->locale_thms.end() ) {
 		return *it;
+	}
+	return {};
+}
+Opt<Thm> Locale::_find_discharge_thm( Term const& assm, Ctxt const& orig ) const {
+	if( auto const& ret = _find_discharge_thm(assm) ) {
+		return ret->weaken(orig);
+	}
+	if( auto p = _ref->parent ) {
+		return p->_find_discharge_thm(assm,orig);
 	}
 	return {};
 }

@@ -81,8 +81,8 @@ public:
 	 * @param pos 
 	 * @return Thm 
 	 */
-	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
-	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, std::vector<char> const& pos) const;
+	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
+	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
 private:
 	Opt<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
 	Opt<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;

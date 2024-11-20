@@ -245,13 +245,13 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 	}
 	Intp intp = Intp::make(rule.ctxt(),ctxt);
 	for(;;) {
-		if( auto v = intp.fixing() ) {
-			if( auto val = m->get(*v) ) {
+		if( auto const& v = intp.fixing() ) {
+			if( auto const& val = m->get(*v) ) {
 				intp.instantiate(*val);
 			} else {
 				intp.instantiate(dummy(ctxt));
 			}
-		} else if( auto assm = intp.assuming() ) {
+		} else if( auto const& assm = intp.assuming() ) {
 			intp.discharge(ctxt.assume(*assm));
 		} else {
 			break;

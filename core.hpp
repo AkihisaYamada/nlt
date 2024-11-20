@@ -26,9 +26,6 @@ class CTerm;
 class CSubst;
 class Intp;
 
-/** @brief flags if unproved claims are made */
-static bool polluted;
-
 /** @brief renames a variable so that it is not in the set of symbols.
  * 
  * @param var variable to be made fresh
@@ -799,13 +796,7 @@ public:
 	}
 	friend Ctxt;
 	friend Intp;
-	friend Thm sorry(CTerm const&);
 };
-/** @brief The unsound way of obtaining a theorem. */
-inline Thm sorry(CTerm const& t) {
-	polluted = true;
-	return Thm(t);
-}
 /** @brief Interpreter, translates facts of a context into the context it belongs. */
 class Intp {
 	/** @brief Instantiation of the symbols of the source context, closed in the target context. */

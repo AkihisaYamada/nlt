@@ -201,7 +201,7 @@ Term Term::_Mapper::map( Term const& t ) {
 	}
 }
 
-inline Term Term::inst(CTerm const& arg) const {
+Term Term::inst(CTerm const& arg) const {
 	auto a = abs();
 	if( !a ) {
 		throw MalformedInstantiation(*this,arg);
@@ -222,13 +222,13 @@ bool Ctxt::has_constant(string_view const& sym) const {
 		return true;
 	}
 	if( auto parent = find_parent() ) {
-		return parent->constant(sym);
+		return parent->has_constant(sym);
 	}
 	return false;
 }
 CTerm Ctxt::cterm(Term const& t) const {
 	t.iter_syms( [&](auto sym){
-		if( !constant(sym) ) {
+		if( !has_constant(sym) ) {
 			throw UnboundVariable(sym);
 		}
 	} );
@@ -243,7 +243,7 @@ Opt<CTerm> Ctxt::closed(Term const& t) const {
 }
 CTerm Ctxt::enclose(Term const& t) {
 	t.iter_syms( [&](auto sym){
-		if( !constant(sym) ) {
+		if( !has_constant(sym) ) {
 			fix(sym);
 		}
 	} );
@@ -275,7 +275,7 @@ Thm Ctxt::assume(Term const& t) & {
 }
 
 pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) & {
-	if( constant(sym) ) {
+	if( has_constant(sym) ) {
 		throw DoubleFix(sym);
 	}
 	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
@@ -400,7 +400,7 @@ CTerm Term::csubst(CSubst const& subst) const {
 	auto f = [&](string_view const& sym)->Term {
 		if( auto const& opt = subst.get(sym) ) {
 			return *opt;
-		} else if( ctxt.constant(sym) ) {
+		} else if( ctxt.has_constant(sym) ) {
 			return sym;
 		} else {
 			throw UnboundVariable(sym);
