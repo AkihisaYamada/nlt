@@ -662,6 +662,11 @@ public:
 	 * @return the closed term with respect to the parent.
 	 */
 	CTerm lift(CTerm const& quantifier) const;
+	/** @brief Moves the statement to the parent context.
+	 * Context-bound symbols will be universally quantified,
+	 * and assumptions are made into implication.
+	 */
+	CTerm intro() const;
 	friend Term;
 	friend Thm;
 	friend Ctxt;
@@ -785,7 +790,9 @@ public:
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
 	 */
-	Thm intro() const;
+	Thm intro() const {
+		return CTerm::intro();
+	}
 	/** @brief Moves the theorem to a descendant context.
 	 * 
 	 * @param ctxt the descendant context.

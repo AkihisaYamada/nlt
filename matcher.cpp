@@ -2,6 +2,8 @@
 
 using namespace std;
 
+Term const DUMMY = "_" /= Term("_");
+
 Renamer avoider(Ctxt& ctxt) {
 	return [&](string_view const& v)->Opt<string>{
 		return avoid(v,[&](string const& x){ return ctxt.constant(x); });
@@ -47,6 +49,7 @@ Opt<size_t> find_last( std::vector<T> const& haystack, T const& needle ) {
 
 struct Matcher {
 	CSubst matcher;
+	StrSet escaped_var;// in α.[...α...], second α is escaping
 	StrSet const& fsyms;
 	StrMap<unsigned int> linds;
 	vector<string> rbvars;
@@ -124,48 +127,56 @@ struct Matcher {
 			} else {
 				return false;
 			}
-		} else if( auto fix = pat.cfix() ) {// x[s]
+		} else if( auto fix = pat.cfix() ) {// x.[s]
 			auto [x,_,pat2] = *fix;
-			auto const& opt = matcher.get(x);
-			if( opt ) {// the context is assigned
-				if( auto const& sym = opt->sym() ) {// x is assigned to a variable, then rhs must have the same shape
-					auto fix2 = val.cfix();
-					if( !fix2 ) {
+			if( !escaped_var.contains(x) ) {// this x is from the pattern side.
+				auto const& opt = matcher.get(x);
+				if( opt ) {// the context is assigned
+					if( auto const& sym = opt->sym() ) {// x is assigned to a variable, then rhs must have the same shape
+						auto fix2 = val.cfix();
+						if( !fix2 ) {
+							return false;
+						}
+						auto [y,_,val2] = *fix2;
+						if( *sym != y ) {
+							return false;
+						}
+						auto it = escaped_var.insert(x);// inside the argument, x is escaping
+						bool ret = match(pat2,val2);
+						escaped_var.erase(it.first);
+						return ret;
+					}
+					if( auto const& abs = opt->abs() ) {// the context is instantiated
+						auto it = escaped_var.insert(x);// inside the argument, x is escaping
+						bool ret = match(opt->inst(pat2),val);
+						escaped_var.erase(it.first);
+						return ret;
+					}
+					return false;
+				}
+				if( fsyms.contains(x) ) {// applied pattern variable
+					if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
+						if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
+							matcher.assign(x,*abs);
+							return true;
+						}
 						return false;
 					}
-					auto [y,_,val2] = *fix2;
-					if( *sym != y ) {
+					// otherwise, val must also be abstraction
+					auto vfix = val.cfix();
+					if( !vfix ) {
 						return false;
+					}
+					auto const& [y,cy,val2] = *vfix;
+					if( x != y ) {
+						auto const& cy2 = matcher.ctxt().constant(y);
+						if( !cy2 ) {// bound variable cannot be matched
+							return false;
+						}
+						matcher.assign(x,*cy2);
 					}
 					return match(pat2,val2);
 				}
-				if( auto const& abs = opt->abs() ) {// the context is instantiated
-					return match(opt->inst(pat2),val);
-				}
-				return false;
-			}
-			if( fsyms.contains(x) ) {// applied pattern variable
-				if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
-					if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
-						matcher.assign(x,*abs);
-						return true;
-					}
-					return false;
-				}
-				// otherwise, val must also be abstraction
-				auto vfix = val.cfix();
-				if( !vfix ) {
-					return false;
-				}
-				auto const& [y,cy,val2] = *vfix;
-				if( x != y ) {
-					auto const& cy2 = matcher.ctxt().constant(y);
-					if( !cy2 ) {// bound variable cannot be matched
-						return false;
-					}
-					matcher.assign(x,*cy2);
-				}
-				return match(pat2,val2);
 			}
 			// otherwise, pat and val must have the same shape
 			auto vfix = val.cfix();
@@ -226,7 +237,6 @@ Thm make_rule( Thm const& thm ) {
 	}
 	return rule;
 }
-Term const DUMMY = "_" /= Term("_");
 
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);

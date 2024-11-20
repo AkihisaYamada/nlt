@@ -117,9 +117,16 @@ public:
 	/** automatic instantiation */
 	bool instantiates() {
 		auto v = fixing();
-		if( !v ) {
-			return false;
-		}
+		if( !v ) return false;
+		auto t = _tgt.constant(*v);
+		if( !t ) throw Error("\"instantiation must be specified\"")(*v);
+		instantiate(*t);
+		return true;
+	}
+	/** automatic instantiation */
+	bool imports_fix() {
+		auto v = fixing();
+		if( !v ) return false;
 		auto t = _tgt.constant(*v);
 		instantiate( t ? *t : _tgt.fix(*v) );
 		return true;
@@ -129,10 +136,11 @@ public:
 		Intp::discharge(thm);
 		_tgt.add_discharge_thm(thm);
 	}
-	void know() & {
+	/** discharge assumption by knowledge */
+	bool discharges() & {
 		auto assm = assuming();
 		if( !assm ) {
-			throw Error("\"unexpected know\"");
+			return false;
 		}
 		// if this assumption is already discharged, then reuse it
 		auto opt = _tgt.find_discharge_thm(*assm);
@@ -140,9 +148,15 @@ public:
 			throw Error("\"failed know\"");
 		}
 		Intp::discharge(*opt);
+		return true;
 	}
-	/** automatic discharge */
-	bool discharges() & {
+	void discharge() & {
+		if( !discharges() ) {
+			throw Error("\"unexpected know\"");
+		}
+	}
+	/** discharges or imports assumption */
+	bool imports_assume() & {
 		auto assm = assuming();
 		if( !assm ) {
 			return false;

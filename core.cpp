@@ -336,7 +336,7 @@ Thm Thm::impE(Thm const& t) const {
 	throw MalformedDischarge(*this)(t);
 }
 
-Thm Thm::intro() const {
+CTerm CTerm::intro() const {
 	if( !_ctxt.consts().empty() ) {// checks if obtained constants don't escape
 		auto check = [&](auto v){
 			if( _ctxt.consts().contains(v) ) { throw ConstantEscape(v); }
@@ -357,7 +357,7 @@ Thm Thm::intro() const {
 			assert(false);
 		}
 	}
-	return Thm(CTerm(parent,stmt));
+	return CTerm(parent,stmt);
 }
 Opt<CTerm::StrTerm> CTerm::cabs() const {
 	if( auto tabs = Term::abs() ) {

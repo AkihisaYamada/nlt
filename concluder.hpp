@@ -3,6 +3,10 @@
 
 #include"util.hpp"
 
+Thm conclude( CSubst const& matcher, Thm const& thesis, Thm const& thm );
+Opt<Thm> concludes( CTerm const& goal, Thm const& thesis, CTerm const& pat, Thm const& thm );
+Opt<Thm> concludes( Thm const& thesis, Thm const& thm );
+
 /** @brief Discharges assumption that match one of the rules. */
 class Concluder {
 	struct _Rule {

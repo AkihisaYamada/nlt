@@ -2,20 +2,33 @@
 
 using namespace std;
 
+Thm conclude( CSubst const& matcher, Thm const& thesis, Thm const& thm_strip ) {
+	auto const& thm_vars = thm_strip.ctxt();
+	auto intp = Intp::make(thm_vars,thesis.ctxt());
+	while( auto const& sym = intp.fixing() ) {
+		auto const& val = matcher.get(*sym);
+		intp.instantiate( val ? *val : thesis.ctxt().cterm(DUMMY));
+	}
+DEB(matcher);
+DEB(thm_strip);
+DEB(intp.subst(thm_strip));
+	return thesis.impE(intp.subst(thm_strip));
+}
+Opt<Thm> concludes( CTerm const& goal, Thm const& thesis, CTerm const& pat, Thm const& thm ) {
+	if( auto const& m = match(pat.ctxt().fvars(),pat,goal) ) {
+		auto const& thesis_ctxt = thesis.ctxt();
+		auto thm_vars = thesis_ctxt.branch();
+		Thm thm_strip = strip_all(thm,thm_vars);
+		return conclude(*m,thesis,thm_strip);
+	}
+	return {};
+}
 Thm Concluder::conclude(Thm const& thesis) {
 	if( auto const& imp = thesis.cbinary(IMP) ) {
 		auto const& goal = imp->first;
-		for( auto const& rule : _rules ) {
-			if( auto const& m = match(rule.pat.ctxt().fvars(),rule.pat,goal) ) {
-				auto const& thesis_ctxt = thesis.ctxt();
-				Thm thm = rule.thm.weaken(thesis_ctxt);
-				auto thm_ctxt = thm.ctxt().branch();
-				thm = strip_all(thm,thm_ctxt);
-				auto intp = Intp::make(thm_ctxt,thesis_ctxt);
-				while( auto const& sym = intp.fixing() ) {
-					intp.instantiate(*m->get(*sym));
-				}
-				return thesis.impE(intp.subst(thm));
+		for( auto const& [pat,thm] : _rules ) {
+			if( auto const& ret = concludes(goal,thesis,pat,thm) ) {
+				return *ret;
 			}
 		}
 		throw Error("\"nontrivial conclusion\"")(thesis);

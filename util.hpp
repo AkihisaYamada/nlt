@@ -8,6 +8,9 @@ inline std::string operator+( std::string x, std::string_view const& y ) {
 	x+=y;
 	return x;
 }
+
+extern Term const DUMMY;
+
 /** comparison of terms */
 int compare_term( Term const& l, Term const& r );
 /** comparison of terms */
