@@ -4,7 +4,7 @@
 
 base Root;
 
-import IntuitionisticLogic;
+import TypedIntuitionisticLogic;
 
 import ExcludedMiddle;
 

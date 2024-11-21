@@ -88,20 +88,20 @@ show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 		qed;
 	qed;
 
-show nor_iff_and: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
+show nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 	unfold+ not_iff_imp_false;
 	by or_imp_iff;
 
 show nnot_nor_iff: ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff_and nnnot_iff;
+	unfold+ nor_iff nnnot_iff;
 	by iff.refl;
 
 show nor_nnot_iff: ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff_and nnnot_iff;
+	unfold+ nor_iff nnnot_iff;
 	by iff.refl;
 
 show nnot_excluded_middle: ¬¬(P ∨ ¬P);
-	unfold nor_iff_and;
+	unfold nor_iff;
 	by non_contradiction;
 
 show or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);

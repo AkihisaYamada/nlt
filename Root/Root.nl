@@ -2,7 +2,7 @@
 # The Root File
 ------
 
-symbol ∀ ⟹ λ ∧ ∨ ∃ = ≠ ! ≤;
+symbol λ ∧ ∨ ∃ ≠ ! ≤;
 symbol solo ¬;
 
 prefix ∀ 0 0;
@@ -22,38 +22,40 @@ show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 
 infix ≤ 51 51 50;
 
-locale MetaReflexive {
+locale MetaReflexive :=
 	fix (≤);
 	assume refl: x ≤ x;
-}
-locale MetaTransitive {
+	end;
+
+locale MetaTransitive :=
 	fix (≤);
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z;
-}
-locale MetaPreorder {
+	end;
+
+locale MetaPreorder :=
 	import MetaReflexive;
-	import MetaTransitive { for _; assume; }
-}
+	import MetaTransitive;
+	end;
 
 infix ~ 51 51 50;
 
-locale MetaSymmetric {
+locale MetaSymmetric :=
 	fix (~);
 	assume sym: x ~ y ⟹ y ~ x;
-}
-locale MetaEquivalence {
-	import MetaSymmetric;
-	import MetaPreorder { for (~); }
-}
+	end;
 
-import imp: MetaPreorder {
-	for (⟹);
+locale MetaEquivalence :=
+	import MetaSymmetric;
+	import MetaPreorder (~);
+	end;
+
+interpret imp: MetaPreorder (⟹) :=
 	discharge if P: P then P;
 		by P;
 	discharge if PQ: P ⟹ Q, QR: Q ⟹ R, P: P then R;
 		note Q: PQ[OF P];
 		by QR[OF Q];
-}
+	end;
 
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 	case Q: Q, P: P;
@@ -79,31 +81,30 @@ show all_all_imp: if a: ∀x. α.[x], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β
 	by imp[OF a];
 
 -- Obtains true, which is provable.
-locale True {
+locale True :=
 	obtain true where true_intro: true;
 		case for thesis, assm: ∀true. true ⟹ thesis;
 			by assm(∀x. x ⟹ x)[OF imp.refl];
 		qed;
-}
+	end;
 
 -- Obtains false, which derives contradiction.
-locale False {
+locale False :=
 	obtain false where false_imp: ∀P. false ⟹ P;
 		case for thesis, assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
 			show 1: if 2: ∀x. x then P;
 				by 2;
 			by assm(∀P. P)[OF 1];
 		qed;
-}
+	end;
 
 infix ⟺ 1 1 0;
-locale Iff {
+locale Iff :=
 	fix (⟺);
 	assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q;
 	assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q;
 	assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
-	import iff: MetaEquivalence {
-		for (⟺);
+	interpret iff: MetaEquivalence (⟺) :=
 		discharge if PQ: P ⟺ Q then Q ⟺ P;
 			by iff_intro[OF iff_elim2[OF PQ] iff_elim1[OF PQ]];
 		discharge P ⟺ P;
@@ -112,7 +113,7 @@ locale Iff {
 			note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
 			note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 			by iff_intro[OF PR RP];
-	}
+		end;
 
 	show iff_commute: (P ⟺ Q) ⟺ (Q ⟺ P);
 		by iff_intro[OF iff.sym iff.sym];
@@ -193,42 +194,41 @@ locale Iff {
 				by P;
 			qed;
 		qed;
-}
+
+	end;
 
 infix ∧ 35 36 36;
-locale And {
+locale And :=
 	fix (∧);
 	assume and_intro: P ⟹ Q ⟹ P ∧ Q;
 	assume and_elim1: P ∧ Q ⟹ P;
 	assume and_elim2: P ∧ Q ⟹ Q;
-	import and: MetaSymmetric {
-		for (∧);
+	interpret and: MetaSymmetric (∧) :=
 		discharge if PQ: P ∧ Q then Q ∧ P;
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
-	}
+		end;
 	show and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 		case for R, PQR: P ⟹ Q ⟹ R;
 			by PQR[OF and_elim1[OF PQ] and_elim2[OF PQ]];
 		qed;
-}
+	end;
 
 infix ∨ 30 31 30;
-locale Or {
+locale Or :=
 	fix (∨);
 	assume or_intro1: P ⟹ P ∨ Q;
 	assume or_intro2: Q ⟹ P ∨ Q;
 	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 	show or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 		by assm[OF or_intro1 or_intro2];
-	import or: MetaSymmetric {
-		for (∨);
+	interpret or: MetaSymmetric (∨) :=
 		discharge if PQ: P ∨ Q then Q ∨ P;
 			by or_elim[OF PQ or_intro2 or_intro1];
-	}
-}
+		end;
+	end;
 
 prefix ¬ 40 40;
-locale Not {
+locale Not :=
 	fix false (¬);
 	assume not_imp_false: ¬ P ⟹ P ⟹ false;
 	assume not_intro: (P ⟹ false) ⟹ ¬ P;
@@ -304,25 +304,22 @@ locale Not {
 				by a;
 			by not_imp_false[OF nax ax];
 		qed;
-}
+	end;
 
 infix = 51 51 50;
 
-locale Equal {
+locale Equal :=
 	fix (=);
-	import eq: MetaReflexive {
-		for (=);
-	}
+	import eq: MetaReflexive (=);
 	assume eq_mono: ∀α. ∀x. ∀y. x = y ⟹ α.[x] ⟹ α.[y];
 
-	import eq: MetaEquivalence {
-		for (=);
+	interpret eq: MetaEquivalence (=) :=
 		discharge if xy: x = y then y = x;
 			by eq_mono(z. z = x)[OF xy eq.refl];
 		know;
 		discharge if xy: x = y, yz: y = z then x = z;
 			by eq_mono(w. x = w)[OF yz xy];
-	}
+		end;
 
 	show arg_cong: if xy: x = y then f x = f y;
 		note 1: eq.refl(f x);
@@ -345,24 +342,24 @@ locale Equal {
 	show eq_prop2: if PQ: P = Q then Q ⟹ P;
 		by eq_prop1[OF eq.sym[OF PQ]];
 
-}
+	end;
 
-locale Ext {
+locale Ext :=
 	import Equal;
 	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
-}
+	end;
 
 prefix λ 0 0;
 
-locale Lambda {
+locale Lambda :=
 	import Equal;
 	fix (λ);
 	assume beta: (λx. α.[x]) s = α.[s];
-}
+	end;
 
 prefix ∃ 0 0;
 
-locale Ex {
+locale Ex :=
 	fix (∃);
 	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
 	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
@@ -377,65 +374,70 @@ locale Ex {
 			by imp[OF all];
 		qed;
 
-}
+	end;
 
 -- For typed logic
 
-locale Reflexive {
-	fix class (≤);
-	assume refl: class x ⟹ x ≤ x;
-}
+infix ∈ 50 50 50;
 
-locale Symmetric {
-	fix class (≤);
-	assume sym: class x ⟹ class y ⟹ x ≤ y ⟹ y ≤ x;
-}
+locale In :=
+	fix (∈);
+	end;
 
-locale Member {
-	fix class c;
-	assume type: class c;
-}
+locale Collect :=
+	fix Collect (∈);
+	assume in_Collect_iff: x ∈ Collect P ⟺ P x;
+	end;
 
-locale Unary {
-	fix class f;
-	assume type: class x ⟹ class (f x);
-}
+locale Reflexive :=
+	fix mem (≤);
+	assume refl: mem x ⟹ x ≤ x;
+	end;
+
+locale Symmetric :=
+	fix mem (≤);
+	assume sym: mem x ⟹ mem y ⟹ x ≤ y ⟹ y ≤ x;
+	end;
+
+locale Member :=
+	fix mem c;
+	assume type: mem c;
+	end;
+
+locale Unary :=
+	fix mem f;
+	assume type: mem x ⟹ mem (f x);
+	end;
 
 infix + 50 51 50;
 
-locale Magma {
-	fix class (+);
-	assume type: class x ⟹ class y ⟹ class (x + y);
-}
+locale Magma :=
+	fix mem (+);
+	assume type: mem x ⟹ mem y ⟹ mem (x + y);
+	end;
 
-locale Binder {
-	fix class ξ;
-	assume type: (∀x. class α.[x]) ⟹ class (ξ (x. α.[x]));
-}
+locale Binder :=
+	fix mem ξ;
+	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
+	end;
 
-locale PropOr {
+locale PropOr :=
 	fix prop (∨);
-	import or: Magma { for prop (∨); }
+	import or: Magma prop (∨);
 	assume or_intro1: P ⟹ P ∨ Q;
 	assume or_intro2: Q ⟹ P ∨ Q;
 	assume or_elim: P ∨ Q ⟹ prop R ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-	import Symmetric {
-		for prop (∨);
+	interpret Symmetric prop (∨) :=
 		discharge if pP: prop P, pQ: prop Q, or: P ∨ Q then Q ∨ P;
 			apply or_elim[OF or];
-			show! prop (Q ∨ P);
-				by or.type[OF pQ pP];
-			case P: P;
-				by or_intro2[OF P];
-			case Q: Q;
-				by or_intro1[OF Q];
-			qed;
-	}
-}
+			apply+ or.type pQ pP;
+			by or_intro2 or_intro1;
+		end;
+	end;
 
-locale PropEx {
+locale PropEx :=
 	fix prop (∃);
-	import ex: Binder { for prop (∃); }
+	import ex: Binder prop (∃);
 	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
 	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
@@ -452,9 +454,10 @@ locale PropEx {
 		case for x, imp: α.[x] ⟹ P;
 			by imp[OF all];
 		qed;
-}
 
-locale ExcludedMiddle {
+	end;
+
+locale ExcludedMiddle :=
 	fix prop (∨) (¬);
 	assume excluded_middle: prop P ⟹ P ∨ ¬P;
-}
+	end;

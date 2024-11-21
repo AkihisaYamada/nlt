@@ -49,19 +49,58 @@ show nnot_defined: ¬¬ defined P;
 	unfold defined_iff;
 	by nnot_excluded_middle;
 
-interpret defined: ExcludedMiddle {
-	for defined _ _;
-	discharge defined P ⟹ P ∨ ¬ P;
-		unfold defined_iff;
-		by imp.refl;
-}
-interpret defined: PropOr {
-	for defined _;
-	discharge if dP: defined P, dQ: defined Q then defined (P ∨ Q);
-		apply defined_intro;
+interpret defined.imp: Magma {
+	for defined (⟹);
+	discharge if dP: defined P, dQ: defined Q then defined (P ⟹ Q);
 		apply defined_elim[OF dP];
 		case P: P;
-			
+			apply defined_elim[OF dQ];
+			case Q: Q;
+				by imp_defined[OF weaken[OF Q]];
+			case nQ: ¬Q;
+				apply not_imp_defined;
+				by imp_not[OF P nQ];
+			qed;
+		case nP: ¬P;
+			apply imp_defined;
+			by not_elim[OF nP];
+		qed;
+}
+interpret defined.and: Magma {
+	for defined (∧);
+	discharge if dP: defined P, dQ: defined Q then defined (P ∧ Q);
+		apply defined_elim[OF dP];
+		case P: P;
+			apply defined_elim[OF dQ];
+			case Q: Q;
+				apply imp_defined;
+				by and_intro[OF P Q];
+			case nQ: ¬Q;
+				apply not_imp_defined;
+				by nand_intro2[OF nQ];
+			qed;
+		case nP: ¬P;
+			apply not_imp_defined;
+			by nand_intro1[OF nP];
+		qed;
+}
+
+interpret defined.or: Magma {
+	for defined (∨);
+	discharge if dP: defined P, dQ: defined Q then defined (P ∨ Q);
+		apply defined_elim[OF dP];
+		case P: P;
+			by imp_defined[OF or_intro1[OF P]];
+		case nP: ¬P;
+			apply defined_elim[OF dQ];
+			case Q: Q;
+				by imp_defined[OF or_intro2[OF Q]];
+			case nQ: ¬Q;
+				apply not_imp_defined;
+				unfold nor_iff_and;
+				by and_intro[OF nP nQ];
+			qed;
+		qed;
 }
 
 interpret defined: ClassicalLogic {
@@ -91,51 +130,6 @@ interpret defined: ClassicalLogic {
 	discharge defined false;
 		by not_imp_defined[OF not_false];
 
-	discharge if dP: defined P, dQ: defined Q then defined (P ⟹ Q);
-		apply defined_elim[OF dP];
-		case P: P;
-			apply defined_elim[OF dQ];
-			case Q: Q;
-				by imp_defined[OF weaken[OF Q]];
-			case nQ: ¬Q;
-				apply not_imp_defined;
-				by imp_not[OF P nQ];
-			qed;
-		case nP: ¬P;
-			apply imp_defined;
-			by not_elim[OF nP];
-		qed;
-
-	discharge if dP: defined P, dQ: defined Q then defined (P ∧ Q);
-		apply defined_elim[OF dP];
-		case P: P;
-			apply defined_elim[OF dQ];
-			case Q: Q;
-				apply imp_defined;
-				by and_intro[OF P Q];
-			case nQ: ¬Q;
-				apply not_imp_defined;
-				by nand_intro2[OF nQ];
-			qed;
-		case nP: ¬P;
-			apply not_imp_defined;
-			by nand_intro1[OF nP];
-		qed;
-
-	discharge if dP: defined P, dQ: defined Q then defined (P ∨ Q);
-		apply defined_elim[OF dP];
-		case P: P;
-			by imp_defined[OF or_intro1[OF P]];
-		case nP: ¬P;
-			apply defined_elim[OF dQ];
-			case Q: Q;
-				by imp_defined[OF or_intro2[OF Q]];
-			case nQ: ¬Q;
-				apply not_imp_defined;
-				unfold nor_iff_and;
-				by and_intro[OF nP nQ];
-			qed;
-		qed;
 
 	discharge if dP: defined P then defined (¬P);
 		apply defined_elim[OF dP];

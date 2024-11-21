@@ -11,14 +11,14 @@ import False;
 
 -- We assume the logical constants and operations are well-typed.
 
-import true: Member { for prop true; }
-import false: Member { for prop false; }
-import imp: Magma { for prop (⟹); }
-import all: Binder { for prop (∀); }
-import and: Magma { for prop (∧); }
-import iff: Magma { for prop (⟺); }
-import not: Unary { for prop (¬); }
-import ex: Binder { for prop (∃); }
+import imp: Magma prop (⟹);
+import all: Binder prop (∀);
+import true: Member prop true;
+import false: Member prop false;
+import and: Magma prop (∧);
+import iff: Magma prop (⟺);
+import not: Unary prop (¬);
+import ex: Binder prop (∃);
 
 import TypeFreeIntuitionistic;
 import PropOr;

@@ -31,6 +31,7 @@ Ref<Syntax> make_syntax() {
 	ret->register_single_op(',');
 	ret->register_single_op(';');
 	ret->register_multi_op(':');
+	ret->register_multi_op('=');
 	ret->register_multi_op('*');
 	ret->register_multi_op('+');
 	ret->encloser("(",")",-1000,[&]( Parser& parser ){
@@ -270,8 +271,9 @@ public:
 		}
 		return cout << ' ';
 	}
-	void _prompt() {
+	Prover& _prompt() & {
 		_indent() << flush;
+		return *this;
 	}
 	Opt<CTerm> has_goal() {
 		if( _thesis )
@@ -427,18 +429,36 @@ public:
 			prefix = name;
 			name = _parser.get_token();
 		}
-		bool has_mod = _parser.skips("{") || (_parser.skip(";"), false);
 		auto loc = find_locale(name);
 		auto& intp = _loc.import(prefix,loc);
-		if( has_mod ) {
-			cout << "importing " << name << endl;
+		while( auto const& t = _parser.gets_term(1000) ) {
+			if( mod ) {
+				while( intp.imports_assume() || intp.retains() );
+			} else {
+				while( intp.discharges() || intp.retains() );
+			}
+			auto const& fix = intp.fixing();
+			if( !fix ) {
+				throw Error("\"too many instantiation\"")(*t);
+			}
+			auto v = *fix;
+			if( *t == "_" ) {
+				auto t = _loc.constant(v);
+				if( t ) intp.instantiate(*t);
+				else if( mod ) intp.instantiate(_loc.fix(v));
+				else throw Error("\"instantiation must be specified\"")(v);
+			} else {
+				intp.instantiate( mod ? _loc.cterm(*t) : _loc.enclose(*t) );
+			}
+		}
+		if( _parser.skips(":=") ) {
 			_depth++;
 			for(;;){
 				if( auto const& fix = intp.fixing() ) {
 					auto v = *fix;
 					cout << "Instantiate " << v << endl;
 					_indent();
-					if( _parser.skips("for") ) {
+					if( _parser.skips("instantiate") ) {
 						for(;;) {
 							if( _parser.skips("_") ) {
 								auto t = _loc.constant(v);
@@ -543,17 +563,16 @@ public:
 					break;
 				}
 			}
-			_parser.skip("}");
+			_parser.skip("end");
 			_depth--;
 		}
+		_parser.skip(";");
 		if( mod ) {
 			while( intp.imports_fix() || intp.imports_assume() || intp.retains() );
 		} else {
 			while( intp.instantiates() || intp.discharges() || intp.retains() );
 		}
-		if( !has_mod ) {
-			cout << "imported " << name << endl;
-		}
+		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
@@ -565,14 +584,17 @@ public:
 				cout << "Leaving context." << endl;
 			} else if( _parser.skips("locale") ) {
 				string name = _parser.get_token();
-				cout << "Creating locale " << name << endl;
-				if( _parser.skips("{") ) {
-					Prover(*this,_loc.branch(name),{},{}).loop();
-					_parser.skip("}");
-				} else {
-					_parser.skip(";");
+				auto loc = _loc.branch(name);
+				while( auto sym = gets_sym() ) {
+					loc.fix(*sym);
 				}
-				cout << "ending locale " << name << endl;
+				if( _parser.skips(":=") ) {
+					auto sub = Prover(*this,loc,{},{});
+					cout << "Creating locale " << name << endl;
+					sub._prompt().loop();
+					cout << "end locale " << name << endl;
+				}
+				_parser.skip(";");
 			} else if( _parser.skips("interpret") ) {
 				import(false);
 			} else if( _parser.skips("import") ) {
@@ -756,30 +778,28 @@ public:
 					cout << "Case ";
 					if( _parser.skips("for") ) {// instantiate variables as long as names are given
 						newgoal = strip_all(newgoal,subprf._loc,[&](string_view const& v)->Opt<string> {
-							if( auto sym = _parser.gets(Tokenizer::Word) ) {
-								return sym;
-							}
-							return {};
+							return gets_sym();
 						});
 						_parser.skips(",");
 					}
-					get_named_terms([&](string const& s, Term const& t){
-						auto imp = newgoal.cbinary(IMP);
-						if( !imp ) {
-							throw Error("case")(t);
-						}
-						newgoal = imp->second;
-						if( imp->first != t ) {
-							throw Error("case")(imp->first)(t);
-						}
-						subprf._loc.assume(s,subprf._loc.enclose(t));
-						cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
-					});
-					_parser.skip(";");
+					if( !_parser.skips(";") ) {
+						get_named_terms([&](string const& s, Term const& t){
+							auto imp = newgoal.cbinary(IMP);
+							if( !imp ) {
+								throw Error("case")(t);
+							}
+							newgoal = imp->second;
+							if( imp->first != t ) {
+								throw Error("case")(imp->first)(t);
+							}
+							subprf._loc.assume(s,subprf._loc.enclose(t));
+							cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
+						});
+						_parser.skip(";");
+					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = make_thesis(newgoal);
-					subprf._prompt();
-					conclude(subprf.proof_loop());
+					conclude(subprf._prompt().proof_loop());
 					print_goal();
 				} else if( _parser.skips("goal") ) {
 					_parser.skip(";");
@@ -943,8 +963,8 @@ public:
 					cout << ' ' << sym;
 				}
 				cout << endl;
-			} else if( _parser.skips("") || _parser.peek_token() == "}" ) {
-				return Opt<Thm>();
+			} else if( _parser.skips("end") || _parser.skips("") ) {
+				return {};
 			} else {
 				throw Error(Term("unexpected")(_parser.get_token()));
 			}
@@ -974,7 +994,6 @@ public:
 				Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{});
 				sub.set_lexer(local_lexer);
 				sub.loop();
-				cout << "Loaded " << name << endl;
 				return;
 			}
 		}
@@ -1003,7 +1022,6 @@ Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool
 		auto local_lexer = Lexer(fis,base_name,*syntax);
 		Prover base = preload(local_lexer,syntax,base_name,true);
 		base.loop();
-		cout << "Loaded " << base_name << endl;
 		Prover sub = base.branch(name);
 		sub.set_lexer(lexer);
 		sub.set_exit_on_error(exit_on_error);

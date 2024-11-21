@@ -9,9 +9,6 @@ Thm conclude( CSubst const& matcher, Thm const& thesis, Thm const& thm_strip ) {
 		auto const& val = matcher.get(*sym);
 		intp.instantiate( val ? *val : thesis.ctxt().cterm(DUMMY));
 	}
-DEB(matcher);
-DEB(thm_strip);
-DEB(intp.subst(thm_strip));
 	return thesis.impE(intp.subst(thm_strip));
 }
 Opt<Thm> concludes( CTerm const& goal, Thm const& thesis, CTerm const& pat, Thm const& thm ) {

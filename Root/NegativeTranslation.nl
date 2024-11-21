@@ -1,12 +1,12 @@
-base IntuitionisticLogic;
 ------
 # Gödel―Gentzen Negative Translation
 
 Theorems in the classical logic can be translated in a double-negated form in the intuitionistic logic.
 To do so, we must replace the prop type of classical logic by the image of double negation,
 disjunction and existential quantifier by certain form.
-Since we have not introduced convenient methods to specify such, we use axioms to do so.
+Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
 ------
+base TypedIntuitionisticLogic;
 
 fix image_nnot nnot_or nnot_ex;
 
@@ -50,32 +50,31 @@ assume nnot_or_iff: nnot_or P Q ⟺ ¬(¬P ∧ ¬Q);
 In this context, it is necessary to assume that this operation is well-typed.
 We should be able to derive the fact if we introduce equality and definition.
 ---
-import nnot_or: Magma { for prop nnot_or; }
+import nnot_or: Magma prop nnot_or;
 
 -- The existential quantifier is translated as follows:
 
 assume nnot_ex_iff: nnot_ex (x. α.[x]) ⟺ ¬(∀x. ¬α.[x]);
 
-import nnot_ex: Binder { for prop nnot_ex; }
+import nnot_ex: Binder prop nnot_ex;
 
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
-interpret image_nnot.true: Member {
-	for image_nnot true;
+interpret image_nnot.true: Member image_nnot true :=
 	discharge image_nnot true;
 		unfold+ image_nnot_iff not_true_iff not_false_iff iff_true[OF true.type] true_and_iff;
 		by iff.refl;
-}
-interpret image_nnot.false: Member {
-	for image_nnot false;
+	end;
+
+interpret image_nnot.false: Member image_nnot false :=
 	discharge image_nnot false;
 		unfold+ image_nnot_iff not_true_iff not_false_iff iff_true[OF false.type] true_and_iff;
 		by iff.refl;
-}
-interpret image_nnot.imp: Magma {
-	for image_nnot (⟹);
+	end;
+
+interpret image_nnot.imp: Magma image_nnot (⟹) :=
 	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟹ Q);
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
 		case pP: prop P, nnP: ¬¬P ⟺ P;
@@ -88,9 +87,9 @@ interpret image_nnot.imp: Magma {
 				qed;
 			qed;
 		qed;
-}
-interpret image_nnot.and: Magma {
-	for image_nnot (∧);
+	end;
+
+interpret image_nnot.and: Magma image_nnot (∧) :=
 	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q);
 		apply and_elim[OF tQ[unfolded image_nnot_iff]];
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
@@ -99,9 +98,9 @@ interpret image_nnot.and: Magma {
 			apply+ and.type pP pQ;
 			qed;
 		qed;
-}
-interpret image_nnot.iff: Magma {
-	for image_nnot (⟺);
+	end;
+
+interpret image_nnot.iff: Magma image_nnot (⟺) :=
 	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟺ Q);
 		unfold image_nnot_iff;
 		apply and_intro;
@@ -119,9 +118,9 @@ interpret image_nnot.iff: Magma {
 			fold iff_iff_and;
 			done;
 		qed;
-}
-interpret image_nnot.or: PropOr {
-	for image_nnot nnot_or;
+	end;
+
+interpret image_nnot.or: PropOr image_nnot nnot_or :=
 	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (nnot_or P Q);
 		apply and_elim[OF tQ[unfolded image_nnot_iff]];
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
@@ -150,9 +149,9 @@ interpret image_nnot.or: PropOr {
 				qed;
 			by nnR[unfolded nnRR];
 		qed;
-}
-interpret image_nnot.all: Binder {
-	for image_nnot (∀);
+	end;
+
+interpret image_nnot.all: Binder image_nnot (∀) :=
 	discharge if ta: ∀x. image_nnot α.[x] then image_nnot (∀x. α.[x]);
 		unfold image_nnot_iff;
 		apply+ and_intro all.type;
@@ -162,16 +161,16 @@ interpret image_nnot.all: Binder {
 		unfold nnall_not_iff;
 		unfold and_elim2[OF 1];
 		by iff.refl;
-}
-interpret image_nnot.not: Unary {
-	for image_nnot (¬);
+	end;
+
+interpret image_nnot.not: Unary image_nnot (¬) :=
 	discharge if pP: image_nnot P then image_nnot (¬P);
 		unfold+ image_nnot_iff nnnot_iff iff_true[OF iff.refl] and_true_iff;
 		apply+ not.type image_nnot_imp_type[OF pP];
 		qed;
-}
-interpret image_nnot.ex: PropEx {
-	for image_nnot nnot_ex;
+	end;
+
+interpret image_nnot.ex: PropEx image_nnot nnot_ex :=
 	discharge if ta: ∀x. image_nnot α.[x] then image_nnot (nnot_ex (x. α.[x]));
 		unfold image_nnot_iff;
 		apply+ and_intro nnot_ex.type;
@@ -198,18 +197,17 @@ interpret image_nnot.ex: PropEx {
 				qed;
 			qed;
 		qed;
-}
-interpret image_nnot: ExcludedMiddle {
-	for image_nnot nnot_or (¬);
+	end;
+
+interpret image_nnot: ExcludedMiddle image_nnot nnot_or (¬) :=
 	discharge if pP: image_nnot P then nnot_or P (¬P);
 		unfold+ nnot_or_iff nand_nnot_iff;
 		unfold and_commute;
 		apply non_contradiction;
 		qed;
-}
-interpret image_nnot: ClassicalLogic {
-	for image_nnot (∧) nnot_or (⟺) (¬) nnot_ex;
-}
+	end;
+
+interpret image_nnot: ClassicalLogic image_nnot (∧) nnot_or (⟺) (¬) nnot_ex;
 
 ctxt;
 
