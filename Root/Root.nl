@@ -37,16 +37,28 @@ locale MetaPreorder :=
 	import MetaTransitive;
 	end;
 
-infix ~ 51 51 50;
+infix = 51 51 50;
 
 locale MetaSymmetric :=
-	fix (~);
-	assume sym: x ~ y ⟹ y ~ x;
+	fix (=);
+	assume sym: x = y ⟹ y = x;
 	end;
 
 locale MetaEquivalence :=
 	import MetaSymmetric;
-	import MetaPreorder (~);
+	import MetaPreorder (=);
+	end;
+
+infix + 100 101 100;
+
+locale MetaCommutative :=
+	fix (+) (=);
+	assume commute: x + y = y + x;
+	end;
+
+locale MetaAssociative :=
+	fix (+) (=);
+	assume assoc: x + y + z = x + (y + z);
 	end;
 
 interpret imp: MetaPreorder (⟹) :=
@@ -88,7 +100,7 @@ locale True :=
 		qed;
 	end;
 
--- Obtains false, which derives contradiction.
+-- Obtains false, which derives everything, including non-propositions.
 locale False :=
 	obtain false where false_imp: ∀P. false ⟹ P;
 		case for thesis, assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
@@ -96,6 +108,14 @@ locale False :=
 				by 2;
 			by assm(∀P. P)[OF 1];
 		qed;
+	end;
+
+---
+The following locale specifies false, which derives any proposition, but not necessarily non-proposition.
+This is what usual typed logics assume.
+---
+locale PropFalse prop false :=
+	assume false_imp: prop P ⟹ false ⟹ P;
 	end;
 
 infix ⟺ 1 1 0;
@@ -115,8 +135,10 @@ locale Iff :=
 			by iff_intro[OF PR RP];
 		end;
 
-	show iff_commute: (P ⟺ Q) ⟺ (Q ⟺ P);
-		by iff_intro[OF iff.sym iff.sym];
+	interpret iff_iff: MetaCommutative (⟺) (⟺) :=
+		discharge (P ⟺ Q) ⟺ (Q ⟺ P);
+			by iff_intro[OF iff.sym iff.sym];
+		end;
 
 	show imp_imp_iff: if P: P then (P ⟹ Q) ⟺ Q;
 		apply iff_intro;
@@ -158,6 +180,20 @@ locale Iff :=
 			case for x;
 				apply iff_elim2[OF ab];
 				by b;
+			qed;
+		qed;
+
+	show imp_iff_iff: if P: P then (P ⟺ Q) ⟺ Q;
+		apply iff_intro;
+		case PQ: P ⟺ Q;
+			apply+ iff_elim1[OF PQ] P;
+			qed;
+		case Q: Q;
+			apply iff_intro;
+			case P: P;
+				by Q;
+			case Q: Q;
+				by P;
 			qed;
 		qed;
 
@@ -306,7 +342,28 @@ locale Not :=
 		qed;
 	end;
 
-infix = 51 51 50;
+prefix ∃ 0 0;
+
+locale Ex :=
+	fix (∃);
+	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
+	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
+
+	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
+		apply assm;
+		by ex_intro1;
+
+	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, all: ∀x. α.[x] then P;
+		apply ex_elim[OF ex];
+		case for x, imp: α.[x] ⟹ P;
+			by imp[OF all];
+		qed;
+
+	end;
+
+-----
+## Equality
+-----
 
 locale Equal :=
 	fix (=);
@@ -344,39 +401,34 @@ locale Equal :=
 
 	end;
 
+locale Equal_Iff :=
+	import Equal;
+	import Iff;
+	interpret eq_iff: MetaCommutative (=) (⟺) :=
+		discharge x = y ⟺ y = x;
+			by iff_intro[OF eq.sym eq.sym];
+		end;
+	setup rewrite eq.refl eq.sym eq.trans eq_prop1;
+	setup cong eq_cong: f x;
+	show eq_imp_iff: if PQ: P = Q then P ⟺ Q;
+		unfold PQ;
+		by iff.refl;
+	end;
+
 locale Ext :=
 	import Equal;
 	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
 	end;
 
-prefix λ 0 0;
-
-locale Lambda :=
+locale TwoValued :=
 	import Equal;
-	fix (λ);
-	assume beta: (λx. α.[x]) s = α.[s];
+	assume imp_imp_eq: P ⟹ Q ⟹ P = Q;
+	assume imp_eq: P ⟹ (P ⟹ Q) = Q;
 	end;
 
-prefix ∃ 0 0;
-
-locale Ex :=
-	fix (∃);
-	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
-	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
-
-	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
-		apply assm;
-		by ex_intro1;
-
-	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, all: ∀x. α.[x] then P;
-		apply ex_elim[OF ex];
-		case for x, imp: α.[x] ⟹ P;
-			by imp[OF all];
-		qed;
-
-	end;
-
--- For typed logic
+-----
+## For typed logic
+-----
 
 infix ∈ 50 50 50;
 
@@ -408,8 +460,6 @@ locale Unary :=
 	fix mem f;
 	assume type: mem x ⟹ mem (f x);
 	end;
-
-infix + 50 51 50;
 
 locale Magma :=
 	fix mem (+);

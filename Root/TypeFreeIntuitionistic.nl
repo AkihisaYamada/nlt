@@ -39,7 +39,7 @@ show false_and_iff: false ∧ P ⟺ false;
 	qed;
 
 show and_false_iff: P ∧ false ⟺ false;
-	unfold and_commute;
+	unfold and_iff.commute;
 	by false_and_iff;
 
 show not_elim: if nP: ¬P, P: P then Q;
