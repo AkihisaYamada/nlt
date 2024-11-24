@@ -49,6 +49,10 @@ public:
 	T* operator->() & {
 		return _opt.operator->();
 	}
+	operator Opt<T const&>() && = delete;
+	operator Opt<T const&>() & {
+		return Opt<T const&>( _opt ? &*_opt : nullptr );
+	}
 	template<class... Args>
 	T& emplace( Args&&... args ) & {
 		return _opt.emplace(std::forward<Args>(args)...);

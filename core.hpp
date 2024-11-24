@@ -337,7 +337,7 @@ inline Term operator>>=(Term const& l, Term const& r) {
 	return Term(IMP)(l)(r);
 }
 /** for all */
-inline Term operator&=(std::string const& v, Term const& s) {
+inline Term operator&=(std::string_view const& v, Term const& s) {
 	return Term(ALL)(v/=s);
 }
 
@@ -409,7 +409,7 @@ public:
 	/** @brief Obtains the parent context.
 	 * @exception WrongContext is thrown if no such context is found.
 	 */
-	Ctxt const& ctxt() const & {
+	Ctxt const& parent() const & {
 		auto opt = find_parent();
 		if( !opt ) {
 			throw WrongContext("parent of root context");
@@ -450,7 +450,7 @@ public:
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	bool has_constant(std::string_view const& sym) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
-	Opt<CTerm> constant(std::string_view const& sym) const &;
+	Opt<CTerm> constant(std::string_view const& sym) const;
 	/** Tests if a term is closed in this context. */
 	Opt<CTerm> closed(Term const& t) const;
 	/** Ensures that a term is closed in this context. */
@@ -462,25 +462,25 @@ public:
 	 * @param name 
 	 * @return the closed term for the variable.
 	 */
-	CTerm fix(std::string_view const& name) &;
+	CTerm fix(std::string_view const& name);
 	/** @brief Adds an assumption.
 	 * 
 	 * @param t the assumption, which should be closed in the context.
 	 * @return the assumed theorem.
 	 */
-	Thm assume(CTerm const& t) &;
+	Thm assume(CTerm const& t);
 	/** @brief Adds an assumption. Free variables will be fixed.
 	 * 
 	 * @param t the assumption.
 	 * @return the assumed theorem.
 	 */
-	Thm assume(Term const& t) &;
+	Thm assume(Term const& t);
 	/** @brief Fixes a symbol with a specification.
 	 *
 	 * @param thm of form ∀thesis. (∀sym. props... ⟹ thesis) ⟹ thesis
 	 * @return the fixed sym and theorem stating ∀thesis. (props... ⟹ thesis) ⟹ thesis
 	 */
-	std::pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm) &;
+	std::pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm);
 	
 	/** @brief Creates a child context. */
 	Ctxt branch() const {
@@ -821,8 +821,11 @@ public:
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
+	size_t revision() const {
+		return _rev;
+	}
 	/** tests if there is no pending modification */
-	bool ready() {
+	bool ready() const {
 		return _rev == _src.revision();
 	}
 	/** @brief next unprocessed fix. */
@@ -837,8 +840,8 @@ public:
 	}
 	Opt<std::tuple<std::string,Thm,Thm>> obtaining() const {
 		if( auto o = _src.obtained(_rev) ) {
-			auto const& [sym,thm,spec] = *o;
-			return {{sym,Thm(thm.csubst(_subst)),Thm(spec.csubst(_subst))}};
+			auto const& [sym,ex,spec] = *o;
+			return {{sym,Thm(ex.csubst(_subst)),Thm(spec.csubst(_subst))}};
 		}
 		return {};
 	}
@@ -860,14 +863,13 @@ public:
 	 * @param thm Proof of the instantiated assumption.
 	 */
 	void discharge(Thm const& thm);
-	/** @brief Interprets an obtained constant.
-	 * If the interpreted context is modified by obtaining a constant,
+	/** @brief If the interpreted context is modified by obtaining a constant,
 	 * then this method should be used to instantiate the constant.
 	 * @param term that should play the role of the constant.
-	 * @param thm of form ∀thesis. (props[sym:=term]... ⟹ thesis) ⟹ thesis,
+	 * @param spec of form ∀thesis. (props[sym:=term]... ⟹ thesis) ⟹ thesis,
 	 * where the obtained constant is replaced by the term.
 	 */
-	void retain(CTerm const& term, Thm const& thm);
+	void retain(CTerm const& term, Thm const& spec);
 	friend Ctxt;
 };
 
@@ -883,7 +885,7 @@ inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	}
 	return {};
 }
-inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const & {
+inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const {
 	if( has_constant(sym) ) {
 		return CTerm(*this,sym);
 	}

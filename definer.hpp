@@ -1,6 +1,7 @@
 #ifndef _DEFINER_HPP_
 #define _DEFINER_HPP_
 
+#include "locale.hpp"
 #include "rewriter.hpp"
 
 class Definer {
@@ -18,7 +19,7 @@ public:
 	{
 		this->beta.add(beta);
 	}
-	std::pair<std::string,Thm> define(Ctxt& ctxt, Term const& l, Term const& r) const;
+	std::pair<std::string,Thm> define(Locale& loc, Term const& l, Term const& r, Opt<std::string const&> name) const;
 };
 
 

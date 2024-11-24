@@ -432,11 +432,7 @@ public:
 		auto loc = find_locale(name);
 		auto& intp = _loc.import(prefix,loc);
 		while( auto const& t = _parser.gets_term(1000) ) {
-			if( mod ) {
-				while( intp.imports_assume() || intp.retains() );
-			} else {
-				while( intp.discharges() || intp.retains() );
-			}
+			while( intp.discharges(mod) || intp.retains() );
 			auto const& fix = intp.fixing();
 			if( !fix ) {
 				throw Error("\"too many instantiation\"")(*t);
@@ -481,8 +477,9 @@ public:
 					} else {
 						break;
 					}
-				} else if( auto axiom = intp.assuming() ) {
-					cout << "Discharge " << _syntax->pretty_cterm(*axiom) << endl;
+				} else if( auto a = intp.assuming() ) {
+					auto [name,axiom] = *a;
+					cout << "Discharge " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
 					_indent();
 					if( _parser.skips("know") ) {
 						_parser.skip(";");
@@ -492,26 +489,26 @@ public:
 						auto const& [assm_loc,concl] = get_statement();
 						auto const& claim = concl.intro();
 						auto const& var_loc = *assm_loc.parent();
-						auto axiom_vars = axiom->ctxt().branch();
-						auto const& goal = strip_all(*axiom,axiom_vars);
+						auto axiom_vars = axiom.ctxt().branch();
+						auto const& goal = strip_all(axiom,axiom_vars);
 						auto const& m = match(var_loc.fvars(),claim,goal);
 						if( !m ) {
-							throw Error("\"unmatching discharge\"")(claim)(*axiom);
+							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
 						auto const& thm = prove(assm_loc,concl).intro();
 						auto const& thesis = make_thesis(goal);
 						intp.discharge(::conclude(*m,thesis,thm).intro());
 					} else if( mod && _parser.skips("assume") ) {
 						_parser.skip(";");
-						Thm thm = _loc.Ctxt::assume(*axiom);
+						Thm thm = _loc.assume(name,axiom);
 						intp.discharge(thm);
 						cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
 					} else {
 						break;
 					}
 				} else if( auto obtain = intp.obtaining() ) {
-					auto [sym,thm,spec] = *obtain;
-					cout << "Obtain " << sym << " in " << _syntax->pretty_cterm(spec) << endl;
+					string sym = obtain->sym;
+					cout << "Obtain " << sym << " in " << _syntax->pretty_cterm(obtain->spec) << endl;
 					_indent();
 					if( _parser.skips("obtain") ) {
 						if( _parser.skips(";") ) {
@@ -519,11 +516,10 @@ public:
 							sym = _parser.get_token();
 							_parser.skip(";");
 						}
-						auto [sym_term,spec] = _loc.obtain(sym,thm);
+						auto [sym_term,spec] = _loc.obtain(sym,obtain->ex,obtain->spec_name);
 						intp.retain(sym_term,spec);
 					} else if( _parser.skips("retain") ) {
-						if( _parser.skips(";") ) {
-						} else {
+						if( !_parser.skips(";") ) {
 							sym = _parser.get_token();
 							_parser.skip(";");
 						}
@@ -535,7 +531,7 @@ public:
 						CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 							return _loc.constant(x);
 						}));
-						CTerm t = thm.capp()->second;
+						CTerm t = obtain->ex.capp()->second;
 // var'. (∀sym. props... ⟹ var') ⟹ var'
 						t = t.weaken(thesis_loc).inst(var);
 // (∀sym. props... ⟹ var) ⟹ var
@@ -543,8 +539,7 @@ public:
 // ∀sym. props... ⟹ var
 						t = t.capp()->second.inst(term);
 // props[sym:=term]... ⟹ var
-// assume this
-						Thm rule = thesis_loc.Ctxt::assume(t);
+						Thm rule = thesis_loc.assume("?thesis",t);
 // and prove var, i.e., props[sym:=term]...
 						Thm thesis = make_refl(var);
 						auto thesis2 = rule_applies(rule,thesis);
@@ -567,22 +562,12 @@ public:
 			_depth--;
 		}
 		_parser.skip(";");
-		if( mod ) {
-			while( intp.imports_fix() || intp.imports_assume() || intp.retains() );
-		} else {
-			while( intp.instantiates() || intp.discharges() || intp.retains() );
-		}
+		while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
-			if( _parser.skips("{") ) {
-				Locale loc = _loc.branch("");
-				cout << "Creating context " << loc.id() << endl;
-				Prover(*this,loc,{},{}).loop();
-				_parser.skip("}");
-				cout << "Leaving context." << endl;
-			} else if( _parser.skips("locale") ) {
+			if( _parser.skips("locale") ) {
 				string name = _parser.get_token();
 				auto loc = _loc.branch(name);
 				while( auto sym = gets_sym() ) {
@@ -670,7 +655,7 @@ public:
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
 				auto const& thm = prove(_loc,goal);
-				auto [sym_term,spec] = _loc.obtain(sym,thm);
+				auto [sym_term,spec] = _loc.obtain(sym,thm,make_spec_name(string(sym)));
 				cout << "Obtained " << sym << " where ";
 				// register properties
 				auto all = spec.cbinder(ALL);
@@ -715,7 +700,7 @@ public:
 				if( !_definer ) {
 					throw Error("definer not setup");
 				}
-				auto [f,spec] = _definer->define(_loc,l,r);
+				auto [f,spec] = _definer->define(_loc,l,r,name_op);
 				Thm def = spec << _loc.thm("imp.refl");
 				string name = name_op ? *name_op : f + "_def";
 				_loc.add_thm(name,def);

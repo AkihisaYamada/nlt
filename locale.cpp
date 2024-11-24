@@ -2,6 +2,22 @@
 
 using namespace std;
 
+Thm Locale::assume(std::string_view const& name, CTerm const& assm) {
+	size_t rev = revision();
+	Thm const& thm = Ctxt::assume(assm);
+	add_thm(name,thm);
+	_ref->assm_names.emplace(rev,name);
+	return thm;
+}
+
+pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name ) {
+	size_t rev = revision();
+	auto const& ret = Ctxt::obtain(sym,ex);
+	add_thm(spec_name,ret.second);
+	_ref->assm_names.emplace(rev,spec_name);
+	return ret;
+}
+
 Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 	if( auto opt = _ref->thms.finds(name) ) {// current locale
 		return opt->second;
@@ -39,18 +55,20 @@ Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name) const
 	}
 	return {};
 }
-Opt<Thm> Locale::_find_discharge_thm( Term const& assm ) const {
-	if( auto it = _ref->locale_thms.find(assm); it != _ref->locale_thms.end() ) {
-		return *it;
+Opt<Thm> Locale::find_discharge_thm( std::string_view const& name, Term const& assm ) const {
+	if( auto const& ret = find_thm(name) )
+	if( *ret == assm ) {
+		return ret;
 	}
-	return {};
-}
-Opt<Thm> Locale::_find_discharge_thm( Term const& assm, Ctxt const& orig ) const {
-	if( auto const& ret = _find_discharge_thm(assm) ) {
-		return ret->weaken(orig);
+	for( auto [prefix,import] : imports() ) {
+		if( auto const& ret = import.find_thm(name) )
+		if( *ret == assm ) {
+			return ret;
+		}
 	}
-	if( auto p = _ref->parent ) {
-		return p->_find_discharge_thm(assm,orig);
+	if( auto p = parent() )
+	if( auto thm = p->find_discharge_thm(name,assm) ) {
+		return thm->weaken(*this);
 	}
 	return {};
 }

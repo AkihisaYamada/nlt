@@ -250,7 +250,7 @@ CTerm Ctxt::enclose(Term const& t) {
 	return CTerm(*this,t);
 }
 
-CTerm Ctxt::fix(string_view const& s) & {
+CTerm Ctxt::fix(string_view const& s) {
 	if( fixes(s)) {
 		throw DoubleFix(s);
 	}
@@ -264,17 +264,17 @@ Thm Ctxt::_assume(Term const& t) & {
 	return CTerm(*this,t);
 }
 
-Thm Ctxt::assume(CTerm const& t) & {
+Thm Ctxt::assume(CTerm const& t) {
 	if( t.ctxt() != *this ) {
 		throw WrongContext("assume");
 	}
 	return _assume(t);
 }
-Thm Ctxt::assume(Term const& t) & {
+Thm Ctxt::assume(Term const& t) {
 	return _assume(enclose(t));
 }
 
-pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) & {
+pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 	if( has_constant(sym) ) {
 		throw DoubleFix(sym);
 	}
@@ -343,7 +343,7 @@ CTerm CTerm::intro() const {
 		};
 		iter_fsyms(check);
 	}
-	auto const& parent = _ctxt.ctxt();
+	auto const& parent = _ctxt.parent();
 	Term stmt = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
@@ -371,7 +371,7 @@ Opt<CTerm::StrTerm> CTerm::cabs() const {
 	}
 }
 CTerm CTerm::lift( CTerm const& quantifier ) const {
-	auto const& parent = _ctxt.ctxt();
+	auto const& parent = _ctxt.parent();
 	if( quantifier.ctxt() != parent ) {
 		throw WrongContext("lift");
 	}

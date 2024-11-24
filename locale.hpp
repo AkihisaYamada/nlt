@@ -7,6 +7,10 @@
 class Import;
 using Imports = std::multimap<std::string,Import,std::less<>>;
 
+inline std::string make_spec_name( std::string base ) {
+	return std::move(base)+"$spec";
+}
+
 class Locale : public Ctxt {
 	struct _Body;
 	Ref<_Body> _ref;
@@ -48,21 +52,13 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm);
-	/** adds to locale discharge database */
-	void add_discharge_thm( Thm const& thm );
-	/** finds in locale discharge database */
-	Opt<Thm> find_discharge_thm( Term const& thm ) const {
-		if( auto const& ret = _find_discharge_thm(thm) ) {
-			return ret;
-		}
-		return _find_discharge_thm(thm,*this);
-	}
+	/** finds the name of assumption made in the revision */
+	Opt<std::string> find_assm_name( size_t rev ) const;
+	/** finds in discharge database */
+	Opt<Thm> find_discharge_thm( std::string_view const& name, Term const& assm ) const;
 	/** Assuming a closed term. */
-	void assume(std::string_view const& name, CTerm const& assm) {
-		Thm const& thm = Ctxt::assume(assm);
-		add_thm(name,thm);
-		add_discharge_thm(thm);
-	}
+	Thm assume(std::string_view const& name, CTerm const& assm);
+	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
 	/** Declares import */
 	Import& import(std::string&& name, Locale const& loc) &;
 	/** Declares import */
@@ -82,16 +78,13 @@ public:
 	/** Pretty printer for context */
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	std::function<std::ostream& (std::ostream&)> const pretty(Syntax&& syntax) = delete;
-private:
-	Opt<Thm> _find_discharge_thm( Term const& thm ) const;
-	Opt<Thm> _find_discharge_thm( Term const& thm, Ctxt const& orig ) const;
 };
 
 struct Locale::_Body {
 	Opt<Locale const> parent;
 	StrMap<Thm const> thms;
 	StrMap<Locale const> locales;
-	std::set<Thm,std::less<>> locale_thms;
+	Map<size_t,std::string> assm_names;
 	std::multimap<std::string,Import,std::less<>> imports;
 	_Body() {}
 	_Body(Opt<Locale const> parent) : parent(parent) {}
@@ -115,73 +108,85 @@ public:
 		return _tgt;
 	}
 	/** automatic instantiation */
-	bool instantiates() {
-		auto v = fixing();
-		if( !v ) return false;
-		auto t = _tgt.constant(*v);
-		if( !t ) throw Error("\"instantiation must be specified\"")(*v);
-		instantiate(*t);
-		return true;
+	bool instantiates( bool mod = false ) {
+		if( auto v = fixing() ) {
+			if( auto t = _tgt.constant(*v) ) {
+				instantiate(*t);
+			} else if( mod ) {
+				instantiate( _tgt.fix(*v) );
+			} else {
+				throw Error("\"instantiation must be specified\"")(*v);
+			}
+			return true;
+		}
+		return false;
 	}
-	/** automatic instantiation */
-	bool imports_fix() {
-		auto v = fixing();
-		if( !v ) return false;
-		auto t = _tgt.constant(*v);
-		instantiate( t ? *t : _tgt.fix(*v) );
-		return true;
+	Opt<std::pair<std::string, CTerm>> assuming() & {
+		if( auto const& assm = Intp::assuming() ) {
+			if( auto const& name = _src.find_assm_name(revision()) ) {
+				return std::pair{*name,*assm};
+			}
+			throw Error("\"unnamed assumption\"")(*assm);
+		}
+		return {};
 	}
-	/** discharge assumption and remember it for later automation */
-	void discharge( Thm const& thm ) & {
+	void discharge( Thm const& thm ) {
 		Intp::discharge(thm);
-		_tgt.add_discharge_thm(thm);
 	}
-	/** discharge assumption by knowledge */
-	bool discharges() & {
-		auto assm = assuming();
-		if( !assm ) {
+	/** automatically discharge assumption */
+	bool discharges( bool mod = false ) {
+		auto x = assuming();
+		if( !x ) {
 			return false;
 		}
+		auto [name,assm] = *x;
 		// if this assumption is already discharged, then reuse it
-		auto opt = _tgt.find_discharge_thm(*assm);
-		if( !opt ) {
+		if( auto opt = _tgt.find_discharge_thm(name,assm) ) {
+			Intp::discharge(*opt);
+			return true;
+		} else if( mod ) { // if modification is allowed, then make new assumption
+			auto thm = _tgt.assume(name,assm);
+			Intp::discharge(thm);
+			return true;
+		} else {
 			throw Error("\"failed know\"");
 		}
-		Intp::discharge(*opt);
-		return true;
+
 	}
 	void discharge() & {
 		if( !discharges() ) {
 			throw Error("\"unexpected know\"");
 		}
 	}
-	/** discharges or imports assumption */
-	bool imports_assume() & {
-		auto assm = assuming();
-		if( !assm ) {
-			return false;
+	struct ObtainInfo {
+		std::string spec_name;
+		std::string sym;
+		Thm ex;
+		Thm spec;
+	};
+	Opt<ObtainInfo> obtaining() & {
+		if( auto o = Intp::obtaining() ) {
+			auto [sym,ex,spec] = *o;
+			auto name = _src.find_assm_name(revision());
+			if( !name ) {
+				throw Error("\"unnamed obtain\"")(sym)(spec);
+			}
+			return ObtainInfo{*name,sym,ex,spec};
 		}
-		// if this assumption is already discharged, then reuse it
-		if( auto opt = _tgt.find_discharge_thm(*assm) ) {
-			Intp::discharge(*opt);
-		} else { // otherwise, make new assumption;
-			auto thm = _tgt.Ctxt::assume(*assm);
-			discharge(thm);
-		}
-		return true;
+		return {};
 	}
-	/** retain constant and remember it for later automation */
+	/** retain constant by specification */
 	void retain( CTerm c, Thm const& thm ) & {
 		Intp::retain(c,thm);
-		_tgt.add_discharge_thm(thm);
 	}
+	/** retain constant by knowledge */
 	void retain( CTerm c ) {
 		auto o = obtaining();
 		if( !o ) {
 			throw Error(c);
 		}
-		auto [sym,ex,spec] = *o;
-		auto const& thm = _tgt.find_discharge_thm(spec.inst(c));
+		auto [name,sym,ex,spec] = *o;
+		auto const& thm = _tgt.find_discharge_thm(name,spec.inst(c));
 		if(!thm) {
 			throw Error(sym)(c);
 		}
@@ -193,17 +198,16 @@ public:
 		if( !o ) {
 			return false;
 		}
-		auto [sym,ex,spec] = *o;
+		auto [name,sym,ex,spec] = *o;
 		if( auto csym = _tgt.constant(sym) ) {
-			if( auto const& thm = _tgt.find_discharge_thm(spec.inst(*csym)) ) {
+			if( auto const& thm = _tgt.find_discharge_thm(name,spec.inst(*csym)) ) {
 				Intp::retain(*csym,*thm);
 				return true;
 			}
 			throw MalformedRetain(sym);
 		} else {
-			auto [sym_term,spec] = _tgt.obtain(sym,ex);
+			auto [sym_term,spec] = _tgt.obtain(sym,ex,name);
 			retain(sym_term,spec);
-			_tgt.add_discharge_thm(spec);
 			return true;
 		}
 	}
@@ -214,6 +218,7 @@ public:
 	 * @return Opt<Thm> 
 	 */
 	Opt<Thm> find_thm(std::string_view const& name) const {
+		if( ready() )// only find if the interpretation is ready
 		if( auto thm = _src.find_thm(name,false) ) {
 			return subst(*thm);
 		}
@@ -240,8 +245,12 @@ inline void Locale::add_thm(std::string_view const& name, Thm const& thm) {
 	}
 	_ref->thms.emplace(name,thm);
 }
-inline void Locale::add_discharge_thm( Thm const& thm ) {
-	_ref->locale_thms.insert(thm);
+
+inline Opt<std::string> Locale::find_assm_name( size_t rev ) const {
+	if( auto x = _ref->assm_names.finds(rev) ) {
+		return x->second;
+	}
+	return {};
 }
 
 inline Imports const& Locale::imports() const {
