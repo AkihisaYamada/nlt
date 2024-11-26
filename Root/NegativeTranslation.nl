@@ -202,7 +202,7 @@ interpret image_nnot.ex: PropEx image_nnot nnot_ex :=
 interpret image_nnot: ExcludedMiddle image_nnot nnot_or (¬) :=
 	discharge if pP: image_nnot P then nnot_or P (¬P);
 		unfold+ nnot_or_iff nand_nnot_iff;
-		unfold and_commute;
+		unfold and_iff.commute;
 		apply non_contradiction;
 		qed;
 	end;

@@ -22,13 +22,11 @@ show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 
 infix ≤ 51 51 50;
 
-locale MetaReflexive :=
-	fix (≤);
+locale MetaReflexive (≤) :=
 	assume refl: x ≤ x;
 	end;
 
-locale MetaTransitive :=
-	fix (≤);
+locale MetaTransitive (≤) :=
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z;
 	end;
 
@@ -39,28 +37,51 @@ locale MetaPreorder :=
 
 infix = 51 51 50;
 
-locale MetaSymmetric :=
-	fix (=);
+locale MetaSymmetric (=) :=
 	assume sym: x = y ⟹ y = x;
 	end;
 
-locale MetaEquivalence :=
+locale MetaEquivalence (=) :=
 	import MetaSymmetric;
 	import MetaPreorder (=);
 	end;
 
 infix + 100 101 100;
+infix * 110 111 110;
 
-locale MetaCommutative :=
-	fix (+) (=);
+locale MetaCommutative (+) (=) :=
 	assume commute: x + y = y + x;
 	end;
 
-locale MetaAssociative :=
-	fix (+) (=);
+locale MetaAssociative (+) (=) :=
 	assume assoc: x + y + z = x + (y + z);
 	end;
 
+locale MetaLeftNeutral (+) (0) (=) :=
+	assume left_neutral: 0 + x = x;
+	end;
+
+locale MetaRightNeutral (+) (0) (=) :=
+	assume right_neutral: x + 0 = x;
+	end;
+
+locale MetaLeftAbsorb (*) (0) (=) :=
+	assume left_absorb: 0 * x = 0;
+	end;
+
+locale MetaRightAbsorb (*) (0) (=) :=
+	assume right_absorb: x * 0 = 0;
+	end;
+
+---
+locale MetaUnitalCommutative (+) (0) (=) :=
+	import MetaEquivalence;
+	import MetaCommutative;
+	import MetaLeftNeutral;
+	interpret right: MetaNeutral :=
+		discharge x + 0 = x;
+			
+---
 interpret imp: MetaPreorder (⟹) :=
 	discharge if P: P then P;
 		by P;
@@ -102,7 +123,7 @@ locale True :=
 
 -- Obtains false, which derives everything, including non-propositions.
 locale False :=
-	obtain false where false_imp: ∀P. false ⟹ P;
+	obtain false where false_elim: ∀P. false ⟹ P;
 		case for thesis, assm: ∀false. (∀P. false ⟹ P) ⟹ thesis;
 			show 1: if 2: ∀x. x then P;
 				by 2;

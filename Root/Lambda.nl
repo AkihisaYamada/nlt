@@ -43,7 +43,7 @@ show eq_true_imp: if Pt: P = true then P;
 	unfold Pt;
 	done;
 
-define (and_def) P ∧ Q := ∀ R. (P ⟹ Q ⟹ R) ⟹ R;
+define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 
 interpret And (∧) :=
 	discharge if P: P, Q: Q then P ∧ Q;
@@ -156,4 +156,47 @@ locale DefineEx :=
 		discharge if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P;
 			by ex[unfolded ex_def];
 		end;
+	end;
+
+locale TwoValuedLambda :=
+	import TwoValued;
+	show eq_true: if P: P then P = true;
+		by imp_imp_eq[OF P true_intro];
+	show true_eq: if P: P then true = P;
+		unfold eq_true[OF P];
+		done;
+	show eq_refl_eq_true: (x = x) = true;
+		by eq_true[OF eq.refl];
+	show weaken_eq: (P ⟹ Q ⟹ P) = true;
+		by eq_true[OF weaken];
+	show eq_true_iff: P = true ⟺ P;
+		apply iff_intro;
+		case Pt: P = true;
+			unfold Pt;
+			done;
+		by eq_true;
+	show true_eq_iff: true = P ⟺ P;
+		unfold[iff] eq_iff.commute;
+		by eq_true_iff;
+	show imp_true_eq: (P ⟹ true) = true;
+		by eq_true[OF weaken[OF true_intro]];
+	show true_and_true_eq: (true ∧ true) = true;
+		by eq_true[OF true_and_true];
+	---
+	Moreover, we assume that the following identity.
+	---
+	show true_imp_eq: (true ⟹ P) = P;
+		by imp_eq[OF true_intro];
+	end;
+
+locale TwoValuedNot :=
+	fix false;
+	import TwoValuedLambda;
+	interpret DefineNot;
+	show not_false_eq: (¬false) = true;
+		apply eq_true;
+		by not_false;
+	show not_true_eq: (¬true) = false;
+		unfold not_def;
+		by true_imp_eq;
 	end;

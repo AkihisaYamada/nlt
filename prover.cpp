@@ -71,7 +71,7 @@ class Prover {
 	bool _exit_on_error;
 	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Thm> thesis = {}) :
 		_parent(Ref<Prover>::make(parent)),
-		_depth(parent._depth+1),
+		_depth(parent._depth),
 		_loc(loc),
 		_path(path),
 		_syntax(parent._syntax),
@@ -104,6 +104,10 @@ public:
 		_exit_on_error(exit_on_error) {
 		_prompt();
 	}
+	Prover&& deepen() && {
+		_depth++;
+		return std::move(*this);
+	}
 	void set_exit_on_error( bool b ) {
 		_exit_on_error = b;
 	}
@@ -126,9 +130,7 @@ public:
 		return ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
 	}
 	Thm prove(Locale const& loc, CTerm const& goal) {
-		auto sub = Prover(*this,loc,{},make_thesis(goal));
-		sub._prompt();
-		return sub.proof_loop();
+		return Prover(*this,loc,{},make_thesis(goal)).deepen()._prompt().proof_loop();
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -274,6 +276,10 @@ public:
 	Prover& _prompt() & {
 		_indent() << flush;
 		return *this;
+	}
+	Prover&& _prompt() && {
+		_indent() << flush;
+		return std::move(*this);
 	}
 	Opt<CTerm> has_goal() {
 		if( _thesis )
@@ -546,7 +552,7 @@ public:
 						if( !thesis2 ) {
 							throw Error(rule)(thesis);
 						}
-						auto spec = Prover(*this,thesis_loc,{},{thesis2}).proof_loop().intro();
+						auto spec = Prover(*this,thesis_loc,{},{thesis2}).deepen().proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 						intp.retain(_loc.cterm(term),spec);
 					} else {
@@ -574,9 +580,8 @@ public:
 					loc.fix(*sym);
 				}
 				if( _parser.skips(":=") ) {
-					auto sub = Prover(*this,loc,{},{});
 					cout << "Creating locale " << name << endl;
-					sub._prompt().loop();
+					Prover(*this,loc,{},{}).deepen()._prompt().loop();
 					cout << "end locale " << name << endl;
 				}
 				_parser.skip(";");
@@ -601,7 +606,7 @@ public:
 				_parser.skip("{");
 				cout << "in " << name << endl;
 				auto loc = find_locale(name);
-				auto sub = Prover(*this,loc).loop();
+				auto sub = Prover(*this,loc).deepen().loop();
 				_parser.skip("}");
 				cout << "left " << name << endl;
 			} else if( _parser.skips("thm") ) {
@@ -758,7 +763,7 @@ public:
 					if( !goal ) {
 						throw Error("\"unexpected case\"");
 					}
-					auto subprf = Prover(*this,_loc.branch());
+					auto subprf = Prover(*this,_loc.branch()).deepen();
 					CTerm newgoal = goal->weaken(subprf._loc);
 					cout << "Case ";
 					if( _parser.skips("for") ) {// instantiate variables as long as names are given
@@ -976,7 +981,7 @@ public:
 				auto parent_name = local_lexer.get_token();
 				local_lexer.skip(";");
 				cout << "Loading " << name << endl;
-				Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{});
+				Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{}).deepen();
 				sub.set_lexer(local_lexer);
 				sub.loop();
 				return;

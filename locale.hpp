@@ -149,7 +149,7 @@ public:
 			Intp::discharge(thm);
 			return true;
 		} else {
-			throw Error("\"failed know\"");
+			throw Error("\"failed know\"")(name)(assm);
 		}
 
 	}

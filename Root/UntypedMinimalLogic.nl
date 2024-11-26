@@ -41,34 +41,37 @@ setup cong
 	iff_cong_not: ¬P,
 	iff_cong_all! ∀x. α.[x];
 
-show or_commute: P ∨ Q ⟺ Q ∨ P;
-	by iff_intro[OF or.sym or.sym];
+interpret or_iff: MetaCommutative (∨) (⟺) :=
+	discharge P ∨ Q ⟺ Q ∨ P;
+		by iff_intro[OF or.sym or.sym];
+	end;
 
-show or_assoc: P ∨ (Q ∨ R) ⟺ P ∨ Q ∨ R;
-	apply iff_intro;
-	show! if PQR: P ∨ (Q ∨ R) then P ∨ Q ∨ R;
-		apply or_elim[OF PQR];
-		show! if P: P then P ∨ Q ∨ R;
-			by or_intro1[OF or_intro1[OF P]];
-		show! if QR: Q ∨ R then P ∨ Q ∨ R;
-			apply or_elim[OF QR];
-			show! if Q: Q then P ∨ Q ∨ R;
-				by or_intro1[OF or_intro2[OF Q]];
-			note! or_intro2;
+interpret or_iff: MetaAssociative (∨) (⟺) :=
+	discharge P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
+		apply iff_intro;
+		case PQR: P ∨ Q ∨ R;
+			apply or_elim[OF PQR];
+			case PQ: P ∨ Q;
+				apply or_elim[OF PQ];
+				note! or_intro1;
+				case Q: Q;
+					by or_intro2[OF or_intro1[OF Q]];
+				qed;
+			case R: R;
+				by or_intro2[OF or_intro2[OF R]];
+			qed;
+		case PQR: P ∨ (Q ∨ R);
+			apply or_elim[OF PQR];
+			case P: P;
+				by or_intro1[OF or_intro1[OF P]];
+			case QR: Q ∨ R;
+				apply or_elim[OF QR];
+				case Q: Q;
+					by or_intro1[OF or_intro2[OF Q]];
+				by or_intro2;
 			qed;
 		qed;
-	show! if PQR: P ∨ Q ∨ R then P ∨ (Q ∨ R);
-		apply or_elim[OF PQR];
-		show! if PQ: P ∨ Q then P ∨ (Q ∨ R);
-			apply or_elim[OF PQ];
-			note! or_intro1;
-			show! if Q: Q then P ∨ (Q ∨ R);
-				by or_intro2[OF or_intro1[OF Q]];
-			qed;
-		show! if R: R then P ∨ (Q ∨ R);
-			by or_intro2[OF or_intro2[OF R]];
-		qed;
-	qed;
+	end;
 
 show or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
