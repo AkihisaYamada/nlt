@@ -25,14 +25,16 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 	if( auto ret = find_thm("",name) ) {// unnamed import or child locale
 		return ret;
 	}
+	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
+		if( auto ret = find_thm(name.substr(0,sep),name.substr(sep+1)) ) {
+			return ret;
+		}
+	}
 	if( ancestor && _ref->parent ) {
 		if( auto opt = _ref->parent->find_thm(name) ) {// parent
 			auto ret = opt->weaken(*this);
 			return ret;
 		}
-	}
-	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
-		return find_thm(name.substr(0,sep),name.substr(sep+1));
 	}
 	return {};
 }

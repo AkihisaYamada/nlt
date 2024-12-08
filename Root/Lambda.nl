@@ -15,9 +15,11 @@ import Ext;
 
 setup conclude eq.refl;
 
-setup rewrite eq.refl eq.sym eq.trans eq_prop1;
+setup rewrite eq.refl eq.trans eq_prop1;
 
-setup cong eq_cong: f x, eq_ext! x. α.[x];
+setup dual eq.sym;
+
+setup cong eq_cong eq_ext;
 
 setup define = λ beta;
 
@@ -89,7 +91,7 @@ infix ≠ 50 50 50;
 
 locale DefineNot false :=
 	define (not_def) ¬ P := P ⟹ false;
-	interpret Not false (¬) :=
+	interpret MinimalNot false (¬) :=
 		discharge if nP: ¬P, P: P then false;
 			by nP[unfolded not_def][OF P];
 		discharge if nP: P ⟹ false then ¬P;
@@ -110,7 +112,13 @@ locale DefineNot false :=
 		apply nnot_intro;
 		by eq.refl;
 
-	show true_Neq_false: true ≠ false;
+	show neq_imp_false: if neq: x ≠ y, eq: x = y then false;
+		by not_imp_false[OF neq[unfolded neq_def] eq];
+
+	show neq_refl_imp_false: if xx: x ≠ x then false;
+		by neq_imp_false[OF xx eq.refl];
+
+	show true_neq_false: true ≠ false;
 		apply neq_intro;
 		show! if tf: true = false then false;
 			fold tf;
@@ -119,7 +127,7 @@ locale DefineNot false :=
 	end;
 
 locale DefineFalse :=
-	define false := ∀P. P;
+	define (false_def) false := ∀P. P;
 	interpret False :=
 		substitute false;
 			show! if f: false then P;
@@ -127,6 +135,7 @@ locale DefineFalse :=
 			qed;
 		end;
 	interpret DefineNot;
+	interpret Not;
 	end;
 
 locale DefineOr :=
@@ -187,6 +196,18 @@ locale TwoValuedLambda :=
 	---
 	show true_imp_eq: (true ⟹ P) = P;
 		by imp_eq[OF true_intro];
+
+	interpret imp: MetaLeftNeutral (⟹) true (=) :=
+		discharge (true ⟹ P) = P;
+			apply+ imp_eq true_intro;
+			qed;
+		end;
+
+	interpret imp: MetaRightAbsorb (⟹) true (=) :=
+		discharge (P ⟹ true) = true;
+			apply+ eq_true;
+			by weaken[OF true_intro];
+		end;
 	end;
 
 locale TwoValuedNot :=

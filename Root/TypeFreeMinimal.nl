@@ -5,7 +5,7 @@
 base Root;
 
 import PositiveLogic;
-import Not;
+import MinimalNot;
 
 setup conclude true_intro imp.refl iff.refl;
 

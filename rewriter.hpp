@@ -15,45 +15,59 @@ class Rewriter {
 	struct Cong {
 		CTerm pat;
 		Thm thm;
-		size_t refl_idx;
+		std::vector<size_t> inds;
+		Cong( CTerm const& pat, Thm const& thm, std::vector<size_t> && inds ) :
+			pat(pat), thm(thm), inds(std::move(inds)) {}
 	};
-	std::vector<Rule> congs;
-	std::vector<Rule> quantifier_congs;
-public:
-	/** ∀x. x = x */
-	Thm const refl;
-	/** ∀x y. x = y ⟹ y = x */
-	Thm const sym;
+	struct Dual {
+		Thm thm;
+		size_t ind;
+	};
+	std::vector<std::vector<Cong>> _congs;
+	/** relation symbols, e.g., ⟺ or = */
+	StrMap<size_t const> _rels;
+	/** reflexivity theorems, e.g., ∀x. x = x */
+	std::vector<Thm> _refls;
+	/** symmetry theorems, e.g., ∀x y. x = y ⟹ y = x */
+	Map<size_t,Dual> _duals;
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
-	Thm const trans;
-	/** ∀x y. (x = y) ⟹ x ⟹ y */
-	Thm const imp;
+	std::vector<Thm> _trans;
+public:
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
+	};
+	class Rules : std::vector<std::vector<Rule>> {
+		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
+		friend Rewriter;
 	};
 	struct TooFewSteps : Error {
 		static inline Term const RT = "#too_few_steps";
 		TooFewSteps(size_t a, size_t e, Term const& term) :
 			Error(RT(std::to_string(a))(std::to_string(e))(term)) {}
 	};
-	class Rules : std::vector<Rule> {
-	public:
-		Rules() {}
-		Rules& add(Thm const& thm);
-		friend Rewriter;
-	};
-	Rewriter(Thm const& refl, Thm const& sym, Thm const& trans, Thm const& imp) :
-		refl(refl), sym(sym), trans(trans), imp(imp) {}
-	Thm reverse(Thm const& thm) const {
-		return discharge(sym.weaken(thm.ctxt()),thm);
+	Rules make_rules() const {
+		return Rules(_rels.size());
 	}
-	void register_cong(CTerm const& pat, Thm const& rule) {
-		congs.push_back({pat,rule});
+	Opt<size_t> gets_rel_ind( std::string const& rel ) const {
+		if( auto const& ind = _rels.finds(rel) ) {
+			return ind->second;
+		}
+		return {};
 	}
-	void register_quantifier_cong(CTerm const& pat, Thm const& rule) {
-		quantifier_congs.emplace_back(pat,rule);
+	Thm get_refl( size_t ind ) const {
+		return _refls[ind];
 	}
+	void add_rule( Rules& rules, Thm const& thm, bool rev = false ) const;
+	/** ∀x y. (x = y) ⟹ x ⟹ y */
+	Thm const imp;
+	Rewriter(Thm const& refl, Thm const& trans, Thm const& imp) : imp(imp) {
+		register_refl(refl);
+		_trans.emplace_back(trans);
+	}
+	void register_refl(Thm const& thm);
+	void register_cong(Thm const& thm);
+	void register_dual(Thm const& thm);
 	/**
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 
@@ -61,7 +75,7 @@ public:
 	 * @return Opt<Thm> 
 	 */
 	Opt<Thm> step(Rules const& rules, CTerm const& source) const {
-		return _step(rules,source,refl.weaken(source.ctxt()));
+		return _step(rules,source,0);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -70,7 +84,7 @@ public:
 	 * @return Opt<Thm> 
 	 */
 	Opt<Thm> step(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
-		return _step(rules,source,pos.begin(),pos.end(),refl.weaken(source.ctxt()));
+		return _step(rules,source,0,pos.begin(),pos.end());
 	}
 	/**
 	 * @brief many step rewrite equation
@@ -84,8 +98,10 @@ public:
 	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
 	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
 private:
-	Opt<Thm> _step(Rules const& rules, CTerm const& source, Thm const& refl) const;
-	Opt<Thm> _step( Rules const& rules, CTerm const& haystack, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, Thm const& refl ) const;
+	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

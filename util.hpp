@@ -87,6 +87,14 @@ Opt<Thm> rules_apply( std::set<Thm> const& rules, Thm const& thesis );
 std::pair<std::string,std::list<Term>> uncurry(Term const& t);
 
 /**
+ * @brief Strip binary operator
+ * 
+ * @param t 
+ * @return std::tuple<std::string,CTerm,CTerm> 
+ */
+Opt<std::tuple<std::string,CTerm,CTerm>> strips_binary(CTerm const& t);
+
+/**
  * @brief Matching, assuming disjoint free variables.
  * @param fsyms the set of free variables
  * @param pat 

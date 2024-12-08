@@ -24,18 +24,18 @@ show not_imp_iff_false: if nP: ¬P then P ⟺ false;
 	case P: P;
 		by not_imp_false[OF nP P];
 	case f: false;
-		by false_imp[OF f];
+		by false_elim[OF f];
 	qed;
 
 show false_imp_iff: (false ⟹ P) ⟺ true;
-	by iff_true[OF false_imp];
+	by iff_true[OF false_elim];
 
 show false_and_iff: false ∧ P ⟺ false;
 	apply iff_intro;
 	show! if fP: false ∧ P then false;
 		by and_elim1[OF fP];
 	show! if f: false then false ∧ P;
-		by false_imp[OF f];
+		by false_elim[OF f];
 	qed;
 
 show and_false_iff: P ∧ false ⟺ false;
@@ -45,5 +45,5 @@ show and_false_iff: P ∧ false ⟺ false;
 show not_elim: if nP: ¬P, P: P then Q;
 	show f: false;
 		by not_imp_false[OF nP P];
-	by false_imp[OF f];
+	by false_elim[OF f];
 

@@ -131,14 +131,6 @@ locale False :=
 		qed;
 	end;
 
----
-The following locale specifies false, which derives any proposition, but not necessarily non-proposition.
-This is what usual typed logics assume.
----
-locale PropFalse prop false :=
-	assume false_imp: prop P ⟹ false ⟹ P;
-	end;
-
 infix ⟺ 1 1 0;
 locale Iff :=
 	fix (⟺);
@@ -285,7 +277,7 @@ locale Or :=
 	end;
 
 prefix ¬ 40 40;
-locale Not :=
+locale MinimalNot :=
 	fix false (¬);
 	assume not_imp_false: ¬ P ⟹ P ⟹ false;
 	assume not_intro: (P ⟹ false) ⟹ ¬ P;
@@ -363,6 +355,15 @@ locale Not :=
 		qed;
 	end;
 
+locale Not :=
+	interpret False;
+	import MinimalNot;
+	show not_elim: if nP: ¬P, P: P then Q;
+		show f: false;
+			by not_imp_false[OF nP P];
+		by false_elim[OF f];
+	end;
+
 prefix ∃ 0 0;
 
 locale Ex :=
@@ -429,8 +430,8 @@ locale Equal_Iff :=
 		discharge x = y ⟺ y = x;
 			by iff_intro[OF eq.sym eq.sym];
 		end;
-	setup rewrite eq.refl eq.sym eq.trans eq_prop1;
-	setup cong eq_cong: f x;
+	setup rewrite eq.refl eq.trans eq_prop1;
+	setup cong eq_cong;
 	show eq_imp_iff: if PQ: P = Q then P ⟺ Q;
 		unfold PQ;
 		by iff.refl;

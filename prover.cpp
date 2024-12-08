@@ -119,7 +119,7 @@ public:
 			return Prover( *this, loc, {}, {} );
 		}
 	}
-	Lexer const& get_lexer() const {
+	Lexer& get_lexer() & {
 		return _parser.get_lexer();
 	}
 	void set_lexer( Lexer& lexer ) {
@@ -172,9 +172,9 @@ public:
 		} else {
 			min = 1; max = 1; safe = true;
 		}
-		Rewriter::Rules rules;
+		Rewriter::Rules rules = rewriter.make_rules();
 		while( auto const& arg = _gets_thm(loc) ) {
-			rules.add( rev ? rewriter.reverse(*arg) : *arg );
+			rewriter.add_rule(rules,*arg,rev);
 		}
 		return rewriter.rewrite(rules,source,min,max,safe,pos);
 	}
@@ -573,7 +573,10 @@ public:
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
-			if( _parser.skips("locale") ) {
+			if( _parser.skips("include") ) {
+				load_locale(_parser.get_thm_name(),true);
+				_parser.skip(";");
+			} else if( _parser.skips("locale") ) {
 				string name = _parser.get_token();
 				auto loc = _loc.branch(name);
 				while( auto sym = gets_sym() ) {
@@ -871,43 +874,34 @@ public:
 						_parser.skip("]");
 					}
 					Thm const& refl = get_thm();
-					Thm const& sym = get_thm();
 					Thm const& trans = get_thm();
 					Thm const& imp = get_thm();
-					auto const& pair = _rewriters.insert({name,Ref<Rewriter>::make(refl,sym,trans,imp)});
+					auto const& pair = _rewriters.insert({name,Ref<Rewriter>::make(refl,trans,imp)});
 					cout << "Initialized Rewriter " << name <<
 						"\n\trefl: " << _syntax->pretty_term(refl) <<
-						"\n\tsym: " << _syntax->pretty_term(sym) <<
 						"\n\ttrans: " << _syntax->pretty_term(trans) <<
 						"\n\timp: " << _syntax->pretty_term(imp) << endl;
+				} else if( _parser.skips("dual") ) {
+					Rewriter& rewriter = *_rewriter();
+					cout << "Registering dual: ";
+					while( auto const& thm = gets_thm() ) {
+						rewriter.register_dual(*thm);
+						cout << _syntax->pretty_thm(*thm);
+					};
+					cout << endl;
 				} else if( _parser.skips("cong") ) {
 					Rewriter& rewriter = *_rewriter();
-					cout << "Registering Congruence:" << endl;
-					for(;;) {
-						Thm const& cong_thm = get_thm();
-						if( _parser.skips("!") ) {
-							CTerm cong_pat = _loc.branch().enclose(get_term());
-							rewriter.register_quantifier_cong(cong_pat,cong_thm);
-							cout << "\tquantifier [" << _syntax->pretty_term(cong_pat) <<
-								 "] " << _syntax->pretty_thm(cong_thm) << endl;
-						} else {
-							_parser.skip(":");
-							CTerm cong_pat = _loc.branch().enclose(get_term());
-							rewriter.register_cong(cong_pat,cong_thm);
-							cout << "\t[" << _syntax->pretty_term(cong_pat) <<
-								 "] " << _syntax->pretty_thm(cong_thm) << endl;
-						}
-						if( !_parser.skips(",") ) {
-							break;
-						}
-					}
+					cout << "Registering congruence: ";
+					while( auto const& thm = gets_thm() ) {
+						rewriter.register_cong(*thm);
+						cout << _syntax->pretty_thm(*thm) << flush;
+					};
+					cout << endl;
 				} else if( _parser.skips("define") ) {
-					string const& eq = _parser.get_token();
-					string const& lam = _parser.get_token();
 					Thm const& beta = get_thm();
-					cout << "equality: " << eq << " lambda: " << lam << " beta: " << _syntax->pretty_thm(beta) << endl;
+					cout << " beta: " << _syntax->pretty_thm(beta) << endl;
 					auto const& rewriter = _rewriters.find(string())->second;
-					_definer = OptRef<Definer>::make(rewriter,eq,lam,beta);
+					_definer = OptRef<Definer>::make(rewriter,beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& empty = _parser.get_term(1000);
 					Term const& singleton = _parser.get_term(1000);
@@ -970,7 +964,7 @@ public:
 			_error();
 		}
 	}
-	void load_locale( string_view const& name ) {
+	void load_locale( string_view const& name, bool open = false ) {
 		if( _path ) {
 			string dir = _path->dir + _path->name + "/";
 			auto fis = file_of_locale(dir,name);
@@ -981,9 +975,18 @@ public:
 				auto parent_name = local_lexer.get_token();
 				local_lexer.skip(";");
 				cout << "Loading " << name << endl;
-				Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{}).deepen();
-				sub.set_lexer(local_lexer);
-				sub.loop();
+				if( open ) {
+					auto prev_loc = _loc;
+					_loc = _loc.branch(name);
+					set_lexer(local_lexer);
+					loop();
+					set_lexer(prev);
+					_loc = prev_loc;
+				} else {
+					Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{}).deepen();
+					sub.set_lexer(local_lexer);
+					sub.loop();
+				}
 				return;
 			}
 		}
