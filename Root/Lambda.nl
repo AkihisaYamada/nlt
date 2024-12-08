@@ -11,17 +11,15 @@ prefix λ 0 0;
 fix (λ);
 assume beta: (λx. α.[x]) s = α.[s];
 
-import Ext;
-
 setup conclude eq.refl;
 
 setup rewrite eq.refl eq.trans eq_prop1;
 
 setup dual eq.sym;
 
-setup cong eq_cong eq_ext;
+setup cong eq_cong eq_cong_abs;
 
-setup define = λ beta;
+setup define beta;
 
 ----
 ## Defining Logical Constructs

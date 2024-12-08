@@ -367,12 +367,7 @@ public:
 		}
 		return *ret;
 	}
-	/** Creates a nested locale, where outer one fixes free variables, and 
-	 * inner locale collects assumptions.
-	 */
-	pair<Locale,CTerm> get_statement() {
-		auto var_loc = _loc.branch();
-		auto assm_loc = var_loc.branch();
+	void for_variables( Locale& var_loc ) {
 		if( _parser.skips("for") ) {
 			cout << "for" << flush;
 			while( auto const& sym = gets_sym() ) {
@@ -382,6 +377,14 @@ public:
 			_parser.skip(",");
 			cout << ", ";
 		}
+	}
+	/** Creates a nested locale, where outer one fixes free variables, and 
+	 * inner locale collects assumptions.
+	 */
+	pair<Locale,CTerm> get_statement() {
+		auto var_loc = _loc.branch();
+		auto assm_loc = var_loc.branch();
+		for_variables(var_loc);
 		if( _parser.skips("if") ) {
 			cout << "if " << flush;
 			get_named_terms([&](string const& s, Term const& t){
@@ -836,11 +839,14 @@ public:
 				_parser.skip(";");
 				cout << ';' << endl;
 			} else if( _parser.skips("assume") ) {
-				cout << "Assuming ";
-				get_named_terms([&](string const& s, Term const& t){
-					_loc.assume(s,_loc.Ctxt::branch().enclose(t).lift(_loc.cterm(ALL)));
-					cout << s << ": " << _syntax->pretty_thm(_loc.thm(s)) << "; " << flush;
-				});
+				string name = _parser.get_thm_name();
+				_parser.skip(":");
+				cout << "Assuming " << name << ": ";
+				Locale var_loc = _loc.branch();
+				for_variables(var_loc);
+				Term assm = _parser.get_term();
+				_loc.assume( name, var_loc.enclose(assm).lift(_loc.cterm(ALL)) );
+				cout << _syntax->pretty_term(assm) << "; " << flush;
 				_parser.skip(";");
 				cout << endl;
 			} else if( _parser.skips("prefix") ) {

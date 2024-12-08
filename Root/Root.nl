@@ -366,8 +366,7 @@ locale Not :=
 
 prefix ∃ 0 0;
 
-locale Ex :=
-	fix (∃);
+locale Ex (∃) :=
 	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
 	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
@@ -387,26 +386,31 @@ locale Ex :=
 ## Equality
 -----
 
-locale Equal :=
-	fix (=);
+locale Equal (=) :=
 	import eq: MetaReflexive (=);
-	assume eq_mono: ∀α. ∀x. ∀y. x = y ⟹ α.[x] ⟹ α.[y];
+	assume eq_imp_meta: for α, x = y ⟹ α.[x] ⟹ α.[y];
+	assume eq_cong_abs: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
 
-	interpret eq: MetaEquivalence (=) :=
+	interpret eq: MetaSymmetric (=) :=
 		discharge if xy: x = y then y = x;
-			by eq_mono(z. z = x)[OF xy eq.refl];
-		know;
-		discharge if xy: x = y, yz: y = z then x = z;
-			by eq_mono(w. x = w)[OF yz xy];
+			by eq_imp_meta(z. z = x)[OF xy eq.refl];
 		end;
 
-	show arg_cong: if xy: x = y then f x = f y;
-		note 1: eq.refl(f x);
-		by eq_mono(z. f x = f z)[OF xy 1];
+	interpret eq: MetaTransitive (=) :=
+		discharge if xy: x = y, yz: y = z then x = z;
+			by eq_imp_meta(w. x = w)[OF yz xy];
+		end;
 
-	show fun_cong: if fg: f = g then f x = g x;
-		note 1: eq.refl(f x);
-		by eq_mono(h. f x = h x)[OF fg 1];
+	interpret eq: MetaEquivalence (=);
+
+	show eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y];
+		by eq_imp_meta(z. α.[x] = α.[z])[OF xy eq.refl];
+
+	show arg_cong: x = y ⟹ f x = f y;
+		by eq_cong_meta(z. f z);
+
+	show fun_cong: f = g ⟹ f x = g x;
+		by eq_cong_meta(h. h x);
 
 	show eq_cong: if fg: f = g, xy: x = y then f x = g y;
 		show 1: f x = f y;
@@ -416,7 +420,7 @@ locale Equal :=
 		by eq.trans[OF 1 2];
 
 	show eq_prop1: P = Q ⟹ P ⟹ Q;
-		by eq_mono(x. x);
+		by eq_imp_meta(x. x);
 
 	show eq_prop2: if PQ: P = Q then Q ⟹ P;
 		by eq_prop1[OF eq.sym[OF PQ]];
@@ -437,11 +441,6 @@ locale Equal_Iff :=
 		by iff.refl;
 	end;
 
-locale Ext :=
-	import Equal;
-	assume eq_ext: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
-	end;
-
 locale TwoValued :=
 	import Equal;
 	assume imp_imp_eq: P ⟹ Q ⟹ P = Q;
@@ -454,47 +453,41 @@ locale TwoValued :=
 
 infix ∈ 50 50 50;
 
-locale In :=
-	fix (∈);
-	end;
-
-locale Collect :=
-	fix Collect (∈);
+locale Collect Collect (∈) :=
 	assume in_Collect_iff: x ∈ Collect P ⟺ P x;
 	end;
 
-locale Reflexive :=
-	fix mem (≤);
+locale Reflexive mem (≤) :=
 	assume refl: mem x ⟹ x ≤ x;
 	end;
 
-locale Symmetric :=
-	fix mem (≤);
+locale Symmetric mem (≤) :=
 	assume sym: mem x ⟹ mem y ⟹ x ≤ y ⟹ y ≤ x;
 	end;
 
-locale Member :=
-	fix mem c;
+locale Member mem c :=
 	assume type: mem c;
 	end;
 
-locale Unary :=
-	fix mem f;
+locale Unary mem f :=
 	assume type: mem x ⟹ mem (f x);
 	end;
 
-locale Magma :=
-	fix mem (+);
+locale Magma mem (+) :=
 	assume type: mem x ⟹ mem y ⟹ mem (x + y);
 	end;
 
-locale Binder :=
-	fix mem ξ;
+locale Binder mem ξ :=
 	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
 	end;
 
-locale PropOr :=
-	fix prop (∨);
+locale Prop prop :=
+	assume prop_prop: prop (prop x);
+	import imp: Magma prop (⟹);
+	import all: Binder prop (∀);
+	end;
+
+locale PropOr prop (∨) :=
 	import or: Magma prop (∨);
 	assume or_intro1: P ⟹ P ∨ Q;
 	assume or_intro2: Q ⟹ P ∨ Q;
@@ -507,8 +500,7 @@ locale PropOr :=
 		end;
 	end;
 
-locale PropEx :=
-	fix prop (∃);
+locale PropEx prop (∃) :=
 	import ex: Binder prop (∃);
 	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
 	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
@@ -529,7 +521,6 @@ locale PropEx :=
 
 	end;
 
-locale ExcludedMiddle :=
-	fix prop (∨) (¬);
+locale ExcludedMiddle prop (∨) (¬) :=
 	assume excluded_middle: prop P ⟹ P ∨ ¬P;
 	end;

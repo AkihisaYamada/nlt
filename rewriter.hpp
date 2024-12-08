@@ -16,8 +16,8 @@ class Rewriter {
 		CTerm pat;
 		Thm thm;
 		std::vector<size_t> inds;
-		Cong( CTerm const& pat, Thm const& thm, std::vector<size_t> && inds ) :
-			pat(pat), thm(thm), inds(std::move(inds)) {}
+		std::vector<bool> abss;
+		Cong( CTerm const& pat, Thm const& thm, std::vector<size_t> && inds, std::vector<bool> && abss ) : pat(pat), thm(thm), inds(std::move(inds)), abss(std::move(abss)) {}
 	};
 	struct Dual {
 		Thm thm;

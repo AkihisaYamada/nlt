@@ -15,6 +15,13 @@ Opt<tuple<string,CTerm,CTerm>> strips_binary( CTerm const& term ) {
 	}
 	return {};
 }
+Opt<string const&> gets_binary_sym( Term term ) {
+	if( auto const& app = term.app() )
+	if( auto const& app2 = app->first.app() ) {
+		return app2->first.sym();
+	}
+	return {};
+}
 
 void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
@@ -23,10 +30,10 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
 		if( rev ) {
-			auto const& dual = _duals.finds(ind);
+			auto const& dual = _duals.finds(*ind);
 			if( !dual ) throw Error("\"no dual rule registered\"");
-			Thm body2 = dual->second.thm.weaken(loc) << body;
-			rules[dual->second.ind].emplace_back(body2.intro(),body2);
+			Thm dual_thm = dual->second.thm.weaken(loc) << body;
+			rules[dual->second.ind].emplace_back(get<2>(*bin),dual_thm);
 		} else {
 			rules[*ind].emplace_back(get<1>(*bin),body);
 		}
@@ -50,10 +57,18 @@ void Rewriter::register_cong( Thm const& thm ) {
 	Ctxt ctxt = rule.ctxt();
 	size_t rev = 0;
 	vector<size_t> inds;
+	vector<bool> abss;
 	while( ctxt.fixed(rev) ) rev++;
-	while( auto const& assm = ctxt.assumed(rev) ) {
-		if( auto const& bin = strips_binary(*assm) )
-		if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
+	while( auto const& o = ctxt.assumed(rev) ) {
+		Term assm = *o;
+		if( auto const& all = assm.binder(ALL) ) {
+			assm = all->second;
+			abss.emplace_back(true);
+		} else {
+			abss.emplace_back(false);
+		}
+		if( auto const& rel = gets_binary_sym(assm) )
+		if( auto const& ind = gets_rel_ind(*rel) ) {
 			inds.emplace_back(*ind);
 			rev++;
 			continue;
@@ -66,7 +81,7 @@ void Rewriter::register_cong( Thm const& thm ) {
 	auto const& ind = gets_rel_ind(rel);
 	if( !ind ) throw UnregisteredRel(rel);
 	auto const& pat = thm.ctxt().branch().enclose(l);
-	_congs[*ind].emplace_back(pat,thm,std::move(inds));
+	_congs[*ind].emplace_back(pat,thm,std::move(inds),std::move(abss));
 }
 
 void Rewriter::register_dual( Thm const& thm ) {
@@ -84,13 +99,11 @@ void Rewriter::register_dual( Thm const& thm ) {
 }
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, CTerm const& source, size_t ind ) const {
-	if( auto const& abs = source.cabs() ) {
-		CTerm const& body = abs->second;
-		if( auto const& eq = _step(rules,body,ind) ) {
-			return eq->intro();
-		}
-	} else {
-		return _step(rules,source,ind);
+	auto const& abs = source.cabs();
+	assert(abs);
+	CTerm const& body = abs->second;
+	if( auto const& eq = _step(rules,body,ind) ) {
+		return eq->intro();
 	}
 	return {};
 }
@@ -107,13 +120,16 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 				assert(v);
 				intp.instantiate(*m->get(*v));
 			}
-			return intp.subst(rule.thm); // l[m] = r[m]
+			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
+DEB(ret);
+			return ret;
 		}
 	}
 	bool success = false;
 	for( auto const& cong : _congs[ind] ) {
 		Ctxt const& ctxt = cong.pat.ctxt();
 		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
+DEB(*m);
 			Thm ret = cong.thm.weaken(source_ctxt);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			size_t n = ctxt.revision();
@@ -123,12 +139,20 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 				auto const& si = m->get(*v);
 				assert(si);
 				size_t ind_i = cong.inds[i];
-				if( auto const& eq = _step_abs(rules,*si,ind_i) ) {
+				if( cong.abss[i] ) {
+					if( auto const& eq = _step_abs(rules,*si,ind_i) ) {
+						ret = ret << *eq;
+						success = true;
+					} else {
+						return {};
+					}
+				} else if( auto const& eq = _step(rules,*si,ind_i) ) {
 					ret = ret << *eq;
 					success = true;
 				} else {
 					ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
 				}
+DEB(ret);
 			}
 			if( success ) return ret;
 			return {};
@@ -138,13 +162,11 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 }
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
-	if( auto const& abs = source.cabs() ) {
-		CTerm const& body = abs->second;
-		if( auto const& eq = _step(rules,body,ind,pos_it,pos_end) ) {
-			return eq->intro();
-		}
-	} else {
-		return _step(rules,source,ind,pos_it,pos_end);
+	auto const& abs = source.cabs();
+	assert(abs);
+	CTerm const& body = abs->second;
+	if( auto const& eq = _step(rules,body,ind,pos_it,pos_end) ) {
+		return eq->intro();
 	}
 	return {};
 }
@@ -156,7 +178,6 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 	auto const& source_ctxt = source.ctxt();
 	for( auto const& cong : _congs[ind] ) {
 		auto const& pat_ctxt = cong.pat.ctxt();// C[x...]
-		auto const& inds = cong.inds;// relation indices
 		if( auto const& m = match(pat_ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
 			Thm ret = cong.thm.weaken(source_ctxt);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
 			size_t i = 0;
@@ -168,9 +189,9 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 				auto const& ind_i = cong.inds[i];
 				if( *pos_it == i ) {// rewrite step must occur inside this position
 					pos_it++;
-					auto const& eq = _step_abs(rules,*si,ind_i,pos_it,pos_end);
+					auto const& eq = cong.abss[i] ? _step_abs(rules,*si,ind_i,pos_it,pos_end) : _step(rules,*si,ind_i,pos_it,pos_end);
 					if( !eq ) return {};// no rewrite step was done
-					ret = discharge(ret,*eq);// rewrite step was successful
+					ret = ret << *eq;// rewrite step was successful
 					for(;;) {// remaining variables are instantiated as is
 						i++;
 						if( i == var_end ) return ret;
@@ -181,7 +202,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 				if( i == var_end ) {
 					return {};
 				}
-				ret = discharge(ret,_refls[ind_i].allE(*si));
+				ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
 			}
 		}
 	}

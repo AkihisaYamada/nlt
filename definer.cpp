@@ -7,14 +7,15 @@ static Error const UnknownEq = Error("#unknown-equality");
 
 Definer::_Init Definer::_init(Ref<Rewriter const> const& rewriter, Thm const& beta) {
 	auto const& beta2 = make_rule(beta);
-	auto const& bin = strips_binary(beta2);
+	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
 	auto const& [EQ,l,r] = *bin;
-	auto const& app = l.app();
-	if( !app ) throw MalformedBeta(beta);
 	auto const& ind = rewriter->gets_rel_ind(EQ);
 	if( !ind ) throw UnknownEq(beta);
-	return {rewriter,EQ,app->first,beta,rewriter->get_refl(*ind)};
+	auto const& bin2 = strips_binary(l);// l: (λ _) _
+	if( !bin2 ) throw MalformedBeta(beta);
+	auto const& [LAM,abs,arg] = *bin2;
+	return {rewriter,EQ,LAM,beta,rewriter->get_refl(*ind)};
 }
 
 pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<string const&> name) const {
@@ -39,7 +40,7 @@ pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<
 	Thm thm = sub.assume( f &= rule >>= thesis );// (∀f x... l = r) ⟹ thesis
 	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
 	thm = rewriter->rewrite(beta,thm,steps,steps,true,{0,1});// (∀x... r = r) ⟹ thesis
-	thm = thm << refl;// thesis
+	thm = thm << refl.weaken(sub);// thesis
 	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis
 	auto [cf,spec] = loc.obtain( f, thm, make_spec_name( name ? *name : f ) );// f, ((∀x... l = r) ⟹ thesis) ⟹ thesis
 	return {f,spec};
