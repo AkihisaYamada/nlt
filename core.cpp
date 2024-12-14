@@ -190,7 +190,7 @@ Term Term::_Mapper::map( Term const& t ) {
 			auto const& [x,t] = *nabs;
 			// return t[x := s'], where bound variables are considered fixed.
 			auto newfixed = [&]( string_view const& sym ) {
-				return fixed(sym) || bsyms.contains(sym);
+				return sym == x || fixed(sym) || bsyms.contains(sym);
 			};
 			return t.map(unit_map(x,maps),newfixed);
 		} else {

@@ -17,18 +17,20 @@ int main() try {
 	foo.fix("A");
 	auto freeA = [](string_view const x) { return x == "A"; };
 	auto xAx = foo.cterm( "x" &= "A" %= Term("x") );
-	auto yxy = foo.cterm( "y" &= "x" &= Term("y") & "x" );
+	auto yxy = foo.cterm( "y" &= "x" &= Term("y") );
 	auto unifier = unify(xAx, yxy, freeA);
 	assert(unifier);
 	cout << xAx << " unifies " << yxy << " via " << *unifier << endl;
 	cout << xAx.subst(*unifier) << endl;
 	assert( xAx.subst(*unifier) == yxy );
 
-	auto m = match(xAx,yxy,freeA);
+	auto xAxx = foo.cterm( "x" &= ("A" %= Term("x")) );
+	auto yxyy = foo.cterm( "x'" &= ("x" &= Term("x'") >>= "x") );
+	auto m = match(xAxx,yxyy,freeA);
 	assert(m);
-	cout << xAx << " matches " << yxy << " via " << *unifier << endl;
-	cout << xAx.subst(*m) << endl;
-	assert( xAx.subst(*m) == yxy );
+	cout << xAxx << " matches " << yxyy << " via " << *m << endl;
+	cout << xAxx.subst(*m) << endl;
+	assert( xAxx.subst(*m) == yxyy );
 
 	Ctxt Root;
 	Thm imp_refl = [&]{

@@ -15,6 +15,7 @@
 
 
 #define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << std::endl; } while(0)
+#define DEBval(expr) [&]{ auto ret = (expr); DEB(ret); return ret; }()
 
 #define ALL_char '∀'
 #define IMP_char '⟹'
@@ -442,7 +443,7 @@ public:
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
-	Opt<CTerm> fixes(std::string_view const& name) const;
+	std::function<bool(std::string_view const&)> fixes = [this]( auto const& v ){ return fvars().contains(v); };
 	/** Locally obtained constants. */
 	StrSet const& consts() const&;
 	/** Tests if a variable is locally obtained. */
@@ -870,13 +871,6 @@ public:
 	void retain(CTerm const& term, Thm const& spec);
 	friend Ctxt;
 };
-
-inline Opt<CTerm> Ctxt::fixes(std::string_view const& name) const {
-	if( auto it = fvars().find(name); it != fvars().end() ) {
-		return CTerm(*this,*it);
-	}
-	return {};
-}
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	if( auto it = consts().find(name); it != consts().end() ) {
 		return CTerm(*this,*it);

@@ -75,7 +75,6 @@ struct Matcher {
 		return {};
 	}
 	bool match(CTerm const& pat, CTerm const& val) {
-DEB(pat << "  <<  " << val);
 		if( auto sym = pat.sym() ) {// pat is a symbol
 			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
 				if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
@@ -170,7 +169,6 @@ DEB(pat << "  <<  " << val);
 				if( fvar(x) ) {// applied pattern variable
 					if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
 						if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
-DEB(pat);
 							matcher.assign(x,*abs);
 							return true;
 						}
@@ -256,7 +254,7 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 		throw Error("#apply")(thesis);
 	}
 	Thm rule = make_rule(thm);
-	auto const& m = match(rule,imp->first,[&](string_view const& v){return rule.ctxt().fixes(v);});
+	auto const& m = match(rule,imp->first,rule.ctxt().fixes);
 	if( !m ) {
 		return {};
 	}
@@ -289,13 +287,13 @@ Opt<Thm> rules_apply( set<Thm> const& rules, Thm const& thesis ) {
 Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	Ctxt rule_ctxt = ctxt.branch();
-	Thm rule = strip_all(thm,rule_ctxt);
+	Thm rule = strip_all(thm,rule_ctxt,fresh_maker());
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) {
 		throw Error("#match_discharge")(thm);
 	}
 	auto const& arg_weaken = arg.weaken(ctxt);
-	auto const& m = match(imp->first,arg_weaken,[&](string_view const& v){ return rule.ctxt().fixes(v);});
+	auto const& m = match(imp->first,arg_weaken,rule.ctxt().fixes);
 	if( !m ) {
 		return {};
 	}

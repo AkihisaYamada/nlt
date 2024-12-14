@@ -8,7 +8,7 @@
 	"name": "(gdb) Launch",
 	"type": "cppdbg",
 	"request": "launch",
-	"program": "${workspaceFolder}/test.exe",
+	"program": "${workspaceFolder}/test_core.exe",
 	"args": ["Root/TwoValuedLogic"],
 	"stopAtEntry": true,
 	"externalConsole": true,

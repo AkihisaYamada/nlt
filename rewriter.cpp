@@ -112,7 +112,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 	auto const& source_ctxt = source.ctxt();
 	for( auto const& rule : rules[ind] ) {
 		Ctxt const& rule_ctxt = rule.pat.ctxt();
-		if( auto const& m = match(rule_ctxt.fvars(),rule.pat,source) ) {
+		if( auto const& m = match(rule.pat,source,rule_ctxt.fixes) ) {
 			// source: l[m]
 			auto intp = Intp(rule_ctxt,source_ctxt);
 			for( int i = 0; i < rule_ctxt.revision(); i++ ) {
@@ -127,7 +127,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 	bool success = false;
 	for( auto const& cong : _congs[ind] ) {
 		Ctxt const& ctxt = cong.pat.ctxt();
-		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
+		if( auto const& m = match(cong.pat,source,ctxt.fixes) ) {// source: C[s...]
 			Thm ret = cong.thm.weaken(source_ctxt);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			size_t n = ctxt.revision();
@@ -177,7 +177,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 	auto const& source_ctxt = source.ctxt();
 	for( auto const& cong : _congs[ind] ) {
 		auto const& pat_ctxt = cong.pat.ctxt();// C[x...]
-		if( auto const& m = match(pat_ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
+		if( auto const& m = match(cong.pat,source,pat_ctxt.fixes) ) {// source: C[s...]
 			Thm ret = cong.thm.weaken(source_ctxt);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
 			size_t i = 0;
 			auto var_end = pat_ctxt.revision();

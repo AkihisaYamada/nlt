@@ -325,7 +325,7 @@ public:
 		arg = arg.weaken(goal_vars);// arg will be instantiated with goal variables
 		Ctxt arg_vars = goal_vars.branch();
 		Thm arg_strip = strip_all(arg,arg_vars);
-		Opt<CSubst> matcher = match(arg_vars.fvars(),arg_strip,goal_strip.weaken(arg_vars));
+		Opt<CSubst> matcher = match(arg_strip,goal_strip.weaken(arg_vars),arg_vars.fixes);
 		if( !matcher ) {
 			throw ProofMismatch(goal_strip)(arg_strip);
 		}
@@ -500,7 +500,7 @@ public:
 						auto const& var_loc = *assm_loc.parent();
 						auto axiom_vars = axiom.ctxt().branch();
 						auto const& goal = strip_all(axiom,axiom_vars);
-						auto const& m = match(var_loc.fvars(),claim,goal);
+						auto const& m = match(claim,goal,var_loc.fixes);
 						if( !m ) {
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}

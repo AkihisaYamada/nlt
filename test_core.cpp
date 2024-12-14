@@ -23,16 +23,24 @@ int main() try {
 		Term t = xyx.subst("y",loc.fix("x"));
 		cout << "(" << xyx << ")(y := x) = " << t << endl;
 		assert(t == ("x'" &= x & Term("x'")));
+	}
+	{
+		Ctxt loc;
 		loc.fix("A");
-		auto u = loc.cterm( "x" /= "A" %= x );
-		auto v = loc.cterm( "y" /= "x" /= y );
+		auto u = loc.cterm( "x" &= "A" %= x );
+		auto v = loc.cterm( "y" /= "x" &= y );
 		Term uv = u.subst("A",v);
 		cout << "(" << u << ")(A := " << v << ") = " << uv << endl;
-		assert( uv == v );
+		assert( uv == ("y" &= "x" &= y) );
+		v = loc.cterm( "x'" /= "x" &= x >>= "x'" );
+		uv = u.subst("A",v);
+		cout << "(" << u << ")(A := " << v << ") = " << uv << endl;
+		assert( uv == ( "x" &= "y" &= Term("y") >>= Term("x") ) );
+		loc.fix("x");
 		auto w = loc.cterm( "y" /= x(y) );
 		auto uw = u.subst("A",w);
 		cout << "(" << u << ")(A := " << w << ") = " << uw << endl;
-		assert( uw == w );
+		assert( uw == ( "y" &= x(y) ) );
 		auto xyAy = loc.cterm( "x" /= "y" /= "A" %= y );
 		auto yx = loc.cterm( "y" /= x );
 		auto r = xyAy.subst("A",yx);
@@ -130,7 +138,7 @@ int main() try {
 	cout << "proved iff_trans: " << iff_trans << endl;
 	cout << "\n--- PropLogic ---" << endl;
 	Ctxt Logic;
-	Intp Logic_Iff = Intp::make(Iff,Logic);
+	Intp Logic_Iff = Intp(Iff,Logic);
 	Logic_Iff.instantiate(Logic.fix(IFF));
 	cout << "imported ⟺" << endl;
 	Logic_Iff.discharge(Logic.assume((Term)iffI1));
@@ -139,7 +147,7 @@ int main() try {
 	cout << "imported iffI1: " << Logic_Iff.subst(iffI1) << endl
 		<< "  and iffE1: " << Logic_Iff.subst(iffE1) << endl
 		<< "  and iffE2: " << Logic_Iff.subst(iffE2) << endl;
-	Intp Logic_And = Intp::make(And,Logic);
+	Intp Logic_And = Intp(And,Logic);
 	Logic_And.instantiate(Logic.fix(AND));
 	Logic_And.discharge(Logic.assume((Term)andI1));
 	Logic_And.discharge(Logic.assume((Term)andE1));
