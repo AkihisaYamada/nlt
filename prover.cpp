@@ -330,11 +330,11 @@ public:
 			throw ProofMismatch(goal_strip)(arg_strip);
 		}
 		// instantiate arg variables
-		auto intp = Intp::make(arg_vars,goal_vars);
+		auto intp = Intp(arg_vars,goal_vars);
 		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
-			auto v = arg_vars.fixed(i);
+			auto const& v = arg_vars.fixed(i);
 			assert(v);
-			auto val = matcher->get(*v);
+			auto const& val = matcher->get(*v);
 			intp.instantiate( val ? val->csubst(goal_vars) : goal_vars.cterm(DUMMY)/* dummy */ );
 		}
 		Thm inst = intp.subst(arg_strip);

@@ -408,13 +408,12 @@ CTerm Term::csubst(CSubst const& subst) const {
 	};
 	return CTerm(ctxt,map(f,fixed));
 }
-Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
+Intp::Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
 	if( auto srcParent = src.find_parent() ) {
 		if( !tgt.has_ancestor(*srcParent) ) {
 			throw WrongContext("making interpretation");
 		}
 	}
-	return Intp(src,tgt);
 }
 CTerm Intp::subst(CTerm const& thm) const {
 	if( thm.ctxt() != _src ) {

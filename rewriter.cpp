@@ -114,14 +114,13 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 		Ctxt const& rule_ctxt = rule.pat.ctxt();
 		if( auto const& m = match(rule_ctxt.fvars(),rule.pat,source) ) {
 			// source: l[m]
-			Intp intp = Intp::make(rule_ctxt,source_ctxt);
+			auto intp = Intp(rule_ctxt,source_ctxt);
 			for( int i = 0; i < rule_ctxt.revision(); i++ ) {
 				auto v = rule_ctxt.fixed(i);
 				assert(v);
 				intp.instantiate(*m->get(*v));
 			}
 			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
-DEB(ret);
 			return ret;
 		}
 	}
@@ -129,7 +128,6 @@ DEB(ret);
 	for( auto const& cong : _congs[ind] ) {
 		Ctxt const& ctxt = cong.pat.ctxt();
 		if( auto const& m = match(ctxt.fvars(),cong.pat,source) ) {// source: C[s...]
-DEB(*m);
 			Thm ret = cong.thm.weaken(source_ctxt);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			size_t n = ctxt.revision();
@@ -141,18 +139,19 @@ DEB(*m);
 				size_t ind_i = cong.inds[i];
 				if( cong.abss[i] ) {
 					if( auto const& eq = _step_abs(rules,*si,ind_i) ) {
-						ret = ret << *eq;
+DEB(ret << "  <<  " << *eq);
+						ret = *match_discharge(ret,*eq);
+DEB(ret);
 						success = true;
 					} else {
 						return {};
 					}
 				} else if( auto const& eq = _step(rules,*si,ind_i) ) {
-					ret = ret << *eq;
+					ret = *match_discharge(ret,*eq);
 					success = true;
 				} else {
 					ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
 				}
-DEB(ret);
 			}
 			if( success ) return ret;
 			return {};

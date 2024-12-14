@@ -810,14 +810,12 @@ class Intp {
 	CSubst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
-	Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
-	}
 public:
 	/** @brief makes initial interpretation.
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
-	static Intp make(Ctxt const& src, Ctxt const& tgt);
+	Intp(Ctxt const& src, Ctxt const& tgt);
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};

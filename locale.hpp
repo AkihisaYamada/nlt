@@ -99,7 +99,7 @@ public:
 	 * @param tgt the locale that interprets src
 	 */
 	Import( Locale const& tgt, Locale const& src ) :
-		Intp(Intp::make(src,tgt)), _src(src), _tgt(tgt) {
+		Intp(src,tgt), _src(src), _tgt(tgt) {
 	}
 	Locale const& source() const& {
 		return _src;

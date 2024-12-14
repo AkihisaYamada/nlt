@@ -72,8 +72,19 @@ inline Thm strip_all( Thm thm, Ctxt& ctxt ) {
 /** @brief Makes a theorem into the conclusion, whose context contains the conditions. */
 Thm make_rule( Thm const& thm );
 
-/** @brief Applies an inference rule */
-Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis );
+/** @brief Applies a theorem on a premise of a thesis.
+ * @param thm of form ∀x... φ... ⟹ ψ
+ * @param thesis of form ψθ ⟹ χ
+ * @return ∀y... φθ... ⟹ χ
+ */
+Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis );
+
+/** @brief 
+ * @param imp ∀x... φ ⟹ ψ
+ * @param arg φθ
+ * @return ∀y... ψθ
+ */
+Opt<Thm> match_discharge( Thm const& imp, Thm const& arg );
 
 /** @brief Applies one of inference rules */
 Opt<Thm> rules_apply( std::set<Thm> const& rules, Thm const& thesis );
@@ -96,11 +107,11 @@ Opt<std::tuple<std::string,CTerm,CTerm>> strips_binary(CTerm const& t);
 
 /**
  * @brief Matching, assuming disjoint free variables.
- * @param fsyms the set of free variables
  * @param pat 
  * @param val 
+ * @param fvar signifies free variables.
  */
-Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val);
+Opt<CSubst> match( CTerm const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
 
 /**
  * @brief Unification.

@@ -13,15 +13,22 @@ int main() try {
 	SYNTAX.infix(IFF,0,1,1);
 
 	Ctxt foo;
+	foo.fix(AND);
 	foo.fix("A");
 	auto freeA = [](string_view const x) { return x == "A"; };
-	auto xAx = foo.cterm( "x" /= "A" %= Term("x") );
-	auto yyy = foo.cterm( "y" /= "x" /= Term("y") );
-	auto unifier = unify( xAx, yyy, freeA);
+	auto xAx = foo.cterm( "x" &= "A" %= Term("x") );
+	auto yxy = foo.cterm( "y" &= "x" &= Term("y") & "x" );
+	auto unifier = unify(xAx, yxy, freeA);
 	assert(unifier);
-	cout << xAx << " unify " << yyy << " via " << *unifier << endl;
+	cout << xAx << " unifies " << yxy << " via " << *unifier << endl;
 	cout << xAx.subst(*unifier) << endl;
-	assert( xAx.subst(*unifier) == yyy );
+	assert( xAx.subst(*unifier) == yxy );
+
+	auto m = match(xAx,yxy,freeA);
+	assert(m);
+	cout << xAx << " matches " << yxy << " via " << *unifier << endl;
+	cout << xAx.subst(*m) << endl;
+	assert( xAx.subst(*m) == yxy );
 
 	Ctxt Root;
 	Thm imp_refl = [&]{

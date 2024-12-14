@@ -62,12 +62,12 @@ Opt<size_t> find_last( std::vector<T> const& haystack, T const& needle ) {
 struct Matcher {
 	CSubst matcher;
 	StrSet escaped_var;// in α.[...α...], second α is escaping
-	StrSet const& fsyms;
+	function<bool(string_view const&)> const& fvar;
 	StrMap<unsigned int> linds;
 	vector<string> rbvars;
 	StrMap<unsigned int> rinds;
 	unsigned int depth = 0;
-	Matcher( Ctxt const& ctxt, StrSet const& fsyms ) : matcher(ctxt), fsyms(fsyms) {}
+	Matcher( Ctxt const& ctxt, function<bool(string_view const&)> const& fvar ) : matcher(ctxt), fvar(fvar) {}
 	Opt<CSubst> matches( CTerm const& pat, CTerm const& val ) && {
 		if( match(pat,val) ) {
 			return std::move(matcher);
@@ -75,6 +75,7 @@ struct Matcher {
 		return {};
 	}
 	bool match(CTerm const& pat, CTerm const& val) {
+DEB(pat << "  <<  " << val);
 		if( auto sym = pat.sym() ) {// pat is a symbol
 			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
 				if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
@@ -83,7 +84,7 @@ struct Matcher {
 				return false;
 			} else if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
 				return (Term)*map_opt == val;// equal as term (may belong to different context)
-			} else if( fsyms.contains(*sym) ) {// free symbol
+			} else if( fvar(*sym) ) {// free symbol
 				if( val.ctxt() == matcher.ctxt() ) {
 					matcher.assign(*sym,val);// assigning to the variable
 					return true;
@@ -166,9 +167,10 @@ struct Matcher {
 					}
 					return false;
 				}
-				if( fsyms.contains(x) ) {// applied pattern variable
+				if( fvar(x) ) {// applied pattern variable
 					if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
 						if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
+DEB(pat);
 							matcher.assign(x,*abs);
 							return true;
 						}
@@ -206,8 +208,8 @@ struct Matcher {
 	}
 };
 
-Opt<CSubst> match(StrSet const& fsyms, CTerm const& pat, CTerm const& val) {
-	return Matcher(val.ctxt(),fsyms).matches(pat,val);
+Opt<CSubst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
+	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
 Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer ) {
 	thm = thm.weaken(ctxt);
@@ -254,11 +256,11 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 		throw Error("#apply")(thesis);
 	}
 	Thm rule = make_rule(thm);
-	auto const& m = match(rule.ctxt().fvars(),rule,imp->first);
+	auto const& m = match(rule,imp->first,[&](string_view const& v){return rule.ctxt().fixes(v);});
 	if( !m ) {
 		return {};
 	}
-	Intp intp = Intp::make(rule.ctxt(),ctxt);
+	auto intp = Intp(rule.ctxt(),ctxt);
 	for(;;) {
 		if( auto const& v = intp.fixing() ) {
 			if( auto const& val = m->get(*v) ) {
@@ -282,4 +284,32 @@ Opt<Thm> rules_apply( set<Thm> const& rules, Thm const& thesis ) {
 		}
 	}
 	return {};
+}
+
+Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
+	Ctxt ctxt = thm.ctxt().branch();
+	Ctxt rule_ctxt = ctxt.branch();
+	Thm rule = strip_all(thm,rule_ctxt);
+	auto const& imp = rule.cbinary(IMP);
+	if( !imp ) {
+		throw Error("#match_discharge")(thm);
+	}
+	auto const& arg_weaken = arg.weaken(ctxt);
+	auto const& m = match(imp->first,arg_weaken,[&](string_view const& v){ return rule.ctxt().fixes(v);});
+	if( !m ) {
+		return {};
+	}
+	rule = rule.impE(rule_ctxt.assume(imp->first));
+	auto intp = Intp(rule_ctxt,ctxt);
+	while( auto const& v = intp.fixing() ) {
+		if( auto const& val = m->get(*v) ) {
+			intp.instantiate(*val);
+		} else {
+			intp.instantiate(ctxt.fix(*v));
+		}
+	}
+	auto const& assm = intp.assuming();
+	assert(assm);
+	intp.discharge(arg_weaken);
+	return intp.subst(rule).intro();
 }

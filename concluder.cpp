@@ -4,7 +4,7 @@ using namespace std;
 
 Thm conclude( CSubst const& matcher, Thm const& thesis, Thm const& thm_strip ) {
 	auto const& thm_vars = thm_strip.ctxt();
-	auto intp = Intp::make(thm_vars,thesis.ctxt());
+	auto intp = Intp(thm_vars,thesis.ctxt());
 	while( auto const& sym = intp.fixing() ) {
 		auto const& val = matcher.get(*sym);
 		intp.instantiate( val ? *val : thesis.ctxt().cterm(DUMMY));

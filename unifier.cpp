@@ -292,7 +292,6 @@ private:
 	}
 public:
 	void unify(CTerm const& l, CTerm const& r) {
-DEB( l << " vs " << r );
 		if( auto lsym = l.sym() ) {
 			return unify_lsym(*lsym,r);
 		}
