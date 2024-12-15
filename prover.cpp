@@ -325,7 +325,7 @@ public:
 		arg = arg.weaken(goal_vars);// arg will be instantiated with goal variables
 		Ctxt arg_vars = goal_vars.branch();
 		Thm arg_strip = strip_all(arg,arg_vars);
-		Opt<CSubst> matcher = match(arg_strip,goal_strip.weaken(arg_vars),arg_vars.fixes);
+		Opt<CSubst> matcher = match(arg_strip,goal_strip.weaken(arg_vars),[&](auto v){ return arg_vars.fixes(v); });
 		if( !matcher ) {
 			throw ProofMismatch(goal_strip)(arg_strip);
 		}
@@ -500,7 +500,7 @@ public:
 						auto const& var_loc = *assm_loc.parent();
 						auto axiom_vars = axiom.ctxt().branch();
 						auto const& goal = strip_all(axiom,axiom_vars);
-						auto const& m = match(claim,goal,var_loc.fixes);
+						auto const& m = match(claim,goal,[&](auto v){ return var_loc.fixes(v); });
 						if( !m ) {
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
@@ -882,7 +882,10 @@ public:
 					Thm const& refl = get_thm();
 					Thm const& trans = get_thm();
 					Thm const& imp = get_thm();
-					auto const& pair = _rewriters.insert({name,Ref<Rewriter>::make(refl,trans,imp)});
+					auto const& [it,test] = _rewriters.insert({name,Ref<Rewriter>::make(refl,trans,imp)});
+					if( !test ) {
+						throw Error("\"rewriter already initialized\"");
+					}
 					cout << "Initialized Rewriter " << name <<
 						"\n\trefl: " << _syntax->pretty_term(refl) <<
 						"\n\ttrans: " << _syntax->pretty_term(trans) <<

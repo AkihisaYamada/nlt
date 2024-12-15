@@ -6,6 +6,7 @@ base Root;
 
 fix prop (∧) (∨) (⟺) (¬) (∃);
 
+import Prop;
 import True;
 import False;
 

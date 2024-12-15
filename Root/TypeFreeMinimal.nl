@@ -9,30 +9,27 @@ import MinimalNot;
 
 setup conclude true_intro imp.refl iff.refl;
 
-setup rewrite iff.refl iff.sym iff.trans iff_elim1;
+setup rewrite iff.refl iff.trans iff_elim1;
+
+setup dual iff.sym;
 
 show iff_cong_not: if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
 	apply iff_intro;
-	show! if nP: ¬P then ¬Q;
+	case nP: ¬P;
 		apply not_intro;
-		show! if Q: Q then false;
+		case Q: Q;
 			show P: P; by iff_elim2[OF PQ Q];
 			by not_imp_false[OF nP P];
 		qed;
-	show! if nQ: ¬Q then ¬P;
+	case nQ: ¬Q;
 		apply not_intro;
-		show! if P: P then false;
+		case P: P;
 			show Q: Q; by iff_elim1[OF PQ P];
 			by not_imp_false[OF nQ Q];
 		qed;
 	qed;
 
-setup cong
-	iff_cong_imp: P ⟹ Q,
-	iff_cong_iff: P ⟺ Q,
-	iff_cong_and: P ∧ Q,
-	iff_cong_not: ¬P,
-	iff_cong_all! ∀x. α.[x];
+setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not iff_cong_all;
 
 show not_iff_imp_false: ¬P ⟺ (P ⟹ false);
 	by iff_intro[OF not_imp_false not_intro];

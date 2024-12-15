@@ -443,7 +443,9 @@ public:
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
-	std::function<bool(std::string_view const&)> fixes = [this]( auto const& v ){ return fvars().contains(v); };
+	bool fixes(std::string_view const& v ) const {
+		return fvars().contains(v);
+	};
 	/** Locally obtained constants. */
 	StrSet const& consts() const&;
 	/** Tests if a variable is locally obtained. */

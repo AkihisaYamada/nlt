@@ -47,30 +47,36 @@ define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 
 interpret And (∧) :=
 	discharge if P: P, Q: Q then P ∧ Q;
-		show 1: if PQR: P ⟹ Q ⟹ R then R;
+		apply eq_prop2[OF and_def];
+		case for R, PQR: P ⟹ Q ⟹ R;
 			by PQR[OF P Q];
-		by eq_prop2[OF and_def 1];
+		qed;
 	discharge if PQ: P ∧ Q then P;
-		show PQP: if P: P, Q: Q then P;
+		apply eq_prop1[OF and_def][OF PQ];
+		case P: P, Q: Q;
 			by P;
-		by eq_prop1[OF and_def][OF PQ PQP];
+		qed;
 	discharge if PQ: P ∧ Q then Q;
-		show PQQ: if P: P, Q: Q then Q;
+		apply eq_prop1[OF and_def][OF PQ];
+		case P: P, Q: Q;
 			by Q;
-		by eq_prop1[OF and_def][OF PQ PQQ];
+		qed;
 	end;
 
 define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
 
 interpret Iff (⟺) :=
 	discharge if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
-		show and: (P ⟹ Q) ∧ (Q ⟹ P);
-			by and_intro[OF PQ QP];
-		by and[folded iff_def];
+		apply eq_prop2[OF iff_def];
+		by and_intro[OF PQ QP];
 	discharge if PQ: P ⟺ Q then P ⟹ Q;
-		by and_elim1[OF PQ[unfolded iff_def]];
+		show and: (P ⟹ Q) ∧ (Q ⟹ P);
+			by eq_prop1[OF iff_def PQ];
+		by and_elim1[OF and];
 	discharge if PQ: P ⟺ Q then Q ⟹ P;
-		by and_elim2[OF PQ[unfolded iff_def]];
+		show and: (P ⟹ Q) ∧ (Q ⟹ P);
+			by eq_prop1[OF iff_def PQ];
+		by and_elim2[OF and];
 	end;
 
 interpret Equal_Iff;
@@ -78,12 +84,11 @@ interpret PositiveLogic;
 
 setup conclude iff.refl;
 
-setup rewrite[iff] iff.refl iff.sym iff.trans iff_elim1;
-setup cong[iff]
-	iff_cong_imp: P ⟹ Q,
-	iff_cong_iff: P ⟺ Q,
-	iff_cong_and: P ∧ Q,
-	iff_cong_all! (∀x. α.[x]);
+setup rewrite iff.refl iff.trans iff_elim1;
+
+setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
+
+setup dual iff.sym;
 
 infix ≠ 50 50 50;
 

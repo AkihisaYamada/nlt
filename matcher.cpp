@@ -254,7 +254,7 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis ) {
 		throw Error("#apply")(thesis);
 	}
 	Thm rule = make_rule(thm);
-	auto const& m = match(rule,imp->first,rule.ctxt().fixes);
+	auto const& m = match( rule, imp->first, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) {
 		return {};
 	}
@@ -293,7 +293,7 @@ Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 		throw Error("#match_discharge")(thm);
 	}
 	auto const& arg_weaken = arg.weaken(ctxt);
-	auto const& m = match(imp->first,arg_weaken,rule.ctxt().fixes);
+	auto const& m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) {
 		return {};
 	}

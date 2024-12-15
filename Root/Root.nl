@@ -262,20 +262,6 @@ locale And :=
 		qed;
 	end;
 
-infix ∨ 30 31 30;
-locale Or :=
-	fix (∨);
-	assume or_intro1: P ⟹ P ∨ Q;
-	assume or_intro2: Q ⟹ P ∨ Q;
-	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-	show or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
-		by assm[OF or_intro1 or_intro2];
-	interpret or: MetaSymmetric (∨) :=
-		discharge if PQ: P ∨ Q then Q ∨ P;
-			by or_elim[OF PQ or_intro2 or_intro1];
-		end;
-	end;
-
 prefix ¬ 40 40;
 locale MinimalNot :=
 	fix false (¬);
@@ -353,6 +339,20 @@ locale MinimalNot :=
 				by a;
 			by not_imp_false[OF nax ax];
 		qed;
+	end;
+
+infix ∨ 30 31 30;
+locale Or :=
+	fix (∨);
+	assume or_intro1: P ⟹ P ∨ Q;
+	assume or_intro2: Q ⟹ P ∨ Q;
+	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+	show or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
+		by assm[OF or_intro1 or_intro2];
+	interpret or: MetaSymmetric (∨) :=
+		discharge if PQ: P ∨ Q then Q ∨ P;
+			by or_elim[OF PQ or_intro2 or_intro1];
+		end;
 	end;
 
 locale Not :=
