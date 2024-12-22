@@ -846,12 +846,8 @@ public:
 		}
 		return {};
 	}
-	/** @brief instantiates a closed term. */
-	CTerm subst(CTerm const& t) const;
 	/** @brief instantiates a theorem. */
-	Thm subst(Thm const& thm) const {
-		return subst((CTerm)thm);
-	}
+	Thm subst(Thm const& thm) const;
 	/** @brief Instantiates a context variable.
 	 * If the interpreted context is modified by fixing a new variable,
 	 * then this method should be used to instantiate the variable.

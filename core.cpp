@@ -415,14 +415,30 @@ Intp::Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
 		}
 	}
 }
-CTerm Intp::subst(CTerm const& thm) const {
+Thm Intp::subst(Thm const& thm) const {
 	if( thm.ctxt() != _src ) {
 		throw WrongContext("interpretation");
 	}
-	if( _src.revision() != _rev ) {
-		throw WrongContext("wrong revision");
+	Term ret = thm;
+	StrSet obtained;
+	for( int i = _src.revision(); i < _rev; i++ ) {
+		if( auto const& fix = _src.fixed(i) ) {
+			ret = *fix &= ret;
+		} else if( auto const& assm = _src.assumed(i) ) {
+			ret = *assm >>= ret;
+		} else if( auto const& obtain = _src.obtained(i) ) {
+			obtained.insert(get<0>(*obtain));
+		} else {
+			assert(false);
+		}
 	}
-	return CTerm(_subst.ctxt(),thm.subst(_subst));
+	if( !obtained.empty() ) {// obtained constant cannot escape
+		auto check = [&](auto v){
+			if( obtained.contains(v) ) { throw ConstantEscape(v); }
+		};
+		ret.iter_fsyms(check);
+	}
+	return CTerm(_subst.ctxt(),ret.subst(_subst));
 }
 void Intp::instantiate(CTerm const& term) {
 	auto fix = _src.fixed(_rev);

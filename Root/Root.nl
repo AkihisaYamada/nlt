@@ -385,6 +385,129 @@ locale Ex (∃) :=
 	end;
 
 -----
+## For typed logic
+-----
+
+locale Reflexive mem (≤) :=
+	assume refl: mem x ⟹ x ≤ x;
+	end;
+
+locale Symmetric mem (≤) :=
+	assume sym: mem x ⟹ mem y ⟹ x ≤ y ⟹ y ≤ x;
+	end;
+
+locale Member mem c :=
+	assume type: mem c;
+	end;
+
+locale Unary mem f :=
+	assume type: mem x ⟹ mem (f x);
+	end;
+
+locale Magma mem (+) :=
+	assume type: mem x ⟹ mem y ⟹ mem (x + y);
+	end;
+
+locale Binder mem ξ :=
+	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
+	end;
+
+locale Prop prop :=
+	assume prop_prop: prop (prop x);
+	assume prop_imp_intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
+	import all: Binder prop (∀);
+	end;
+
+
+locale PropTrue prop :=
+	import Prop;
+	obtain true where true_intro: true, true.type: prop true :=
+		case for thesis, assm: ∀true. true ⟹ prop true ⟹ thesis :=
+			apply assm(∀P. prop P ⟹ P ⟹ P);
+			case for P, p: prop P, P: P :=
+				by P;
+			apply all.type;
+			case for P :=
+				apply+ prop_imp_intro prop_prop;
+				case p: prop P :=
+					apply+ prop_imp_intro prop_prop p;
+					by p;
+				qed;
+			qed;
+		qed;
+	interpret true: Member prop true :=
+		discharge prop true :=
+			by true.type;
+		end;
+	end;
+
+locale PropFalse prop :=
+	import Prop;
+	obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type: prop false :=
+		case for thesis, assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
+			apply assm(∀P. prop P ⟹ P);
+			case for P, f: ∀P. prop P ⟹ P, p: prop P :=
+				by f[OF p];
+			apply all.type;
+			case for P :=
+				apply+ prop_imp_intro prop_prop;
+				by imp.refl;
+			qed;
+		qed;
+	interpret false: Member prop false :=
+		discharge prop false :=
+			by false.type;
+		end;
+	end;
+
+locale PropAnd prop (∧) :=
+	import and: Magma prop (∧);
+	import And;
+	end;
+
+locale PropIff prop (⟺) :=
+	import imp: Magma prop (⟺);
+	import Iff;
+	end;
+
+locale PropOr prop (∨) :=
+	import or: Magma prop (∨);
+	assume or_intro1: P ⟹ P ∨ Q;
+	assume or_intro2: Q ⟹ P ∨ Q;
+	assume or_elim: P ∨ Q ⟹ prop R ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+	interpret Symmetric prop (∨) :=
+		discharge if pP: prop P, pQ: prop Q, or: P ∨ Q then Q ∨ P :=
+			apply or_elim[OF or];
+			apply+ or.type pQ pP;
+			by or_intro2 or_intro1;
+		end;
+	end;
+
+locale PropEx prop (∃) :=
+	import ex: Binder prop (∃);
+	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
+	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
+
+	show ex_intro:
+		if atype: ∀x. prop α.[x],
+			assm: ∀P. prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P
+		then ∃x. α.[x] :=
+		apply assm;
+		note! ex.type[OF atype];
+		by ex_intro1;
+
+	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, pP: prop P, all: ∀x. α.[x] then P :=
+		apply ex_elim[OF ex pP];
+		case for x, imp: α.[x] ⟹ P :=
+			by imp[OF all];
+		qed;
+	end;
+
+locale ExcludedMiddle prop (∨) (¬) :=
+	assume excluded_middle: prop P ⟹ P ∨ ¬P;
+	end;
+
+-----
 ## Equality
 -----
 
@@ -449,79 +572,19 @@ locale TwoValued :=
 	assume imp_eq: P ⟹ (P ⟹ Q) = Q;
 	end;
 
------
-## For typed logic
------
+locale MetaRelation prop (≤) :=
+	assume type: prop (x ≤ y);
+	end;
+
+locale EqualProp prop (=) :=
+	import Prop;
+	import eq: MetaRelation prop (=);
+	import Equal;
+	end;
+
 
 infix ∈ 50 50 50;
 
 locale Collect Collect (∈) :=
 	assume in_Collect_iff: x ∈ Collect P ⟺ P x;
-	end;
-
-locale Reflexive mem (≤) :=
-	assume refl: mem x ⟹ x ≤ x;
-	end;
-
-locale Symmetric mem (≤) :=
-	assume sym: mem x ⟹ mem y ⟹ x ≤ y ⟹ y ≤ x;
-	end;
-
-locale Member mem c :=
-	assume type: mem c;
-	end;
-
-locale Unary mem f :=
-	assume type: mem x ⟹ mem (f x);
-	end;
-
-locale Magma mem (+) :=
-	assume type: mem x ⟹ mem y ⟹ mem (x + y);
-	end;
-
-locale Binder mem ξ :=
-	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
-	end;
-
-locale Prop prop :=
-	assume prop_prop: prop (prop x);
-	import imp: Magma prop (⟹);
-	import all: Binder prop (∀);
-	end;
-
-locale PropOr prop (∨) :=
-	import or: Magma prop (∨);
-	assume or_intro1: P ⟹ P ∨ Q;
-	assume or_intro2: Q ⟹ P ∨ Q;
-	assume or_elim: P ∨ Q ⟹ prop R ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-	interpret Symmetric prop (∨) :=
-		discharge if pP: prop P, pQ: prop Q, or: P ∨ Q then Q ∨ P :=
-			apply or_elim[OF or];
-			apply+ or.type pQ pP;
-			by or_intro2 or_intro1;
-		end;
-	end;
-
-locale PropEx prop (∃) :=
-	import ex: Binder prop (∃);
-	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
-	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
-
-	show ex_intro:
-		if atype: ∀x. prop α.[x],
-			assm: ∀P. prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P
-		then ∃x. α.[x] :=
-		apply assm;
-		note! ex.type[OF atype];
-		by ex_intro1;
-
-	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, pP: prop P, all: ∀x. α.[x] then P :=
-		apply ex_elim[OF ex pP];
-		case for x, imp: α.[x] ⟹ P :=
-			by imp[OF all];
-		qed;
-	end;
-
-locale ExcludedMiddle prop (∨) (¬) :=
-	assume excluded_middle: prop P ⟹ P ∨ ¬P;
 	end;

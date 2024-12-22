@@ -315,22 +315,29 @@ public:
 			arg = arg.intro();
 		}
 		CTerm goal = _thesis->capp()->first.capp()->second;
-		Ctxt goal_vars = thesis_ctxt.branch();
-		CTerm goal_strip = strip_all(goal,goal_vars);
-		arg = arg.weaken(goal_vars);// arg will be instantiated with goal variables
-		Ctxt arg_vars = goal_vars.branch();
+		Ctxt goal_ctxt = thesis_ctxt.branch();
+		CTerm goal_strip = strip_all(goal,goal_ctxt);
+		arg = arg.weaken(goal_ctxt);// arg will be instantiated with goal variables
+		Ctxt arg_vars = goal_ctxt.branch();
 		Thm arg_strip = strip_all(arg,arg_vars);
-		Opt<CSubst> matcher = match(arg_strip,goal_strip.weaken(arg_vars),[&](auto v){ return arg_vars.fixes(v); });
-		if( !matcher ) {
-			throw ProofMismatch(goal_strip)(arg_strip);
+		Opt<CSubst> matcher;
+		for(;;) {
+			matcher = match(arg_strip,goal_strip.weaken(arg_vars),[&](auto v){ return arg_vars.fixes(v); });
+			if( matcher ) break;
+			if( auto const& imp = goal_strip.cbinary(IMP) ) {
+				goal_ctxt.assume(imp->first);
+				goal_strip = imp->second;
+				continue;
+			}
+			throw ProofMismatch(goal)(arg_strip);
 		}
 		// instantiate arg variables
-		auto intp = Intp(arg_vars,goal_vars);
+		auto intp = Intp(arg_vars,goal_ctxt);
 		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
 			auto const& v = arg_vars.fixed(i);
 			assert(v);
 			auto const& val = matcher->get(*v);
-			intp.instantiate( val ? val->csubst(goal_vars) : goal_vars.cterm(DUMMY)/* dummy */ );
+			intp.instantiate( val ? val->csubst(goal_ctxt) : goal_ctxt.cterm(DUMMY)/* dummy */ );
 		}
 		Thm inst = intp.subst(arg_strip);
 		// quantify the goal variables
