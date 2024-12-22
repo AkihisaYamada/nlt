@@ -5,7 +5,7 @@ using namespace std;
 static Error const MalformedBeta = Error("#malformed-beta");
 static Error const UnknownEq = Error("#unknown-equality");
 
-Definer::_Init Definer::_init(Ref<Rewriter const> const& rewriter, Thm const& beta) {
+Definer::_Init Definer::_init( Ref<Rewriter const> const& rewriter, Thm const& beta ) {
 	auto const& beta2 = make_rule(beta);
 	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
@@ -15,7 +15,8 @@ Definer::_Init Definer::_init(Ref<Rewriter const> const& rewriter, Thm const& be
 	auto const& bin2 = strips_binary(l);// l: (λ _) _
 	if( !bin2 ) throw MalformedBeta(beta);
 	auto const& [LAM,abs,arg] = *bin2;
-	return {rewriter,EQ,LAM,beta,rewriter->get_refl(*ind)};
+	auto const& refl = rewriter->get_refl(*ind);
+	return {rewriter,EQ,LAM,beta,refl};
 }
 
 pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<string const&> name) const {

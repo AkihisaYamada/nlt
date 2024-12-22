@@ -9,12 +9,10 @@ interpret DefineOr;
 interpret DefineEx;
 interpret UntypedLogic;
 
-show true_eq_false_eq: (true = false) = false;
+show true_eq_false_eq: (true = false) = false :=
 	unfold+ true_eq_eq;
 
-setup cong[iff]
-	iff_cong_not: ¬P,
-	iff_cong_ex! (∃x. α.[x]);
+setup cong iff_cong_not iff_cong_ex;
 
 show false_imp_eq: (false ⟹ P) = true;
 	apply eq_true;

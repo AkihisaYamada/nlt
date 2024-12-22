@@ -66,7 +66,7 @@ class Prover {
 	Parser _parser;
 	Opt<Thm> _thesis;
 	Concluder _concluder;
-	StrMap<Ref<Rewriter>> _rewriters;
+	Mem<Rewriter> _rewriter;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Thm> thesis = {}) :
@@ -79,7 +79,7 @@ class Prover {
 		_own_parser(false),
 		_thesis(thesis),
 		_concluder(parent._concluder),
-		_rewriters(parent._rewriters),
+		_rewriter(parent._rewriter),
 		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
 	}
@@ -101,7 +101,8 @@ public:
 		_syntax(syntax),
 		_parser(lexer,*_syntax),
 		_own_parser(true),
-		_exit_on_error(exit_on_error) {
+		_exit_on_error(exit_on_error),
+		_rewriter(Mem<Rewriter>::make()) {
 		_prompt();
 	}
 	Prover&& deepen() && {
@@ -145,21 +146,17 @@ public:
 		}
 		throw Parser::Error("expects a theorem");
 	}
-	Ref<Rewriter>& _rewriter() {
-		string name;
-		if( _parser.skips("[") ) {
-			name = _parser.get_token();
-			_parser.skip("]");
-		}
-		auto const& p = _rewriters.finds(name);
-		if( !p ) {
-			throw Error("#rewriter_not_found");
-		}
-		return p->second;
-	}
-	Thm _rewrite( Rewriter const& rewriter, Locale& loc, Thm const& source, vector<char> pos, bool rev = false ) {
-		if( _parser.skips("(") ) {
-			while( !_parser.skips(")") ) {
+	Thm _rewrite( Locale& loc, Thm const& source, vector<char> pos, bool rev = false ) {
+		auto rel = [&]()->Opt<string>{
+			if( _parser.skips("(") ) {
+				string ret = _parser.get_token();
+				_parser.skip(")");
+				return ret;
+			}
+			return {};
+		}();
+		if( _parser.skips("[") ) {// parse position
+			while( !_parser.skips("]") ) {
 				pos.push_back(_parser.get_int());
 			}
 		}
@@ -172,11 +169,11 @@ public:
 		} else {
 			min = 1; max = 1; safe = true;
 		}
-		Rewriter::Rules rules = rewriter.make_rules();
+		Rewriter::Rules rules = _rewriter->make_rules();
 		while( auto const& arg = _gets_thm(loc) ) {
-			rewriter.add_rule(rules,*arg,rev);
+			_rewriter->add_rule(rules,*arg,rev);
 		}
-		return rewriter.rewrite(rules,source,min,max,safe,pos);
+		return _rewriter->rewrite(rules,source,min,max,safe,pos,rel);
 	}
 
 	Opt<Thm> _gets_thm(Locale loc) {
@@ -197,11 +194,9 @@ public:
 						ret = discharge(ret,*arg);
 					}
 				} else if( _parser.skips("unfolded") ) {
-					auto const& rewriter = *_rewriter();
-					ret = _rewrite(rewriter,loc,ret,{},false);
+					ret = _rewrite(loc,ret,{},false);
 				} else if( _parser.skips("folded") ) {
-					auto const& rewriter = *_rewriter();
-					ret = _rewrite(rewriter,loc,ret,{},true);
+					ret = _rewrite(loc,ret,{},true);
 				}
 				_parser.skip("]");
 			} else {
@@ -395,7 +390,7 @@ public:
 			cout << "then ";
 		}
 		Term conc = _parser.get_term(0);
-		_parser.skip(";");
+		_parser.skip(":=");
 		CTerm goal = var_loc.enclose(conc).weaken(assm_loc);
 		cout << _syntax->pretty_cterm(goal) << endl;
 		return {assm_loc,goal};
@@ -536,7 +531,7 @@ public:
 					} else if( _parser.skips("substitute") ) {
 						Locale thesis_loc = _loc.branch();
 						auto term = thesis_loc.cterm(_parser.get_term());
-						_parser.skip(";");
+						_parser.skip(":=");
 						CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 							return _loc.constant(x);
 						}));
@@ -649,7 +644,7 @@ public:
 					props.push_back(t);
 					cout << s << ": " << _syntax->pretty_term(t) << ", ";
 				});
-				_parser.skip(";");
+				_parser.skip(":=");
 				auto thesis_loc = _loc.branch();
 				CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 					return _loc.constant(x);
@@ -751,15 +746,13 @@ public:
 						cout << "no subgoal!" << endl;
 					}
 				} else if( _parser.skips("unfold") ) {
-					Rewriter const& rewriter = *_rewriter();
-					*_thesis = _rewrite(rewriter,_loc,*_thesis,{0});
+					*_thesis = _rewrite(_loc,*_thesis,{0});
 					_parser.skip(";");
 					auto g = has_goal();
 					assert(g);
 					cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
 				} else if( _parser.skips("fold") ) {
-					Rewriter const& rewriter = *_rewriter();
-					*_thesis = _rewrite(rewriter,_loc,*_thesis,{0},true);
+					*_thesis = _rewrite(_loc,*_thesis,{0},true);
 					_parser.skip(";");
 					auto g = has_goal();
 					assert(g);
@@ -778,7 +771,7 @@ public:
 						});
 						_parser.skips(",");
 					}
-					if( !_parser.skips(";") ) {
+					if( !_parser.skips(":=") ) {
 						get_named_terms([&](string const& s, Term const& t){
 							auto imp = newgoal.cbinary(IMP);
 							if( !imp ) {
@@ -791,7 +784,7 @@ public:
 							subprf._loc.assume(s,subprf._loc.enclose(t));
 							cout << s << ": " << _syntax->pretty_thm(subprf._loc.thm(s)) << ", " << flush;
 						});
-						_parser.skip(";");
+						_parser.skip(":=");
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = make_thesis(newgoal);
@@ -874,43 +867,45 @@ public:
 						_concluder.insert(*thm);
 					}
 				} else if( _parser.skips("rewrite") ) {
-					string name;
-					if( _parser.skips("[") ) {
-						name = _parser.get_token();
-						_parser.skip("]");
+					Thm imp = get_thm();
+					Thm refl = get_thm();
+					Thm trans = get_thm();
+					_rewriter->register_refl(refl);
+					_rewriter->register_imp(imp);
+					_rewriter->register_trans(trans);
+					cout << "Registered rewriter: " << _syntax->pretty_thm(imp) << ", refl: " << _syntax->pretty_thm(refl) << ", trans: " << _syntax->pretty_thm(trans) << endl;
+				} else if( _parser.skips("refl") ) {
+					cout << "Registering reflexivity: ";
+					while( auto const& thm = gets_thm() ) {
+						_rewriter->register_refl(*thm);
+						cout << _syntax->pretty_thm(*thm);
 					}
-					Thm const& refl = get_thm();
-					Thm const& trans = get_thm();
-					Thm const& imp = get_thm();
-					auto const& [it,test] = _rewriters.insert({name,Ref<Rewriter>::make(refl,trans,imp)});
-					if( !test ) {
-						throw Error("\"rewriter already initialized\"");
+					cout << endl;
+				} else if( _parser.skips("trans") ) {
+					cout << "Registering transitivity: ";
+					while( auto const& thm = gets_thm() ) {
+						_rewriter->register_trans(*thm);
+						cout << _syntax->pretty_thm(*thm);
 					}
-					cout << "Initialized Rewriter " << name <<
-						"\n\trefl: " << _syntax->pretty_term(refl) <<
-						"\n\ttrans: " << _syntax->pretty_term(trans) <<
-						"\n\timp: " << _syntax->pretty_term(imp) << endl;
+					cout << endl;
 				} else if( _parser.skips("dual") ) {
-					Rewriter& rewriter = *_rewriter();
 					cout << "Registering dual: ";
 					while( auto const& thm = gets_thm() ) {
-						rewriter.register_dual(*thm);
+						_rewriter->register_dual(*thm);
 						cout << _syntax->pretty_thm(*thm);
 					};
 					cout << endl;
 				} else if( _parser.skips("cong") ) {
-					Rewriter& rewriter = *_rewriter();
 					cout << "Registering congruence: ";
 					while( auto const& thm = gets_thm() ) {
-						rewriter.register_cong(*thm);
+						_rewriter->register_cong(*thm);
 						cout << _syntax->pretty_thm(*thm) << flush;
 					};
 					cout << endl;
 				} else if( _parser.skips("define") ) {
 					Thm const& beta = get_thm();
 					cout << " beta: " << _syntax->pretty_thm(beta) << endl;
-					auto const& rewriter = _rewriters.find(string())->second;
-					_definer = OptRef<Definer>::make(rewriter,beta);
+					_definer = OptRef<Definer>::make(_rewriter,beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& empty = _parser.get_term(1000);
 					Term const& singleton = _parser.get_term(1000);

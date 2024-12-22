@@ -31,12 +31,16 @@ class Rewriter {
 	/** symmetry theorems, e.g., ∀x y. x = y ⟹ y = x */
 	Map<size_t,Dual> _duals;
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
-	std::vector<Thm> _trans;
+	Map<size_t,Thm> _trans;
+	/** ∀P Q. P ⟺ Q ⟹ P ⟹ Q */
+	Map<size_t,Thm> _imps;
 public:
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
+	static Error const UnregisteredRel;
+	static Error const MalformedImp;
 	class Rules : std::vector<std::vector<Rule>> {
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewriter;
@@ -49,23 +53,20 @@ public:
 	Rules make_rules() const {
 		return Rules(_rels.size());
 	}
-	Opt<size_t> gets_rel_ind( std::string const& rel ) const {
+	Opt<size_t> gets_rel_ind( std::string_view const& rel ) const {
 		if( auto const& ind = _rels.finds(rel) ) {
 			return ind->second;
 		}
 		return {};
 	}
 	Thm get_refl( size_t ind ) const {
+		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
 	void add_rule( Rules& rules, Thm const& thm, bool rev = false ) const;
-	/** ∀x y. (x = y) ⟹ x ⟹ y */
-	Thm const imp;
-	Rewriter(Thm const& refl, Thm const& trans, Thm const& imp) : imp(imp) {
-		register_refl(refl);
-		_trans.emplace_back(trans);
-	}
+	void register_imp(Thm const& thm);
 	void register_refl(Thm const& thm);
+	void register_trans(Thm const& thm);
 	void register_cong(Thm const& thm);
 	void register_dual(Thm const& thm);
 	/**
@@ -74,8 +75,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step(Rules const& rules, CTerm const& source) const {
-		return _step(rules,source,0);
+	Opt<Thm> step( Rules const& rules, CTerm const& source, size_t ind = 0 ) const {
+		return _step(rules,source,ind);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -83,8 +84,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step(Rules const& rules, CTerm const& source, std::vector<char> const& pos) const {
-		return _step(rules,source,0,pos.begin(),pos.end());
+	Opt<Thm> step( Rules const& rules, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
+		return _step(rules,source,ind,pos.begin(),pos.end());
 	}
 	/**
 	 * @brief many step rewrite equation
@@ -93,15 +94,33 @@ public:
 	 * @param source 
 	 * @param n 
 	 * @param pos 
+	 * @param rel the relation symbol, e.g., "="
 	 * @return Thm 
 	 */
-	Thm steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
-	Thm rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos) const;
+	Thm steps( Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, std::string_view const& rel ) const {
+		auto ind = gets_rel_ind(rel);
+		if( !ind ) {
+			throw UnregisteredRel(rel);
+		}
+		return _steps(rules,source,min,max,safe,pos,*ind);
+	}
+	/** @brief Rewrites a theorem
+	 */
+	Thm rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const {
+		size_t ind = rel ? [&]{
+			auto const& o = gets_rel_ind(*rel);
+			if( !o ) throw UnregisteredRel(*rel);
+			return *o;
+		}() : 0;
+		return _rewrite(rules,source,min,max,safe,pos,ind);
+	}
 private:
 	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Thm _steps( Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	Thm _rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

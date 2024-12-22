@@ -68,6 +68,10 @@ Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer );
 inline Thm strip_all( Thm thm, Ctxt& ctxt ) {
 	return strip_all(thm,ctxt,avoider(ctxt));
 }
+inline Thm strip_all( Thm thm ) {
+	Ctxt ctxt = thm.ctxt().branch();
+	return strip_all(thm,ctxt);
+}
 
 /** @brief Makes a theorem into the conclusion, whose context contains the conditions. */
 Thm make_rule( Thm const& thm );

@@ -15,8 +15,10 @@ class Ref {
 	Ref( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
 	template<typename S, bool n>
 	friend class Ref;
+	template<typename S, bool n>
+	friend class Mem;
 public:
-	Ref( nullptr_t const& n = nullptr ) requires nullable {}
+	Ref() requires nullable {}
 	Ref( Ref const& org ) = default;
 	~Ref() = default;
 	operator bool() const requires nullable {
@@ -67,7 +69,7 @@ bool operator==(Ref<T,n1> const& l, Ref<T,n2> const& r) {
  * 
  * @tparam T 
  */
-template<class T>
+template<class T, bool nullable = false>
 class Mem {
 	std::shared_ptr<T> _ptr;
 	T operator*() && = delete;
@@ -79,7 +81,11 @@ class Mem {
 		}
 	}
 public:
+	Mem() requires nullable {}
 	Mem( Mem const& other ) = default;
+	operator bool() const requires nullable {
+		return (bool)_ptr;
+	}
 	/**
 	 * @brief Const reference.
 	 */
@@ -88,6 +94,9 @@ public:
 	}
 	T const* operator->() const & {
 		return _ptr.get();
+	}
+	operator Ref<T const>() const & {
+		return Ref<T const>(_ptr);
 	}
 	/**
 	 * @brief Modifiable reference. This will be the unique owner of the object.
@@ -107,7 +116,7 @@ public:
 	 * @return a non-null pointer to the constructed object
 	 */
 	template<typename... Ts>
-	static Mem<T> make(Ts... args...) {
+	static Mem make(Ts... args...) {
 		return Mem(std::make_shared<T>(args...));
 	}
 	template<class S>
@@ -118,5 +127,7 @@ template<class T>
 bool operator==(Mem<T> const& l, Mem<T> const& r) {
 	return l._ptr == r._ptr || *l == *r;
 }
+template<class T>
+using OptMem = Mem<T,true>;
 
 #endif

@@ -4,8 +4,11 @@
 using namespace std;
 
 static Error const MalformedRefl = Rewriter::Error("\"malformed reflexivity rule\"");
+static Error const MalformedTrans = Rewriter::Error("\"malformed transitivity rule\"");
 static Error const MalformedCong = Rewriter::Error("\"malformed congruence rule\"");
-static Error const UnregisteredRel = Rewriter::Error("\"unregistered rewrite relation\"");
+Rewriter::Error const Rewriter::UnregisteredRel = Error("\"unregistered rewrite relation\"");
+Rewriter::Error const Rewriter::MalformedImp = Error("\"malformed rewrite implication\"");
+static Error const UnregisteredTrans = Rewriter::Error("\"missing setup trans\"");
 
 Opt<tuple<string,CTerm,CTerm>> strips_binary( CTerm const& term ) {
 	if( auto const& app = term.capp() )
@@ -44,15 +47,36 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	}
 	throw Error(thm);
 }
+void Rewriter::register_imp( Thm const& thm ) {
+	Thm rule = strip_all(thm);
+	if( auto const& imp = rule.cbinary(IMP) )
+	if( auto const& rel = gets_binary_sym(imp->first) ) {
+		auto const& ind = gets_rel_ind(*rel);
+		if( !ind ) throw UnregisteredRel(*rel);
+		_imps.emplace(*ind,thm);
+		return;
+	}
+	throw MalformedImp(thm);
+}
 void Rewriter::register_refl( Thm const& thm ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	Thm rule = strip_all(thm,ctxt);
-	auto const& bin = strips_binary(rule);
-	if( !bin ) throw MalformedRefl(thm);
+	Thm rule = strip_all(thm);
+	auto const& rel = gets_binary_sym(rule);
+	if( !rel ) throw MalformedRefl(thm);
 	size_t ind = _rels.size();
-	_rels.emplace(get<0>(*bin),ind);
+	_rels.emplace(*rel,ind);
 	_refls.emplace_back(thm);
 	_congs.emplace_back();
+}
+void Rewriter::register_trans( Thm const& thm ) {
+	if( auto const& imp1 = strip_all(thm).cbinary(IMP) )
+	if( auto const& imp2 = imp1->second.cbinary(IMP) )
+	if( auto const& rel = gets_binary_sym(imp2->second) ) {
+		auto const& ind = gets_rel_ind(*rel);
+		if( !ind ) throw UnregisteredRel(*rel);
+		_trans.emplace(*ind,thm);
+		return;
+	}
+	throw MalformedTrans(thm);
 }
 void Rewriter::register_cong( Thm const& thm ) {
 	// parsing congruence rule
@@ -214,11 +238,19 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 	return {};
 }
 
-Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos) const {
+Thm Rewriter::_steps(
+	Rules const& rules,
+	CTerm const& source,
+	unsigned int min, unsigned int max, bool safe,
+	vector<char> const& pos,
+	size_t ind
+) const {
 	Ctxt const& source_ctxt = source.ctxt();
-	Thm lrefl = _refls[0].weaken(source_ctxt);// ∀P. P ⟺ P
+	Thm lrefl = _refls[ind].weaken(source_ctxt);// ∀P. P ⟺ P
 	Thm eq = lrefl.allE(source);// source ⟺ source
-	Thm ltrans = _trans[0].weaken(source_ctxt).allE(source);// ∀Q R. (source ⟺ Q) ⟹ (Q ⟺ R) ⟹ (source ⟺ R)
+	auto const& tranp = _trans.finds(ind);
+	if( !tranp ) throw UnregisteredTrans;
+	Thm ltrans = tranp->second.weaken(source_ctxt).allE(source);// ∀Q R. (source ⟺ Q) ⟹ (Q ⟺ R) ⟹ (source ⟺ R)
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
 	for( unsigned int i = 0;; i++ ) {
@@ -226,7 +258,7 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 			if( safe ) break;
 			throw Error("\"rewrite limit exceeded\"")(to_string(max));
 		}
-		auto const& step = _step(rules,s,0,begin,end);
+		auto const& step = _step(rules,s,ind,begin,end);
 		if( !step ) {
 			if( i < min ) {
 				throw TooFewSteps(i,min,source);
@@ -243,10 +275,16 @@ Thm Rewriter::steps(Rules const& rules, CTerm const& source, unsigned int min, u
 	}
 	return eq;// source ⟺ target
 }
-Thm Rewriter::rewrite(Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos) const {
-	Thm const& eq = steps(rules,source,min,max,safe,pos);
-	auto const& app = eq.capp();
-	assert(app);
-	CTerm const& target = app->second;
-	return imp.weaken(source.ctxt()).allE(source).allE(target).impE(eq).impE(source);
+Thm Rewriter::_rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, size_t ind ) const {
+	auto const& o = _imps.finds(ind);
+	if( !o ) throw Error("\"unregistered rewriting\"");
+	Thm imp = o->second.weaken(source.ctxt());
+	if( auto const& imp1 = strip_all(imp).cbinary(IMP) ) {
+		Thm const& eq = _steps(rules,source,min,max,safe,pos,ind);
+		auto const& app = eq.capp();
+		assert(app);
+		CTerm const& target = app->second;
+		return imp.allE(source).allE(target).impE(eq).impE(source);
+	}
+	throw Error("\"malformed rewriting initializer\"")(imp);
 }
