@@ -62,7 +62,8 @@ public:
 		Number = 1 << 3,
 		Operator = 1 << 4,
 		Escaped = 1 << 5,
-		Unknown = 1 << 6,
+		Dots = 1 << 6,
+		Unknown = 1 << 7,
 	};
 	friend TokenType operator|( TokenType a, TokenType b ) {
 		return (TokenType)((int)a|(int)b);

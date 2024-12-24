@@ -1,4 +1,4 @@
-base Lambda;
+base Equal;
 
 import TwoValued;
 

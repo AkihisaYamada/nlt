@@ -171,11 +171,14 @@ string_view Lexer::peek_token() {
 		case Lex::Dot:
 			fetch_char();
 			switch( fetched_char_type ) {
+			case Lex::Dot:
+				read_continue( Lex::Dot );
+				token_type = Dots;
+				break;
 			case Lex::Digit: // dot followed by digits
 				read_continue( Lex::Digit | Lex::Dot );
 				token_type = Number;
 				break;
-			case Lex::Dot:
 			case Lex::MultiOp:
 				read_continue( Lex::MultiOp | Lex::Dot );
 				token_type = Operator;

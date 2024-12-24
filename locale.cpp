@@ -2,6 +2,8 @@
 
 using namespace std;
 
+Locale::Error const Locale::LocaleNotFound = Error("\"locale not found\"");
+
 Thm Locale::assume(std::string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
 	Thm const& thm = Ctxt::assume(assm);
@@ -26,15 +28,20 @@ Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
 		return ret;
 	}
 	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
+		if( sep == 0 ) {
+			if( auto opt = _ref->parent ) {
+				return opt->find_thm(name.substr(sep+1));
+			}
+			throw Error("\"parent locale not found\"");
+		}
 		if( auto ret = find_thm(name.substr(0,sep),name.substr(sep+1)) ) {
 			return ret;
 		}
 	}
-	if( ancestor && _ref->parent ) {
-		if( auto opt = _ref->parent->find_thm(name) ) {// parent
-			auto ret = opt->weaken(*this);
-			return ret;
-		}
+	if( ancestor )
+	if( auto p = _ref->parent )
+	if( auto opt = p->find_thm(name) ) {// parent
+		return opt->weaken(*this);
 	}
 	return {};
 }
@@ -76,6 +83,12 @@ Opt<Thm> Locale::find_discharge_thm( std::string_view const& name, Term const& a
 }
 
 Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
+	if( size_t sep = name.find('.'); sep != string::npos ) {
+		if( auto const& p = _ref->parent ) {
+			return p->find_locale(name.substr(sep+1));
+		}
+		throw LocaleNotFound(".");
+	}
 	if( auto ret = _ref->locales.finds(name) ) {
 		return ret->second;
 	}

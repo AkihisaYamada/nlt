@@ -169,9 +169,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 				size_t ind_i = cong.inds[i];
 				if( cong.abss[i] ) {
 					if( auto const& eq = _step_abs(rules,*si,ind_i) ) {
-DEB(ret << "  <<  " << *eq);
 						ret = *match_discharge(ret,*eq);
-DEB(ret);
 						success = true;
 					} else {
 						return {};

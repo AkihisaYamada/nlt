@@ -3,12 +3,20 @@
 using namespace std;
 
 Opt<string> Parser::gets_thm_name() {
+	string ret;
 	switch( _lexer->next_token_type() ) {
-		case Lexer::Word: break;
+		case Lexer::Dots:
+			ret = _lexer->get_token();
+			if( _lexer->next_token_type() == Lexer::Word ) {
+				ret += _lexer->get_token();
+			}
+			break;
+		case Lexer::Word:
+			ret = _lexer->get_token();
+			break;
 		case Lexer::Number: return _lexer->get_token();
 		default: return {};
 	}
-	string ret = _lexer->get_token();
 	for(;;) {
 		if( !_lexer->skips(".") ) {
 			return ret;

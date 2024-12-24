@@ -90,6 +90,8 @@ interpret imp: MetaPreorder (⟹) :=
 		by QR[OF Q];
 	end;
 
+setup conclude imp.refl;
+
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	case Q: Q, P: P :=
 		by PQR[OF P Q];
@@ -281,9 +283,8 @@ locale MinimalNot :=
 		qed;
 
 	show nnot_imp: if imp: ¬¬P ⟹ Q, P: P then Q :=
-		apply imp;
-		apply nnot_intro;
-		by P;
+		apply+ imp nnot_intro P;
+		qed;
 
 	show imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q) :=
 		apply not_intro;
@@ -418,6 +419,9 @@ locale Prop prop :=
 	import all: Binder prop (∀);
 	end;
 
+locale MetaRelation prop (≤) :=
+	assume type: prop (x ≤ y);
+	end;
 
 locale PropTrue prop :=
 	import Prop;
@@ -451,7 +455,7 @@ locale PropFalse prop :=
 			apply all.type;
 			case for P :=
 				apply+ prop_imp_intro prop_prop;
-				by imp.refl;
+				done;
 			qed;
 		qed;
 	interpret false: Member prop false :=
@@ -487,7 +491,6 @@ locale PropEx prop (∃) :=
 	import ex: Binder prop (∃);
 	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
 	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
-
 	show ex_intro:
 		if atype: ∀x. prop α.[x],
 			assm: ∀P. prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P
@@ -495,7 +498,6 @@ locale PropEx prop (∃) :=
 		apply assm;
 		note! ex.type[OF atype];
 		by ex_intro1;
-
 	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, pP: prop P, all: ∀x. α.[x] then P :=
 		apply ex_elim[OF ex pP];
 		case for x, imp: α.[x] ⟹ P :=
@@ -505,81 +507,6 @@ locale PropEx prop (∃) :=
 
 locale ExcludedMiddle prop (∨) (¬) :=
 	assume excluded_middle: prop P ⟹ P ∨ ¬P;
-	end;
-
------
-## Equality
------
-
-locale Equal (=) :=
-	import eq: MetaReflexive (=);
-	assume eq_imp_meta: for α, x = y ⟹ α.[x] ⟹ α.[y];
-	assume eq_cong_abs: (∀x. α.[x] = β.[x]) ⟹ (x. α.[x]) = (x. β.[x]);
-
-	interpret eq: MetaSymmetric (=) :=
-		discharge if xy: x = y then y = x :=
-			by eq_imp_meta(z. z = x)[OF xy eq.refl];
-		end;
-
-	interpret eq: MetaTransitive (=) :=
-		discharge if xy: x = y, yz: y = z then x = z :=
-			by eq_imp_meta(w. x = w)[OF yz xy];
-		end;
-
-	interpret eq: MetaEquivalence (=);
-
-	show eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y] :=
-		by eq_imp_meta(z. α.[x] = α.[z])[OF xy eq.refl];
-
-	show arg_cong: x = y ⟹ f x = f y :=
-		by eq_cong_meta(z. f z);
-
-	show fun_cong: f = g ⟹ f x = g x :=
-		by eq_cong_meta(h. h x);
-
-	show eq_cong: if fg: f = g, xy: x = y then f x = g y :=
-		show 1: f x = f y :=
-			by arg_cong[OF xy];
-		show 2: f y = g y :=
-			by fun_cong[OF fg];
-		by eq.trans[OF 1 2];
-
-	show eq_prop1: P = Q ⟹ P ⟹ Q :=
-		by eq_imp_meta(x. x);
-
-	show eq_prop2: if PQ: P = Q then Q ⟹ P :=
-		by eq_prop1[OF eq.sym[OF PQ]];
-
-	end;
-
-locale Equal_Iff :=
-	import Equal;
-	import Iff;
-	interpret eq_iff: MetaCommutative (=) (⟺) :=
-		discharge x = y ⟺ y = x :=
-			by iff_intro[OF eq.sym eq.sym];
-		end;
-	setup rewrite eq_prop1 eq.refl eq.trans;
-	setup cong eq_cong;
-	show eq_imp_iff: if PQ: P = Q then P ⟺ Q :=
-		unfold PQ;
-		by iff.refl;
-	end;
-
-locale TwoValued :=
-	import Equal;
-	assume imp_imp_eq: P ⟹ Q ⟹ P = Q;
-	assume imp_eq: P ⟹ (P ⟹ Q) = Q;
-	end;
-
-locale MetaRelation prop (≤) :=
-	assume type: prop (x ≤ y);
-	end;
-
-locale EqualProp prop (=) :=
-	import Prop;
-	import eq: MetaRelation prop (=);
-	import Equal;
 	end;
 
 

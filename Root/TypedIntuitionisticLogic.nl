@@ -7,17 +7,11 @@ base Root;
 fix prop (∧) (∨) (⟺) (¬) (∃);
 
 import Prop;
-import True;
-import False;
-
--- We assume the logical constants and operations are well-typed.
-
-import imp: Magma prop (⟹);
-import all: Binder prop (∀);
-import true: Member prop true;
-import false: Member prop false;
-import and: Magma prop (∧);
-import iff: Magma prop (⟺);
+import PropTrue;
+import PropFalse;
+import PropAnd;
+import PropIff;
+import PropOr;
 import not: Unary prop (¬);
 import ex: Binder prop (∃);
 

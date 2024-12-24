@@ -9,7 +9,7 @@
 	"type": "cppdbg",
 	"request": "launch",
 	"program": "${workspaceFolder}/test.exe",
-	"args": ["Root/Lambda"],
+	"args": ["test"],
 	"stopAtEntry": true,
 	"externalConsole": true,
 	"MIMode": "gdb",

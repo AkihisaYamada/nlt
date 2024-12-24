@@ -19,6 +19,7 @@ public:
 	struct Error : public ::Error {
 		Error(Term const& term) : ::Error(term) {}
 	};
+	static Error const LocaleNotFound;
 	struct TheoremNotFound : public Error {
 		TheoremNotFound(std::string_view const& name) :
 			Error(Term("#theorem_not_found")(name)) {}
