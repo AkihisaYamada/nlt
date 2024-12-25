@@ -2,9 +2,6 @@ base LambdaLogic;
 
 import TwoValued;
 
-ctxt;
-thm true$spec;
-
 interpret TwoValuedTrue;
 
 show true_and_true_eq: (true ∧ true) = true :=

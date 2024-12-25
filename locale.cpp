@@ -112,8 +112,23 @@ Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 	return {};
 }
 
-void Import::retain( CTerm c, Thm const& thm ) & {
-	Intp::retain(c,thm);
+bool Import::discharges( bool mod ) {
+	auto x = assuming();
+	if( !x ) {
+		return false;
+	}
+	auto [name,assm] = *x;
+	// if this assumption is already discharged, then reuse it
+	if( auto opt = _tgt.find_thm(name,[&](Thm const& thm){ return (Term)assm == thm; },true,true) ) {
+		Intp::discharge(*opt);
+		return true;
+	} else if( mod ) { // if modification is allowed, then make new assumption
+		auto thm = _tgt.assume(name,assm);
+		Intp::discharge(thm);
+		return true;
+	} else {
+		throw Error("\"failed know\"")(name)(assm);
+	}
 }
 
 void Import::retain( CTerm c ) {

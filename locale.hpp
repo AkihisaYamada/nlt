@@ -145,25 +145,7 @@ public:
 		Intp::discharge(thm);
 	}
 	/** automatically discharge assumption */
-	bool discharges( bool mod = false ) {
-		auto x = assuming();
-		if( !x ) {
-			return false;
-		}
-		auto [name,assm] = *x;
-		// if this assumption is already discharged, then reuse it
-		if( auto opt = _tgt.find_thm(name,[&](Thm const& thm){ return assm == thm; },true,true) ) {
-			Intp::discharge(*opt);
-			return true;
-		} else if( mod ) { // if modification is allowed, then make new assumption
-			auto thm = _tgt.assume(name,assm);
-			Intp::discharge(thm);
-			return true;
-		} else {
-			throw Error("\"failed know\"")(name)(assm);
-		}
-
-	}
+	bool discharges( bool mod = false );
 	void discharge() & {
 		if( !discharges() ) {
 			throw Error("\"unexpected know\"");
@@ -187,7 +169,9 @@ public:
 		return {};
 	}
 	/** retain constant by specification */
-	void retain( CTerm c, Thm const& thm ) &;
+	void retain( CTerm c, Thm const& thm ) & {
+		Intp::retain(c,thm);
+	}
 	/** retain constant by knowledge */
 	void retain( CTerm c );
 	/** automatic retain */
