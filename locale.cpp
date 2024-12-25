@@ -20,64 +20,76 @@ pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std:
 	return ret;
 }
 
-Opt<Thm> Locale::find_thm(string_view const& name, bool ancestor) const {
-	if( auto opt = _ref->thms.finds(name) ) {// current locale
+Opt<Thm> Locale::find_thm(
+	string_view const& name,
+	Opt<std::function<bool(Thm const&)>> test,
+	bool ancestor,
+	bool noprefix
+) const {
+	if( auto opt = _ref->thms.finds(name) )
+	if( !test || (*test)(opt->second) ) {// found in the current locale
 		return opt->second;
 	}
-	if( auto ret = find_thm("",name) ) {// unnamed import or child locale
-		return ret;
-	}
-	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
-		if( sep == 0 ) {
-			if( auto opt = _ref->parent ) {
-				return opt->find_thm(name.substr(sep+1));
+	if( noprefix ) {
+		for( auto const& [pre,imp] : _ref->imports ) {
+			if( auto const& ret = imp.find_thm(name,test,noprefix) ) {
+				return ret;
 			}
-			throw Error("\"parent locale not found\"");
 		}
-		if( auto ret = find_thm(name.substr(0,sep),name.substr(sep+1)) ) {
+	} else {
+		if( auto ret = find_thm("",name,test) ) {// unnamed import
 			return ret;
+		}
+		if( auto sep = name.find('.'); sep != string::npos ) {// named imports
+			if( sep == 0 ) {// explicit parent
+				if( auto opt = _ref->parent ) {
+					return opt->find_thm(name.substr(sep+1),test);
+				}
+				throw Error("\"parent locale not found\"");
+			}
+			if( auto ret = find_thm(name.substr(0,sep),name.substr(sep+1),test) ) {
+				return ret;
+			}
 		}
 	}
 	if( ancestor )
 	if( auto p = _ref->parent )
-	if( auto opt = p->find_thm(name) ) {// parent
+	if( auto opt = p->find_thm(name,test,ancestor,noprefix) ) {// parent
 		return opt->weaken(*this);
 	}
 	return {};
 }
 
-Opt<Thm> Locale::find_thm(string_view const& pre, string_view const& name) const {
+Opt<Thm> Locale::find_thm(
+	string_view const& pre,
+	string_view const& name,
+	Opt<std::function<bool(Thm const&)>> test
+) const {
 	// pre as interpretations
-	auto [it,end] = _ref->imports.equal_range(pre);
-	while( it != end ) {
-		if( auto opt = it->second.find_thm(name) ) {
+	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
+		if( auto opt = it->second.find_thm(name,test,false) ) {
 			return opt;
-		}
-		it++;
-	}
-	// pre as child locales
-	if( auto loc = find_locale(pre,false) ) {
-		if( auto thm = loc->find_thm(name,false) ) {
-			Thm ret = thm->intro();
-			return ret;
 		}
 	}
 	return {};
 }
-Opt<Thm> Locale::find_discharge_thm( std::string_view const& name, Term const& assm ) const {
-	if( auto const& ret = find_thm(name) )
-	if( *ret == assm ) {
-		return ret;
-	}
-	for( auto [prefix,import] : imports() ) {
-		if( auto const& ret = import.find_thm(name) )
-		if( *ret == assm ) {
-			return ret;
+
+Opt<Thm> Import::find_thm(
+	std::string_view const& name,
+	Opt<std::function<bool(Thm const&)> const&> test,
+	bool noprefix
+) const {
+	if( ready() ) {// only find if the interpretation is ready
+		if( test ) {
+			auto const& test2 = [&]( Thm const& thm ){ return (*test)(subst(thm)); };
+			if( auto thm = _src.find_thm(name,test2,false,noprefix) ) {
+				return subst(*thm);
+			}
+		} else {
+			if( auto thm = _src.find_thm(name,{},false,noprefix) ) {
+				return subst(*thm);
+			}
 		}
-	}
-	if( auto p = parent() )
-	if( auto thm = p->find_discharge_thm(name,assm) ) {
-		return thm->weaken(*this);
 	}
 	return {};
 }
@@ -100,21 +112,68 @@ Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 	return {};
 }
 
+void Import::retain( CTerm c, Thm const& thm ) & {
+	Intp::retain(c,thm);
+}
+
+void Import::retain( CTerm c ) {
+	auto o = obtaining();
+	if( !o ) {
+		throw Error(c);
+	}
+	auto [name,sym,ex,spec] = *o;
+	Term const& stmt = spec.inst(c);
+	auto const& thm = _tgt.find_thm(name,[&](Thm const& thm){ return thm == stmt; },true,true);
+	if(!thm) {
+		throw Error(sym)(c);
+	}
+	Intp::retain(c,*thm);
+}
+
+bool Import::retains() {
+	auto o = obtaining();
+	if( !o ) {
+		return false;
+	}
+	auto [name,sym,ex,spec] = *o;
+	if( auto csym = _tgt.constant(sym) ) {
+		Term const& stmt = spec.inst(*csym);
+		if( auto const& thm = _tgt.find_thm(name,[&](Thm const& thm){ return thm == stmt; },true,true) ) {
+			Intp::retain(*csym,*thm);
+			return true;
+		}
+		throw MalformedRetain(sym)(name)(stmt);
+	} else {
+		auto [sym_term,spec] = _tgt.obtain(sym,ex,name);
+		retain(sym_term,spec);
+		return true;
+	}
+}
+
+
 static ostream& mk_indent(ostream& os, size_t n) {
 	for( size_t i = 0; i < n; i++ ) {
 		os << "  ";
 	}
 	return os;
 }
-function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax, size_t n) const & {
+function<ostream&(ostream&)> const Locale::print_name( Syntax const& syntax ) const& {
 	return [&](ostream& os)->ostream& {
+		os << _ref->name;
 		if( syntax.prints_ctxt() ) {
 			os << '@' << id() << ' ';
-			if( parent() ) {
-				os << "<- @" << parent()->id() << ' ';
-			}
 		}
-		os << "{" << endl;
+		return os;
+	};
+}
+
+function<ostream&(ostream&)> const Locale::pretty(Syntax const& syntax, size_t n) const & {
+	return [&](ostream& os)->ostream& {
+		os << "locale " << print_name(syntax);
+		if( parent() ) {
+			os << " <- " << parent()->print_name(syntax);
+		}
+		os << " {" << endl;
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {
@@ -127,6 +186,9 @@ function<ostream& (ostream&)> const Locale::pretty(Syntax const& syntax, size_t 
 			} else {
 				assert(false);
 			}
+		}
+		for( auto& [name,imp] : _ref->imports ) {
+			mk_indent(os,n) << "imports " << name << ": " << imp.source().print_name(syntax) << "..." << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
 			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm) << ';' << endl;

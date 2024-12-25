@@ -599,9 +599,6 @@ public:
 				import(true);
 			} else if( _parser.skips("ctxt") ) {
 				if( _parser.skips(";") ) {
-					if( _path ) {
-						cout << _path->name << ": ";
-					}
 					cout << _loc.pretty(*_syntax) << endl;
 				} else {
 					string name = _parser.get_token();
@@ -1044,7 +1041,7 @@ int main(int argc, char* argv[]) {
 		preload(lexer,syntax,"stdin",false).loop();
 	} else {
 		string name = argv[1];
-		auto fin = file_of_locale("",name);
+		auto fin = fstream(name);
 		Lexer lexer(fin,name,*syntax);
 		preload(lexer,syntax,name,true).loop();
 	}

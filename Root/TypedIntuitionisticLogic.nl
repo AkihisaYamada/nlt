@@ -8,6 +8,8 @@ fix prop (∧) (∨) (⟺) (¬) (∃);
 
 import Prop;
 import PropTrue;
+ctxt;
+interpret True;
 import PropFalse;
 import PropAnd;
 import PropIff;

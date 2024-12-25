@@ -46,7 +46,7 @@ test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
 	${CPP} $^ -o $@
 
 test: test.exe test.nl
-	./test.exe test
+	./test.exe test.nl
 
 $(DEPEND)/%.d: %.cpp
 	@mkdir -p $(@D)

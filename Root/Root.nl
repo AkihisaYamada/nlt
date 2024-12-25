@@ -443,6 +443,10 @@ locale PropTrue prop :=
 		discharge prop true :=
 			by true.type;
 		end;
+	interpret True :=
+		substitute true :=
+			by true_intro;
+		end;
 	end;
 
 locale PropFalse prop :=

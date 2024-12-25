@@ -9,7 +9,7 @@
 	"type": "cppdbg",
 	"request": "launch",
 	"program": "${workspaceFolder}/test.exe",
-	"args": ["test"],
+	"args": ["test.nl"],
 	"stopAtEntry": true,
 	"externalConsole": true,
 	"MIMode": "gdb",

@@ -37,9 +37,18 @@ public:
 	 */
 	StrMap<Thm const> const& thms() const;
 	/** @brief Finds a named theorem from the locale or an ancestor. */
-	Opt<Thm> find_thm(std::string_view const& name, bool ancestor = true) const;
+	Opt<Thm> find_thm(
+		std::string_view const& name,
+		Opt<std::function<bool(Thm const&)>> test = {},
+		bool ancestor = true,
+		bool noprefix = false
+	) const;
 	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
-	Opt<Thm> find_thm(std::string_view const& pre, std::string_view const& name) const;
+	Opt<Thm> find_thm(
+		std::string_view const& pre,
+		std::string_view const& name,
+		Opt<std::function<bool(Thm const&)>> test = {}
+	) const;
 	/** @brief Obtains a named theorem from the locale.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
@@ -55,8 +64,6 @@ public:
 	void add_thm(std::string_view const& name, Thm const& thm);
 	/** finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
-	/** finds in discharge database */
-	Opt<Thm> find_discharge_thm( std::string_view const& name, Term const& assm ) const;
 	/** Assuming a closed term. */
 	Thm assume(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
@@ -77,18 +84,21 @@ public:
 		throw Error(Term("#locale_not_found")(name));
 	}
 	/** Pretty printer for context */
-	std::function<std::ostream& (std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
-	std::function<std::ostream& (std::ostream&)> const pretty(Syntax&& syntax) = delete;
+	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
+	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
+	std::function<std::ostream&(std::ostream&)> const print_name(Syntax const& syntax) const&;
+	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
 };
 
 struct Locale::_Body {
 	Opt<Locale const> parent;
+	std::string name;
 	StrMap<Thm const> thms;
 	StrMap<Locale const> locales;
 	Map<size_t,std::string> assm_names;
 	std::multimap<std::string,Import,std::less<>> imports;
 	_Body() {}
-	_Body(Opt<Locale const> parent) : parent(parent) {}
+	_Body( Opt<Locale const> parent, std::string_view const& name ) : parent(parent), name(name) {}
 };
 
 class Import : public Intp {
@@ -142,7 +152,7 @@ public:
 		}
 		auto [name,assm] = *x;
 		// if this assumption is already discharged, then reuse it
-		if( auto opt = _tgt.find_discharge_thm(name,assm) ) {
+		if( auto opt = _tgt.find_thm(name,[&](Thm const& thm){ return assm == thm; },true,true) ) {
 			Intp::discharge(*opt);
 			return true;
 		} else if( mod ) { // if modification is allowed, then make new assumption
@@ -177,62 +187,27 @@ public:
 		return {};
 	}
 	/** retain constant by specification */
-	void retain( CTerm c, Thm const& thm ) & {
-		Intp::retain(c,thm);
-	}
+	void retain( CTerm c, Thm const& thm ) &;
 	/** retain constant by knowledge */
-	void retain( CTerm c ) {
-		auto o = obtaining();
-		if( !o ) {
-			throw Error(c);
-		}
-		auto [name,sym,ex,spec] = *o;
-		auto const& thm = _tgt.find_discharge_thm(name,spec.inst(c));
-		if(!thm) {
-			throw Error(sym)(c);
-		}
-		Intp::retain(c,*thm);
-	}
+	void retain( CTerm c );
 	/** automatic retain */
-	bool retains() {
-		auto o = obtaining();
-		if( !o ) {
-			return false;
-		}
-		auto [name,sym,ex,spec] = *o;
-		if( auto csym = _tgt.constant(sym) ) {
-			if( auto const& thm = _tgt.find_discharge_thm(name,spec.inst(*csym)) ) {
-				Intp::retain(*csym,*thm);
-				return true;
-			}
-			throw MalformedRetain(sym);
-		} else {
-			auto [sym_term,spec] = _tgt.obtain(sym,ex,name);
-			retain(sym_term,spec);
-			return true;
-		}
-	}
-	/**
-	 * @brief Obtains a theorem in the interpretation.
-	 * 
-	 * @param name 
-	 * @return Opt<Thm> 
-	 */
-	Opt<Thm> find_thm(std::string_view const& name) const {
-		if( ready() )// only find if the interpretation is ready
-		if( auto thm = _src.find_thm(name,false) ) {
-			return subst(*thm);
-		}
-		return {};
-	}
+	bool retains();
+	/** @brief Obtains a theorem in the interpretation. */
+	Opt<Thm> find_thm(
+		std::string_view const& name,
+		Opt<std::function<bool(Thm const&)> const&> test,
+		bool noprefix
+	) const;
 };
 
 inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
 inline Locale Locale::branch() const {
-	return Locale(Ref<_Body>::make(Opt<Locale const>(*this)), Ctxt::branch());
+	return Locale(Ref<_Body>::make(Opt<Locale const>(*this),""), Ctxt::branch());
 }
 inline Locale Locale::branch( std::string_view const& name ) {
-	return _ref->locales.emplace(name,branch()).first->second;
+	auto const& loc = Locale(Ref<_Body>::make(Opt<Locale const>(*this),name), Ctxt::branch());
+	_ref->locales.emplace(name,loc);
+	return loc;
 }
 inline Opt<Locale const> Locale::parent() const {
 	return _ref->parent;

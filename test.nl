@@ -1,4 +1,4 @@
-base LambdaLogic;
+base TwoValuedLogic;
 
 
 

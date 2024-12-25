@@ -5,8 +5,6 @@ We axiomatize untyped lambda calculus, and define logical operations, and arrive
 ------
 base Lambda;
 
-import TwoValued;
-
 ----
 ## Defining Logical Constructs
 ----
@@ -20,8 +18,6 @@ interpret True :=
 	end;
 
 setup conclude true_intro;
-
-interpret TwoValuedTrue;
 
 define (false_def) false := ∀P. P;
 
@@ -40,14 +36,6 @@ interpret MinimalNot false (¬) :=
 	discharge if nP: P ⟹ false then ¬P :=
 		by nP[folded not_def];
 	end;
-
-show not_false_eq: (¬false) = true :=
-	apply eq_true;
-	by not_false;
-
-show not_true_eq: (¬true) = false :=
-	unfold not_def;
-	by true_imp_eq;
 
 define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 
@@ -68,6 +56,30 @@ interpret And (∧) :=
 			by Q;
 		qed;
 	end;
+
+define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
+
+interpret Iff (⟺) :=
+	discharge if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q :=
+		apply eq_prop2[OF iff_def];
+		by and_intro[OF PQ QP];
+	discharge if PQ: P ⟺ Q then P ⟹ Q :=
+		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
+			by eq_prop1[OF iff_def PQ];
+		by and_elim1[OF and];
+	discharge if PQ: P ⟺ Q then Q ⟹ P :=
+		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
+			by eq_prop1[OF iff_def PQ];
+		by and_elim2[OF and];
+	end;
+
+interpret PositiveLogic;
+
+setup rewrite iff_elim1 iff.refl iff.trans;
+setup dual iff.sym;
+setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
+setup conclude iff.refl;
+
 
 define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
@@ -106,61 +118,6 @@ show Russel_paradox: ¬(∀P. P ∨ ¬P) :=
 		qed;
 	qed;
 
-
-define prop x := x = true ∨ x = false;
-
-show prop_elim: if P: prop P, P1: P = true ⟹ Q, P0: P = false ⟹ Q then Q :=
-	apply or_elim[OF P[unfold prop_def]];
-	by P1 P0;
-
-assume prop_eq: prop (x = y);
-
-
-
-
-define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
-
-interpret Iff (⟺) :=
-	discharge if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q :=
-		apply eq_prop2[OF iff_def];
-		by and_intro[OF PQ QP];
-	discharge if PQ: P ⟺ Q then P ⟹ Q :=
-		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
-			by eq_prop1[OF iff_def PQ];
-		by and_elim1[OF and];
-	discharge if PQ: P ⟺ Q then Q ⟹ P :=
-		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
-			by eq_prop1[OF iff_def PQ];
-		by and_elim2[OF and];
-	end;
-
-interpret Equal_Iff;
-interpret PositiveLogic;
-
-show eq_true_iff: P = true ⟺ P :=
-	apply iff_intro;
-	case Pt: P = true :=
-		unfold Pt;
-		done;
-	by eq_true;
-
-show true_eq_iff: true = P ⟺ P :=
-	unfold(⟺) eq_iff.commute;
-	by eq_true_iff;
-
-show true_and_true_eq: (true ∧ true) = true :=
-	by eq_true[OF true_and_true];
-
-setup conclude iff.refl;
-
-setup rewrite iff_elim1 iff.refl iff.trans;
-
-setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
-
-setup dual iff.sym;
-
-
-
 infix ≠ 50 50 50;
 
 define (neq_def) x ≠ y := ¬ x = y;
@@ -189,19 +146,18 @@ show true_neq_false: true ≠ false :=
 		fold tf;
 		by true_intro;
 	qed;
-end;
 
+define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
-locale DefineEx :=
-	define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
-	interpret Ex (∃) :=
-		discharge for α x, if ax: α.[x] then ∃x. α.[x] :=
-			unfold ex_def;
-			case for P, all: ∀x. α.[x] ⟹ P :=
-				by all[OF ax];
-			qed;
-		discharge if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
-			by ex[unfolded ex_def];
-		end;
+interpret Ex (∃) :=
+	discharge for α x, if ax: α.[x] then ∃x. α.[x] :=
+		unfold ex_def;
+		case for P, all: ∀x. α.[x] ⟹ P :=
+			by all[OF ax];
+		qed;
+	discharge if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
+		by ex[unfolded ex_def];
 	end;
+
+interpret UntypedIntuitionisticLogic;
 

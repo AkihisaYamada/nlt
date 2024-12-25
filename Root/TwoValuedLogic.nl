@@ -1,19 +1,37 @@
-base Equal;
+base LambdaLogic;
 
 import TwoValued;
 
-interpret DefineFalse;
-interpret DefineNot;
-interpret TwoValuedNot;
-interpret DefineOr;
-interpret DefineEx;
-interpret UntypedLogic;
+ctxt;
+thm true$spec;
 
-setup cong iff_cong_not iff_cong_ex;
+interpret TwoValuedTrue;
+
+show true_and_true_eq: (true ∧ true) = true :=
+	by eq_true[OF true_and_true];
+
+show eq_true_iff: P = true ⟺ P :=
+	apply iff_intro;
+	case Pt: P = true :=
+		unfold Pt;
+		done;
+	by eq_true;
+
+show true_eq_iff: true = P ⟺ P :=
+	unfold(⟺) eq_iff.commute;
+	by eq_true_iff;
 
 show false_imp_eq: (false ⟹ P) = true :=
 	apply eq_true;
 	by false_elim;
+
+show not_false_eq: (¬false) = true :=
+	apply eq_true;
+	by not_false;
+
+show not_true_eq: (¬true) = false :=
+	unfold not_def;
+	by true_imp_eq;
 
 interpret and: MetaLeftAbsorb (∧) false (=) :=
 	discharge (false ∧ P) = false :=
@@ -28,21 +46,6 @@ interpret and: MetaRightAbsorb (∧) false (=) :=
 		fold false_def;
 		done;
 	end;
-
-define prop x := ∀P. (x = true ⟹ P) ⟹ (x = false ⟹ P) ⟹ P;
-
-show prop_elim: if x: prop x, 1: x = true ⟹ P, 0: x = false ⟹ P then P :=
-	by x[unfolded prop_def][OF 1 0];
-
-show nnot_eq: if p: prop P then (¬¬P) = P :=
-	apply prop_elim[OF p];
-	case P1: P = true :=
-		unfold+ P1 not_true_eq not_false_eq;
-		done;
-	case P0: P = false :=
-		unfold+ P0 not_false_eq not_true_eq;
-		done;
-	qed;
 
 interpret or: MetaLeftAbsorb (∨) true (=) :=
 	discharge (true ∨ P) = true :=
@@ -61,6 +64,39 @@ show false_or_false_eq: (false ∨ false) = false :=
 	unfold false_def;
 	done;
 
+show true_iff_false_eq: (true ⟺ false) = false :=
+	unfold+ iff_def true_imp_eq and.left_absorb;
+	done;
+
+show false_iff_true_eq: (false ⟺ true) = false :=
+	unfold+ iff_def true_imp_eq and.right_absorb;
+	done;
+
+show all_true_eq: (∀x. true) = true :=
+	apply eq_true;
+	by true_intro;
+
+show ex_false_eq: (∃x. false) = false :=
+	unfold+ ex_def false_imp_eq all_true_eq true_imp_eq;
+	unfold false_def;
+	done;
+
+define prop x := x = true ∨ x = false;
+
+show prop_elim: if x: prop x, 1: x = true ⟹ P, 0: x = false ⟹ P then P :=
+	apply or_elim[OF x[unfolded prop_def]];
+	by 1 0;
+
+show nnot_eq: if p: prop P then (¬¬P) = P :=
+	apply prop_elim[OF p];
+	case P1: P = true :=
+		unfold+ P1 not_true_eq not_false_eq;
+		done;
+	case P0: P = false :=
+		unfold+ P0 not_false_eq not_true_eq;
+		done;
+	qed;
+
 interpret ExcludedMiddle prop (∨) (¬) :=
 	discharge if p: prop P then P ∨ ¬P :=
 		apply prop_elim[OF p];
@@ -75,7 +111,7 @@ interpret ExcludedMiddle prop (∨) (¬) :=
 
 interpret true: Member prop true :=
 	discharge prop true :=
-		unfold+ prop_def eq_true[OF eq.refl] true_imp_eq ;
+		unfold+ prop_def eq_true[OF eq.refl] true_imp_eq or.left_absorb;
 		done;
 	end;
 
@@ -134,14 +170,6 @@ interpret iff: Magma prop (⟺) :=
 		qed;
 	end;
 
-show true_iff_false_eq: (true ⟺ false) = false :=
-	unfold+ iff_def true_imp_eq and.left_absorb;
-	done;
-
-show false_iff_true_eq: (false ⟺ true) = false :=
-	unfold+ iff_def true_imp_eq and.right_absorb;
-	done;
-
 interpret or: Magma prop (∨) :=
 	discharge if p: prop P, q: prop Q then prop (P ∨ Q) :=
 		apply prop_elim[OF p];
@@ -159,15 +187,6 @@ interpret or: Magma prop (∨) :=
 			qed;
 		qed;
 	end;
-
-show all_true_eq: (∀x. true) = true :=
-	apply eq_true;
-	by true_intro;
-
-show ex_false_eq: (∃x. false) = false :=
-	unfold+ ex_def false_imp_eq all_true_eq true_imp_eq;
-	unfold false_def;
-	done;
 
 interpret PropOr prop (∨) :=
 	know;
