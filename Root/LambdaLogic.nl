@@ -4,6 +4,7 @@
 We axiomatize untyped lambda calculus, and define logical operations, and arrive at untyped multivalued intuitionistic logic.
 ------
 base Lambda;
+finalize;
 
 ----
 ## Defining Logical Constructs
