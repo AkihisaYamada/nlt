@@ -136,11 +136,11 @@ locale False :=
 	end;
 
 infix ⟺ 1 1 0;
-locale Iff :=
-	fix (⟺);
+locale Iff (⟺) :=
 	assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q;
 	assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q;
 	assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
+	finalize;
 	interpret iff: MetaEquivalence (⟺) :=
 		discharge if PQ: P ⟺ Q then Q ⟺ P :=
 			by iff_intro[OF iff_elim2[OF PQ] iff_elim1[OF PQ]];
@@ -254,11 +254,11 @@ locale Iff :=
 	end;
 
 infix ∧ 35 36 36;
-locale And :=
-	fix (∧);
+locale And (∧) :=
 	assume and_intro: P ⟹ Q ⟹ P ∧ Q;
 	assume and_elim1: P ∧ Q ⟹ P;
 	assume and_elim2: P ∧ Q ⟹ Q;
+	finalize;
 	interpret and: MetaSymmetric (∧) :=
 		discharge if PQ: P ∧ Q then Q ∧ P :=
 			by and_intro[OF and_elim2[OF PQ] and_elim1[OF PQ]];
@@ -270,10 +270,10 @@ locale And :=
 	end;
 
 prefix ¬ 40 40;
-locale MinimalNot :=
-	fix false (¬);
+locale MinimalNot false (¬) :=
 	assume not_imp_false: ¬ P ⟹ P ⟹ false;
 	assume not_intro: (P ⟹ false) ⟹ ¬ P;
+	finalize;
 
 	show not_false: ¬false :=
 		by not_intro[OF imp.refl];
@@ -347,6 +347,16 @@ locale MinimalNot :=
 		qed;
 	end;
 
+locale Not :=
+	interpret False;
+	import MinimalNot;
+	finalize;
+	show not_elim: if nP: ¬P, P: P then Q :=
+		show f: false :=
+			by not_imp_false[OF nP P];
+		by false_elim[OF f];
+	end;
+
 infix ∨ 30 31 30;
 locale Or :=
 	fix (∨);
@@ -359,15 +369,6 @@ locale Or :=
 		discharge if PQ: P ∨ Q then Q ∨ P :=
 			by or_elim[OF PQ or_intro2 or_intro1];
 		end;
-	end;
-
-locale Not :=
-	interpret False;
-	import MinimalNot;
-	show not_elim: if nP: ¬P, P: P then Q :=
-		show f: false :=
-			by not_imp_false[OF nP P];
-		by false_elim[OF f];
 	end;
 
 prefix ∃ 0 0;
@@ -419,6 +420,7 @@ locale Prop prop :=
 	assume prop_prop: prop (prop x);
 	assume prop_imp_intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
 	import all: Binder prop (∀);
+	finalize;
 	end;
 
 locale MetaRelation prop (≤) :=
@@ -453,6 +455,7 @@ locale PropTrue prop :=
 
 locale PropFalse prop :=
 	import Prop;
+	finalize;
 	obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type: prop false :=
 		case for thesis, assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
 			apply assm(∀P. prop P ⟹ P);
@@ -470,13 +473,19 @@ locale PropFalse prop :=
 		end;
 	end;
 
+locale PropNot prop :=
+	import PropFalse;
+	import MinimalNot;
+	end;
+
+
 locale PropAnd prop (∧) :=
 	import and: Magma prop (∧);
 	import And;
 	end;
 
 locale PropIff prop (⟺) :=
-	import imp: Magma prop (⟺);
+	import iff: Magma prop (⟺);
 	import Iff;
 	end;
 

@@ -69,7 +69,7 @@ class Prover {
 	Mem<Rewriter> _rewriter;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
-	bool _final;
+	bool _final = false;
 	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Thm> thesis = {}) :
 		_parent(Ref<Prover>::make(parent)),
 		_depth(parent._depth),
@@ -551,7 +551,7 @@ public:
 // ∀sym. props... ⟹ var
 						t = t.capp()->second.inst(term);
 // props[sym:=term]... ⟹ var
-						Thm rule = thesis_loc.assume("?thesis",t);
+						Thm rule = make_rule(thesis_loc.assume("?thesis",t));
 // and prove var, i.e., props[sym:=term]...
 						Thm thesis = make_refl(var);
 						auto thesis2 = rule_applies(rule,thesis);
@@ -835,8 +835,8 @@ public:
 						min = max = 1; safe = true;
 					}
 					set<Thm> rules;
-					while( auto const& rule = gets_thm() ) {
-						rules.insert(*rule);
+					while( auto const& thm = gets_thm() ) {
+						rules.insert(make_rule(*thm));
 					}
 					_parser.skip(";");
 					for( int i = 0;; i++ ) {

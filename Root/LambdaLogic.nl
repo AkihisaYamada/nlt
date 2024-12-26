@@ -97,7 +97,7 @@ interpret Or (∨) :=
 		by eq_prop1[OF or_def PQ PR QR];
 	end;
 
-show Russel_paradox: ¬(∀P. P ∨ ¬P) :=
+show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 	apply not_intro;
 	case or: ∀P. P ∨ ¬P :=
 		define R x := ¬ x x;

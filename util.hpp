@@ -90,8 +90,11 @@ Opt<Thm> rule_applies( Thm const& thm, Thm const& thesis );
  */
 Opt<Thm> match_discharge( Thm const& imp, Thm const& arg );
 
-/** @brief Applies one of inference rules */
+/** @brief Applies set of rules many times */
 Opt<Thm> rules_apply( std::set<Thm> const& rules, Thm const& thesis );
+
+/** @brief Applies set of rules many times */
+Thm rules_apply( std::set<Thm> const& rules, Thm thesis, size_t min, size_t max, bool safe );
 
 /**
  * @brief Uncurrying
