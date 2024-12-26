@@ -282,13 +282,11 @@ Opt<Thm> rule_applies( Thm const& rule, Thm const& thesis ) {
 Opt<Thm> rules_apply( set<Thm> const& rules, Thm const& thesis ) {
 	Ctxt ctxt = thesis.ctxt().branch();
 	Thm tmp = thesis.weaken(ctxt);
-	auto imp = tmp.cbinary(IMP);
-	if( !imp ) {
-		throw Error("#apply")(thesis);
-	}
-	for( auto const& rule : rules ) {
-		if( auto ret = _rule_applies(rule,ctxt,tmp,imp->first) ) {
-			return ret;
+	if( auto imp = tmp.cbinary(IMP) ) {
+		for( auto const& rule : rules ) {
+			if( auto ret = _rule_applies(rule,ctxt,tmp,imp->first) ) {
+				return ret;
+			}
 		}
 	}
 	return {};
