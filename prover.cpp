@@ -839,21 +839,7 @@ public:
 						rules.insert(make_rule(*thm));
 					}
 					_parser.skip(";");
-					for( int i = 0;; i++ ) {
-						if( i == max ) {
-							if( safe ) break;
-							throw Error("\"apply limit exceeded\"")(to_string(max));
-						}
-						if( !has_goal() ) break;
-						if( auto const& res = rules_apply(rules,*_thesis) ) {
-							*_thesis = *res;
-							continue;
-						}
-						if( i < min ) {
-							throw Error("\"Rule not applicable\"");
-						}
-						break;
-					}
+					*_thesis = rules_apply(rules,*_thesis,min,max,safe);
 					if( auto g = has_goal() ) {
 						cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
 					} else {
