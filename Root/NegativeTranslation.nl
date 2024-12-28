@@ -83,7 +83,7 @@ interpret image_nnot.imp: Magma image_nnot (⟹) :=
 				unfold image_nnot_iff;
 				fold nnQ;
 				unfold+ nnimp_not_iff nnQ iff_true[OF iff.refl] and_true_iff;
-				apply+ prop_imp_intro pP pQ;
+				blast prop_imp_intro pP pQ;
 				qed;
 			qed;
 		qed;
@@ -126,11 +126,11 @@ interpret image_nnot.or: PropOr image_nnot nnot_or :=
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
 		case pP: prop P, nnP: ¬¬P ⟺ P, pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
 			unfold+ image_nnot_iff nnot_or_iff nnnot_iff iff_true[OF iff.refl] and_true_iff;
-			apply+ nnot_or.type pP pQ;
+			blast nnot_or.type pP pQ;
 			qed;
 		qed;
 	discharge if P: P then nnot_or P Q :=
-		unfold+ nnot_or_iff iff_true[OF P] not_true_iff false_and_iff;
+		unfold+ nnot_or_iff iff_true[OF P] not_true_iff;
 		by not_false;
 	discharge if Q: Q then nnot_or P Q :=
 		unfold+ nnot_or_iff iff_true[OF Q] not_true_iff and_false_iff;

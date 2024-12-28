@@ -491,9 +491,9 @@ locale PropIff prop (⟺) :=
 
 locale PropOr prop (∨) :=
 	import or: Magma prop (∨);
-	assume or_intro1: P ⟹ P ∨ Q;
-	assume or_intro2: Q ⟹ P ∨ Q;
-	assume or_elim: P ∨ Q ⟹ prop R ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+	assume or_intro1: P ⟹ prop Q ⟹ P ∨ Q;
+	assume or_intro2: for P Q, Q ⟹ prop P ⟹ P ∨ Q;
+	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R;
 	interpret Symmetric prop (∨) :=
 		discharge if pP: prop P, pQ: prop Q, or: P ∨ Q then Q ∨ P :=
 			apply or_elim[OF or];
@@ -504,8 +504,8 @@ locale PropOr prop (∨) :=
 
 locale PropEx prop (∃) :=
 	import ex: Binder prop (∃);
-	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
-	assume ex_elim: (∃x. α.[x]) ⟹ prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
+	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ (∀y. prop α.[y]) ⟹ ∃x. α.[x];
+	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ prop P ⟹ P;
 	show ex_intro:
 		if atype: ∀x. prop α.[x],
 			assm: ∀P. prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P

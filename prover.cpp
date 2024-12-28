@@ -345,6 +345,32 @@ public:
 		inst = inst.intro();
 		*_thesis = _thesis->impE(inst);
 	}
+	Opt<Thm> blast( Thm const& thesis, set<Thm> const& rules ) {
+		auto imp = thesis.cbinary(IMP);
+		if( !imp ) {// no goal to blast
+			return {};
+		}
+		CTerm subgoal = imp->first;
+		Ctxt subctxt = subgoal.ctxt().branch();
+		subgoal = strip_all(subgoal,subctxt);
+		while( auto imp2 = subgoal.cbinary(IMP) ) {
+			subctxt.assume(imp2->first);
+			subgoal = imp2->second;
+		}
+		auto res = rules_apply(rules,make_thesis(subgoal));
+		if( !res ) {
+			throw Error("\"failed to blast\"")(subgoal);
+		}
+		// blast all sub-sub-goals:
+		Thm subthesis = *res;
+		while( auto res2 = blast(subthesis,rules) ) {
+			subthesis = *res2;
+		}
+		if( subthesis.cbinary(IMP) ) {
+			throw Error("\"failed to blast\"");
+		}
+		return thesis.impE(subthesis.intro());
+	}
 	Locale find_locale( string_view const& name ) {
 		auto loc = _loc.find_locale(name);
 		if( !loc ) {
@@ -826,7 +852,10 @@ public:
 			} else if( _parser.skips("end") || _parser.skips("") ) {
 				return {};
 			} else if( _thesis ) {
-				if( _parser.skips("apply") ) {
+				if( _parser.skips("goal") ) {
+					_parser.skip(";");
+					print_goal();
+				} else if( _parser.skips("apply") ) {
 					int min, max;
 					bool safe;
 					if( _parser.skips("+") ) {
@@ -890,13 +919,7 @@ public:
 					subprf._thesis = make_thesis(newgoal);
 					conclude(subprf._prompt().proof_loop());
 					print_goal();
-				} else if( _parser.skips("goal") ) {
-					_parser.skip(";");
-					print_goal();
 				} else if( _parser.skips("by") ) {
-					if( !_thesis ) {
-						throw Error("No goal for \"by\"");
-					}
 					while( auto const& thm = gets_thm() ) {
 						conclude(*thm);
 					}
@@ -908,6 +931,18 @@ public:
 						throw Error("No goal for \"done\"");
 					}
 					return _concluder.conclude(*_thesis);
+				} else if( _parser.skips("blast") ) {
+					set<Thm> rules;
+					while( auto const& thm = gets_thm() ) {
+						rules.insert(make_rule(*thm));
+					}
+					_parser.skip(";");
+					auto const& ret = blast(*_thesis,rules);
+					if( !ret ) {
+						throw Error("\"nothing to blast\"");
+					}
+					_thesis = *ret;
+					print_goal();
 				} else if( _parser.skips("qed") ) {
 					_parser.skip(";");
 					if( !_thesis ) {

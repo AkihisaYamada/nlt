@@ -247,7 +247,7 @@ CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
 
-Opt<Thm> _rule_applies( Thm const& rule, Ctxt& ctxt, Thm const& tmp, CTerm const& goal ) {
+static Opt<Thm> _rule_applies( Thm const& rule, Ctxt& ctxt, Thm const& tmp, CTerm const& goal ) {
 	auto const& m = match( rule, goal, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) {
 		return {};

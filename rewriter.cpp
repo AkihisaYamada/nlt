@@ -5,6 +5,7 @@ using namespace std;
 
 static Error const MalformedRefl = Rewriter::Error("\"malformed reflexivity rule\"");
 static Error const MalformedTrans = Rewriter::Error("\"malformed transitivity rule\"");
+static Error const MalformedRule = Rewriter::Error("\"malformed rewrite rule\"");
 static Error const MalformedCong = Rewriter::Error("\"malformed congruence rule\"");
 Rewriter::Error const Rewriter::UnregisteredRel = Error("\"unregistered rewrite relation\"");
 Rewriter::Error const Rewriter::MalformedImp = Error("\"malformed rewrite implication\"");
@@ -45,7 +46,7 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 		}
 		return;
 	}
-	throw Error(thm);
+	throw MalformedRule(thm);
 }
 void Rewriter::register_imp( Thm const& thm ) {
 	Thm rule = strip_all(thm);
