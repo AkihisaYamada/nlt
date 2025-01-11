@@ -43,6 +43,7 @@ locale MetaSymmetric (=) :=
 	assume sym: x = y ⟹ y = x;
 	end;
 
+ctxt MetaPreorder;
 locale MetaEquivalence (=) :=
 	import MetaSymmetric;
 	import MetaPreorder (=);
@@ -100,16 +101,16 @@ show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	qed;
 
 show insert: (P ⟹ Q) ⟹ (R ⟹ P) ⟹ R ⟹ Q :=
-	by imp_commute[OF imp.trans];
+	note! imp_commute[OF imp.trans];
+	qed;
 
 show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
 	apply PQQR;
-	by mp[OF P];
+	note! mp[OF P];
+	qed;
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
-	show! if P: P then α.[x] :=
-		by imp[OF P];
-	qed;
+	by imp;
 
 show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x] :=
 	by all[OF P];
@@ -167,14 +168,10 @@ locale Iff (⟺) :=
 
 	show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		apply iff_intro;
-		show! if PR: P ⟹ R then Q ⟹ S :=
-			show QR: Q ⟹ R :=
-				by imp.trans[OF iff_elim2[OF PQ] PR];
-			by imp.trans[OF QR iff_elim1[OF RS]];
-		show! if QS: Q ⟹ S then P ⟹ R :=
-			show PS: P ⟹ S :=
-				by imp.trans[OF iff_elim1[OF PQ] QS];
-			by imp.trans[OF PS iff_elim2[OF RS]];
+		show! if PR: P ⟹ R, Q: Q then S :=
+			by iff_elim1[OF RS] PR iff_elim2[OF PQ] Q;
+		show! if QS: Q ⟹ S, P: P then R :=
+			by iff_elim2[OF RS] QS iff_elim1[OF PQ] P;
 		qed;
 
 	show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
@@ -192,15 +189,9 @@ locale Iff (⟺) :=
 	show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
 		apply iff_intro;
 		show! if a: ∀x. α.[x] then ∀x. β.[x] :=
-			case for x :=
-				apply iff_elim1[OF ab];
-				by a;
-			qed;
+			by iff_elim1[OF ab] a;
 		show! if b: ∀x. β.[x] then ∀x. α.[x] :=
-			case for x :=
-				apply iff_elim2[OF ab];
-				by b;
-			qed;
+			by iff_elim2[OF ab] b;
 		qed;
 
 	show imp_iff_iff: if P: P then (P ⟺ Q) ⟺ Q :=
@@ -209,12 +200,7 @@ locale Iff (⟺) :=
 			apply+ iff_elim1[OF PQ] P;
 			qed;
 		case Q: Q :=
-			apply iff_intro;
-			case P: P :=
-				by Q;
-			case Q: Q :=
-				by P;
-			qed;
+			by iff_intro P Q;
 		qed;
 
 	show all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P :=
@@ -231,8 +217,7 @@ locale Iff (⟺) :=
 		apply iff_intro;
 		note! imp2_imp_imp;
 		show! if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q :=
-			apply PQQ;
-			by PQ;
+			by PQQ[OF PQ];
 		qed;
 
 	show imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]) :=
@@ -243,12 +228,7 @@ locale Iff (⟺) :=
 		case PQ: P ⟺ Q :=
 			by iff_elim1[OF PQ P];
 		case Q: Q :=
-			apply iff_intro;
-			case P: P :=
-				by Q;
-			case Q: Q :=
-				by P;
-			qed;
+			by iff_intro P Q;
 		qed;
 
 	end;
@@ -320,14 +300,10 @@ locale MinimalNot false (¬) :=
 	show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P then ¬¬Q :=
 		apply not_intro;
 		case nQ: ¬Q :=
-			show nPQ: ¬(P ⟹ Q) :=
-				apply not_intro;
-				case PQ: P ⟹ Q :=
-					show Q: Q :=
-						by PQ[OF P];
-					by not_imp_false[OF nQ Q];
-				qed;
-			by not_imp_false[OF nnPQ nPQ];
+			apply+ not_imp_false[OF nnPQ] not_intro;
+			case PQ: P ⟹ Q :=
+				by not_imp_false[OF nQ] PQ P;
+			qed;
 		qed;
 
 	show nnot_not_imp_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q) :=
@@ -341,9 +317,7 @@ locale MinimalNot false (¬) :=
 	show not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]) :=
 		apply not_intro;
 		case a: ∀y. α.[y] :=
-			show ax: α.[x] :=
-				by a;
-			by not_imp_false[OF nax ax];
+			by not_imp_false[OF nax] a;
 		qed;
 	end;
 
@@ -379,7 +353,8 @@ locale Ex (∃) :=
 
 	show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x] :=
 		apply assm;
-		by ex_intro1;
+		note! ex_intro1;
+		qed;
 
 	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, all: ∀x. α.[x] then P :=
 		apply ex_elim[OF ex];
@@ -397,8 +372,13 @@ locale Reflexive mem (≤) :=
 	end;
 
 locale Symmetric mem (≤) :=
-	assume sym: mem x ⟹ mem y ⟹ x ≤ y ⟹ y ≤ x;
+	assume sym: x ≤ y ⟹ mem x ⟹ mem y ⟹ y ≤ x;
 	end;
+
+locale Transitive mem (≤) :=
+	assume trans: x ≤ y ⟹ y ≤ z ⟹ mem x ⟹ mem y ⟹ mem z ⟹ x ≤ z;
+	end;
+
 
 locale Member mem c :=
 	assume type: mem c;
@@ -414,114 +394,6 @@ locale Magma mem (+) :=
 
 locale Binder mem ξ :=
 	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
-	end;
-
-locale Prop prop :=
-	assume prop_prop: prop (prop x);
-	assume prop_imp_intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
-	import all: Binder prop (∀);
-	finalize;
-	end;
-
-locale MetaRelation prop (≤) :=
-	assume type: prop (x ≤ y);
-	end;
-
-locale PropTrue prop :=
-	import Prop;
-	obtain true where true_intro: true, true.type: prop true :=
-		case for thesis, assm: ∀true. true ⟹ prop true ⟹ thesis :=
-			apply assm(∀P. prop P ⟹ P ⟹ P);
-			case for P, p: prop P, P: P :=
-				by P;
-			apply all.type;
-			case for P :=
-				apply+ prop_imp_intro prop_prop;
-				case p: prop P :=
-					apply+ prop_imp_intro prop_prop p;
-					by p;
-				qed;
-			qed;
-		qed;
-	interpret true: Member prop true :=
-		discharge prop true :=
-			by true.type;
-		end;
-	interpret True :=
-		substitute true :=
-			by true_intro;
-		end;
-	end;
-
-locale PropFalse prop :=
-	import Prop;
-	finalize;
-	obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type: prop false :=
-		case for thesis, assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
-			apply assm(∀P. prop P ⟹ P);
-			case for P, f: ∀P. prop P ⟹ P, p: prop P :=
-				by f[OF p];
-			apply all.type;
-			case for P :=
-				apply+ prop_imp_intro prop_prop;
-				done;
-			qed;
-		qed;
-	interpret false: Member prop false :=
-		discharge prop false :=
-			by false.type;
-		end;
-	end;
-
-locale PropNot prop :=
-	import PropFalse;
-	import MinimalNot;
-	end;
-
-
-locale PropAnd prop (∧) :=
-	import and: Magma prop (∧);
-	import And;
-	end;
-
-locale PropIff prop (⟺) :=
-	import iff: Magma prop (⟺);
-	import Iff;
-	end;
-
-locale PropOr prop (∨) :=
-	import or: Magma prop (∨);
-	assume or_intro1: P ⟹ prop Q ⟹ P ∨ Q;
-	assume or_intro2: for P Q, Q ⟹ prop P ⟹ P ∨ Q;
-	assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R;
-	interpret Symmetric prop (∨) :=
-		discharge if pP: prop P, pQ: prop Q, or: P ∨ Q then Q ∨ P :=
-			apply or_elim[OF or];
-			apply+ or.type pQ pP;
-			by or_intro2 or_intro1;
-		end;
-	end;
-
-locale PropEx prop (∃) :=
-	import ex: Binder prop (∃);
-	assume ex_intro1: ∀x. ∀α. α.[x] ⟹ (∀y. prop α.[y]) ⟹ ∃x. α.[x];
-	assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ prop P ⟹ P;
-	show ex_intro:
-		if atype: ∀x. prop α.[x],
-			assm: ∀P. prop P ⟹ (∀x. α.[x] ⟹ P) ⟹ P
-		then ∃x. α.[x] :=
-		apply assm;
-		note! ex.type[OF atype];
-		by ex_intro1;
-	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, pP: prop P, all: ∀x. α.[x] then P :=
-		apply ex_elim[OF ex pP];
-		case for x, imp: α.[x] ⟹ P :=
-			by imp[OF all];
-		qed;
-	end;
-
-locale ExcludedMiddle prop (∨) (¬) :=
-	assume excluded_middle: prop P ⟹ P ∨ ¬P;
 	end;
 
 

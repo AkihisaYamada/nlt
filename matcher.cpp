@@ -239,6 +239,7 @@ Thm make_rule( Thm const& thm ) {
 	Thm rule = strip_all(thm,loc);
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.impE(loc.assume(imp->first));
+		rule = strip_all(rule,loc);
 	}
 	return rule;
 }

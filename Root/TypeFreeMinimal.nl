@@ -63,7 +63,8 @@ show not_false_iff: ¬false ⟺ true :=
 show false_and_false_iff: false ∧ false ⟺ false :=
 	apply iff_intro;
 	show! false ∧ false ⟹ false :=
-		by and_elim1;
+		note! and_elim1;
+		qed;
 	show! if 0: false then false ∧ false :=
 		by and_intro[OF 0 0];
 	qed;
@@ -104,7 +105,8 @@ show nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
 	apply iff_intro;
 	show! if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
 		by nnimp_imp_nnot[OF nnimp P][unfolded nnnot_iff];
-	by nnot_intro;
+	note! nnot_intro;
+	qed;
 
 show nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q) :=
 	unfold+ nand_iff_imp_not;

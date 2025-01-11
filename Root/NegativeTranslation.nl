@@ -10,36 +10,31 @@ base TypedIntuitionisticLogic;
 
 fix image_nnot nnot_or nnot_ex;
 
-assume image_nnot_iff_and: image_nnot P ⟺ prop P ∧ (∃P'. prop P' ∧ (P ⟺ ¬¬P'));
-
-show image_nnot_imp_iff: if pP: image_nnot P then ¬¬P ⟺ P :=
-	note 1: pP[unfolded image_nnot_iff_and];
-	apply and_elim[OF 1];
-	case pP: prop P, ex: ∃P'. prop P' ∧ (P ⟺ ¬¬P') :=
-		apply ex_elim[OF ex];
-		apply+ iff.type not.type pP;
-		unfold and_imp_iff;
-		case for P', pP': prop P', P: P ⟺ ¬¬P' :=
-			unfold+ P nnnot_iff;
-			by iff.refl;
-		qed;
-	qed;
+assume image_nnot_iff_and: image_nnot P ⟺ prop P ∧ (∃P'. P ⟺ ¬¬P');
 
 show image_nnot_imp_type: if pP: image_nnot P then prop P :=
 	by and_elim1[OF pP[unfolded image_nnot_iff_and]];
 
+show image_nnot_imp_iff: if tP: image_nnot P then ¬¬P ⟺ P :=
+	note 1: tP[unfolded image_nnot_iff_and];
+	apply and_elim[OF 1];
+	case pP: prop P, ex: ∃P'. P ⟺ ¬¬P' :=
+		apply ex_elim[OF ex];
+		case for P', P: P ⟺ ¬¬P' :=
+			unfold+ P nnnot_iff;
+			by iff.refl;
+		by iff.type not.type pP;
+	qed;
+
 show image_nnot_iff: image_nnot P ⟺ prop P ∧ (¬¬P ⟺ P) :=
 	apply iff_intro;
 	case pP: image_nnot P :=
-		apply and_intro;
-		show! prop P :=
-			by and_elim1[OF pP[unfolded image_nnot_iff_and]];
-		by image_nnot_imp_iff[OF pP];
+		by and_intro image_nnot_imp_type[OF pP] image_nnot_imp_iff[OF pP];
 	unfold+ and_imp_iff image_nnot_iff_and;
 	case pP: prop P, nn: ¬¬P ⟺ P :=
 		apply+ and_intro pP ex_intro1(P);
-		unfold nn;
-		done;
+		unfold! nn;
+		blast and.type prop_prop iff.type not.type;
 	qed;
 
 --The negative translation of disjunction is specified as follows.

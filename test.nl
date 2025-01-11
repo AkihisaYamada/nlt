@@ -1,4 +1,4 @@
-base NegativeTranslation;
+base Propositional;
 
 
 

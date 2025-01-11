@@ -147,7 +147,7 @@ public:
 		}
 		throw Parser::Error("expects a theorem");
 	}
-	Thm _rewrite( Locale& loc, Thm const& source, vector<char> pos, bool rev = false ) {
+	Thm _rewrite( Locale& loc, Thm const& source, vector<char> pos, size_t min, size_t max, bool safe, bool rev = false ) {
 		auto rel = [&]()->Opt<string>{
 			if( _parser.skips("(") ) {
 				string ret = _parser.get_token();
@@ -161,8 +161,6 @@ public:
 				pos.push_back(_parser.get_int());
 			}
 		}
-		unsigned int min, max;
-		bool safe;
 		if( _parser.skips("*") ) {
 			min = 0; max = 255; safe = false;
 		} else if( _parser.skips("+") ) {
@@ -195,9 +193,9 @@ public:
 						ret = discharge(ret,*arg);
 					}
 				} else if( _parser.skips("unfolded") ) {
-					ret = _rewrite(loc,ret,{},false);
+					ret = _rewrite(loc,ret,{},1,1,true,false);
 				} else if( _parser.skips("folded") ) {
-					ret = _rewrite(loc,ret,{},true);
+					ret = _rewrite(loc,ret,{},1,1,true,true);
 				}
 				_parser.skip("]");
 			} else {
@@ -345,7 +343,14 @@ public:
 		inst = inst.intro();
 		*_thesis = _thesis->impE(inst);
 	}
-	Opt<Thm> blast( Thm const& thesis, set<Thm> const& rules ) {
+	set<Thm> get_rules() {
+		set<Thm> rules;
+		while( auto const& thm = gets_thm() ) {
+			rules.insert(make_rule(*thm));
+		}
+		return rules;
+	}
+	Opt<Thm> blast( Thm const& thesis, set<Thm> const& rules, size_t& fuel ) {
 		auto imp = thesis.cbinary(IMP);
 		if( !imp ) {// no goal to blast
 			return {};
@@ -357,17 +362,43 @@ public:
 			subctxt.assume(imp2->first);
 			subgoal = imp2->second;
 		}
-		auto res = rules_apply(rules,make_thesis(subgoal));
-		if( !res ) {
-			throw Error("\"failed to blast\"")(subgoal);
+		Thm subthesis = make_thesis(subgoal);
+		auto res = rules_apply(rules,subthesis);
+		if( res ) {
+			subthesis = *res;
+		} else {
+			Ctxt acc = subctxt;
+			size_t i = 0;
+			for(;;) {
+				if( i == acc.revision() ) {
+					if( auto const& p = acc.find_parent() ) {
+						acc = *p;
+						i = 0;
+						continue;
+					} else {
+						throw Error("\"failed blast\"")(subgoal);
+					}
+				}
+				if( auto const& assm = acc.assumed(i) )
+				if( (Term)subgoal == *assm ) {
+					subthesis = subthesis.impE(assm->weaken(subctxt));
+					break;
+				}
+				i++;
+			}
 		}
 		// blast all sub-sub-goals:
-		Thm subthesis = *res;
-		while( auto res2 = blast(subthesis,rules) ) {
-			subthesis = *res2;
+		fuel--;
+		for(;;) {
+			if( fuel > 0 )
+			if( auto res2 = blast(subthesis,rules,fuel) ) {
+				subthesis = *res2;
+				continue;
+			}
+			break;
 		}
-		if( subthesis.cbinary(IMP) ) {
-			throw Error("\"failed to blast\"");
+		if( auto imp = subthesis.cbinary(IMP) ) {
+			throw Error("\"failed to blast\"")(imp->first);
 		}
 		return thesis.impE(subthesis.intro());
 	}
@@ -383,9 +414,17 @@ public:
 		return *loc;
 	}
 	void print_goal() {
-		if( auto g = has_goal() ) {
-			cout << "goal: " << _syntax->pretty_cterm(*g) << endl;
-		} else {
+		assert( _thesis );
+		Term acc = *_thesis;
+		size_t i = 0;
+		string pre = "goal ";
+		while( auto const& imp = acc.binary(IMP) ) {
+			i++;
+			cout << pre << i << ": " << _syntax->pretty_term(imp->first) << endl;
+			acc = imp->second;
+			pre = "\t";
+		}
+		if( i == 0 ) {
 			cout << "no goal" << endl;
 		}
 	}
@@ -513,7 +552,9 @@ public:
 						}
 						_parser.skip(";");
 					} else {
-						break;
+						if( !intp.instantiates(mod) ) {
+							throw Error("\"failed to instantiate\"")(v);
+						}
 					}
 				} else if( auto a = intp.assuming() ) {
 					auto [name,axiom] = *a;
@@ -542,7 +583,9 @@ public:
 						intp.discharge(thm);
 						cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
 					} else {
-						break;
+						if( !intp.discharges(mod) ) {
+							throw Error("\"failed to discharge\"")(name)(axiom);
+						}
 					}
 				} else if( auto obtain = intp.obtaining() ) {
 					string sym = obtain->sym;
@@ -588,19 +631,22 @@ public:
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 						intp.retain(_loc.cterm(term),spec);
 					} else {
-						break;
+						if( !intp.retains() ) {
+							throw Error("\"failed retain\"")(obtain->spec);
+						}
 					}
 				} else {
 					cout << "Complete!" << endl;
 					_indent();
+					_parser.skip("end");
+					_depth--;
 					break;
 				}
 			}
-			_parser.skip("end");
-			_depth--;
+		} else {
+			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
 		_parser.skip(";");
-		while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
 	Opt<Thm> loop() {
@@ -640,9 +686,12 @@ public:
 				_parser.skip("}");
 				cout << "left " << name << endl;
 			} else if( _parser.skips("thm") ) {
-				Thm thm = get_thm();
-				_parser.skip(";");
-				cout << "thm " << _syntax->pretty_thm(thm) << endl;
+				string pref = "thm ";
+				do {
+					Thm thm = get_thm();
+					cout << pref << _syntax->pretty_thm(thm) << ';' << endl;
+					pref = "\t";
+				} while( !_parser.skips(";") );
 			} else if( _parser.skips("term") ) {
 				Term term = get_term();
 				_parser.skip(";");
@@ -661,7 +710,11 @@ public:
 				cout << "Showing " << cs << flush;
 				auto const& [goal_loc,goal] = get_statement();
 				add_claim(cs,prove(goal_loc,goal).intro().intro());
-				print_goal();
+				if( _thesis ) {
+					print_goal();
+				} else {
+					cout << "theory state" << endl;
+				}
 			} else if( _parser.skips("obtain") ) {
 				string sym = _parser.get_token();
 				_parser.skip("where");
@@ -855,6 +908,10 @@ public:
 				if( _parser.skips("goal") ) {
 					_parser.skip(";");
 					print_goal();
+				} else if( _parser.skips("just") ) {
+					Thm thm = get_thm();
+					conclude(thm);
+					return *_thesis;
 				} else if( _parser.skips("apply") ) {
 					int min, max;
 					bool safe;
@@ -869,23 +926,15 @@ public:
 					}
 					_parser.skip(";");
 					*_thesis = rules_apply(rules,*_thesis,min,max,safe);
-					if( auto g = has_goal() ) {
-						cout << "applied goal: " << _syntax->pretty_cterm(*g) << endl;
-					} else {
-						cout << "no subgoal!" << endl;
+					print_goal();
+				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
+					bool discharge = _parser.skips("!");
+					*_thesis = _rewrite(_loc,*_thesis,{0},1,discharge?255:0,!discharge,dir);
+					_parser.skip(";");
+					if( discharge ) {
+						*_thesis = _concluder.conclude(*_thesis);
 					}
-				} else if( _parser.skips("unfold") ) {
-					*_thesis = _rewrite(_loc,*_thesis,{0});
-					_parser.skip(";");
-					auto g = has_goal();
-					assert(g);
-					cout << "unfolded goal: " << _syntax->pretty_cterm(*g) << endl;
-				} else if( _parser.skips("fold") ) {
-					*_thesis = _rewrite(_loc,*_thesis,{0},true);
-					_parser.skip(";");
-					auto g = has_goal();
-					assert(g);
-					cout << "folded goal: " << _syntax->pretty_cterm(*g) << endl;
+					print_goal();
 				} else if( _parser.skips("case") ) {
 					auto goal = has_goal();
 					if( !goal ) {
@@ -919,12 +968,6 @@ public:
 					subprf._thesis = make_thesis(newgoal);
 					conclude(subprf._prompt().proof_loop());
 					print_goal();
-				} else if( _parser.skips("by") ) {
-					while( auto const& thm = gets_thm() ) {
-						conclude(*thm);
-					}
-					_parser.skip(";");
-					return _thesis;
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
 					if( !has_goal() ) {
@@ -932,17 +975,24 @@ public:
 					}
 					return _concluder.conclude(*_thesis);
 				} else if( _parser.skips("blast") ) {
-					set<Thm> rules;
-					while( auto const& thm = gets_thm() ) {
-						rules.insert(make_rule(*thm));
-					}
+					set<Thm> rules = get_rules();
 					_parser.skip(";");
-					auto const& ret = blast(*_thesis,rules);
+					size_t fuel = 255;
+					auto const& ret = blast(*_thesis,rules,fuel);
 					if( !ret ) {
-						throw Error("\"nothing to blast\"");
+						throw Error("\"failed to blast\"");
 					}
 					_thesis = *ret;
 					print_goal();
+				} else if( _parser.skips("by") ) {
+					set<Thm> rules = get_rules();
+					_parser.skip(";");
+					size_t fuel = 255;
+					Thm ret = *_thesis;
+					while( auto const& res = blast(ret,rules,fuel) ) {
+						ret = *res;
+					}
+					return ret;
 				} else if( _parser.skips("qed") ) {
 					_parser.skip(";");
 					if( !_thesis ) {
