@@ -93,8 +93,6 @@ interpret imp: MetaPreorder (⟹) :=
 		by QR[OF Q];
 	end;
 
-setup conclude imp.refl;
-
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	case Q: Q, P: P :=
 		by PQR[OF P Q];

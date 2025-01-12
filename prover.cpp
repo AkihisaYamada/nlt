@@ -67,6 +67,7 @@ class Prover {
 	Opt<Thm> _thesis;
 	Concluder _concluder;
 	Mem<Rewriter> _rewriter;
+	Mem<set<Thm>> _forced_intros;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
@@ -81,6 +82,7 @@ class Prover {
 		_thesis(thesis),
 		_concluder(parent._concluder),
 		_rewriter(parent._rewriter),
+		_forced_intros(parent._forced_intros),
 		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
 	}
@@ -103,7 +105,8 @@ public:
 		_parser(lexer,*_syntax),
 		_own_parser(true),
 		_exit_on_error(exit_on_error),
-		_rewriter(Mem<Rewriter>::make()) {
+		_rewriter(Mem<Rewriter>::make()),
+		_forced_intros(Mem<set<Thm>>::make()) {
 		_prompt();
 	}
 	Prover&& deepen() && {
@@ -132,7 +135,11 @@ public:
 		return ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
 	}
 	Thm prove(Locale const& loc, CTerm const& goal) {
-		return Prover(*this,loc,{},make_thesis(goal)).deepen()._prompt().proof_loop();
+		Thm ret = Prover(*this,loc,{},make_thesis(goal)).deepen()._prompt().proof_loop();
+		if( goal != ret ) {
+			throw ProofMismatch(goal)(ret);
+		}
+		return ret;
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -364,9 +371,10 @@ public:
 		}
 		Thm subthesis = make_thesis(subgoal);
 		auto res = rules_apply(rules,subthesis);
+		res = res ? res : rules_apply(*_forced_intros,subthesis);
 		if( res ) {
 			subthesis = *res;
-		} else {
+		} else {// discharge by assumption
 			Ctxt acc = subctxt;
 			size_t i = 0;
 			for(;;) {
@@ -811,11 +819,11 @@ public:
 				_syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
 			} else if( _parser.skips("setup") ) {
-				if( _parser.skips("conclude") ) {
-					cout << "Adding concluder:" << endl;
+				if( _parser.skips("intro") ) {
+					cout << "Adding forced intro:" << endl;
 					while( auto thm = gets_thm() ) {
 						cout << '\t' << _syntax->pretty_thm(*thm) << endl;
-						_concluder.insert(*thm);
+						_forced_intros->insert(make_rule(*thm));
 					}
 				} else if( _parser.skips("rewrite") ) {
 					Thm imp = get_thm();
