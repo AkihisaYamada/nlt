@@ -4,6 +4,8 @@
 #include"util.hpp"
 #include"syntax.hpp"
 
+class Locale;
+class AThm;
 class Import;
 using Imports = std::multimap<std::string,Import,std::less<>>;
 
@@ -31,20 +33,15 @@ public:
 	Locale branch(std::string_view const& name);
 	/** Obtains the parent locale. */
 	Opt<Locale const> parent() const;
-	/** @brief Local theorems.
-	 * 
-	 * @return map from the theorem names to the statements.
-	 */
-	StrMap<Thm const> const& thms() const;
 	/** @brief Finds a named theorem from the locale or an ancestor. */
-	Opt<Thm> find_thm(
+	Opt<AThm> find_thm(
 		std::string_view const& name,
 		Opt<std::function<bool(Thm const&)>> test = {},
 		bool ancestor = true,
 		bool noprefix = false
 	) const;
 	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
-	Opt<Thm> find_thm(
+	Opt<AThm> find_thm(
 		std::string_view const& pre,
 		std::string_view const& name,
 		Opt<std::function<bool(Thm const&)>> test = {}
@@ -52,20 +49,15 @@ public:
 	/** @brief Obtains a named theorem from the locale.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
-	Thm thm(std::string_view const& name) const {
-		if( auto opt = find_thm(name) ) {
-			return *opt;
-		}
-		throw TheoremNotFound(name);
-	}
+	AThm thm(std::string_view const& name) const;
 	/** @brief Adds a named theorem in the locale.
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
-	void add_thm(std::string_view const& name, Thm const& thm);
+	AThm add_thm(std::string_view const& name, Thm const& thm);
 	/** finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
-	Thm assume(std::string_view const& name, CTerm const& assm);
+	AThm assume(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
 	/** Declares import */
 	Import& import(std::string&& name, Locale const& loc) &;
@@ -90,10 +82,29 @@ public:
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
 };
 
+struct ThmInfo {
+	std::vector<bool> forces;
+};
+
+/** Annotated theorem */
+class AThm : public Thm {
+	Locale _locale;
+	ThmInfo _info;
+	AThm( Locale const& loc, Thm const& thm ) : Thm(thm), _locale(loc) {}
+	AThm( Locale const& loc, std::pair<Thm,ThmInfo> const& p ) : Thm(p.first), _locale(loc), _info(p.second) {}
+	friend Locale;
+	friend Import;
+public:
+	AThm weaken( Locale const& loc ) const {
+		return AThm(loc,{Thm::weaken(loc),_info});
+	}
+};
+
 struct Locale::_Body {
 	Opt<Locale const> parent;
 	std::string name;
-	StrMap<Thm const> thms;
+	StrMap<std::pair<Thm,ThmInfo>> thms;
+	std::set<Thm> forced_intros;
 	StrMap<Locale const> locales;
 	Map<size_t,std::string> assm_names;
 	std::multimap<std::string,Import,std::less<>> imports;
@@ -177,11 +188,14 @@ public:
 	/** automatic retain */
 	bool retains();
 	/** @brief Obtains a theorem in the interpretation. */
-	Opt<Thm> find_thm(
+	Opt<AThm> find_thm(
 		std::string_view const& name,
 		Opt<std::function<bool(Thm const&)> const&> test,
 		bool noprefix
 	) const;
+	AThm subst( AThm const& thm ) const {
+		return AThm(_tgt,Intp::subst(thm));
+	}
 };
 
 inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
@@ -196,14 +210,11 @@ inline Locale Locale::branch( std::string_view const& name ) {
 inline Opt<Locale const> Locale::parent() const {
 	return _ref->parent;
 }
-inline StrMap<Thm const> const& Locale::thms() const {
-	return _ref->thms;
-}
-inline void Locale::add_thm(std::string_view const& name, Thm const& thm) {
-	if( thm.ctxt() != *this ) {
-		throw Error(Term("#locale")("add_thm")(thm));
+inline AThm Locale::thm(std::string_view const& name) const {
+	if( auto opt = find_thm(name) ) {
+		return *opt;
 	}
-	_ref->thms.emplace(name,thm);
+	throw TheoremNotFound(name);
 }
 
 inline Opt<std::string> Locale::find_assm_name( size_t rev ) const {

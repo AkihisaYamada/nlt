@@ -108,10 +108,12 @@ show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
 	qed;
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
-	by imp;
+	case for x, P: P :=
+		by imp P;
+	qed;
 
 show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x] :=
-	by all[OF P];
+	by all P;
 
 show all_all_imp: if a: ∀x. α.[x], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
 	by imp[OF a];

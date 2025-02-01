@@ -19,7 +19,7 @@ assume prop_imp_intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
 setup intro prop_imp_intro;
 
 interpret imp: Magma prop (⟹) :=
-	discharge if pP: prop P, pQ: prop Q then prop (P ⟹ Q) :=
+	discharge if ! prop P, ! prop Q then prop (P ⟹ Q) :=
 		by;
 	end;
 
@@ -36,8 +36,10 @@ The true and false propositions can be obtained.
 obtain true where true_intro: true, true.type: prop true :=
 	case for thesis, assm: ∀true. true ⟹ prop true ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P ⟹ P);
-		by all.type prop_imp_intro prop_prop;
-	qed;
+			case for P, pP: prop P, P: P :=
+				by P;
+		done;
+	done;
 
 interpret true: Member prop true :=
 	discharge prop true :=

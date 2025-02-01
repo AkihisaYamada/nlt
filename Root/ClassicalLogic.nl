@@ -2,9 +2,7 @@
 # Typed Classical Logic
 ------
 
-base Root;
-
-import TypedIntuitionisticLogic;
+base Propositional;
 
 import ExcludedMiddle;
 

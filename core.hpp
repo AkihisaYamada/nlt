@@ -764,6 +764,7 @@ private:
 	Thm* operator&() = delete;
 	Thm _allE(CTerm const& t) const;
 public:
+	Thm( Thm const& t ) = default;
 	Thm& operator=(Thm const& other) {
 		CTerm::operator=(other);
 		return *this;

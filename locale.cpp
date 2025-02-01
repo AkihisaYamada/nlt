@@ -4,12 +4,19 @@ using namespace std;
 
 Locale::Error const Locale::LocaleNotFound = Error("\"locale not found\"");
 
-Thm Locale::assume(std::string_view const& name, CTerm const& assm) {
+AThm Locale::assume(std::string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
-	Thm const& thm = Ctxt::assume(assm);
-	add_thm(name,thm);
+	auto const& thm = add_thm(name,Ctxt::assume(assm));
 	_ref->assm_names.emplace(rev,name);
 	return thm;
+}
+
+AThm Locale::add_thm(std::string_view const& name, Thm const& thm) {
+	if( thm.ctxt() != *this ) {
+		throw Error(Term("#locale")("add_thm")(thm));
+	}
+	auto const& it = _ref->thms.emplace(name,std::pair(thm,ThmInfo()));
+	return AThm(*this,it.first->second);
 }
 
 pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name ) {
@@ -20,15 +27,15 @@ pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std:
 	return ret;
 }
 
-Opt<Thm> Locale::find_thm(
+Opt<AThm> Locale::find_thm(
 	string_view const& name,
 	Opt<std::function<bool(Thm const&)>> test,
 	bool ancestor,
 	bool noprefix
 ) const {
 	if( auto opt = _ref->thms.finds(name) )
-	if( !test || (*test)(opt->second) ) {// found in the current locale
-		return opt->second;
+	if( !test || (*test)(opt->second.first) ) {// found in the current locale
+		return AThm(*this,opt->second);
 	}
 	if( noprefix ) {
 		for( auto const& [pre,imp] : _ref->imports ) {
@@ -60,7 +67,7 @@ Opt<Thm> Locale::find_thm(
 	return {};
 }
 
-Opt<Thm> Locale::find_thm(
+Opt<AThm> Locale::find_thm(
 	string_view const& pre,
 	string_view const& name,
 	Opt<std::function<bool(Thm const&)>> test
@@ -74,19 +81,21 @@ Opt<Thm> Locale::find_thm(
 	return {};
 }
 
-Opt<Thm> Import::find_thm(
+Opt<AThm> Import::find_thm(
 	std::string_view const& name,
 	Opt<std::function<bool(Thm const&)> const&> test,
 	bool noprefix
 ) const {
 	if( ready() ) {// only find if the interpretation is ready
 		if( test ) {
-			auto const& test2 = [&]( Thm const& thm ){ return (*test)(subst(thm)); };
-			if( auto thm = _src.find_thm(name,test2,false,noprefix) ) {
+			auto const& test2 = [&]( Thm const& thm ){
+				return (*test)(Intp::subst(thm));
+			};
+			if( auto const& thm = _src.find_thm(name,test2,false,noprefix) ) {
 				return subst(*thm);
 			}
 		} else {
-			if( auto thm = _src.find_thm(name,{},false,noprefix) ) {
+			if( auto const& thm = _src.find_thm(name,{},false,noprefix) ) {
 				return subst(*thm);
 			}
 		}
@@ -206,7 +215,7 @@ function<ostream&(ostream&)> const Locale::pretty(Syntax const& syntax, size_t n
 			mk_indent(os,n) << "imports " << name << ": " << imp.source().print_name(syntax) << "..." << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
-			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm) << ';' << endl;
+			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << ';' << endl;
 		}
 		for( auto& [name,loc] : _ref->locales ) {
 			mk_indent(os,n) << "locale " << name << ": " << loc.pretty(syntax,n) << endl;
