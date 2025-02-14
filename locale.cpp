@@ -4,6 +4,12 @@ using namespace std;
 
 Locale::Error const Locale::LocaleNotFound = Error("\"locale not found\"");
 
+std::function<Thm(Thm const&)> const Locale::_triv_proc =
+	[]( Thm const& thm ) { return thm; };
+
+std::function<bool(AThm const&)> const Locale::_triv_test =
+	[]( AThm const& ) { return true; };
+
 AThm Locale::assume(std::string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
 	auto const& thm = add_thm(name,Ctxt::assume(assm));
@@ -15,8 +21,8 @@ AThm Locale::add_thm(std::string_view const& name, Thm const& thm) {
 	if( thm.ctxt() != *this ) {
 		throw Error(Term("#locale")("add_thm")(thm));
 	}
-	auto const& it = _ref->thms.emplace(name,std::pair(thm,ThmInfo()));
-	return AThm(*this,it.first->second);
+	auto const& [thm2,info] = _ref->thms.emplace(name,std::pair(thm,ThmInfo()))->second;
+	return AThm(*this,thm,info);
 }
 
 pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name ) {
@@ -26,83 +32,81 @@ pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std:
 	_ref->assm_names.emplace(rev,spec_name);
 	return ret;
 }
-
-Opt<AThm> Locale::find_thm(
-	string_view const& name,
-	Opt<std::function<bool(Thm const&)>> test,
+Opt<AThm> Locale::_find_thm(
+	std::string_view const& name,
+	std::function<Thm(Thm const&)> const& proc,
+	std::function<bool(AThm const&)> const& test,
 	bool ancestor,
-	bool noprefix
+	bool noprefix,
+	Locale const& orig
 ) const {
-	if( auto opt = _ref->thms.finds(name) )
-	if( !test || (*test)(opt->second.first) ) {// found in the current locale
-		return AThm(*this,opt->second);
+	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
+		auto const& ret = AThm(orig,proc(it->second.first),it->second.second);
+		if( test(ret) ) {// found in the current locale
+			return ret;
+		}
 	}
 	if( noprefix ) {
 		for( auto const& [pre,imp] : _ref->imports ) {
-			if( auto const& ret = imp.find_thm(name,test,noprefix) ) {
+			if( auto const& ret = imp._find_thm(name,proc,test,noprefix,orig) ) {
 				return ret;
 			}
 		}
 	} else {
-		if( auto ret = find_thm("",name,test) ) {// unnamed import
+		if( auto ret = _find_thm("",name,proc,test,orig) ) {// unnamed import
 			return ret;
 		}
 		if( auto sep = name.find('.'); sep != string::npos ) {// named imports
 			if( sep == 0 ) {// explicit parent
 				if( auto opt = _ref->parent ) {
-					return opt->find_thm(name.substr(sep+1),test);
+					return opt->_find_thm(name.substr(sep+1),proc,test,ancestor,noprefix,orig);
 				}
 				throw Error("\"parent locale not found\"");
 			}
-			if( auto ret = find_thm(name.substr(0,sep),name.substr(sep+1),test) ) {
+			if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),proc,test,orig) ) {
 				return ret;
 			}
 		}
 	}
 	if( ancestor )
-	if( auto p = _ref->parent )
-	if( auto opt = p->find_thm(name,test,ancestor,noprefix) ) {// parent
-		return opt->weaken(*this);
+	if( auto p = _ref->parent ) {
+		auto const& proc2 = [&]( Thm const& thm ) {
+			return proc(thm.weaken(*this));
+		};
+		return p->_find_thm(name,proc2,test,ancestor,noprefix,orig);
 	}
 	return {};
 }
-
-Opt<AThm> Locale::find_thm(
-	string_view const& pre,
-	string_view const& name,
-	Opt<std::function<bool(Thm const&)>> test
+Opt<AThm> Locale::_find_thm(
+	std::string_view const& pre,
+	std::string_view const& name,
+	std::function<Thm(Thm const&)> const& proc,
+	std::function<bool(AThm const&)> const& test,
+	Locale const& orig
 ) const {
 	// pre as interpretations
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
-		if( auto opt = it->second.find_thm(name,test,false) ) {
+		if( auto opt = it->second._find_thm(name,proc,test,false,orig) ) {
 			return opt;
 		}
 	}
 	return {};
 }
-
-Opt<AThm> Import::find_thm(
+Opt<AThm> Import::_find_thm(
 	std::string_view const& name,
-	Opt<std::function<bool(Thm const&)> const&> test,
-	bool noprefix
+	std::function<Thm(Thm const&)> const& proc,
+	std::function<bool(AThm const&)> const& test,
+	bool noprefix,
+	Locale const& orig
 ) const {
 	if( ready() ) {// only find if the interpretation is ready
-		if( test ) {
-			auto const& test2 = [&]( Thm const& thm ){
-				return (*test)(Intp::subst(thm));
-			};
-			if( auto const& thm = _src.find_thm(name,test2,false,noprefix) ) {
-				return subst(*thm);
-			}
-		} else {
-			if( auto const& thm = _src.find_thm(name,{},false,noprefix) ) {
-				return subst(*thm);
-			}
-		}
+		auto const& proc2 = [&]( Thm const& thm ){
+			return proc(Intp::subst(thm));
+		};
+		return _src._find_thm(name,proc2,test,false,noprefix,orig);
 	}
 	return {};
 }
-
 Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 	if( size_t sep = name.find('.'); sep != string::npos ) {
 		if( auto const& p = _ref->parent ) {
@@ -121,6 +125,9 @@ Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 	return {};
 }
 
+auto _test_term_eq( Term const& x ) {
+	return [&]( Term const& y ) { return x == y; };
+}
 bool Import::discharges( bool mod ) {
 	auto x = assuming();
 	if( !x ) {
@@ -128,7 +135,7 @@ bool Import::discharges( bool mod ) {
 	}
 	auto [name,assm] = *x;
 	// if this assumption is already discharged, then reuse it
-	if( auto opt = _tgt.find_thm(name,[&](Thm const& thm){ return (Term)assm == thm; },true,true) ) {
+	if( auto opt = _tgt.find_thm(name,_test_term_eq(assm),true,true) ) {
 		Intp::discharge(*opt);
 		return true;
 	} else if( mod ) { // if modification is allowed, then make new assumption
@@ -147,7 +154,7 @@ void Import::retain( CTerm c ) {
 	}
 	auto [name,sym,ex,spec] = *o;
 	Term const& stmt = spec.inst(c);
-	auto const& thm = _tgt.find_thm(name,[&](Thm const& thm){ return thm == stmt; },true,true);
+	auto const& thm = _tgt.find_thm(name,_test_term_eq(stmt),true,true);
 	if(!thm) {
 		throw Error(sym)(c);
 	}
@@ -162,7 +169,7 @@ bool Import::retains() {
 	auto [name,sym,ex,spec] = *o;
 	if( auto csym = _tgt.constant(sym) ) {
 		Term const& stmt = spec.inst(*csym);
-		if( auto const& thm = _tgt.find_thm(name,[&](Thm const& thm){ return thm == stmt; },true,true) ) {
+		if( auto const& thm = _tgt.find_thm(name,_test_term_eq(stmt),true,true) ) {
 			Intp::retain(*csym,*thm);
 			return true;
 		}

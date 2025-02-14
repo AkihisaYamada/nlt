@@ -5,18 +5,42 @@
 #include"syntax.hpp"
 
 class Locale;
+struct ThmInfo {
+	std::vector<bool> forces;
+};
 class AThm;
 class Import;
-using Imports = std::multimap<std::string,Import,std::less<>>;
+template<typename T>
+using StrMMap = std::multimap<std::string,T,std::less<>>;
 
 inline std::string make_spec_name( std::string base ) {
 	return std::move(base)+"$spec";
 }
 
 class Locale : public Ctxt {
+	using Thms = std::multimap<std::string,std::pair<Thm,ThmInfo>,std::less<>>;
 	struct _Body;
 	Ref<_Body> _ref;
 	Locale( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
+	static std::function<Thm(Thm const&)> const _triv_proc;
+	static std::function<bool(AThm const&)> const _triv_test;
+	Opt<AThm> _find_thm(
+		std::string_view const& name,
+		std::function<Thm(Thm const&)> const& proc/* modifies the found theorem, weakening or instantiation */,
+		std::function<bool(AThm const&)> const& test,
+		bool ancestor,
+		bool noprefix,
+		Locale const& orig
+	) const;
+	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
+	Opt<AThm> _find_thm(
+		std::string_view const& pre,
+		std::string_view const& name,
+		std::function<Thm(Thm const&)> const& preproc,
+		std::function<bool(AThm const&)> const& test,
+		Locale const& orig
+	) const;
+	friend Import;
 public:
 	struct Error : public ::Error {
 		Error(Term const& term) : ::Error(term) {}
@@ -36,15 +60,9 @@ public:
 	/** @brief Finds a named theorem from the locale or an ancestor. */
 	Opt<AThm> find_thm(
 		std::string_view const& name,
-		Opt<std::function<bool(Thm const&)>> test = {},
+		std::function<bool(AThm const&)> const& test = _triv_test,
 		bool ancestor = true,
 		bool noprefix = false
-	) const;
-	/** @brief Finds a named theorem with prefix from the locale or an ancestor. */
-	Opt<AThm> find_thm(
-		std::string_view const& pre,
-		std::string_view const& name,
-		Opt<std::function<bool(Thm const&)>> test = {}
 	) const;
 	/** @brief Obtains a named theorem from the locale.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
@@ -66,7 +84,7 @@ public:
 		return import(std::string(name),loc);
 	}
 	/** multimap of imports */
-	Imports const& imports() const;
+	StrMMap<Import> const& imports() const;
 	/** Finds branch locale */
 	Opt<Locale> find_locale(std::string_view const& name, bool ancestor = true) const;
 	Locale locale(std::string_view const& name) const {
@@ -82,28 +100,22 @@ public:
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
 };
 
-struct ThmInfo {
-	std::vector<bool> forces;
-};
-
 /** Annotated theorem */
 class AThm : public Thm {
 	Locale _locale;
-	ThmInfo _info;
-	AThm( Locale const& loc, Thm const& thm ) : Thm(thm), _locale(loc) {}
-	AThm( Locale const& loc, std::pair<Thm,ThmInfo> const& p ) : Thm(p.first), _locale(loc), _info(p.second) {}
+	AThm( Locale const& loc, Thm const& thm, ThmInfo const& info = {} ) : _locale(loc), Thm(thm), info(info) {}
 	friend Locale;
 	friend Import;
 public:
+	ThmInfo info;
 	AThm weaken( Locale const& loc ) const {
-		return AThm(loc,{Thm::weaken(loc),_info});
+		return AThm(loc,Thm::weaken(loc),info);
 	}
 };
-
 struct Locale::_Body {
 	Opt<Locale const> parent;
 	std::string name;
-	StrMap<std::pair<Thm,ThmInfo>> thms;
+	StrMMap<std::pair<Thm,ThmInfo>> thms;
 	std::set<Thm> forced_intros;
 	StrMap<Locale const> locales;
 	Map<size_t,std::string> assm_names;
@@ -115,6 +127,15 @@ struct Locale::_Body {
 class Import : public Intp {
 	Locale const _src;
 	Locale _tgt;
+	/** @brief Obtains a theorem in the interpretation. */
+	Opt<AThm> _find_thm(
+		std::string_view const& name,
+		std::function<Thm(Thm const&)> const& preproc,
+		std::function<bool(AThm const&)> const& test,
+		bool noprefix,
+		Locale const& orig
+	) const;
+	friend Locale;
 public:
 	/** creates import
 	 * @param src the locale to be interpreted
@@ -187,12 +208,6 @@ public:
 	void retain( CTerm c );
 	/** automatic retain */
 	bool retains();
-	/** @brief Obtains a theorem in the interpretation. */
-	Opt<AThm> find_thm(
-		std::string_view const& name,
-		Opt<std::function<bool(Thm const&)> const&> test,
-		bool noprefix
-	) const;
 	AThm subst( AThm const& thm ) const {
 		return AThm(_tgt,Intp::subst(thm));
 	}
@@ -210,6 +225,16 @@ inline Locale Locale::branch( std::string_view const& name ) {
 inline Opt<Locale const> Locale::parent() const {
 	return _ref->parent;
 }
+
+inline Opt<AThm> Locale::find_thm(
+	std::string_view const& name,
+	std::function<bool(AThm const&)> const& test,
+	bool ancestor,
+	bool noprefix
+) const {
+	return _find_thm(name,_triv_proc,test,ancestor,noprefix,*this);
+}
+
 inline AThm Locale::thm(std::string_view const& name) const {
 	if( auto opt = find_thm(name) ) {
 		return *opt;
@@ -224,7 +249,7 @@ inline Opt<std::string> Locale::find_assm_name( size_t rev ) const {
 	return {};
 }
 
-inline Imports const& Locale::imports() const {
+inline StrMMap<Import> const& Locale::imports() const {
 	return _ref->imports;
 }
 
