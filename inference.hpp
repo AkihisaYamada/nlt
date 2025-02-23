@@ -19,7 +19,6 @@ public:
 		Thm _conclusion;
 	public:
 		explicit Rule( Thm const& conc ) : _conclusion(conc) {}
-		std::function<bool(std::string_view const& v)> const fvars = [&](auto v){ return ctxt().fixes(v); };
 		Thm const& conclusion() const& {
 			return _conclusion;
 		}
@@ -27,7 +26,7 @@ public:
 			return _conclusion.intro();
 		}
 		Opt<CSubst> matches( CTerm const& goal ) const {
-			return match( _conclusion, goal, fvars );
+			return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
 		}
 		Ctxt ctxt() && = delete;
 		Ctxt const& ctxt() const& {
@@ -57,6 +56,7 @@ public:
 	}
 	Inference( Locale const& loc, CTerm const& claim ) :
 		_loc(loc), _thm(_make_claim(claim)), _goals(1) {
+		assert( claim.ctxt() == loc );
 	};
 	Locale const& locale() const& {
 		return _loc;
@@ -82,13 +82,17 @@ public:
 		if( _goals == 0 ) return _thm;
 		return {};
 	}
-	void discharge( Thm const& thm );
 	/** @brief Tries to apply a rule once */
 	bool apply( Rule const& rule ) &;
 	/** @brief Tries to apply a set of rules once */
 	bool apply( std::set<Rule> const& rules ) &;
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) &;
+	void discharge( Thm const& thm ) & {
+		if( !apply(axiom(thm)) ) {
+			throw Error("\"failed to discharge\"")(*goal())(thm);
+		}
+	}
 	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
 };
 

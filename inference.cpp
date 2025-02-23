@@ -14,11 +14,6 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	}
 	return Rule(rule);
 }
-void Inference::discharge( Thm const& thm ) {
-	if( _goals == 0 ) throw Error("\"no goal to discharge\"");
-	_thm = _thm.impE(thm);
-	_goals--;
-}
 bool Inference::apply( Rule const& rule ) & {
 	if( _goals == 0 ) throw Error("\"no goal to apply\"");
 	auto const& imp = _thm.cbinary(IMP);
@@ -39,6 +34,7 @@ bool Inference::apply( Rule const& rule ) & {
 		_goals++;
 	}
 	_thm = _thm.weaken(ctxt).impE(rule.inst(intp)).intro();
+	_goals--;
 	return true;
 }
 
@@ -78,9 +74,9 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	}
 	auto subthesis = Inference(subloc,subgoal);
 	if( // try explicitly given rules
-		!subthesis.apply(rules) ||
+		!subthesis.apply(rules) &&
 		// try assumptions as axioms. Not as rules, as it can be a wrong choice
-		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis.apply(axiom(thm)); } ) ||
+		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis.apply(axiom(thm)); } ) &&
 		// try environmental rules
 		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis.apply(rule(thm)); } )
 	) {
@@ -92,6 +88,7 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*subthesis.goal());
 		subthesis.blast(rules,fuel);
 	}
-	_thm = _thm.impE(subthesis._thm);
+	_thm = _thm.impE(subthesis._thm.intro());
+	_goals--;
 	return;
 }

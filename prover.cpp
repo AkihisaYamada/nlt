@@ -406,7 +406,7 @@ public:
 		_parser.skip(":=");
 		CTerm goal = var_loc.enclose(conc).weaken(assm_loc);
 		cout << _syntax->pretty_cterm(goal) << endl;
-		ret._thesis = Inference(var_loc,goal);
+		ret._thesis = Inference(assm_loc,goal);
 		ret.deepen()._prompt();
 		return {ret,goal};
 	}
@@ -511,7 +511,7 @@ public:
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
 						auto const& thm = prover.proof_loop().intro();
-						auto local_intp = Intp(var_loc,_loc);
+						auto local_intp = Intp(var_loc,axiom_vars);
 						subst_intp(local_intp,*m);
 						intp.discharge(local_intp.subst(thm).intro());
 					} else if( mod && _parser.skips("assume") ) {
@@ -851,7 +851,7 @@ public:
 					}
 					set<Inference::Rule> rules;
 					while( auto const& thm = gets_thm() ) {
-						rules.emplace(*thm);
+						rules.emplace(Inference::rule(*thm));
 					}
 					_parser.skip(";");
 					_thesis->apply(rules,min,max,safe);
@@ -899,7 +899,7 @@ public:
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = Inference(subprf._loc,newgoal);
-					_thesis->discharge(subprf._prompt().proof_loop());
+					_thesis->discharge(subprf._prompt().proof_loop().intro());
 					print_goal();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
