@@ -557,7 +557,6 @@ private:
 	/** @brief Trusted construction of a closed term. */
 	CTerm(Ctxt const& ctxt, Term const& t) : _ctxt(ctxt), Term(t) {}
 	CTerm() = delete;
-	CTerm* operator&() = delete;
 	typedef std::pair<CTerm const, CTerm const> Pair;
 	typedef std::pair<std::string const, CTerm const> StrTerm;
 public:
@@ -761,7 +760,6 @@ private:
 	/** @brief Trusted construction of Thm. This being private is crucial. */
 	Thm(CTerm const& t) : CTerm(t) {}
 	Thm() = delete;
-	Thm* operator&() = delete;
 	Thm _allE(CTerm const& t) const;
 public:
 	Thm( Thm const& t ) = default;

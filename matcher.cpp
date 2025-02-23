@@ -235,6 +235,13 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	return t.csubst(subst);
 }
 
+void subst_intp( Intp& intp, CSubst const& subst ) {
+	while( auto const& sym = intp.fixing() ) {
+		auto const& val = subst.get(*sym);
+		intp.instantiate( val ? *val : subst.ctxt().cterm(DUMMY));
+	}
+}
+
 Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	Ctxt rule_ctxt = ctxt.branch();
@@ -250,13 +257,7 @@ Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	}
 	rule = rule.impE(rule_ctxt.assume(imp->first));
 	auto intp = Intp(rule_ctxt,ctxt);
-	while( auto const& v = intp.fixing() ) {
-		if( auto const& val = m->get(*v) ) {
-			intp.instantiate(*val);
-		} else {
-			intp.instantiate(ctxt.fix(*v));
-		}
-	}
+	subst_intp(intp,*m);
 	auto const& assm = intp.assuming();
 	assert(assm);
 	intp.discharge(arg_weaken);

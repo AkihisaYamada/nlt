@@ -7,7 +7,7 @@ UTIL_TEST_SRCS=$(UTIL_SRCS) $(UTIL_TEST_SRC)
 LOCALE_SRCS=$(UTIL_SRCS) order.cpp locale.cpp
 LOCALE_TEST_SRC=test_locale.cpp
 LOCALE_TEST_SRCS=$(LOCALE_SRCS) $(LOCALE_TEST_SRC)
-PROVER_SRC=blast.cpp rewriter.cpp definer.cpp concluder.cpp parser.cpp prover.cpp
+PROVER_SRC=inference.cpp rewriter.cpp definer.cpp concluder.cpp parser.cpp prover.cpp
 PROVER_SRCS=$(LOCALE_SRCS) $(PROVER_SRC)
 SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(LOCALE_TEST_SRC)
 CPP=g++ -O3 -std=c++20 -Wfatal-errors

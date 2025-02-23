@@ -64,14 +64,14 @@ class Prover {
 	bool _own_parser;
 	Ref<Syntax> _syntax;
 	Parser _parser;
-	Opt<Thesis> _thesis;
+	Opt<Inference> _thesis;
 	Concluder _concluder;
 	Mem<Rewriter> _rewriter;
 	set<Thm> _forced_intros;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
-	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Thesis> thesis = {}) :
+	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Inference> thesis = {}) :
 		_parent(OptRef<Prover>::make(parent)),
 		_depth(parent._depth),
 		_loc(loc),
@@ -148,7 +148,7 @@ public:
 		}
 		throw Parser::Error("expects a theorem");
 	}
-	Thm _rewrite( Locale& loc, Thm const& source, vector<char> pos, size_t min, size_t max, bool safe, bool rev = false ) {
+	void _rewrite( Locale& loc, Opt<Thm&> thm, vector<char> pos, size_t min, size_t max, bool safe, bool rev = false ) {
 		auto rel = [&]()->Opt<string>{
 			if( _parser.skips("(") ) {
 				string ret = _parser.get_token();
@@ -173,7 +173,11 @@ public:
 		while( auto const& arg = _gets_thm(loc) ) {
 			_rewriter->add_rule(rules,*arg,rev);
 		}
-		return _rewriter->rewrite(rules,source,min,max,safe,pos,rel);
+		if( thm ) {
+			*thm = _rewriter->rewrite(rules,*thm,min,max,safe,pos,rel);
+		} else {
+			_rewriter->apply(rules,*_thesis,min,max,safe,pos,rel);
+		}
 	}
 
 	Opt<Thm> _gets_thm(Locale loc) {
@@ -194,9 +198,9 @@ public:
 						ret = discharge(ret,*arg);
 					}
 				} else if( _parser.skips("unfolded") ) {
-					ret = _rewrite(loc,ret,{},1,1,true,false);
+					_rewrite(loc,ret,{},1,1,true,false);
 				} else if( _parser.skips("folded") ) {
-					ret = _rewrite(loc,ret,{},1,1,true,true);
+					_rewrite(loc,ret,{},1,1,true,true);
 				}
 				_parser.skip("]");
 			} else {
@@ -261,7 +265,6 @@ public:
 			}
 		}
 	}
-
 	void _flush() {
 		cout << flush;
 	}
@@ -304,58 +307,19 @@ public:
 	}
 	void add_claim( ClaimStatus cs, Thm const& thm ) {
 		if( cs.is_goal ) {
-			conclude(thm);
+			_thesis->discharge(thm);
 		}
 		if( cs.name ) {
 			_loc.add_thm(*cs.name,thm);
 		}
 	}
-	void conclude( Thm thm ) {
-		Thm thesis = _thesis->thm;
-		Ctxt thesis_ctxt = thesis.ctxt();
-		// move the theorem up to the thesis context
-		Thm arg = thm;
-		while( arg.ctxt() != thesis_ctxt ) {
-			arg = arg.intro();
-		}
-		CTerm goal = thesis.capp()->first.capp()->second;
-		Ctxt goal_ctxt = thesis_ctxt.branch();
-		CTerm goal_strip = strip_all(goal,goal_ctxt);
-		arg = arg.weaken(goal_ctxt);// arg will be instantiated with goal variables
-		Ctxt arg_vars = goal_ctxt.branch();
-		Thm arg_strip = strip_all(arg,arg_vars);
-		Opt<CSubst> matcher;
-		for(;;) {
-			matcher = match(arg_strip,goal_strip.weaken(arg_vars),[&](auto v){ return arg_vars.fixes(v); });
-			if( matcher ) break;
-			if( auto const& imp = goal_strip.cbinary(IMP) ) {
-				goal_ctxt.assume(imp->first);
-				goal_strip = imp->second;
-				continue;
-			}
-			throw ProofMismatch(goal)(arg_strip);
-		}
-		// instantiate arg variables
-		auto intp = Intp(arg_vars,goal_ctxt);
-		for( size_t i = 0; i < arg_vars.revision(); i++ ) {
-			auto const& v = arg_vars.fixed(i);
-			assert(v);
-			auto const& val = matcher->get(*v);
-			intp.instantiate( val ? val->csubst(goal_ctxt) : goal_ctxt.cterm(DUMMY)/* dummy */ );
-		}
-		Thm inst = intp.subst(arg_strip);
-		// quantify the goal variables
-		inst = inst.intro();
-		_thesis->thm = thesis.impE(inst);
-	}
-	set<Rule> get_rules() {
-		set<Rule> rules;
+	set<Inference::Rule> get_rules() {
+		set<Inference::Rule> rules;
 		while( auto const& thm = gets_thm() ) {
-			rules.emplace(*thm);
+			rules.emplace(Inference::rule(*thm));
 		}
 		return rules;
 	}
-
 	Locale find_locale( string_view const& name ) {
 		auto loc = _loc.find_locale(name);
 		if( !loc ) {
@@ -402,7 +366,7 @@ public:
 		}
 	}
 	Prover prove(Locale const& loc, CTerm const& goal) {
-		return Prover(*this,loc,{},Thesis(goal,make_thesis(goal))).deepen()._prompt();
+		return Prover(*this,loc,{},Inference(loc,goal)).deepen()._prompt();
 	}
 	/** Creates a nested locale, where outer one fixes free variables, and 
 	 * inner locale collects assumptions.
@@ -414,14 +378,24 @@ public:
 		for_variables(var_loc);
 		if( _parser.skips("if") ) {
 			cout << "if " << flush;
-			get_named_terms([&]( Opt<string> const& s, Term const& t, bool force ){
+			get_named_terms([&]( Opt<string> const& name, Term const& t, bool force ){
 				CTerm ct = var_loc.enclose(t).weaken(assm_loc);
-				Thm assm = s ? (cout << *s), assm_loc.assume(*s,ct) : assm_loc.Ctxt::assume(ct);
-				if( force ) {
-					ret._forced_intros.insert(make_rule(assm));
-					cout << "! ";
+				if( name ) {
+					cout << *name;
+					Thm assm = assm_loc.assume(*name,ct);
+					if( force ) {
+						cout << "! ";
+						assm_loc.add_thm(INTRO,assm);
+					} else {
+						cout << ": ";
+					}
 				} else {
-					cout << ": ";
+					if( force ) {
+						cout << "! ";
+						assm_loc.assume(INTRO,ct);
+					} else {
+						assm_loc.assume(ASSM,ct);
+					}
 				}
 				cout << _syntax->pretty_term(t) << ", " << flush;
 			});
@@ -432,7 +406,7 @@ public:
 		_parser.skip(":=");
 		CTerm goal = var_loc.enclose(conc).weaken(assm_loc);
 		cout << _syntax->pretty_cterm(goal) << endl;
-		ret._thesis = Thesis(goal,make_thesis(goal));
+		ret._thesis = Inference(var_loc,goal);
 		ret.deepen()._prompt();
 		return {ret,goal};
 	}
@@ -537,8 +511,9 @@ public:
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
 						auto const& thm = prover.proof_loop().intro();
-						auto const& thesis = make_thesis(goal);
-						intp.discharge(::conclude(*m,thesis,thm).intro());
+						auto local_intp = Intp(var_loc,_loc);
+						subst_intp(local_intp,*m);
+						intp.discharge(local_intp.subst(thm).intro());
 					} else if( mod && _parser.skips("assume") ) {
 						_parser.skip(";");
 						Thm thm = _loc.assume(name,axiom);
@@ -582,14 +557,13 @@ public:
 // ∀sym. props... ⟹ var
 						t = t.capp()->second.inst(term);
 // props[sym:=term]... ⟹ var
-						Thm rule = make_rule(thesis_loc.assume("?thesis",t));
+						auto const& rule = Inference::rule(thesis_loc.assume("?thesis",t));
 // assume this and prove var, i.e., prove props[sym:=term]...
-						Thm thesis = make_refl(var);
-						auto thesis2 = rule_applies(rule,thesis);
-						if( !thesis2 ) {
-							throw Error(rule)(thesis);
-						}
-						auto spec = Prover(*this,thesis_loc,{},Thesis(var,*thesis2)).deepen().proof_loop().intro();
+						auto thesis = Inference(thesis_loc,var);// var ⟹ var
+						if( !thesis.apply(rule) ) {
+							throw Error(rule.thm())(thesis.thm());
+						}// prop[sym:=term]... ⟹ var
+						auto const& spec = Prover(*this,thesis_loc,{},thesis).deepen().proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 						intp.retain(_loc.cterm(term),spec);
 					} else {
@@ -774,20 +748,16 @@ public:
 				_syntax->infix(sym,level,llevel,rlevel);
 				cout << "New infix operator " << sym << endl;
 			} else if( _parser.skips("setup") ) {
-				if( _parser.skips("intro") ) {
-					cout << "Adding forced intro:" << endl;
-					while( auto thm = gets_thm() ) {
-						cout << '\t' << _syntax->pretty_thm(*thm) << endl;
-						_forced_intros.insert(make_rule(*thm));
-					}
-				} else if( _parser.skips("rewrite") ) {
+				if( _parser.skips("rewrite") ) {
 					Thm imp = get_thm();
+					Thm revimp = get_thm();
 					Thm refl = get_thm();
 					Thm trans = get_thm();
 					_rewriter->register_refl(refl);
-					_rewriter->register_imp(imp);
+					_rewriter->register_imp(imp,true);
+					_rewriter->register_imp(revimp,false);
 					_rewriter->register_trans(trans);
-					cout << "Registered rewriter: " << _syntax->pretty_thm(imp) << ", refl: " << _syntax->pretty_thm(refl) << ", trans: " << _syntax->pretty_thm(trans) << endl;
+					cout << "Registered rewriter: imp: " << _syntax->pretty_thm(imp) << ", rev: " <<  _syntax->pretty_thm(revimp) << ", refl: " << _syntax->pretty_thm(refl) << ", trans: " << _syntax->pretty_thm(trans) << endl;
 				} else if( _parser.skips("refl") ) {
 					cout << "Registering reflexivity: ";
 					while( auto const& thm = gets_thm() ) {
@@ -879,7 +849,7 @@ public:
 					} else {
 						min = max = 1; safe = true;
 					}
-					set<Rule> rules;
+					set<Inference::Rule> rules;
 					while( auto const& thm = gets_thm() ) {
 						rules.emplace(*thm);
 					}
@@ -887,12 +857,9 @@ public:
 					_thesis->apply(rules,min,max,safe);
 					print_goal();
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
-					bool discharge = _parser.skips("!");
-					_thesis->thm = _rewrite(_loc,_thesis->thm,{0},1,discharge?255:0,!discharge,dir);
+					bool discharge = _parser.skips("!");//TODO
+					_rewrite(_loc,{},{0},1,discharge?255:0,!discharge,dir);
 					_parser.skip(";");
-					if( discharge ) {
-						_thesis->thm = _concluder.conclude(_thesis->thm);
-					}
 					print_goal();
 				} else if( _parser.skips("case") ) {
 					auto goal = has_goal();
@@ -931,29 +898,31 @@ public:
 						_parser.skip(":=");
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
-					subprf._thesis = Thesis(subprf._loc,newgoal);
-					conclude(subprf._prompt().proof_loop());
+					subprf._thesis = Inference(subprf._loc,newgoal);
+					_thesis->discharge(subprf._prompt().proof_loop());
 					print_goal();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
 					size_t fuel = 255;
-					while( _thesis->blast({},fuel) );
+					while( _thesis->goal_count() > 0 ) {
+						_thesis->blast({},fuel);
+					}
 					auto ret = _thesis->concluding();
 					if( !ret ) throw UnfinishedProof();
 					return ret;
 				} else if( _parser.skips("blast") ) {
-					set<Rule> rules = get_rules();
+					auto const& rules = get_rules();
 					_parser.skip(";");
 					size_t fuel = 255;
-					if( !_thesis->blast(rules,fuel) ) {
-						throw Error("\"failed to blast\"");
-					}
+					_thesis->blast(rules,fuel);
 					print_goal();
 				} else if( _parser.skips("by") ) {
-					set<Rule> rules = get_rules();
+					auto const& rules = get_rules();
 					_parser.skip(";");
 					size_t fuel = 255;
-					while( _thesis->blast(rules,fuel) );
+					while( _thesis->goal_count() > 0 ) {
+						_thesis->blast(rules,fuel);
+					}
 					auto ret = _thesis->concluding();
 					if( !ret ) throw UnfinishedProof();
 					return ret;

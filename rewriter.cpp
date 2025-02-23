@@ -48,13 +48,13 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	}
 	throw MalformedRule(thm);
 }
-void Rewriter::register_imp( Thm const& thm ) {
+void Rewriter::register_imp( Thm const& thm, bool dir ) {
 	Thm rule = strip_all(thm);
 	if( auto const& imp = rule.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) throw UnregisteredRel(*rel);
-		_imps.emplace(*ind,thm);
+		( dir ? _imps : _revimps ).emplace(*ind,thm);
 		return;
 	}
 	throw MalformedImp(thm);
@@ -81,7 +81,7 @@ void Rewriter::register_trans( Thm const& thm ) {
 }
 void Rewriter::register_cong( Thm const& thm ) {
 	// parsing congruence rule
-	auto rule = ::Rule(thm);
+	auto rule = Inference::rule(thm);
 	Ctxt ctxt = rule.ctxt();
 	size_t rev = 0;
 	vector<size_t> inds;
@@ -237,6 +237,16 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 	return {};
 }
 
+size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
+	if( rel ) {
+		auto const& o = gets_rel_ind(*rel);
+		if( !o ) throw UnregisteredRel(*rel);
+		return *o;
+	} else {
+		return 0;
+	}
+}
+
 Thm Rewriter::_steps(
 	Rules const& rules,
 	CTerm const& source,
@@ -274,16 +284,25 @@ Thm Rewriter::_steps(
 	}
 	return eq;// source ⟺ target
 }
-Thm Rewriter::_rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, size_t ind ) const {
+void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel ) const {
+	auto const& goal = thesis.goal();
+	if( !goal ) throw Error("\"no goal to rewrite\"");
+	size_t ind = _get_ind(rel);
+	auto const& o = _revimps.finds(ind);
+	if( !o ) throw Error("\"unregistered backward rewriting\"");
+	auto const& imp = o->second;// x = y ⟹ y ⟹ x
+	auto intp = imp.intp(goal->ctxt());
+	intp.discharge(_steps(rules,*goal,min,max,safe,pos,ind));// s = t
+	auto const& thm = imp.inst(intp);// t ⟹ s
+	thesis.apply(Inference::rule(thm));
+}
+Thm Rewriter::rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
+	size_t ind = _get_ind(rel);
 	auto const& o = _imps.finds(ind);
-	if( !o ) throw Error("\"unregistered rewriting\"");
-	Thm imp = o->second.weaken(source.ctxt());
-	if( auto const& imp1 = strip_all(imp).cbinary(IMP) ) {
-		Thm const& eq = _steps(rules,source,min,max,safe,pos,ind);
-		auto const& app = eq.capp();
-		assert(app);
-		CTerm const& target = app->second;
-		return imp.allE(source).allE(target).impE(eq).impE(source);
-	}
-	throw Error("\"malformed rewriting initializer\"")(imp);
+	if( !o ) throw Error("\"unregistered forward rewriting\"");
+	auto const& imp = o->second;
+	auto intp = imp.intp(source.ctxt());// x = y ⟹ x ⟹ y
+	intp.discharge(_steps(rules,source,min,max,safe,pos,ind));// s = t
+	intp.discharge(source);// s
+	return imp.inst(intp);// t
 }

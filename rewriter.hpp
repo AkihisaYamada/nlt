@@ -1,7 +1,7 @@
 #ifndef _REWRITER_HPP_
 #define _REWRITER_HPP_
 
-#include "util.hpp"
+#include "inference.hpp"
 
 /**
  * @brief Congruence prover.
@@ -32,7 +32,9 @@ class Rewriter {
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
 	Map<size_t,Thm> _trans;
 	/** ∀P Q. P ⟺ Q ⟹ P ⟹ Q */
-	Map<size_t,Thm> _imps;
+	Map<size_t,Inference::Rule> _imps;
+	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
+	Map<size_t,Inference::Rule> _revimps;
 public:
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
@@ -63,7 +65,7 @@ public:
 		return _refls[ind];
 	}
 	void add_rule( Rules& rules, Thm const& thm, bool rev = false ) const;
-	void register_imp(Thm const& thm);
+	void register_imp( Thm const& thm, bool dir );
 	void register_refl(Thm const& thm);
 	void register_trans(Thm const& thm);
 	void register_cong(Thm const& thm);
@@ -86,40 +88,17 @@ public:
 	Opt<Thm> step( Rules const& rules, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
 		return _step(rules,source,ind,pos.begin(),pos.end());
 	}
-	/**
-	 * @brief many step rewrite equation
-	 * 
-	 * @param rules 
-	 * @param source 
-	 * @param n 
-	 * @param pos 
-	 * @param rel the relation symbol, e.g., "="
-	 * @return Thm 
-	 */
-	Thm steps( Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, std::string_view const& rel ) const {
-		auto ind = gets_rel_ind(rel);
-		if( !ind ) {
-			throw UnregisteredRel(rel);
-		}
-		return _steps(rules,source,min,max,safe,pos,*ind);
-	}
-	/** @brief Rewrites a theorem
-	 */
-	Thm rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const {
-		size_t ind = rel ? [&]{
-			auto const& o = gets_rel_ind(*rel);
-			if( !o ) throw UnregisteredRel(*rel);
-			return *o;
-		}() : 0;
-		return _rewrite(rules,source,min,max,safe,pos,ind);
-	}
+	/** @brief applies rewriting */
+	void apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
+	/** @brief Rewrites a theorem */
+	Thm rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
 private:
+	size_t _get_ind( Opt<std::string> const& rel ) const;
 	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Thm _steps( Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
-	Thm _rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
