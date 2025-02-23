@@ -234,15 +234,6 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	}
 	return t.csubst(subst);
 }
-Thm make_rule( Thm const& thm ) {
-	Ctxt loc = thm.ctxt().branch();
-	Thm rule = strip_all(thm,loc);
-	while( auto imp = rule.cbinary(IMP) ) {
-		rule = rule.impE(loc.assume(imp->first));
-		rule = strip_all(rule,loc);
-	}
-	return rule;
-}
 
 Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	Ctxt ctxt = thm.ctxt().branch();

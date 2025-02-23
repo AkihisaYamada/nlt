@@ -64,10 +64,6 @@ class Prover {
 	bool _own_parser;
 	Ref<Syntax> _syntax;
 	Parser _parser;
-	struct Thesis {
-		CTerm goal;
-		Thm thm;
-	};
 	Opt<Thesis> _thesis;
 	Concluder _concluder;
 	Mem<Rewriter> _rewriter;
@@ -100,6 +96,9 @@ public:
 		Error( Term const& msg ) : ::Error(RT(msg)) {
 		}
 	};
+	static Error const UnfinishedProof() {
+		return Error("#unfinished_proof");
+	}
 	Prover( Lexer& lexer, Ref<Syntax> syntax, bool exit_on_error ) :
 		_depth(0),
 		_path({"","Root"}),
@@ -135,10 +134,6 @@ public:
 	}
 	void set_lexer( Lexer& lexer ) {
 		_parser.set_lexer(lexer);
-	}
-	static Thm make_thesis(CTerm const& goal) {
-		Ctxt ctxt = goal.ctxt().branch();
-		return ctxt.assume(goal.weaken(ctxt)).intro();// goal ⟹ goal
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _loc.branch();
@@ -285,9 +280,9 @@ public:
 		return std::move(*this);
 	}
 	Opt<CTerm> has_goal() {
-		if( _thesis )
-		if( auto bin = _thesis->thm.cbinary(IMP) )
-			return bin->first;
+		if( _thesis ) {
+			return _thesis->goal();
+		}
 		return {};
 	}
 	ClaimStatus get_claim_status() {
@@ -353,54 +348,14 @@ public:
 		inst = inst.intro();
 		_thesis->thm = thesis.impE(inst);
 	}
-	set<Thm> get_rules() {
-		set<Thm> rules;
+	set<Rule> get_rules() {
+		set<Rule> rules;
 		while( auto const& thm = gets_thm() ) {
-			rules.insert(make_rule(*thm));
+			rules.emplace(*thm);
 		}
 		return rules;
 	}
-	Opt<Thm> blast( Thm const& thesis, set<Thm> const& rules, size_t& fuel ) {
-		auto imp = thesis.cbinary(IMP);
-		if( !imp ) {// no goal to blast
-			return {};
-		}
-		CTerm subgoal = imp->first;
-		Ctxt subctxt = subgoal.ctxt().branch();
-		subgoal = strip_all(subgoal,subctxt);
-		while( auto imp2 = subgoal.cbinary(IMP) ) {
-			subctxt.assume(imp2->first);
-			subgoal = imp2->second;
-		}
-		Thm subthesis = make_thesis(subgoal);
-		auto res = rules_apply(rules,subthesis);
-		if( !res ) {// try forced rules
-			Prover const* p = this;
-			for(;;) {
-				auto const& intro = p->_forced_intros;
-				res = rules_apply(intro,subthesis);
-				if( res ) break;
-				auto pa = p->_parent;
-				if( !pa ) throw Error("\"failed blast\"")(subgoal);
-				p = &*pa;
-			}
-		}
-		subthesis = *res;
-		// blast all sub-sub-goals:
-		fuel--;
-		for(;;) {
-			if( fuel > 0 )
-			if( auto res2 = blast(subthesis,rules,fuel) ) {
-				subthesis = *res2;
-				continue;
-			}
-			break;
-		}
-		if( auto imp = subthesis.cbinary(IMP) ) {
-			throw Error("\"failed to blast\"")(imp->first);
-		}
-		return thesis.impE(subthesis.intro());
-	}
+
 	Locale find_locale( string_view const& name ) {
 		auto loc = _loc.find_locale(name);
 		if( !loc ) {
@@ -414,10 +369,11 @@ public:
 	}
 	void print_goal() {
 		assert( _thesis );
-		Term acc = _thesis->thm;
+		Term acc = _thesis->thm();
 		size_t i = 0;
 		string pre = "goal ";
-		while( auto const& imp = acc.binary(IMP) ) {
+		while( i < _thesis->goal_count() ) {
+			auto const& imp = acc.binary(IMP);
 			i++;
 			cout << pre << i << ": " << _syntax->pretty_term(imp->first) << endl;
 			acc = imp->second;
@@ -923,12 +879,12 @@ public:
 					} else {
 						min = max = 1; safe = true;
 					}
-					set<Thm> rules;
+					set<Rule> rules;
 					while( auto const& thm = gets_thm() ) {
-						rules.insert(make_rule(*thm));
+						rules.emplace(*thm);
 					}
 					_parser.skip(";");
-					_thesis->thm = rules_apply(rules,_thesis->thm,min,max,safe);
+					_thesis->apply(rules,min,max,safe);
 					print_goal();
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
 					bool discharge = _parser.skips("!");
@@ -975,42 +931,37 @@ public:
 						_parser.skip(":=");
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
-					subprf._thesis = Thesis(newgoal,make_thesis(newgoal));
+					subprf._thesis = Thesis(subprf._loc,newgoal);
 					conclude(subprf._prompt().proof_loop());
 					print_goal();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
 					size_t fuel = 255;
-					Thm ret = _thesis->thm;
-					while( auto const& res = blast(ret,{},fuel) ) {
-						ret = *res;
-					}
+					while( _thesis->blast({},fuel) );
+					auto ret = _thesis->concluding();
+					if( !ret ) throw UnfinishedProof();
 					return ret;
 				} else if( _parser.skips("blast") ) {
-					set<Thm> rules = get_rules();
+					set<Rule> rules = get_rules();
 					_parser.skip(";");
 					size_t fuel = 255;
-					auto const& ret = blast(_thesis->thm,rules,fuel);
-					if( !ret ) {
+					if( !_thesis->blast(rules,fuel) ) {
 						throw Error("\"failed to blast\"");
 					}
-					_thesis->thm = *ret;
 					print_goal();
 				} else if( _parser.skips("by") ) {
-					set<Thm> rules = get_rules();
+					set<Rule> rules = get_rules();
 					_parser.skip(";");
 					size_t fuel = 255;
-					Thm ret = _thesis->thm;
-					while( auto const& res = blast(ret,rules,fuel) ) {
-						ret = *res;
-					}
+					while( _thesis->blast(rules,fuel) );
+					auto ret = _thesis->concluding();
+					if( !ret ) throw UnfinishedProof();
 					return ret;
 				} else if( _parser.skips("qed") ) {
 					_parser.skip(";");
-					if( _thesis->thm != _thesis->goal ) {
-						throw ProofMismatch(_thesis->thm);
-					}
-					return _thesis->thm;
+					auto ret = _thesis->concluding();
+					if( !ret ) throw UnfinishedProof();
+					return ret;
 				} else if( _parser.skips("sorry") ) {
 					_parser.skip(";");
 					throw Error("sorry");

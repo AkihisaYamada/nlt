@@ -81,7 +81,7 @@ void Rewriter::register_trans( Thm const& thm ) {
 }
 void Rewriter::register_cong( Thm const& thm ) {
 	// parsing congruence rule
-	Thm rule = make_rule(thm);
+	auto rule = ::Rule(thm);
 	Ctxt ctxt = rule.ctxt();
 	size_t rev = 0;
 	vector<size_t> inds;
@@ -106,7 +106,7 @@ void Rewriter::register_cong( Thm const& thm ) {
 		inds.emplace_back(*ind);
 		rev++;
 	}
-	auto const& bin = strips_binary(rule);
+	auto const& bin = strips_binary(rule.conclusion());
 	if( !bin ) throw MalformedCong(thm);
 	auto const& [rel,l,r] = *bin;
 	auto const& ind = gets_rel_ind(rel);
@@ -157,13 +157,13 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 	}
 	bool success = false;
 	for( auto const& cong : _congs[ind] ) {
-		Ctxt const& ctxt = cong.pat.ctxt();
-		if( auto const& m = match(cong.pat,source,[&](auto v){ return ctxt.fixes(v); }) ) {// source: C[s...]
-			Thm ret = cong.thm.weaken(source_ctxt);
+		Ctxt const& pat_ctxt = cong.pat.ctxt();
+		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
+			Thm ret = cong.weaken(source_ctxt);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			size_t n = ctxt.revision();
+			size_t n = pat_ctxt.revision();
 			for( size_t i = 0; i < n; i++ ) {
-				auto v = ctxt.fixed(i);
+				auto v = pat_ctxt.fixed(i);
 				assert(v);
 				auto const& si = m->get(*v);
 				assert(si);
@@ -207,7 +207,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 	for( auto const& cong : _congs[ind] ) {
 		auto const& pat_ctxt = cong.pat.ctxt();// C[x...]
 		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
-			Thm ret = cong.thm.weaken(source_ctxt);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
+			Thm ret = cong.weaken(source_ctxt);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
 			size_t i = 0;
 			auto var_end = pat_ctxt.revision();
 			assert( i != var_end );
