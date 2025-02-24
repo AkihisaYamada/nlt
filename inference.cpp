@@ -84,7 +84,6 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*subthesis.has_goal());
 		subthesis.blast(rules,fuel);
 	}
-DEB( _loc.id() << " --> " << subloc.id() << " = " << subthesis._thm.ctxt().id() );
 	_thm = _thm.impE(subthesis._thm.intro());
 	_goals--;
 	return;

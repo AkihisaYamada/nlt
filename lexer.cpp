@@ -74,7 +74,6 @@ int Lexer::fetch_char() {
 		}
 		if( n == 0 ) {// line comment
 			while( pis->peek() != '\n' ) pis->ignore();
-			line_count++;
 		} else {// block comment
 			unsigned int m;
 			for(;;) {
