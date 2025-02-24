@@ -5,6 +5,7 @@
 #include"syntax.hpp"
 
 #define INTRO "#intro"// name for introduction rules
+#define CONCL "#concl"// name for conclusions
 #define ASSM "#assm"// name for assumptions
 
 inline std::string operator+( std::string x, std::string_view const& y ) {

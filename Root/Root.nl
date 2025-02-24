@@ -17,11 +17,7 @@ show weaken: if P: P, Q: Q then P :=
 	by P;
 
 show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R :=
-	apply PQR;
-	show! if P: P then Q :=
-		by Q;
-	ctxt;
-	done;
+	by PQR Q;
 
 infix ≤ 51 51 50;
 
@@ -173,19 +169,19 @@ locale Iff (⟺) :=
 
 	show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		apply iff_intro;
-		show! if PR: P ⟹ R, Q: Q then S :=
+		case PR: P ⟹ R, Q: Q then S :=
 			by iff_elim1[OF RS] PR iff_elim2[OF PQ] Q;
-		show! if QS: Q ⟹ S, P: P then R :=
+		case QS: Q ⟹ S, P: P then R :=
 			by iff_elim2[OF RS] QS iff_elim1[OF PQ] P;
 		qed;
 
 	show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
 		apply iff_intro;
-		show! if PR: P ⟺ R then Q ⟺ S :=
+		case PR: P ⟺ R then Q ⟺ S :=
 			show QR: Q ⟺ R :=
 				by iff.trans[OF iff.sym[OF PQ] PR];
 			by iff.trans[OF QR RS];
-		show! if QS: Q ⟺ S then P ⟺ R :=
+		case QS: Q ⟺ S then P ⟺ R :=
 			show PS: P ⟺ S :=
 				by iff.trans[OF PQ QS];
 			by iff.trans[OF PS iff.sym[OF RS]];
@@ -193,9 +189,9 @@ locale Iff (⟺) :=
 
 	show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
 		apply iff_intro;
-		show! if a: ∀x. α.[x] then ∀x. β.[x] :=
+		case a: ∀x. α.[x] then ∀x. β.[x] :=
 			by iff_elim1[OF ab] a;
-		show! if b: ∀x. β.[x] then ∀x. α.[x] :=
+		case b: ∀x. β.[x] then ∀x. α.[x] :=
 			by iff_elim2[OF ab] b;
 		qed;
 

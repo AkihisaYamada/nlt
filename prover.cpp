@@ -307,7 +307,7 @@ public:
 	}
 	void add_claim( ClaimStatus cs, Thm const& thm ) {
 		if( cs.is_goal ) {
-			_loc.add_thm(INTRO,thm);
+			_loc.add_thm(CONCL,thm);
 		}
 		if( cs.name ) {
 			_loc.add_thm(*cs.name,thm);
@@ -886,6 +886,11 @@ public:
 							}
 							cout << _syntax->pretty_thm(assm) << ", " << flush;
 						});
+						if( _parser.skips("then") ) {
+							if( _parser.get_term() != newgoal ) {
+								throw Error("\"conclusion mismatch\"")(newgoal);
+							}
+						}
 						_parser.skip(":=");
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
