@@ -56,11 +56,9 @@ obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type #concl: 
 	qed;
 
 interpret false: Member prop false :=
-	discharge prop false :=
-		by false.type;
+	- prop false :=
+		done;
 	end;
-
-setup intro false.type;
 
 ---
 ## Logical Connectives
@@ -75,7 +73,7 @@ Here axiomatizes logical connectives.
 fix (¬);
 import not: Unary prop (¬);
 
-setup intro not.type;
+note #intro: not.type;
 
 assume not_intro: (P ⟹ false) ⟹ prop P ⟹ ¬ P;
 assume not_imp_false: ¬ P ⟹ P ⟹ prop P ⟹ false;
@@ -83,64 +81,64 @@ assume not_imp_false: ¬ P ⟹ P ⟹ prop P ⟹ false;
 show not_false: ¬false :=
 	by not_intro;
 
-show nnot_intro: if P: P, pP: prop P then ¬¬P :=
+show nnot_intro: if P: P, #concl: prop P then ¬¬P :=
 	apply not_intro;
-	case nP: ¬P :=
+	- if nP: ¬P :=
 		by not_imp_false[OF nP P];
-	by;
+	done;
 
-show nnot_imp: if imp: ¬¬P ⟹ Q, P: P, pP: prop P then Q :=
+show nnot_imp: if imp: ¬¬P ⟹ Q, P: P, #concl: prop P then Q :=
 	by imp nnot_intro P;
 
-show imp_not: if P: P, nQ: ¬Q, pP: prop P, pQ: prop Q then ¬(P ⟹ Q) :=
+show imp_not: if P: P, nQ: ¬Q, #concl: prop P, #concl: prop Q then ¬(P ⟹ Q) :=
 	apply not_intro;
-	case PQ: P ⟹ Q :=
+	- if PQ: P ⟹ Q :=
 		note Q: PQ[OF P];
 		by not_imp_false[OF nQ Q];
-	by;
+	done;
 
-show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, pP: prop P, pQ: prop Q then ¬P :=
+show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, #concl: prop P, #concl: prop Q then ¬P :=
 	apply not_intro;
-	show! if P: P then false :=
+	- if P: P then false :=
 		by not_imp_false[OF nQ] PQ P;
-	by;
+	done;
 
-show imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q, pP: prop P, pQ: prop Q then ¬P :=
+show imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q, #concl: prop P, #concl: prop Q then ¬P :=
 	apply not_intro;
-	case P: P :=
+	- if P: P :=
 		show nQ: ¬Q :=
 			by PnQ[OF P];
 		by not_imp_false[OF nQ] Q;
-	by;
+	done;
 
-show nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, pP: prop P, pQ: prop Q then ¬¬Q :=
+show nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, #concl: prop P, #concl: prop Q then ¬¬Q :=
 	apply not_intro;
-	case nQ: ¬Q :=
+	- if nQ: ¬Q :=
 		show nP: ¬P :=
 			by imp_not_imp[OF PQ nQ];
 		by not_imp_false[OF nnP] nP;
-	by;
+	done;
 
-show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P, pP: prop P, pQ: prop Q then ¬¬Q :=
+show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P, #concl: prop P, #concl: prop Q then ¬¬Q :=
 	apply not_intro;
-	case nQ: ¬Q :=
+	- if nQ: ¬Q :=
 		apply+ not_imp_false[OF nnPQ] not_intro;
-		case PQ: P ⟹ Q :=
+		- if PQ: P ⟹ Q :=
 			by not_imp_false[OF nQ] PQ P;
 		by prop_imp_intro;
-	by;
+	done;
 
-show nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, pP: prop P, pQ: prop Q then ¬(P ⟹ Q) :=
+show nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, #concl: prop P, #concl: prop Q then ¬(P ⟹ Q) :=
 	apply not_intro;
-	case PQ: P ⟹ Q :=
+	- if PQ: P ⟹ Q :=
 		show nnQ: ¬¬Q :=
 			by nnot_imp_nnot[OF nnP] PQ;
-		by not_imp_false[OF nnQ];
+		by not_imp_false[OF nnQ nQ];
 	by prop_imp_intro;
 
 show not_imp_not_all: if nax: ¬α.[x], pa: ∀x. prop α.[x] then ¬(∀y. α.[y]) :=
 	apply not_intro;
-	case a: ∀y. α.[y] :=
+	- if a: ∀y. α.[y] :=
 		by not_imp_false[OF nax] a pa;
 	by pa;
 
@@ -155,7 +153,7 @@ assume and_elim1: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ P;
 assume and_elim2: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q;
 
 interpret and: Symmetric prop (∧) :=
-	discharge if PQ: P ∧ Q, pP: prop P, qQ: prop Q then Q ∧ P :=
+	- if PQ: P ∧ Q, #concl: prop P, #concl: prop Q then Q ∧ P :=
 		by and_intro and_elim1[OF PQ] and_elim2[OF PQ];
 	end;
 
@@ -165,22 +163,22 @@ assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ prop P ⟹ prop Q ⟹ (P ⟺ Q);
 assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ prop P ⟹ prop Q ⟹ Q;
 assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P;
 
-setup intro iff.type;
+note #intro: iff.type;
 
 interpret iff: Reflexive prop (⟺) :=
-	discharge if pP: prop P then P ⟺ P :=
+	- if #concl: prop P then P ⟺ P :=
 		by iff_intro;
 	end;
 
 interpret iff: Symmetric prop (⟺) :=
-	discharge if PQ: P ⟺ Q, pP: prop P, pQ: prop Q then Q ⟺ P :=
+	- if PQ: P ⟺ Q, #concl: prop P, #concl: prop Q then Q ⟺ P :=
 		apply iff_intro;
 		blast iff_elim2[OF PQ];
 		by iff_elim1[OF PQ];
 	end;
 
 interpret iff: Transitive prop (⟺) :=
-	discharge if PQ: P ⟺ Q, QR: Q ⟺ R, pP: prop P, pQ: prop Q, pR: prop R then P ⟺ R :=
+	- if PQ: P ⟺ Q, QR: Q ⟺ R, #concl: prop P, #concl: prop Q, #concl: prop R then P ⟺ R :=
 		apply iff_intro;
 		blast iff_elim1[OF QR] iff_elim1[OF PQ];
 		by iff_elim2[OF PQ] iff_elim2[OF QR];
@@ -188,11 +186,11 @@ interpret iff: Transitive prop (⟺) :=
 
 show imp_imp_iff: if P: P, pP: prop P, pQ: prop Q then (P ⟹ Q) ⟺ Q :=
 	apply iff_intro;
-	case PQ: P ⟹ Q :=
+	- if PQ: P ⟹ Q :=
 		by PQ[OF P];
-	case Q: Q, P2: P :=
+	- if Q: Q, P2: P :=
 		by Q;
-	by;
+	done;
 
 show iff_cong_imp:
 	if PQ: P ⟺ Q, RS: R ⟺ S, pP: prop P, pQ: prop Q, pR: prop R, pS: prop S
