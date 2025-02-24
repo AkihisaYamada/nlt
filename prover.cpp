@@ -492,7 +492,7 @@ public:
 					if( _parser.skips("know") ) {
 						_parser.skip(";");
 						intp.discharge();
-					} else if( _parser.skips("discharge") ) {
+					} else if( _parser.skips("-") ) {
 						cout << "discharge ";
 						auto [prover,concl] = get_statement();
 						auto const& claim = concl.intro();
@@ -852,7 +852,7 @@ public:
 					_rewrite(_loc,{},{0},1,discharge?255:0,!discharge,dir);
 					_parser.skip(";");
 					print_goal();
-				} else if( _parser.skips("case") ) {
+				} else if( _parser.skips("-") ) {
 					auto goal = has_goal();
 					if( !goal ) {
 						throw Error("\"unexpected case\"");
@@ -866,7 +866,7 @@ public:
 						});
 						_parser.skips(",");
 					}
-					if( !_parser.skips(":=") ) {
+					if( _parser.skips("if") ) {
 						get_named_terms([&]( Opt<string> const& s, Term const& t, bool force ){
 							auto imp = newgoal.cbinary(IMP);
 							if( !imp ) {
@@ -891,12 +891,22 @@ public:
 								throw Error("\"conclusion mismatch\"")(newgoal);
 							}
 						}
-						_parser.skip(":=");
 					}
+					_parser.skip(":=");
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = Inference(subprf._loc,newgoal);
 					_thesis->discharge(subprf._prompt().proof_loop());
 					print_goal();
+				} else if( _parser.skips("just") ) {
+					set<Inference::Rule> rules;
+					while( auto const& thm = gets_thm() ) {
+						rules.emplace(Inference::axiom(*thm));
+					}
+					_parser.skip(";");
+					while( _thesis->goal_count() > 0 ) {
+						_thesis->apply(rules);
+					}
+					return _thesis->concluding();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
 					size_t fuel = 255;

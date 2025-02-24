@@ -17,19 +17,16 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	return Rule(rule);
 }
 void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
-	auto g = goal().weaken(_thm.ctxt().branch());
 	for( int i = 0;; i++ ) {
 		if( i == max ) {
-			if( safe ) break;
+			if( safe ) return;
 			throw Error("\"apply limit exceeded\"")(to_string(max));
 		}
-		if( _apply(rules,g) ) {
-			continue;
+		if( _goals == 0 ||
+			!_apply(rules,goal().weaken(_thm.ctxt().branch())) ) {
+			if( i < min ) throw Error("\"apply failed\"");
+			return;
 		}
-		if( i < min ) {
-			throw Error("\"Rules not applicable\"");
-		}
-		return;
 	}
 }
 bool Inference::_apply( Rule const& rule, CTerm const& goal ) & {
