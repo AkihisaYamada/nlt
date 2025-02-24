@@ -10,7 +10,7 @@ std::function<Thm(Thm const&)> const Locale::_triv_proc =
 std::function<bool(AThm const&)> const Locale::_triv_test =
 	[]( AThm const& ) { return true; };
 
-AThm Locale::assume(std::string_view const& name, CTerm const& assm) {
+AThm Locale::add_assm(std::string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
 	auto const& thm = add_thm(name,Ctxt::assume(assm));
 	_ref->assm_names.emplace(rev,name);
@@ -139,7 +139,7 @@ bool Import::discharges( bool mod ) {
 		Intp::discharge(*opt);
 		return true;
 	} else if( mod ) { // if modification is allowed, then make new assumption
-		auto thm = _tgt.assume(name,assm);
+		auto thm = _tgt.add_assm(name,assm);
 		Intp::discharge(thm);
 		return true;
 	} else {

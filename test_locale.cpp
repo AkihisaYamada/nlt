@@ -19,15 +19,15 @@ int main() try {
 	Root.branch("Preorder");
 	auto Preorder = *Root.find_locale("Preorder");
 	Preorder.fix(LE);
-	Preorder.assume( "refl", "x" &= le("x")("x") );
-	Preorder.assume( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
+	Preorder.add_assm( "refl", "x" &= le("x")("x") );
+	Preorder.add_assm( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
 	cout << "locale Preorder: " << Preorder << endl;
 	auto& imp = Root.import("imp",Preorder);
 	imp.instantiate(Root.cterm(IMP));
 	imp.discharge([&]{
 		Locale loc = Root.branch();
 		loc.fix("P");
-		loc.assume("P",p);
+		loc.add_assm("P",p);
 		return loc.thm("P").intro();
 	}());
 	imp.discharge([&]{
@@ -35,10 +35,10 @@ int main() try {
 		loc.fix("P");
 		loc.fix("Q");
 		loc.fix("R");
-		loc.assume( "PQ", p >>= q );
-		loc.assume( "QR", q >>= r );
+		loc.add_assm( "PQ", p >>= q );
+		loc.add_assm( "QR", q >>= r );
 		Locale loc2 = loc.branch();
-		loc2.assume("P",p);
+		loc2.add_assm("P",p);
 		return ( loc2.thm("QR") << ( loc2.thm("PQ") << loc2.thm("P") ) ).intro().intro();
 	}());
 	cout << "imp.refl: " << Root.thm("imp.refl") << endl;
@@ -50,7 +50,7 @@ int main() try {
 	{
 		Locale loc = True.branch();
 		loc.fix("thesis");
-		loc.assume( "assm", "true" &= TRUE >>= thesis );
+		loc.add_assm( "assm", "true" &= TRUE >>= thesis );
 		Thm assm = loc.thm("assm");
 		Thm imp_refl2 = loc.thm("imp.refl");
 		True.obtain( assm.allE(imp_refl2).impE(imp_refl2).intro(), vector{"trueI"}.begin() );
@@ -61,24 +61,24 @@ int main() try {
 	cout << "\n--- And ---" << endl;
 	Locale And = Root.branch();
 	And.fix(AND);
-	And.assume( "andI1", "P" &= "Q" &= p >>= q >>= p & q );
-	And.assume( "andE1", "P" &= "Q" &= p & q >>= p );
-	And.assume( "andE2", "P" &= "Q" &= p & q >>= q );
+	And.add_assm( "andI1", "P" &= "Q" &= p >>= q >>= p & q );
+	And.add_assm( "andE1", "P" &= "Q" &= p & q >>= p );
+	And.add_assm( "andE2", "P" &= "Q" &= p & q >>= q );
 	And.add_thm( "andI", [&]{
 		Locale loc = And.branch();
 		loc.fix("P");
 		loc.fix("Q");
-		loc.assume( "assm", "R" &= (p >>= q >>= r) >>= r );
+		loc.add_assm( "assm", "R" &= (p >>= q >>= r) >>= r );
 		return ( loc.thm("assm") << loc.thm("andI1") ).intro();
 	}() );
 	And.add_thm( "andE", [&]{
 		Locale loc = And.branch();
 		loc.fix("P");
 		loc.fix("Q");
-		loc.assume( "pq", p & q );
+		loc.add_assm( "pq", p & q );
 		Locale loc2 = loc.branch();
 		loc2.fix("R");
-		loc2.assume( "pqr", p >>= q >>= r );
+		loc2.add_assm( "pqr", p >>= q >>= r );
 		Thm P = loc2.thm("andE1") << loc2.thm("pq");
 		Thm Q = loc2.thm("andE2") << loc2.thm("pq");
 		return (loc2.thm("pqr") << P << Q).intro().intro();
@@ -89,9 +89,9 @@ int main() try {
 	cout << "\n--- Iff ---" << endl;
 	Locale Iff = Root.branch();
 	Iff.fix(IFF);
-	Iff.assume( "I1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
-	Iff.assume( "E1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
-	Iff.assume( "E2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
+	Iff.add_assm( "I1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
+	Iff.add_assm( "E1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
+	Iff.add_assm( "E2", "P" &= "Q" &= (p <=> q) >>= q >>= p );
 	{
 		auto& iff_preorder = Iff.import("",Preorder);
 		iff_preorder.instantiate(Iff.cterm(IFF));
@@ -103,17 +103,17 @@ int main() try {
 			loc.fix("P");
 			loc.fix("Q");
 			loc.fix("R");
-			loc.assume( "PQ", p <=> q );
-			loc.assume( "QR", q <=> r );
+			loc.add_assm( "PQ", p <=> q );
+			loc.add_assm( "QR", q <=> r );
 			loc.add_thm( "PR", [&]{
 				auto loc2 = loc.branch();
-				loc2.assume("P",p);
+				loc2.add_assm("P",p);
 				loc2.add_thm( "Q", loc2.thm("E1") << loc2.thm("PQ") << loc2.thm("P") );
 				return (loc2.thm("E1") << loc2.thm("QR") << loc2.thm("Q")).intro();
 			}() );
 			loc.add_thm( "RP", [&]{
 				auto loc2 = loc.branch();
-				loc2.assume("R",r);
+				loc2.add_assm("R",r);
 				loc2.add_thm( "Q", loc2.thm("E2") << loc2.thm("QR") << loc2.thm("R") );
 				return (loc2.thm("E2") << loc2.thm("PQ") << loc2.thm("Q")).intro();
 			}() );
@@ -133,7 +133,7 @@ int main() try {
 		auto loc = Logic.branch();
 		loc.fix("P");
 		loc.fix("Q");
-		loc.assume( "assm", (p>>=q) & (q>>=p) );
+		loc.add_assm( "assm", (p>>=q) & (q>>=p) );
 		loc.add_thm( "PQ", loc.thm("andE1") << loc.thm("assm") );
 		loc.add_thm( "QP", loc.thm("andE2") << loc.thm("assm") );
 		return ( loc.thm("iff.I1") << loc.thm("PQ") << loc.thm("QP") ).intro();

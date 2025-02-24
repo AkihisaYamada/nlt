@@ -61,7 +61,7 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	Locale subloc = _loc.branch();
 	CTerm subgoal = strip_all(goal,subloc);
 	while( auto const& imp2 = subgoal.cbinary(IMP) ) {// make assumptions for the subgoal
-		subloc.assume(CONCL,imp2->first);
+		subloc.add_assm(CONCL,imp2->first);
 		subgoal = imp2->second;
 	}
 	auto subthesis = Inference(subloc,subgoal);

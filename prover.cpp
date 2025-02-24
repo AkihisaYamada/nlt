@@ -8,16 +8,17 @@
 using namespace std;
 
 struct ClaimStatus {
-	bool is_goal;
 	Opt<string> name;
-	ClaimStatus( string_view const& name, bool is_goal = false ) : is_goal(is_goal), name(in_place,name) {}
-	ClaimStatus() : is_goal(true), name() {}
+	bool intro = false, concl = false;
 };
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.name ) {
 		os << *cs.name;
 	}
-	return os << ( cs.is_goal ? "! " : ": " );
+	if( cs.intro ) {
+		os << "#intro";
+	}
+	return os << ": ";
 }
 
 fstream file_of_locale( string dir, string_view const& name ) {
@@ -34,6 +35,7 @@ Ref<Syntax> make_syntax() {
 	ret->register_multi_op('=');
 	ret->register_multi_op('*');
 	ret->register_multi_op('+');
+	ret->register_multi_op('#');
 	ret->encloser("(",")",-1000,[&]( Parser& parser ){
 		Opt<Term> t = parser.gets_term(0);
 		parser.skip(")");
@@ -71,7 +73,7 @@ class Prover {
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
-	Prover(Prover& parent, Locale const& loc, Opt<Path> const& path = {}, Opt<Inference> thesis = {}) :
+	Prover( Prover& parent, Locale const& loc, Opt<Inference> thesis = {}, Opt<Path> const& path = {} ) :
 		_parent(OptRef<Prover>::make(parent)),
 		_depth(parent._depth),
 		_loc(loc),
@@ -124,7 +126,7 @@ public:
 	Prover branch( string_view const& name ) {
 		auto loc = _loc.branch(name);
 		if( _path ) {
-			return Prover( *this, loc, {{_path->dir+"/"+_path->name,name}});
+			return Prover( *this, loc, {}, {{_path->dir+"/"+_path->name,name}});
 		} else {
 			return Prover( *this, loc, {}, {} );
 		}
@@ -249,22 +251,6 @@ public:
 			return _parser.gets(Tokenizer::Word);
 		}
 	}
-	void get_named_terms( function<void(Opt<string> const&, Term const&, bool)> const& f ) {
-		for(;;) {
-			auto const& name = _parser.gets_thm_name();
-			bool force = _parser.skips("!");
-			if( !force ) {
-				if( !name ) {
-					return;
-				}
-				_parser.skip(":");
-			}
-			f(name,_parser.get_term(0),force);
-			if( !_parser.skips(",") ) {
-				return;
-			}
-		}
-	}
 	void _flush() {
 		cout << flush;
 	}
@@ -289,28 +275,27 @@ public:
 		return {};
 	}
 	ClaimStatus get_claim_status() {
-		bool is_goal;
-		if( _parser.skips("!") ) {
-			if( !_thesis ) {
-				throw Error("\"unexpected conclusion\"");
-			}
-			return {};
-		} else {
-			auto name = _parser.get_thm_name();
-			if( _parser.skips("!") ) {
-				return {name,true};
-			} else {
-				_parser.skip(":");
-				return {name,false};
+		ClaimStatus ret;
+		ret.name = _parser.gets_thm_name();
+		while( _parser.skips("#") ) {
+			if( _parser.skips("intro") ) {
+				ret.intro = true;
+			} else if( _parser.skips("concl") ) {
+				ret.concl = true;
 			}
 		}
+		_parser.skip(":");
+		return ret;
 	}
-	void add_claim( ClaimStatus cs, Thm const& thm ) {
-		if( cs.is_goal ) {
-			_loc.add_thm(CONCL,thm);
+	void add_claim( Locale& loc, ClaimStatus cs, Thm const& thm ) {
+		if( cs.intro ) {
+			loc.add_thm(INTRO,thm);
+		}
+		if( cs.concl ) {
+			loc.add_thm(CONCL,thm);
 		}
 		if( cs.name ) {
-			_loc.add_thm(*cs.name,thm);
+			loc.add_thm(*cs.name,thm);
 		}
 	}
 	Locale find_locale( string_view const& name ) {
@@ -358,9 +343,6 @@ public:
 			cout << ", ";
 		}
 	}
-	Prover prove(Locale const& loc, CTerm const& goal) {
-		return Prover(*this,loc,{},Inference(loc,goal)).deepen()._prompt();
-	}
 	/** Creates a nested locale, where outer one fixes free variables, and 
 	 * inner locale collects assumptions.
 	 */
@@ -371,27 +353,14 @@ public:
 		for_variables(var_loc);
 		if( _parser.skips("if") ) {
 			cout << "if " << flush;
-			get_named_terms([&]( Opt<string> const& name, Term const& t, bool force ){
-				CTerm ct = var_loc.enclose(t).weaken(assm_loc);
-				if( name ) {
-					cout << *name;
-					Thm assm = assm_loc.assume(*name,ct);
-					if( force ) {
-						cout << "! ";
-						assm_loc.add_thm(INTRO,assm);
-					} else {
-						cout << ": ";
-					}
-				} else {
-					if( force ) {
-						cout << "! ";
-						assm_loc.assume(INTRO,ct);
-					} else {
-						assm_loc.assume(ASSM,ct);
-					}
-				}
-				cout << _syntax->pretty_term(t) << ", " << flush;
-			});
+			for(;;) {
+				auto cs = get_claim_status();
+				auto t = get_term();
+				Thm assm = assm_loc.assume(var_loc.enclose(t).weaken(assm_loc));
+				add_claim(assm_loc,cs,assm);
+				cout << cs << _syntax->pretty_term(t) << ", " << flush;
+				if( !_parser.skips(",") ) break;
+			};
 			_parser.skip("then");
 			cout << "then ";
 		}
@@ -405,7 +374,7 @@ public:
 	}
 	Thm note() {
 		auto goal_loc = _loc.branch();
-		vector<pair<string,CTerm>> assms;
+		vector<pair<ClaimStatus,CTerm>> assms;
 		if( _parser.skips("for") ) {
 			while( auto const& sym = gets_sym() ) {
 				goal_loc.fix(*sym);
@@ -413,14 +382,16 @@ public:
 			_parser.skip(",");
 		}
 		if( _parser.skips("if") ) {
-			get_named_terms([&]( Opt<string> const& s, Term const& t, bool forced ){
-				if( !s ) throw Error("missing name");
-				assms.emplace_back(*s,goal_loc.enclose(t));
-			});
+			for(;;) {
+				auto cs = get_claim_status();
+				auto t = get_term();
+				assms.emplace_back(cs,goal_loc.enclose(t));
+				if( !_parser.skips(",") ) break;
+			};
 			_parser.skip("then");
 		}
-		for( auto [name,assm] : assms ) {
-			goal_loc.assume(name,assm);
+		for( auto const& [cs,assm] : assms ) {
+			add_claim(goal_loc,cs,goal_loc.assume(assm));
 		}
 		swap(goal_loc,_loc);
 		Thm ret = get_thm().intro();
@@ -503,13 +474,13 @@ public:
 						if( !m ) {
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
-						auto const& thm = prover.proof_loop();
+						auto const& thm = prover.proof_loop().intro();
 						auto local_intp = Intp(var_loc,axiom_vars);
 						subst_intp(local_intp,*m);
 						intp.discharge(local_intp.subst(thm).intro());
 					} else if( mod && _parser.skips("assume") ) {
 						_parser.skip(";");
-						Thm thm = _loc.assume(name,axiom);
+						Thm thm = _loc.add_assm(name,axiom);
 						intp.discharge(thm);
 						cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
 					} else {
@@ -550,11 +521,11 @@ public:
 // ∀sym. props... ⟹ var
 						t = t.capp()->second.inst(term);
 // props[sym:=term]... ⟹ var
-						auto const& rule = Inference::rule(thesis_loc.assume("?thesis",t));
+						auto const& rule = Inference::rule(thesis_loc.add_assm("?thesis",t));
 // assume this and prove var, i.e., prove props[sym:=term]...
 						auto thesis = Inference(thesis_loc,var);// var ⟹ var
 						thesis.apply(rule);// prop[sym:=term]... ⟹ var
-						auto const& spec = Prover(*this,thesis_loc,{},thesis).deepen().proof_loop().intro();
+						auto const& spec = Prover(*this,thesis_loc,thesis).deepen().proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 						intp.retain(_loc.cterm(term),spec);
 					} else {
@@ -626,17 +597,13 @@ public:
 			} else if( _parser.skips("note") ) {
 				auto cs = get_claim_status();
 				auto const& thm = note();
-				add_claim(cs,thm);
-				if( cs.is_goal ) {
-					print_goal();
-				} else {
-					cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
-				}
+				add_claim(_loc,cs,thm);
+				cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
 			} else if( _parser.skips("show") ) {
 				auto cs = get_claim_status();
 				cout << "Showing " << cs << flush;
 				auto [prover,goal] = get_statement();
-				add_claim(cs,prover.proof_loop().intro());
+				add_claim(_loc,cs,prover.proof_loop().intro().intro());
 				if( _thesis ) {
 					print_goal();
 				} else {
@@ -646,14 +613,16 @@ public:
 				string sym = _parser.get_token();
 				_parser.skip("where");
 				cout << "Obtaining " << sym << " where ";
-				vector<string> names;
+				vector<ClaimStatus> names;
 				vector<Term> props;
-				get_named_terms([&]( Opt<string> const& s, Term const& t, bool ) {
-					if( !s ) throw Error("missing name");
-					names.push_back(*s);
+				for(;;) {
+					auto cs = get_claim_status();
+					auto t = get_term();
+					names.push_back(cs);
 					props.push_back(t);
-					cout << s << ": " << _syntax->pretty_term(t) << ", ";
-				});
+					cout << cs << ": " << _syntax->pretty_term(t) << ", ";
+					if( !_parser.skips(",") ) break;
+				}
 				_parser.skip(":=");
 				auto thesis_loc = _loc.branch();
 				CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
@@ -670,7 +639,8 @@ public:
 				cout << endl;
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
-				auto const& thm = prove(_loc,goal).proof_loop();
+				Opt<Inference> bak = _thesis;
+				auto const& thm = Prover(*this,_loc,Inference(_loc,goal)).deepen()._prompt().proof_loop();
 				auto [sym_term,spec] = _loc.obtain(sym,thm,make_spec_name(string(sym)));
 				cout << "Obtained " << sym << " where ";
 				// register properties
@@ -692,13 +662,13 @@ public:
 					if( auto imp3 = s.cbinary(IMP) ) {// more props follow
 						s = imp3->second;// props... ⟹ var
 						Thm prop = spec << weaken;
-						add_claim( ClaimStatus(*name_it), prop );
+						add_claim(_loc,*name_it,prop);
 						cout << *name_it << ": " << prop << endl << "\t";
 						spec = ignore << spec;// ∀var. (props... ⟹ var) ⟹ var
 						name_it++;
 					} else {// spec: ∀var. (P ⟹ var) ⟹ var
 						Thm prop = spec << refl;
-						add_claim( ClaimStatus(*name_it), prop );
+						add_claim(_loc,*name_it,prop);
 						cout << *name_it << ": " << prop << ';' << endl;
 						break;
 					}
@@ -867,25 +837,18 @@ public:
 						_parser.skips(",");
 					}
 					if( _parser.skips("if") ) {
-						get_named_terms([&]( Opt<string> const& s, Term const& t, bool force ){
+						for(;;) {
+							auto cs = get_claim_status();
+							auto t = get_term();
 							auto imp = newgoal.cbinary(IMP);
-							if( !imp ) {
-								throw Error("case")(t);
-							}
+							if( !imp ) throw Error("\"unexpected assumption\"")(t);
 							newgoal = imp->second;
-							if( imp->first != t ) {
-								throw Error("case")(imp->first)(t);
-							}
-							CTerm ct = subprf._loc.enclose(t);
-							Thm assm = s ? (cout << s), subprf._loc.assume(*s,ct) : subprf._loc.Ctxt::assume(ct);
-							if( force ) {
-								cout << "! ";
-								subprf._forced_intros.insert(assm);
-							} else {
-								cout << ": ";
-							}
-							cout << _syntax->pretty_thm(assm) << ", " << flush;
-						});
+							if( imp->first != t ) throw Error("\"assumption mismatch\"")(imp->first)(t);
+							Thm assm = subprf._loc.assume(subprf._loc.enclose(t));
+							add_claim(subprf._loc,cs,assm);
+							cout << cs << _syntax->pretty_thm(assm) << ", " << flush;
+							if( !_parser.skips(",") ) break;
+						};
 						if( _parser.skips("then") ) {
 							if( _parser.get_term() != newgoal ) {
 								throw Error("\"conclusion mismatch\"")(newgoal);
@@ -895,7 +858,7 @@ public:
 					_parser.skip(":=");
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = Inference(subprf._loc,newgoal);
-					_thesis->discharge(subprf._prompt().proof_loop());
+					_thesis->discharge(subprf._prompt().proof_loop().intro());
 					print_goal();
 				} else if( _parser.skips("just") ) {
 					set<Inference::Rule> rules;
@@ -960,13 +923,14 @@ public:
 					_parser.skip(";");
 					cout << ';' << endl;
 				} else if( _parser.skips("assume") ) {
-					string name = _parser.get_thm_name();
-					_parser.skip(":");
-					cout << "Assuming " << name << ": ";
+					auto cs = get_claim_status();
+					cout << "Assuming " << cs;
 					Locale var_loc = _loc.branch();
 					for_variables(var_loc);
-					Term assm = _parser.get_term();
-					_loc.assume( name, var_loc.enclose(assm).lift(_loc.cterm(ALL)) );
+					CTerm assm = var_loc.enclose(_parser.get_term()).lift(_loc.cterm(ALL));
+					Thm thm = cs.name ? _loc.add_assm(*cs.name,assm) : _loc.assume(assm);
+					cs.name = {};
+					add_claim(_loc,cs,thm);
 					cout << _syntax->pretty_term(assm) << "; " << flush;
 					_parser.skip(";");
 					cout << endl;
@@ -1013,7 +977,7 @@ public:
 					set_lexer(prev);
 					_loc = prev_loc;
 				} else {
-					Prover sub = Prover(*this,_loc.branch(name),{{dir,name}},{}).deepen();
+					Prover sub = Prover(*this,_loc.branch(name),{},{{dir,name}}).deepen();
 					sub.set_lexer(local_lexer);
 					sub.loop();
 				}

@@ -6,20 +6,16 @@ base Root;
 
 fix prop; -- We axiomatize what expressions are propositions.
 
-assume prop_prop: prop (prop x);
-
-setup intro prop_prop;
+assume prop_prop#intro: prop (prop x);
 
 ---
 Implication yields a prop if the condition is a prop,
 and the conclusion is prop if the condition is satisfied.
 ---
-assume prop_imp_intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
-
-setup intro prop_imp_intro;
+assume prop_imp_intro#intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
 
 interpret imp: Magma prop (⟹) :=
-	discharge if ! prop P, ! prop Q then prop (P ⟹ Q) :=
+	- if #concl: prop P, #concl: prop Q then prop (P ⟹ Q) :=
 		by;
 	end;
 
@@ -28,21 +24,21 @@ The universal quantifier yields a prop if the body is a prop for any argument.
 ---
 import all: Binder prop (∀);
 
-setup intro all.type;
+note #intro: all.type;
 
 ---
 The true and false propositions can be obtained.
 ---
 obtain true where true_intro: true, true.type: prop true :=
-	case for thesis, assm: ∀true. true ⟹ prop true ⟹ thesis :=
+	- for thesis, if assm: ∀true. true ⟹ prop true ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P ⟹ P);
-			case for P, pP: prop P, P: P :=
-				by P;
+		- for P, if pP: prop P, P: P :=
+			by P;
 		done;
 	done;
 
 interpret true: Member prop true :=
-	discharge prop true :=
+	- prop true :=
 		by true.type;
 	end;
 
@@ -54,9 +50,9 @@ interpret True :=
 	end;
 
 obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type: prop false :=
-	case for thesis, assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
+	- for thesis, if assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P);
-		case for P, f: ∀P. prop P ⟹ P, p: prop P :=
+		- for P, if f: ∀P. prop P ⟹ P, p: prop P :=
 			by f[OF p];
 		by all.type prop_imp_intro prop_prop;
 	qed;

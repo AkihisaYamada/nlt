@@ -77,7 +77,7 @@ public:
 	/** finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
-	AThm assume(std::string_view const& name, CTerm const& assm);
+	AThm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
 	/** Declares import */
 	Import& import(std::string&& name, Locale const& loc) &;

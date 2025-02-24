@@ -87,7 +87,7 @@ public:
 		return imp->first;
 	}
 	Opt<Thm> concluding() const& {
-		if( _goals == 0 ) return _thm.intro();
+		if( _goals == 0 ) return _thm;
 		return {};
 	}
 	/** @brief Tries to apply a rule once */
