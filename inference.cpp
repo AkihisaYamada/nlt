@@ -61,7 +61,7 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	Locale subloc = _loc.branch();
 	CTerm subgoal = strip_all(goal,subloc);
 	while( auto const& imp2 = subgoal.cbinary(IMP) ) {// make assumptions for the subgoal
-		subloc.add_assm(CONCL,imp2->first);
+		subloc.add_thm(CONCL,subloc.assume(imp2->first));
 		subgoal = imp2->second;
 	}
 	auto subthesis = Inference(subloc,subgoal);
@@ -69,9 +69,9 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	if( // try explicitly given rules
 		!subthesis._apply(rules,g) &&
 		// try assumptions as conclusion. Not as rules, as it can be a wrong choice
-		!_loc.find_thm( CONCL, [&](auto& thm){ return subthesis._apply(axiom(thm),g); } ) &&
+		!subloc.find_thm( CONCL, [&](auto& thm){ return subthesis._apply(axiom(thm),g); } ) &&
 		// try environmental rules
-		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),g); } )
+		!subloc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),g); } )
 	) {
 		throw Error("\"failed blast\"")(subgoal);
 	}

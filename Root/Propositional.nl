@@ -29,7 +29,7 @@ note #intro: all.type;
 ---
 The true and false propositions can be obtained.
 ---
-obtain true where true_intro: true, true.type: prop true :=
+obtain true where true_intro #concl: true, true.type #concl: prop true :=
 	- for thesis, if assm: ∀true. true ⟹ prop true ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P ⟹ P);
 		- for P, if pP: prop P, P: P :=
@@ -42,14 +42,12 @@ interpret true: Member prop true :=
 		by true.type;
 	end;
 
-setup intro true.type;
-
 interpret True :=
 	substitute true :=
 		by true_intro;
 	end;
 
-obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type: prop false :=
+obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type #concl: prop false :=
 	- for thesis, if assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P);
 		- for P, if f: ∀P. prop P ⟹ P, p: prop P :=
