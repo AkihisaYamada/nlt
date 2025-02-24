@@ -1,4 +1,4 @@
-base Propositional;
+base Lambda;
 
 
 

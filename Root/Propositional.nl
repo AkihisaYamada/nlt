@@ -31,15 +31,12 @@ The true and false propositions can be obtained.
 ---
 obtain true where true_intro#concl: true, true.type#concl: prop true :=
 	- for thesis, if assm: ∀true. true ⟹ prop true ⟹ thesis :=
-		apply assm(∀P. prop P ⟹ P ⟹ P);
-		- for P, if [prop P], P: P :=
-			by P;
-		done;
+		by assm(∀P. prop P ⟹ P ⟹ P);
 	done;
 
 interpret true: Member prop true :=
 	- prop true :=
-		by true.type;
+		done;
 	end;
 
 interpret True :=
@@ -52,7 +49,7 @@ obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type #concl: 
 		apply assm(∀P. prop P ⟹ P);
 		- for P, if f: ∀P. prop P ⟹ P, p: prop P :=
 			by f[OF p];
-		by all.type prop_imp_intro prop_prop;
+		done;
 	qed;
 
 interpret false: Member prop false :=
@@ -90,18 +87,15 @@ show nnot_intro: if [P, prop P] then ¬¬P :=
 show nnot_imp: if imp: ¬¬P ⟹ Q, [P, prop P] then Q :=
 	by imp nnot_intro;
 
-show imp_not: if P: P, nQ: ¬Q, [prop P, prop Q] then ¬(P ⟹ Q) :=
+show imp_not: if [P], nQ: ¬Q, [prop P, prop Q] then ¬(P ⟹ Q) :=
 	apply not_intro;
 	- if PQ: P ⟹ Q :=
-		note Q: PQ[OF P];
-		by not_imp_false[OF nQ Q];
+		by not_imp_false[OF nQ] PQ;
 	done;
 
 show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, [prop P, prop Q] then ¬P :=
 	apply not_intro;
-	- if P: P then false :=
-		by not_imp_false[OF nQ] PQ P;
-	done;
+	by not_imp_false[OF nQ] PQ;
 
 show imp_not_sym: if PnQ: P ⟹ ¬Q, [Q, prop P, prop Q] then ¬P :=
 	apply not_intro;
