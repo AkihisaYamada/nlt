@@ -353,12 +353,26 @@ public:
 		for_variables(var_loc);
 		if( _parser.skips("if") ) {
 			cout << "if " << flush;
+			auto add_assm = [&]( Term const& t ) {
+				return assm_loc.assume(var_loc.enclose(t).weaken(assm_loc));
+			};
 			for(;;) {
-				auto cs = get_claim_status();
-				auto t = get_term();
-				Thm assm = assm_loc.assume(var_loc.enclose(t).weaken(assm_loc));
-				add_claim(assm_loc,cs,assm);
-				cout << cs << _syntax->pretty_term(t) << ", " << flush;
+				if( _parser.skips("[") ) {
+					cout << "[ ";
+					for(;;) {
+						auto t = get_term();
+						assm_loc.add_thm(CONCL,add_assm(t));
+						if( !_parser.skips(",") ) break;
+						cout << ", ";
+					}
+					_parser.skip("]");
+					cout << " ]";
+				} else {
+					auto cs = get_claim_status();
+					auto t = get_term();
+					add_claim(assm_loc,cs,add_assm(t));
+					cout << cs << _syntax->pretty_term(t) << ", " << flush;
+				}
 				if( !_parser.skips(",") ) break;
 			};
 			_parser.skip("then");
@@ -837,16 +851,31 @@ public:
 						_parser.skips(",");
 					}
 					if( _parser.skips("if") ) {
-						for(;;) {
-							auto cs = get_claim_status();
-							auto t = get_term();
+						auto eat_assm = [&]( Term const& t ){
 							auto imp = newgoal.cbinary(IMP);
 							if( !imp ) throw Error("\"unexpected assumption\"")(t);
 							newgoal = imp->second;
 							if( imp->first != t ) throw Error("\"assumption mismatch\"")(imp->first)(t);
-							Thm assm = subprf._loc.assume(subprf._loc.enclose(t));
-							add_claim(subprf._loc,cs,assm);
-							cout << cs << _syntax->pretty_thm(assm) << ", " << flush;
+							return subprf._loc.assume(subprf._loc.enclose(t));
+						};
+						for(;;) {
+							if( _parser.skips("[") ) {
+								cout << "[ ";
+								for(;;) {
+									auto t = get_term();
+									subprf._loc.add_thm(CONCL,eat_assm(t));
+									cout << t;
+									if( !_parser.skips(",") ) break;
+									cout << ", ";
+								}
+								_parser.skip("]");
+								cout << " ]";
+							} else {
+								auto cs = get_claim_status();
+								auto t = get_term();
+								add_claim(subprf._loc,cs,eat_assm(t));
+								cout << cs << _syntax->pretty_term(t) << ", " << flush;
+							}
 							if( !_parser.skips(",") ) break;
 						};
 						if( _parser.skips("then") ) {
