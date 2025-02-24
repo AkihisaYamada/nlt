@@ -4,6 +4,8 @@ using namespace std;
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
+Error const Inference::NoGoal = Error("\"no goal to apply\"");
+Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Inference::Rule Inference::rule( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
@@ -14,13 +16,33 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	}
 	return Rule(rule);
 }
-bool Inference::apply( Rule const& rule ) & {
-	if( _goals == 0 ) throw Error("\"no goal to apply\"");
-	auto const& imp = _thm.cbinary(IMP);
-	assert(imp);
-	auto const& m = rule.matches(imp->first);
+pair<Ctxt,CTerm> Inference::_init_thesis() const {
+	if( _goals == 0 ) throw NoGoal;
+	auto ctxt = _thm.ctxt().branch();// fixes variables and collects requirements for the rule
+	auto imp = strip_all(_thm,ctxt);
+	auto const& p = imp.cbinary(IMP);
+	assert(p);
+	return {ctxt,p->first};
+}
+void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
+	auto [ctxt,goal] = _init_thesis();
+	for( int i = 0;; i++ ) {
+		if( i == max ) {
+			if( safe ) break;
+			throw Error("\"apply limit exceeded\"")(to_string(max));
+		}
+		if( _apply(rules,ctxt,goal) ) {
+			continue;
+		}
+		if( i < min ) {
+			throw Error("\"Rules not applicable\"");
+		}
+		return;
+	}
+}
+bool Inference::_apply( Rule const& rule, Ctxt& ctxt, CTerm const& goal ) & {
+	auto const& m = rule.matches(goal);
 	if( !m ) return false;
-	auto ctxt = _thm.ctxt().branch();// collects requirements for the rule
 	auto intp = rule.intp(ctxt);
 	while( auto const& v = intp.fixing() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
@@ -33,32 +55,12 @@ bool Inference::apply( Rule const& rule ) & {
 		intp.discharge(ctxt.assume(*assm));
 		_goals++;
 	}
-	_thm = _thm.weaken(ctxt).impE(rule.inst(intp)).intro();
+	auto claim = rule.inst(intp);
+	_thm = _thm.weaken(ctxt).impE(claim).intro();
 	_goals--;
 	return true;
 }
 
-bool Inference::apply( set<Rule> const& rules ) & {
-	for( auto const& rule : rules ) {
-		if( apply(rule) ) return true;
-	}
-	return false;
-}
-void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
-	for( int i = 0;; i++ ) {
-		if( i == max ) {
-			if( safe ) break;
-			throw Error("\"apply limit exceeded\"")(to_string(max));
-		}
-		if( apply(rules) ) {
-			continue;
-		}
-		if( i < min ) {
-			throw Error("\"Rule not applicable\"");
-		}
-		return;
-	}
-}
 void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");
@@ -74,11 +76,11 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	}
 	auto subthesis = Inference(subloc,subgoal);
 	if( // try explicitly given rules
-		!subthesis.apply(rules) &&
+		!subthesis._apply(rules,subloc,subgoal) &&
 		// try assumptions as axioms. Not as rules, as it can be a wrong choice
-		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis.apply(axiom(thm)); } ) &&
+		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis._apply(axiom(thm),subloc,subgoal); } ) &&
 		// try environmental rules
-		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis.apply(rule(thm)); } )
+		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),subloc,subgoal); } )
 	) {
 		throw Error("\"failed blast\"")(subgoal);
 	}

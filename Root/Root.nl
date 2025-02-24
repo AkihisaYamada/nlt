@@ -99,8 +99,8 @@ show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	qed;
 
 show insert: (P ⟹ Q) ⟹ (R ⟹ P) ⟹ R ⟹ Q :=
-	note! imp_commute[OF imp.trans];
-	qed;
+	by imp_commute[OF imp.trans];
+
 
 show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
 	apply PQQR;
@@ -109,7 +109,7 @@ show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
 	case for x, P: P :=
-		by imp P;
+		by imp[OF P];
 	qed;
 
 show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x] :=

@@ -307,18 +307,11 @@ public:
 	}
 	void add_claim( ClaimStatus cs, Thm const& thm ) {
 		if( cs.is_goal ) {
-			_thesis->discharge(thm);
+			_thesis->apply(Inference::axiom(thm));
 		}
 		if( cs.name ) {
 			_loc.add_thm(*cs.name,thm);
 		}
-	}
-	set<Inference::Rule> get_rules() {
-		set<Inference::Rule> rules;
-		while( auto const& thm = gets_thm() ) {
-			rules.emplace(Inference::rule(*thm));
-		}
-		return rules;
 	}
 	Locale find_locale( string_view const& name ) {
 		auto loc = _loc.find_locale(name);
@@ -560,9 +553,7 @@ public:
 						auto const& rule = Inference::rule(thesis_loc.assume("?thesis",t));
 // assume this and prove var, i.e., prove props[sym:=term]...
 						auto thesis = Inference(thesis_loc,var);// var ⟹ var
-						if( !thesis.apply(rule) ) {
-							throw Error(rule.thm())(thesis.thm());
-						}// prop[sym:=term]... ⟹ var
+						thesis.apply(rule);// prop[sym:=term]... ⟹ var
 						auto const& spec = Prover(*this,thesis_loc,{},thesis).deepen().proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 						intp.retain(_loc.cterm(term),spec);
@@ -911,17 +902,22 @@ public:
 					if( !ret ) throw UnfinishedProof();
 					return ret;
 				} else if( _parser.skips("blast") ) {
-					auto const& rules = get_rules();
+					set<Inference::Rule> rules;
+					while( auto const& thm = gets_thm() ) {
+						rules.emplace(Inference::rule(*thm));
+					}
 					_parser.skip(";");
 					size_t fuel = 255;
 					_thesis->blast(rules,fuel);
 					print_goal();
 				} else if( _parser.skips("by") ) {
-					auto const& rules = get_rules();
+					set<Inference::Rule> axioms;
+					while( auto const& thm = gets_thm() ) {
+						axioms.emplace(Inference::axiom(*thm));
+					}
 					_parser.skip(";");
-					size_t fuel = 255;
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(rules,fuel);
+						_thesis->apply(axioms);
 					}
 					auto ret = _thesis->concluding();
 					if( !ret ) throw UnfinishedProof();

@@ -46,6 +46,8 @@ public:
 			return _conclusion < y._conclusion;
 		}
 	};
+	static Error const NoGoal;
+	static Error const Unapplicable;
 	/** @brief Makes a theorem into a rule. */
 	static Rule rule( Thm const& thm );
 	/** @brief Makes a theorem into an axiom.
@@ -83,17 +85,33 @@ public:
 		return {};
 	}
 	/** @brief Tries to apply a rule once */
-	bool apply( Rule const& rule ) &;
+	void apply( Rule const& rule ) & {
+		auto [ctxt,goal] = _init_thesis();
+		if( !_apply(rule,ctxt,goal) ) throw Unapplicable(goal);
+	}
 	/** @brief Tries to apply a set of rules once */
-	bool apply( std::set<Rule> const& rules ) &;
+	void apply( std::set<Rule> const& rules ) & {
+		auto [ctxt,goal] = _init_thesis();
+		if( !_apply(rules,ctxt,goal) ) throw Unapplicable(goal);
+	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) &;
+	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
-		if( !apply(axiom(thm)) ) {
-			throw Error("\"failed to discharge\"")(*goal())(thm);
-		}
+		if( _goals == 0 ) throw NoGoal;
+		_thm = _thm.impE(thm);
+		_goals--;
 	}
 	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
+private:
+	std::pair<Ctxt,CTerm> _init_thesis() const;
+	bool _apply( Rule const& rule, Ctxt& ctxt, CTerm const& goal ) &;
+	bool _apply( std::set<Rule> const& rules, Ctxt& ctxt, CTerm const& goal ) & {
+		for( auto const& rule : rules ) {
+			if( _apply(rule,ctxt,goal) ) return true;
+		}
+		return false;
+	}
 };
 
 #endif
