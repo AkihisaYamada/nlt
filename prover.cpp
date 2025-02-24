@@ -284,7 +284,7 @@ public:
 	}
 	Opt<CTerm> has_goal() {
 		if( _thesis ) {
-			return _thesis->goal();
+			return _thesis->has_goal();
 		}
 		return {};
 	}
@@ -307,7 +307,7 @@ public:
 	}
 	void add_claim( ClaimStatus cs, Thm const& thm ) {
 		if( cs.is_goal ) {
-			_thesis->apply(Inference::axiom(thm));
+			_loc.add_thm(INTRO,thm);
 		}
 		if( cs.name ) {
 			_loc.add_thm(*cs.name,thm);
@@ -503,7 +503,7 @@ public:
 						if( !m ) {
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
-						auto const& thm = prover.proof_loop().intro();
+						auto const& thm = prover.proof_loop();
 						auto local_intp = Intp(var_loc,axiom_vars);
 						subst_intp(local_intp,*m);
 						intp.discharge(local_intp.subst(thm).intro());
@@ -636,7 +636,7 @@ public:
 				auto cs = get_claim_status();
 				cout << "Showing " << cs << flush;
 				auto [prover,goal] = get_statement();
-				add_claim(cs,prover.proof_loop().intro().intro());
+				add_claim(cs,prover.proof_loop().intro());
 				if( _thesis ) {
 					print_goal();
 				} else {
@@ -890,7 +890,7 @@ public:
 					}
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = Inference(subprf._loc,newgoal);
-					_thesis->discharge(subprf._prompt().proof_loop().intro());
+					_thesis->discharge(subprf._prompt().proof_loop());
 					print_goal();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
@@ -911,17 +911,16 @@ public:
 					_thesis->blast(rules,fuel);
 					print_goal();
 				} else if( _parser.skips("by") ) {
-					set<Inference::Rule> axioms;
+					set<Inference::Rule> rules;
 					while( auto const& thm = gets_thm() ) {
-						axioms.emplace(Inference::axiom(*thm));
+						rules.emplace(Inference::rule(*thm));
 					}
 					_parser.skip(";");
+					size_t fuel = 255;
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->apply(axioms);
+						_thesis->blast(rules,fuel);
 					}
-					auto ret = _thesis->concluding();
-					if( !ret ) throw UnfinishedProof();
-					return ret;
+					return _thesis->concluding();
 				} else if( _parser.skips("qed") ) {
 					_parser.skip(";");
 					auto ret = _thesis->concluding();

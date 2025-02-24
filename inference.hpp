@@ -72,7 +72,7 @@ public:
 	size_t goal_count() const {
 		return _goals;
 	}
-	Opt<CTerm> goal() const& {
+	Opt<CTerm> has_goal() const& {
 		if( _goals != 0 ) {
 			auto imp = _thm.cbinary(IMP);
 			assert(imp);
@@ -80,19 +80,25 @@ public:
 		}
 		return {};
 	}
+	CTerm goal() const& {
+		if( _goals == 0 ) throw NoGoal;
+		auto imp = _thm.cbinary(IMP);
+		assert(imp);
+		return imp->first;
+	}
 	Opt<Thm> concluding() const& {
-		if( _goals == 0 ) return _thm;
+		if( _goals == 0 ) return _thm.intro();
 		return {};
 	}
 	/** @brief Tries to apply a rule once */
 	void apply( Rule const& rule ) & {
-		auto [ctxt,goal] = _init_thesis();
-		if( !_apply(rule,ctxt,goal) ) throw Unapplicable(goal);
+		auto g = goal().weaken(_thm.ctxt().branch());
+		if( !_apply(rule,g) ) throw Unapplicable(g);
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Rule> const& rules ) & {
-		auto [ctxt,goal] = _init_thesis();
-		if( !_apply(rules,ctxt,goal) ) throw Unapplicable(goal);
+		auto g = goal().weaken(_thm.ctxt().branch());
+		if( !_apply(rules,g) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) &;
@@ -104,11 +110,11 @@ public:
 	}
 	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
 private:
-	std::pair<Ctxt,CTerm> _init_thesis() const;
-	bool _apply( Rule const& rule, Ctxt& ctxt, CTerm const& goal ) &;
-	bool _apply( std::set<Rule> const& rules, Ctxt& ctxt, CTerm const& goal ) & {
+	/** goal must be in a fresh context */
+	bool _apply( Rule const& rule, CTerm const& goal ) &;
+	bool _apply( std::set<Rule> const& rules, CTerm const& goal ) & {
 		for( auto const& rule : rules ) {
-			if( _apply(rule,ctxt,goal) ) return true;
+			if( _apply(rule,goal) ) return true;
 		}
 		return false;
 	}

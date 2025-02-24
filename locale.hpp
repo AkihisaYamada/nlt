@@ -21,7 +21,9 @@ class Locale : public Ctxt {
 	using Thms = std::multimap<std::string,std::pair<Thm,ThmInfo>,std::less<>>;
 	struct _Body;
 	Ref<_Body> _ref;
-	Locale( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
+	Locale( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {
+		assert( !parent() || *parent() == ctxt.parent() );
+	}
 	static std::function<Thm(Thm const&)> const _triv_proc;
 	static std::function<bool(AThm const&)> const _triv_test;
 	Opt<AThm> _find_thm(

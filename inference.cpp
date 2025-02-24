@@ -16,22 +16,14 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	}
 	return Rule(rule);
 }
-pair<Ctxt,CTerm> Inference::_init_thesis() const {
-	if( _goals == 0 ) throw NoGoal;
-	auto ctxt = _thm.ctxt().branch();// fixes variables and collects requirements for the rule
-	auto imp = strip_all(_thm,ctxt);
-	auto const& p = imp.cbinary(IMP);
-	assert(p);
-	return {ctxt,p->first};
-}
 void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
-	auto [ctxt,goal] = _init_thesis();
+	auto g = goal().weaken(_thm.ctxt().branch());
 	for( int i = 0;; i++ ) {
 		if( i == max ) {
 			if( safe ) break;
 			throw Error("\"apply limit exceeded\"")(to_string(max));
 		}
-		if( _apply(rules,ctxt,goal) ) {
+		if( _apply(rules,g) ) {
 			continue;
 		}
 		if( i < min ) {
@@ -40,22 +32,23 @@ void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool
 		return;
 	}
 }
-bool Inference::_apply( Rule const& rule, Ctxt& ctxt, CTerm const& goal ) & {
+bool Inference::_apply( Rule const& rule, CTerm const& goal ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
-	auto intp = rule.intp(ctxt);
-	while( auto const& v = intp.fixing() ) {// instantiate rule variables
+	auto ctxt = goal.ctxt();// collects new assumptions
+	auto rule_intp = rule.intp(ctxt);
+	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
-			intp.instantiate(*val);
+			rule_intp.instantiate(*val);
 		} else {
-			intp.instantiate(dummy(ctxt));
+			rule_intp.instantiate(dummy(ctxt));
 		}
 	}
-	while( auto const& assm = intp.assuming() ) {// make assumptions
-		intp.discharge(ctxt.assume(*assm));
+	while( auto const& assm = rule_intp.assuming() ) {// make assumptions
+		rule_intp.discharge(ctxt.assume(*assm));
 		_goals++;
 	}
-	auto claim = rule.inst(intp);
+	auto claim = rule.inst(rule_intp);
 	_thm = _thm.weaken(ctxt).impE(claim).intro();
 	_goals--;
 	return true;
@@ -75,21 +68,23 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 		subgoal = imp2->second;
 	}
 	auto subthesis = Inference(subloc,subgoal);
+	auto g = subgoal.weaken(subgoal.ctxt().branch());
 	if( // try explicitly given rules
-		!subthesis._apply(rules,subloc,subgoal) &&
+		!subthesis._apply(rules,g) &&
 		// try assumptions as axioms. Not as rules, as it can be a wrong choice
-		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis._apply(axiom(thm),subloc,subgoal); } ) &&
+		!_loc.find_thm( ASSM, [&](auto& thm){ return subthesis._apply(axiom(thm),g); } ) &&
 		// try environmental rules
-		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),subloc,subgoal); } )
+		!_loc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),g); } )
 	) {
 		throw Error("\"failed blast\"")(subgoal);
 	}
 	// blast all sub-sub-goals:
 	fuel--;
 	while( subthesis._goals > 0 ) {
-		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*subthesis.goal());
+		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*subthesis.has_goal());
 		subthesis.blast(rules,fuel);
 	}
+DEB( _loc.id() << " --> " << subloc.id() << " = " << subthesis._thm.ctxt().id() );
 	_thm = _thm.impE(subthesis._thm.intro());
 	_goals--;
 	return;

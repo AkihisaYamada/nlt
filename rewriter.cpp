@@ -285,7 +285,7 @@ Thm Rewriter::_steps(
 	return eq;// source ⟺ target
 }
 void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel ) const {
-	auto const& goal = thesis.goal();
+	auto const& goal = thesis.has_goal();
 	if( !goal ) throw Error("\"no goal to rewrite\"");
 	size_t ind = _get_ind(rel);
 	auto const& o = _revimps.finds(ind);

@@ -20,7 +20,8 @@ show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R :=
 	apply PQR;
 	show! if P: P then Q :=
 		by Q;
-	qed;
+	ctxt;
+	done;
 
 infix ≤ 51 51 50;
 
@@ -98,13 +99,13 @@ show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 		by PQR[OF P Q];
 	qed;
 
-show insert: (P ⟹ Q) ⟹ (R ⟹ P) ⟹ R ⟹ Q :=
-	by imp_commute[OF imp.trans];
-
+show insert: if PQ: P ⟹ Q, RP: R ⟹ P, R: R then Q :=
+	by imp_commute[OF imp.trans][OF PQ RP R];
 
 show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
 	apply PQQR;
-	note! mp[OF P];
+	case PQ: P ⟹ Q :=
+		by PQ P;
 	qed;
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
@@ -113,10 +114,14 @@ show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
 	qed;
 
 show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x] :=
-	by all P;
+	case for x :=
+		by all[OF P];
+	qed;
 
 show all_all_imp: if a: ∀x. α.[x], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
-	by imp[OF a];
+	case for x :=
+		by imp[OF a];
+	qed;
 
 -- Obtains true, which is provable.
 locale True :=
