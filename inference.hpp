@@ -54,6 +54,8 @@ public:
 	};
 	static Error const NoGoal;
 	static Error const Unapplicable;
+	/** @brief Makes implication a rule. */
+	static Rule imp( Thm const& thm );
 	/** @brief Makes a theorem into a rule. */
 	static Rule rule( Thm const& thm );
 	/** @brief Makes a theorem into an axiom.

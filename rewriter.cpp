@@ -296,7 +296,7 @@ void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, u
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto eq = _steps(rules,*goal,min,max,safe,pos,ind);// s = t
 	auto imp = o->second.weaken(thesis.locale()) << eq;// t ⟹ s
-	thesis.apply(Inference::rule(imp));// t ⟹ ...
+	thesis.apply(Inference::imp(imp));// t ⟹ ...
 }
 Thm Rewriter::rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
 	size_t ind = _get_ind(rel);

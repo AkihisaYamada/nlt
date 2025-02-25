@@ -11,6 +11,16 @@ CTerm dummy( Ctxt const& ctxt ) {
 Error const Inference::NoGoal = Error("\"no goal to apply\"");
 Error const Inference::Unapplicable = Error("\"apply failed\"");
 
+Inference::Rule Inference::imp( Thm const& thm ) {
+	Ctxt ctxt = thm.ctxt().branch();
+	Thm rule = strip_all(thm,ctxt);
+	auto imp = rule.cbinary(IMP);
+	assert(imp);
+	rule = rule.impE(ctxt.assume(imp->first));
+	rule = strip_all(rule,ctxt);
+	return Rule(rule);
+}
+
 Inference::Rule Inference::rule( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	Thm rule = strip_all(thm,ctxt);
