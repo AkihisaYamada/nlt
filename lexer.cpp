@@ -73,7 +73,8 @@ int Lexer::fetch_char() {
 			n++;
 		}
 		if( n == 0 ) {// line comment
-			while( pis->peek() != '\n' ) pis->ignore();
+			while( pis->get() != '\n' );
+			line_count++;
 		} else {// block comment
 			unsigned int m;
 			for(;;) {
