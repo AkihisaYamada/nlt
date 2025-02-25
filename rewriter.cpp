@@ -160,11 +160,13 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
 		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
 			Thm ret = cong.weaken(source_ctxt);
+DEB(source << "  cong " << ret);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
 			size_t n = pat_ctxt.revision();
 			for( size_t i = 0; i < n; i++ ) {
 				auto v = pat_ctxt.fixed(i);
 				assert(v);
+DEB( *v << " := " << *m->get(*v) );
 				auto const& si = m->get(*v);
 				assert(si);
 				size_t ind_i = cong.inds[i];
@@ -181,6 +183,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 				} else {
 					ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
 				}
+DEB(ret);
 			}
 			if( success ) return ret;
 			return {};

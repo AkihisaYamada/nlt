@@ -483,8 +483,8 @@ public:
 						auto const& claim = concl.intro();
 						auto const& var_loc = *prover._loc.parent();
 						auto axiom_vars = axiom.ctxt().branch();
-						auto const& goal = strip_all(axiom,axiom_vars);
-						auto const& m = match(claim,goal,[&](auto v){ return var_loc.fixes(v); });
+						auto goal = strip_all(axiom,axiom_vars);
+						auto m = match(claim,goal,[&](auto v){ return var_loc.fixes(v); });
 						if( !m ) {
 							throw Error("\"unmatching discharge\"")(claim)(axiom);
 						}
@@ -832,8 +832,7 @@ public:
 					_thesis->apply(rules,min,max,safe);
 					print_goal();
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
-					bool discharge = _parser.skips("!");//TODO
-					_rewrite(_loc,{},{0},1,discharge?255:0,!discharge,dir);
+					_rewrite(_loc,{},{},1,discharge?255:0,!discharge,dir);
 					_parser.skip(";");
 					print_goal();
 				} else if( _parser.skips("-") ) {

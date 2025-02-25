@@ -83,7 +83,7 @@ inline Thm strip_all( Thm thm ) {
  * @param intp 
  * @param subst 
  */
-void subst_intp( Intp& intp, CSubst const& subst );
+void subst_intp( Intp& intp, CSubst& subst );
 
 /** @brief 
  * @param imp ∀x... φ ⟹ ψ

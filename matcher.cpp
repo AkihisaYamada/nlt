@@ -235,10 +235,10 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	return t.csubst(subst);
 }
 
-void subst_intp( Intp& intp, CSubst const& subst ) {
+void subst_intp( Intp& intp, CSubst& subst ) {
 	while( auto const& sym = intp.fixing() ) {
 		auto const& val = subst.get(*sym);
-		intp.instantiate( val ? *val : subst.ctxt().cterm(DUMMY));
+		intp.instantiate( val ? *val : subst.ctxt().fix(*sym));
 	}
 }
 
@@ -251,7 +251,7 @@ Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 		throw Error("#match_discharge")(thm);
 	}
 	auto const& arg_weaken = arg.weaken(ctxt);
-	auto const& m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
+	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) {
 		return {};
 	}
