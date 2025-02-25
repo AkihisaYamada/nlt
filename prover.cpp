@@ -3,7 +3,6 @@
 #include"locale.hpp"
 #include"parser.hpp"
 #include"definer.hpp"
-#include"concluder.hpp"
 
 using namespace std;
 
@@ -11,6 +10,7 @@ struct ClaimStatus {
 	Opt<string> name;
 	bool intro = false, concl = false;
 };
+
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.name ) {
 		os << *cs.name;
@@ -67,9 +67,7 @@ class Prover {
 	Ref<Syntax> _syntax;
 	Parser _parser;
 	Opt<Inference> _thesis;
-	Concluder _concluder;
 	Mem<Rewriter> _rewriter;
-	set<Thm> _forced_intros;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
@@ -82,7 +80,6 @@ class Prover {
 		_parser(parent._parser.get_lexer(),*parent._syntax),
 		_own_parser(false),
 		_thesis(thesis),
-		_concluder(parent._concluder),
 		_rewriter(parent._rewriter),
 		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
@@ -275,24 +272,36 @@ public:
 		return {};
 	}
 	ClaimStatus get_claim_status() {
-		ClaimStatus ret;
-		ret.name = _parser.gets_thm_name();
+		ClaimStatus cs;
+		if( _parser.skips("!") ) {
+			cs.concl = true;
+			return cs;
+		}
+		cs.name = _parser.gets_thm_name();
 		while( _parser.skips("#") ) {
 			if( _parser.skips("intro") ) {
-				ret.intro = true;
+				cs.intro = true;
 			} else if( _parser.skips("concl") ) {
-				ret.concl = true;
+				cs.concl = true;
 			}
 		}
 		_parser.skip(":");
-		return ret;
+		return cs;
+	}
+	pair<ClaimStatus,Term> get_assm() {
+		if( _parser.skips("[") ) {
+			auto t = get_term();
+			_parser.skips("]");
+			return {{{},false,true},t};
+		}
+		return {get_claim_status(),get_term()};
 	}
 	void add_claim( Locale& loc, ClaimStatus cs, Thm const& thm ) {
 		if( cs.intro ) {
-			loc.add_thm(INTRO,thm);
+			loc.add_thm(Inference::INTRO,thm);
 		}
 		if( cs.concl ) {
-			loc.add_thm(CONCL,thm);
+			add_concluder(loc,thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -361,15 +370,15 @@ public:
 					cout << "[ ";
 					for(;;) {
 						auto t = get_term();
-						assm_loc.add_thm(CONCL,add_assm(t));
+						cout << t;
+						add_concluder(assm_loc,add_assm(t));
 						if( !_parser.skips(",") ) break;
 						cout << ", ";
 					}
 					_parser.skip("]");
 					cout << " ]";
 				} else {
-					auto cs = get_claim_status();
-					auto t = get_term();
+					auto [cs,t] = get_assm();
 					add_claim(assm_loc,cs,add_assm(t));
 					cout << cs << _syntax->pretty_term(t) << ", " << flush;
 				}
@@ -397,8 +406,7 @@ public:
 		}
 		if( _parser.skips("if") ) {
 			for(;;) {
-				auto cs = get_claim_status();
-				auto t = get_term();
+				auto [cs,t] = get_assm();
 				assms.emplace_back(cs,goal_loc.enclose(t));
 				if( !_parser.skips(",") ) break;
 			};
@@ -630,8 +638,7 @@ public:
 				vector<ClaimStatus> names;
 				vector<Term> props;
 				for(;;) {
-					auto cs = get_claim_status();
-					auto t = get_term();
+					auto [cs,t] = get_assm();
 					names.push_back(cs);
 					props.push_back(t);
 					cout << cs << ": " << _syntax->pretty_term(t) << ", ";
@@ -861,17 +868,16 @@ public:
 							if( _parser.skips("[") ) {
 								cout << "[ ";
 								for(;;) {
-									auto t = get_term();
-									subprf._loc.add_thm(CONCL,eat_assm(t));
-									cout << t;
+									auto assm = eat_assm(get_term());
+									add_concluder(subprf._loc,assm);
+									cout << assm;
 									if( !_parser.skips(",") ) break;
 									cout << ", ";
 								}
 								_parser.skip("]");
 								cout << " ]";
 							} else {
-								auto cs = get_claim_status();
-								auto t = get_term();
+								auto [cs,t] = get_assm();
 								add_claim(subprf._loc,cs,eat_assm(t));
 								cout << cs << _syntax->pretty_term(t) << ", " << flush;
 							}
@@ -952,16 +958,14 @@ public:
 					cout << ';' << endl;
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
-					cout << "Assuming " << cs;
 					Locale var_loc = _loc.branch();
 					for_variables(var_loc);
-					CTerm assm = var_loc.enclose(_parser.get_term()).lift(_loc.cterm(ALL));
+					CTerm assm = var_loc.enclose(get_term()).lift(_loc.cterm(ALL));
 					Thm thm = cs.name ? _loc.add_assm(*cs.name,assm) : _loc.assume(assm);
 					cs.name = {};
 					add_claim(_loc,cs,thm);
-					cout << _syntax->pretty_term(assm) << "; " << flush;
 					_parser.skip(";");
-					cout << endl;
+					cout << "Assumed " << cs << _syntax->pretty_term(assm) << "; " << endl;
 				} else if( _parser.skips("import") ) {
 					import(true);
 				} else if( _parser.skips("finalize") ) {

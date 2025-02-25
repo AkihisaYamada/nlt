@@ -13,6 +13,12 @@ class Inference {
 		return ctxt.assume(claim.weaken(ctxt)).intro();// claim ⟹ claim
 	}
 public:
+	/** name for introduction rules */
+	static std::string const INTRO;
+	/** name for schematic concluders */
+	static std::string const CONCL;
+	/** name for exact concluder */
+	static std::string const EXACT;
 	/** Inference rule */
 	class Rule {
 		friend Inference;
@@ -105,11 +111,18 @@ public:
 	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw NoGoal;
-		_thm = _thm.impE(thm);
-		_goals--;
+		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
 	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
 private:
+	bool _discharges( Thm const& thm ) & {
+		if( auto o = _thm.impEs(thm) ) {
+			_thm = *o;
+			_goals--;
+			return true;
+		}
+		return false;
+	}
 	/** goal must be in a fresh context */
 	bool _apply( Rule const& rule, CTerm const& goal ) &;
 	bool _apply( std::set<Rule> const& rules, CTerm const& goal ) & {
@@ -119,5 +132,8 @@ private:
 		return false;
 	}
 };
+
+/** @brief Add concluder theorem to locale */
+void add_concluder( Locale&, Thm const& thm );
 
 #endif

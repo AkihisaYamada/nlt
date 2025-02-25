@@ -324,16 +324,16 @@ Thm Thm::_allE(CTerm const& t) const {
 	throw MalformedInstantiation(*this,t);
 }
 
-Thm Thm::impE(Thm const& t) const {
+Opt<Thm> Thm::impEs(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext("impE");
 	}
 	if( auto const& imp = cbinary(IMP) ) {
 		if( imp->first == t ) {
-			return imp->second;
+			return Thm(imp->second);
 		}
 	}
-	throw MalformedDischarge(*this)(t);
+	return {};
 }
 
 CTerm CTerm::intro() const {

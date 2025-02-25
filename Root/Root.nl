@@ -83,25 +83,22 @@ locale MetaUnitalCommutative (+) (0) (=) :=
 			
 ---
 interpret imp: MetaPreorder (⟹) :=
-	- if P: P then P :=
-		by P;
-	- if PQ: P ⟹ Q, QR: Q ⟹ R, P: P then R :=
-		note Q: PQ[OF P];
-		by QR[OF Q];
+	- if [P] then P :=
+		done;
+	- if PQ: P ⟹ Q, QR: Q ⟹ R, [P] then R :=
+		by QR PQ;
 	end;
 
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
-	- if Q: Q, P: P :=
-		by PQR[OF P Q];
-	qed;
+	by PQR;
 
-show insert: if PQ: P ⟹ Q, RP: R ⟹ P, R: R then Q :=
-	by imp_commute[OF imp.trans][OF PQ RP R];
+show insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q :=
+	by PQ RP;
 
-show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P: P then R :=
+show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R :=
 	apply PQQR;
 	- if PQ: P ⟹ Q :=
-		by PQ P;
+		by PQ;
 	qed;
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
@@ -109,31 +106,25 @@ show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
 		by imp[OF P];
 	qed;
 
-show all_imp: if all: ∀x. P ⟹ α.[x], P: P then ∀x. α.[x] :=
-	- for x :=
-		by all[OF P];
-	qed;
+show all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x] :=
+	by all;
 
-show all_all_imp: if a: ∀x. α.[x], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
-	- for x :=
-		by imp[OF a];
-	qed;
+show all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
+	by imp;
 
 -- Obtains true, which is provable.
 locale True :=
-	obtain true where true_intro: true :=
+	obtain true where true_intro#concl: true :=
 		- for thesis, if assm: ∀true. true ⟹ thesis :=
-			by assm(∀x. x ⟹ x)[OF imp.refl];
+			by assm(∀x. x ⟹ x);
 		qed;
 	end;
 
 -- Obtains false, which derives everything, including non-propositions.
 locale False :=
 	obtain false where false_elim: ∀P. false ⟹ P :=
-		- for thesis, if assm: ∀false. (∀P. false ⟹ P) ⟹ thesis :=
-			show 1: if 2: ∀x. x then P :=
-				by 2;
-			by assm(∀P. P)[OF 1];
+		- for thesis, if assm: ∀false. (∀P. false ⟹ P) ⟹ thesis then thesis :=
+			by assm(∀P. P);
 		qed;
 	end;
 
@@ -153,26 +144,25 @@ locale Iff (⟺) :=
 			note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 			by iff_intro[OF PR RP];
 		end;
-
+	note #concl: iff.refl;
 	interpret iff_iff: MetaCommutative (⟺) (⟺) :=
 		- (P ⟺ Q) ⟺ (Q ⟺ P) :=
 			by iff_intro[OF iff.sym iff.sym];
 		end;
 
-	show imp_imp_iff: if P: P then (P ⟹ Q) ⟺ Q :=
+	show imp_imp_iff: if [P] then (P ⟹ Q) ⟺ Q :=
 		apply iff_intro;
 		- if PQ: P ⟹ Q :=
-			by PQ[OF P];
-		- if Q: Q, P2: P :=
-			by Q;
+			by PQ;
+		- := done;
 		qed;
 
 	show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		apply iff_intro;
-		- if PR: P ⟹ R, Q: Q then S :=
-			by iff_elim1[OF RS] PR iff_elim2[OF PQ] Q;
-		- if QS: Q ⟹ S, P: P then R :=
-			by iff_elim2[OF RS] QS iff_elim1[OF PQ] P;
+		- if PR: P ⟹ R, [Q] then S :=
+			by iff_elim1[OF RS] PR iff_elim2[OF PQ];
+		- if QS: Q ⟹ S, [P] then R :=
+			by iff_elim2[OF RS] QS iff_elim1[OF PQ];
 		qed;
 
 	show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
@@ -189,28 +179,27 @@ locale Iff (⟺) :=
 
 	show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
 		apply iff_intro;
-		- if a: ∀x. α.[x] then ∀x. β.[x] :=
-			by iff_elim1[OF ab] a;
-		- if b: ∀x. β.[x] then ∀x. α.[x] :=
-			by iff_elim2[OF ab] b;
+		- if [∀x. α.[x]] then ∀x. β.[x] :=
+			by iff_elim1[OF ab];
+		- if [∀x. β.[x]] then ∀x. α.[x] :=
+			by iff_elim2[OF ab];
 		qed;
 
-	show imp_iff_iff: if P: P then (P ⟺ Q) ⟺ Q :=
+	show imp_iff_iff: if [P] then (P ⟺ Q) ⟺ Q :=
 		apply iff_intro;
 		- if PQ: P ⟺ Q :=
-			apply+ iff_elim1[OF PQ] P;
-			qed;
-		- if Q: Q :=
-			by iff_intro P Q;
+			by iff_elim1[OF PQ];
+		- := by iff_intro;
 		qed;
 
 	show all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P :=
 		apply iff_intro;
 		- if all: ∀Q. (P ⟹ Q) ⟹ Q :=
-			by all[OF imp.refl];
-		- if P: P :=
+			apply all;
+			done;
+		- if [P] :=
 			- for Q, if PQ: P ⟹ Q :=
-				by PQ[OF P];
+				by PQ;
 			qed;
 		qed;
 
@@ -259,76 +248,67 @@ locale MinimalNot false (¬) :=
 	show not_false: ¬false :=
 		by not_intro[OF imp.refl];
 
-	show nnot_intro: if P: P then ¬¬P :=
+	show nnot_intro: if [P] then ¬¬P :=
 		apply not_intro;
 		- if nP: ¬P :=
-			by not_imp_false[OF nP P];
+			by not_imp_false[OF nP];
 		qed;
 
-	show nnot_imp: if imp: ¬¬P ⟹ Q, P: P then Q :=
-		apply+ imp nnot_intro P;
-		qed;
+	show nnot_imp: if imp: ¬¬P ⟹ Q, [P] then Q :=
+		by imp nnot_intro;
 
-	show imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q) :=
+	show imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q) :=
 		apply not_intro;
 		- if PQ: P ⟹ Q :=
-			note Q: PQ[OF P];
-			by not_imp_false[OF nQ Q];
+			by not_imp_false[OF nQ] PQ;
 		qed;
 
 	show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P :=
 		apply not_intro;
-		- if P: P then false :=
-			by not_imp_false[OF nQ PQ[OF P]];
-		qed;
+		by not_imp_false[OF nQ] PQ;
 
-	show imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q then ¬P :=
+	show imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P :=
 		apply not_intro;
 		- if P: P :=
-			show nQ: ¬Q :=
-				by PnQ[OF P];
-			by not_imp_false[OF nQ Q];
+			by not_imp_false[OF PnQ[OF P]];
 		qed;
 
-	show nnot_imp_nnot: if P: ¬¬P, PQ: P ⟹ Q then ¬¬Q :=
+	show nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q :=
 		apply not_intro;
-		- if nQ: ¬Q :=
+		- if [¬Q] :=
 			show nP: ¬P :=
-				by imp_not_imp[OF PQ nQ];
-			by not_imp_false[OF P nP];
+				by imp_not_imp[OF PQ];
+			by not_imp_false[OF nnP nP];
 		qed;
 
-	show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P then ¬¬Q :=
+	show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
 		apply not_intro;
 		- if nQ: ¬Q :=
 			apply+ not_imp_false[OF nnPQ] not_intro;
 			- if PQ: P ⟹ Q :=
-				by not_imp_false[OF nQ] PQ P;
+				by not_imp_false[OF nQ] PQ;
 			qed;
 		qed;
 
-	show nnot_not_imp_nimp: if P: ¬¬P, nQ: ¬Q then ¬(P ⟹ Q) :=
+	show nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
 		apply not_intro;
 		- if PQ: P ⟹ Q :=
-			show Q: ¬¬Q :=
-				by nnot_imp_nnot[OF P PQ];
-			by not_imp_false[OF Q nQ];
+			show nnQ: ¬¬Q :=
+				by nnot_imp_nnot[OF nnP PQ];
+			by not_imp_false[OF nnQ];
 		qed;
 
 	show not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]) :=
-		apply not_intro;
-		- if a: ∀y. α.[y] :=
-			by not_imp_false[OF nax] a;
-		qed;
+		by not_intro not_imp_false[OF nax];
 	end;
 
 locale Not :=
 	interpret False;
 	import MinimalNot;
 	finalize;
-	show not_elim: if nP: ¬P, P: P then Q :=
+	show not_elim: if nP: ¬P, [P] then Q :=
 		show f: false :=
-			by not_imp_false[OF nP P];
+			by not_imp_false[OF nP];
 		by false_elim[OF f];
 	end;
 
@@ -358,10 +338,10 @@ locale Ex (∃) :=
 			just ex_intro1;
 		qed;
 
-	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, all: ∀x. α.[x] then P :=
+	show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P :=
 		apply ex_elim[OF ex];
 		- for x, if imp: α.[x] ⟹ P :=
-			by imp[OF all];
+			by imp;
 		qed;
 	end;
 

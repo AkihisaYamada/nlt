@@ -15,16 +15,14 @@ define true := ∀P. P ⟹ P;
 interpret True :=
 	substitute true :=
 		unfold true_def;
-		by imp.refl;
+		done;
 	end;
-
-setup conclude true_intro;
 
 define (false_def) false := ∀P. P;
 
 interpret False :=
 	substitute false :=
-		show! if f: false then P :=
+		- for P, if f: false then P :=
 			by f[unfolded false_def];
 		qed;
 	end;
@@ -32,28 +30,28 @@ interpret False :=
 define (not_def) ¬ P := P ⟹ false;
 
 interpret MinimalNot false (¬) :=
-	discharge if nP: ¬P, P: P then false :=
+	- for P, if nP: ¬P, P: P then false :=
 		by nP[unfolded not_def][OF P];
-	discharge if nP: P ⟹ false then ¬P :=
+	- for P, if nP: P ⟹ false then ¬P :=
 		by nP[folded not_def];
 	end;
 
 define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 
 interpret And (∧) :=
-	discharge if P: P, Q: Q then P ∧ Q :=
+	- for P Q, if P: P, Q: Q then P ∧ Q :=
 		apply eq_prop2[OF and_def];
-		case for R, PQR: P ⟹ Q ⟹ R :=
+		- for R, if PQR: P ⟹ Q ⟹ R :=
 			by PQR[OF P Q];
 		qed;
-	discharge if PQ: P ∧ Q then P :=
+	- for P Q, if PQ: P ∧ Q then P :=
 		apply eq_prop1[OF and_def][OF PQ];
-		case P: P, Q: Q :=
+		- if P: P, Q: Q :=
 			by P;
 		qed;
-	discharge if PQ: P ∧ Q then Q :=
+	- for P Q, if PQ: P ∧ Q then Q :=
 		apply eq_prop1[OF and_def][OF PQ];
-		case P: P, Q: Q :=
+		- if P: P, Q: Q :=
 			by Q;
 		qed;
 	end;
@@ -61,14 +59,14 @@ interpret And (∧) :=
 define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
 
 interpret Iff (⟺) :=
-	discharge if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q :=
+	- for P Q, if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q :=
 		apply eq_prop2[OF iff_def];
 		by and_intro[OF PQ QP];
-	discharge if PQ: P ⟺ Q then P ⟹ Q :=
+	- for P Q, if PQ: P ⟺ Q then P ⟹ Q :=
 		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
 			by eq_prop1[OF iff_def PQ];
 		by and_elim1[OF and];
-	discharge if PQ: P ⟺ Q then Q ⟹ P :=
+	- for P Q, if PQ: P ⟺ Q then Q ⟹ P :=
 		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
 			by eq_prop1[OF iff_def PQ];
 		by and_elim2[OF and];

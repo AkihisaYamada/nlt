@@ -790,7 +790,13 @@ public:
 	 * @exception MalformedDischarge
 	 * @exception WrongContext
 	 */
-	Thm impE(Thm const& t) const;
+	Thm impE(Thm const& t) const {
+		if( auto o = impEs(t) ) {
+			return *o;
+		}
+		throw MalformedDischarge(*this)(t);
+	}
+	Opt<Thm> impEs(Thm const& t) const;
 	/** @brief Moves the theorem to the parent context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.

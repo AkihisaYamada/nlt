@@ -1,6 +1,10 @@
 #include "inference.hpp"
 using namespace std;
 
+string const Inference::INTRO = "#intro";
+string const Inference::CONCL = "#concl";
+string const Inference::EXACT = "#exact";
+
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
@@ -16,6 +20,10 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	}
 	return Rule(rule);
 }
+void add_concluder( Locale& loc, Thm const& thm ) {
+	loc.add_thm( thm.binder(ALL) ? Inference::CONCL : Inference::EXACT, thm );
+}
+
 void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
 	for( int i = 0;; i++ ) {
 		if( i == max ) {
@@ -61,16 +69,19 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	Locale subloc = _loc.branch();
 	CTerm subgoal = strip_all(goal,subloc);
 	while( auto const& imp2 = subgoal.cbinary(IMP) ) {// make assumptions for the subgoal
-		subloc.add_thm(CONCL,subloc.assume(imp2->first));
+		auto const& assm = imp2->first;
+		add_concluder(subloc,subloc.assume(assm));
 		subgoal = imp2->second;
 	}
 	auto subthesis = Inference(subloc,subgoal);
 	auto g = subgoal.weaken(subgoal.ctxt().branch());
 	if( // try explicitly given rules
 		!subthesis._apply(rules,g) &&
-		// try assumptions as conclusion. Not as rules, as it can be a wrong choice
+		// try exact conclusions
+		!subloc.find_thm( EXACT, [&](auto& thm){ return subthesis._discharges(thm); } ) &&
+		// try schematic conclusions
 		!subloc.find_thm( CONCL, [&](auto& thm){ return subthesis._apply(axiom(thm),g); } ) &&
-		// try environmental rules
+		// try forced rules
 		!subloc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),g); } )
 	) {
 		throw Error("\"failed blast\"")(subgoal);
