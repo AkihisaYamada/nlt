@@ -32,9 +32,9 @@ class Rewriter {
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
 	Map<size_t,Thm> _trans;
 	/** ∀P Q. P ⟺ Q ⟹ P ⟹ Q */
-	Map<size_t,Inference::Rule> _imps;
+	Map<size_t,Thm> _imps;
 	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
-	Map<size_t,Inference::Rule> _revimps;
+	Map<size_t,Thm> _revimps;
 public:
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";

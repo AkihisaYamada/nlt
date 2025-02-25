@@ -285,24 +285,20 @@ Thm Rewriter::_steps(
 	return eq;// source ⟺ target
 }
 void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel ) const {
+	// thesis: s ⟹ ...
 	auto const& goal = thesis.has_goal();
 	if( !goal ) throw Error("\"no goal to rewrite\"");
 	size_t ind = _get_ind(rel);
-	auto const& o = _revimps.finds(ind);
+	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
-	auto const& imp = o->second;// x = y ⟹ y ⟹ x
-	auto intp = imp.intp(goal->ctxt());
-	intp.discharge(_steps(rules,*goal,min,max,safe,pos,ind));// s = t
-	auto const& thm = imp.inst(intp);// t ⟹ s
-	thesis.apply(Inference::rule(thm));
+	auto eq = _steps(rules,*goal,min,max,safe,pos,ind);// s = t
+	auto imp = o->second.weaken(thesis.locale()) << eq;// t ⟹ s
+	thesis.apply(Inference::rule(imp));// t ⟹ ...
 }
 Thm Rewriter::rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
 	size_t ind = _get_ind(rel);
 	auto const& o = _imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto const& imp = o->second;
-	auto intp = imp.intp(source.ctxt());// x = y ⟹ x ⟹ y
-	intp.discharge(_steps(rules,source,min,max,safe,pos,ind));// s = t
-	intp.discharge(source);// s
-	return imp.inst(intp);// t
+	auto eq = _steps(rules,source,min,max,safe,pos,ind);
+	return o->second.weaken(source.ctxt()) << eq << source;
 }
