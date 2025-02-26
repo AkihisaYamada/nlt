@@ -34,6 +34,9 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	Ctxt loc = thm.ctxt().branch();
 	Thm body = strip_all(thm,loc,fresh_maker());
+	while( auto imp = body.cbinary(IMP) ) {
+		body = body.impE(loc.assume(imp->first));
+	}
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
 		if( rev ) {
@@ -49,19 +52,26 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
 	throw MalformedRule(thm);
 }
 void Rewriter::register_imp( Thm const& thm, bool dir ) {
-	Thm rule = strip_all(thm);
-	if( auto const& imp = rule.cbinary(IMP) )
+	Thm rule = strip_all(thm);// x = y ⟹ x ⟹ conds... ⟹ y
+	if( auto const& imp = rule.cbinary(IMP) )// x ⟹ conds... ⟹ y
+	if( auto const& imp2 = imp->second.cbinary(IMP) )// conds ... ⟹ y
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) throw UnregisteredRel(*rel);
-		( dir ? _imps : _revimps ).emplace(*ind,thm);
+		Term t = imp2->second;
+		size_t conds = 0;
+		while( auto imp3 = t.binary(IMP) ) {
+			t = imp3->second;
+			conds++;
+		}
+		( dir ? _imps : _revimps ).emplace(*ind,Imp{thm,conds});
 		return;
 	}
 	throw MalformedImp(thm);
 }
 void Rewriter::register_refl( Thm const& thm ) {
-	Thm rule = strip_all(thm);
-	auto const& rel = gets_binary_sym(rule);
+	auto rule = Inference::rule(thm);
+	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw MalformedRefl(thm);
 	size_t ind = _rels.size();
 	_rels.emplace(*rel,ind);
@@ -71,7 +81,7 @@ void Rewriter::register_refl( Thm const& thm ) {
 void Rewriter::register_trans( Thm const& thm ) {
 	if( auto const& imp1 = strip_all(thm).cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
-	if( auto const& rel = gets_binary_sym(imp2->second) ) {
+	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) throw UnregisteredRel(*rel);
 		_trans.emplace(*ind,thm);
@@ -97,7 +107,7 @@ void Rewriter::register_cong( Thm const& thm ) {
 		}
 		auto const& rel = gets_binary_sym(assm);
 		if( !rel ) {
-			throw MalformedCong(thm);
+			break;
 		}
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) {
@@ -120,38 +130,48 @@ void Rewriter::register_dual( Thm const& thm ) {
 	Thm thm_strip = strip_all(thm,loc);
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
-	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) )
-	if( auto const& bin2 = strips_binary(imp->second) )
-	if( auto const& ind2 = gets_rel_ind(get<0>(*bin2)) ) {
-		_duals.emplace(*ind2,Dual(thm,*ind1));
-		return;
+	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) ) {
+		CTerm t = imp->second;
+		while( auto imp2 = t.cbinary(IMP) ) {
+			t = imp2->second;
+		}
+		if( auto const& bin2 = strips_binary(t) )
+		if( auto const& ind2 = gets_rel_ind(get<0>(*bin2)) ) {
+			_duals.emplace(*ind2,Dual(thm,*ind1));
+			return;
+		}
 	}
 	throw Error("\"malformed dual rule\"")(thm);
 }
 
-Opt<Thm> Rewriter::_step_abs( Rules const& rules, CTerm const& source, size_t ind ) const {
+Opt<Thm> Rewriter::_step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const {
 	auto const& abs = source.cabs();
 	assert(abs);
 	CTerm const& body = abs->second;
-	if( auto const& eq = _step(rules,body,ind) ) {
+	auto subloc = Locale(loc,body.ctxt());
+	if( auto const& eq = _step(rules,subloc,body,ind) ) {
 		return eq->intro();
 	}
 	return {};
 }
 
-Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) const {
+Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const {
 	auto const& source_ctxt = source.ctxt();
 	for( auto const& rule : rules[ind] ) {
 		Ctxt const& rule_ctxt = rule.pat.ctxt();
 		if( auto const& m = match( rule.pat, source, [&](auto v){ return rule_ctxt.fixes(v); }) ) {
 			// source: l[m]
 			auto intp = Intp(rule_ctxt,source_ctxt);
-			for( int i = 0; i < rule_ctxt.revision(); i++ ) {
-				auto v = rule_ctxt.fixed(i);
-				assert(v);
+			// instantiate variables
+			while( auto v = intp.fixing() ) {
 				intp.instantiate(*m->get(*v));
 			}
+			// discharge conditions
+			while( auto assm = intp.assuming() ) {
+				intp.discharge(prove(*assm,loc));
+			}
 			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
+DEB(ret);
 			return ret;
 		}
 	}
@@ -160,51 +180,61 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind ) 
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
 		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
 			Thm ret = cong.weaken(source_ctxt);
-DEB(source << "  cong " << ret);
 			// ret: ∀x. ∀x'. x = x' ⟹ ... ⟹ C[x...] = C[x'...]
-			size_t n = pat_ctxt.revision();
-			for( size_t i = 0; i < n; i++ ) {
+			for( size_t i = 0;; i++ ) {
 				auto v = pat_ctxt.fixed(i);
-				assert(v);
-DEB( *v << " := " << *m->get(*v) );
+				if( !v ) break;
 				auto const& si = m->get(*v);
 				assert(si);
-				size_t ind_i = cong.inds[i];
+				int ind_i = cong.inds[i];
 				if( cong.abss[i] ) {
-					if( auto const& eq = _step_abs(rules,*si,ind_i) ) {
-						ret = *match_discharge(ret,*eq);
+					if( auto eq = _step_abs(rules,loc,*si,ind_i) ) {
+						auto o = match_discharge(ret,*eq);
+						assert(o);
+						ret = *o;
 						success = true;
 					} else {
 						return {};
 					}
-				} else if( auto const& eq = _step(rules,*si,ind_i) ) {
-					ret = *match_discharge(ret,*eq);
+				} else if( auto eq = _step(rules,loc,*si,ind_i) ) {
+					auto o = match_discharge(ret,*eq);
+					assert(o);
+					ret = *o;
 					success = true;
 				} else {
-					ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
+					Thm refl = _refls[ind_i].weaken(source_ctxt).allE(*si);
+					while( auto o = blasts(refl,loc) ) {
+						refl = *o;
+					}
+					ret = ret << refl;
+				}
+			}
+			if( success ) {
+				while( auto o = blasts(ret,loc) ) {// blasts remaining conditions
+					ret = *o;
 				}
 DEB(ret);
+				return ret;
 			}
-			if( success ) return ret;
 			return {};
 		}
 	}
 	return {};
 }
 
-Opt<Thm> Rewriter::_step_abs( Rules const& rules, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
+Opt<Thm> Rewriter::_step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
 	auto const& abs = source.cabs();
 	assert(abs);
 	CTerm const& body = abs->second;
-	if( auto const& eq = _step(rules,body,ind,pos_it,pos_end) ) {
+	if( auto const& eq = _step(rules,loc,body,ind,pos_it,pos_end) ) {
 		return eq->intro();
 	}
 	return {};
 }
 
-Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
+Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
 	if( pos_it == pos_end ) {// rewritable position
-		return _step(rules,source,ind);
+		return _step(rules,loc,source,ind);
 	}
 	auto const& source_ctxt = source.ctxt();
 	for( auto const& cong : _congs[ind] ) {
@@ -220,20 +250,28 @@ Opt<Thm> Rewriter::_step( Rules const& rules, CTerm const& source, size_t ind, v
 				auto const& ind_i = cong.inds[i];
 				if( *pos_it == i ) {// rewrite step must occur inside this position
 					pos_it++;
-					auto const& eq = cong.abss[i] ? _step_abs(rules,*si,ind_i,pos_it,pos_end) : _step(rules,*si,ind_i,pos_it,pos_end);
+					auto const& eq = cong.abss[i] ? _step_abs(rules,loc,*si,ind_i,pos_it,pos_end) : _step(rules,loc,*si,ind_i,pos_it,pos_end);
 					if( !eq ) return {};// no rewrite step was done
 					ret = ret << *eq;// rewrite step was successful
 					for(;;) {// remaining variables are instantiated as is
 						i++;
-						if( i == var_end ) return ret;
+						if( i == var_end ) break;
 						ret = ret << _refls[cong.inds[i]].weaken(source_ctxt).allE(*m->get(*pat_ctxt.fixed(i)));
 					}
+					while( auto o = blasts(ret,loc) ) {// blast conditions
+						ret = *o;
+					}
+					return ret;
 				}
 				i++;
 				if( i == var_end ) {
 					return {};
 				}
-				ret = ret << _refls[ind_i].weaken(source_ctxt).allE(*si);
+				auto ref = _refls[ind_i].weaken(source_ctxt).allE(*si);
+				while( auto o = blasts(ref,loc) ) {
+					ref = *o;
+				}
+				ret = ret << ref;
 			}
 		}
 	}
@@ -252,17 +290,21 @@ size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 
 Thm Rewriter::_steps(
 	Rules const& rules,
+	Locale const& loc,
 	CTerm const& source,
 	unsigned int min, unsigned int max, bool safe,
 	vector<char> const& pos,
 	size_t ind
 ) const {
 	Ctxt const& source_ctxt = source.ctxt();
-	Thm lrefl = _refls[ind].weaken(source_ctxt);// ∀P. P ⟺ P
-	Thm eq = lrefl.allE(source);// source ⟺ source
+	Thm lrefl = _refls[ind].weaken(source_ctxt);// ∀P. conds ⟹ P = P
+	Thm eq = lrefl.allE(source);
+	while( auto o = blasts(eq,loc) ) {
+		eq = *o;
+	}// source = source
 	auto const& tranp = _trans.finds(ind);
 	if( !tranp ) throw UnregisteredTrans;
-	Thm ltrans = tranp->second.weaken(source_ctxt).allE(source);// ∀Q R. (source ⟺ Q) ⟹ (Q ⟺ R) ⟹ (source ⟺ R)
+	Thm ltrans = tranp->second.weaken(source_ctxt).allE(source);// ∀Q R. source = Q ⟹ Q = R ⟹ conds... ⟹ source = R
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
 	for( unsigned int i = 0;; i++ ) {
@@ -270,7 +312,7 @@ Thm Rewriter::_steps(
 			if( safe ) break;
 			throw Error("\"rewrite limit exceeded\"")(to_string(max));
 		}
-		auto const& step = _step(rules,s,ind,begin,end);
+		auto const& step = _step(rules,loc,s,ind,begin,end);
 		if( !step ) {
 			if( i < min ) {
 				throw TooFewSteps(i,min,source);
@@ -281,27 +323,40 @@ Thm Rewriter::_steps(
 		auto const& app = step->capp();
 		assert(app);
 		CTerm const& t = app->second;
-		Thm tr = ltrans.allE(s).allE(t).impE(eq);
-		eq = tr.impE(*step);
+		Thm tr = ltrans;
+		eq = tr << eq << *step;
+		while( auto o = blasts(eq,loc) ) {// discharge conditions
+			eq = *o;
+		}
 		s = t;
 	}
 	return eq;// source ⟺ target
 }
 void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel ) const {
-	// thesis: s ⟹ ...
+	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
 	if( !goal ) throw Error("\"no goal to rewrite\"");
 	size_t ind = _get_ind(rel);
-	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ y ⟹ x
+	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conditions ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
-	auto eq = _steps(rules,*goal,min,max,safe,pos,ind);// s = t
-	auto imp = o->second.weaken(thesis.locale()) << eq;// t ⟹ s
-	thesis.apply(Inference::imp(imp));// t ⟹ ...
+	auto const& loc = thesis.locale();
+	auto eq = _steps(rules,loc,*goal,min,max,safe,pos,ind);// s = t
+	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
+	imp = imp << eq; // conditions... ⟹ t ⟹ s
+	for( size_t i = 0; i < o->second.conds; i++ ) {
+		imp = *blasts(imp,loc);
+	}// t ⟹ s
+	thesis.apply(Inference::imp(imp));// t ⟹ rest
 }
-Thm Rewriter::rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
+Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
 	size_t ind = _get_ind(rel);
 	auto const& o = _imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto eq = _steps(rules,source,min,max,safe,pos,ind);
-	return o->second.weaken(source.ctxt()) << eq << source;
+	auto eq = _steps(rules,loc,source,min,max,safe,pos,ind);
+	auto tmp = o->second.thm.weaken(loc);
+	tmp << eq;
+	for( int i = 0; i < o->second.conds; i++ ) {
+		tmp = *blasts(tmp,loc);
+	}// s ⟹ t
+	return tmp << source;
 }

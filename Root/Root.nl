@@ -154,8 +154,7 @@ locale Iff (⟺) :=
 		apply iff_intro;
 		- if PQ: P ⟹ Q :=
 			by PQ;
-		- := done;
-		qed;
+		done;
 
 	show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		apply iff_intro;
@@ -213,12 +212,12 @@ locale Iff (⟺) :=
 	show imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]) :=
 		by iff_intro[OF imp_all all_imp];
 
-	show imp_iff_iff1: if P: P then (P ⟺ Q) ⟺ Q :=
+	show imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q :=
 		apply iff_intro;
 		- if PQ: P ⟺ Q :=
-			by iff_elim1[OF PQ P];
-		- if Q: Q :=
-			by iff_intro P Q;
+			by iff_elim1[OF PQ];
+		- if [Q] :=
+			by iff_intro;
 		qed;
 
 	end;

@@ -101,7 +101,7 @@ public:
 	/** @brief Tries to apply a rule once */
 	void apply( Rule const& rule ) & {
 		auto g = goal().weaken(_thm.ctxt().branch());
-		if( !_apply(rule,g) ) throw Unapplicable(g);
+		if( !_apply(rule,g) ) throw Unapplicable(g)(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Rule> const& rules ) & {
@@ -137,5 +137,21 @@ private:
 
 /** @brief Add concluder theorem to locale */
 void add_concluder( Locale&, Thm const& thm );
+
+/**
+ * @brief Blasts first assumption of implication.
+ * 
+ * @param loc the locale which tells blast the lemmas to use
+ * @return Thm the conclusion
+ */
+Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Inference::Rule> const& rules = {} );
+inline Thm blast( Thm const& thesis, Locale const& loc, std::set<Inference::Rule> const& rules = {} ) {
+	auto opt = blasts(thesis,loc,rules);
+	assert(opt);
+	return *opt;
+}
+
+Thm prove( CTerm const& claim, Locale const& loc, std::set<Inference::Rule> const& rules = {} );
+
 
 #endif

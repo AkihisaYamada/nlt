@@ -69,6 +69,20 @@ bool Inference::_apply( Rule const& rule, CTerm const& goal ) & {
 	return true;
 }
 
+Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Inference::Rule> const& rules ) {
+	if( auto imp = thesis.cbinary(IMP) ) {
+		return thesis.impE(prove(imp->first,loc,rules));
+	}
+	return {};
+}
+
+Thm prove( CTerm const& claim, Locale const& loc, std::set<Inference::Rule> const& rules ) {
+	auto x = Inference(loc,claim);
+	size_t fuel = 255;
+	x.blast(rules,fuel);
+	return *x.concluding();
+}
+
 void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");

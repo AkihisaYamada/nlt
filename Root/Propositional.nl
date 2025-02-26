@@ -29,7 +29,7 @@ note #intro: all.type;
 ---
 The true and false propositions can be obtained.
 ---
-obtain true where true_intro#concl: true, true.type#concl: prop true :=
+obtain true where true_intro: true, [prop true] :=
 	- for thesis, if assm: ∀true. true ⟹ prop true ⟹ thesis :=
 		by assm(∀P. prop P ⟹ P ⟹ P);
 	done;
@@ -44,11 +44,12 @@ interpret True :=
 		by true_intro;
 	end;
 
-obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, false.type #concl: prop false :=
+obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, [prop false] :=
 	- for thesis, if assm: ∀false. (∀P. false ⟹ prop P ⟹ P) ⟹ prop false ⟹ thesis :=
 		apply assm(∀P. prop P ⟹ P);
-		- for P, if f: ∀P. prop P ⟹ P, p: prop P :=
-			by f[OF p];
+		- for P, if f: ∀P. prop P ⟹ P, [prop P] :=
+			apply f;
+			done;
 		done;
 	qed;
 
@@ -162,9 +163,11 @@ assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P;
 note #intro: iff.type;
 
 interpret iff: Reflexive prop (⟺) :=
-	- if #concl: prop P then P ⟺ P :=
+	- if [prop P] then P ⟺ P :=
 		by iff_intro;
 	end;
+
+note #intro: iff.refl;
 
 interpret iff: Symmetric prop (⟺) :=
 	- if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟺ P :=
@@ -180,12 +183,19 @@ interpret iff: Transitive prop (⟺) :=
 		by iff_elim2[OF PQ] iff_elim2[OF QR];
 	end;
 
+show iff_imp: if PQ: P ⟺ Q, [prop P, prop Q] then P ⟹ Q :=
+	by iff_elim1[OF PQ];
+
+show iff_imp_rev: if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟹ P :=
+	by iff_elim2[OF PQ];
+
+setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
+setup dual iff.sym;
+
 show imp_imp_iff: if [P, prop P, prop Q] then (P ⟹ Q) ⟺ Q :=
 	apply iff_intro;
 	- if PQ: P ⟹ Q :=
 		by PQ;
-	- if [Q, P] :=
-		done;
 	done;
 
 show iff_cong_imp:
@@ -226,13 +236,13 @@ show iff_cong_all:
 		by iff_elim2[OF ab] b;
 	done;
 
+setup cong iff_cong_imp iff_cong_iff iff_cong_all;
+
 show imp_iff_iff: if [P, prop P, prop Q] then (P ⟺ Q) ⟺ Q :=
 	apply iff_intro;
 	- if PQ: P ⟺ Q :=
 		by iff_elim1[OF PQ];
-	- if [Q] :=
-		by iff_intro;
-	done;
+	by iff_intro;
 
 show all_imp2_iff: if [prop P] then (∀Q. prop Q ⟹ (P ⟹ Q) ⟹ Q) ⟺ P :=
 	apply iff_intro;
@@ -263,11 +273,54 @@ show imp_iff_iff1: if [P, prop P, prop Q] then (P ⟺ Q) ⟺ Q :=
 		by iff_intro;
 	done;
 
-show iff_imp_and: if PQ: P ⟺ Q, [prop P, prop Q] then (P ⟹ Q) ∧ (Q ⟹ P) :=
-	apply and_intro;
-	- := by iff_elim1[OF PQ];
-	- := by iff_elim2[OF PQ];
+show iff_true: if [P, prop P] then P ⟺ true :=
+	by iff_intro;
+
+show not_true_iff: ¬true ⟺ false :=
+	apply iff_intro;
+	- if nt: ¬true :=
+		by not_imp_false[OF nt];
+	by not_intro;
+
+show not_false_iff: ¬false ⟺ true :=
+	by iff_true[OF not_false];
+
+show iff_cong_and:
+	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
+	then P ∧ R ⟺ Q ∧ S
+:=
+	apply iff_intro;
+	- if PR: P ∧ R :=
+		apply and_intro;
+		- :=
+			by iff_elim1[OF PQ] and_elim1[OF PR];
+		- :=
+			by iff_elim1[OF RS] and_elim2[OF PR];
+		done;
+	- if QS: Q ∧ S :=
+		apply and_intro;
+		- :=
+			by iff_elim2[OF PQ] and_elim1[OF QS];
+		- :=
+			by iff_elim2[OF RS] and_elim2[OF QS];
+		done;
 	done;
+
+setup cong iff_cong_and;
+
+show iff_cong_not: if PQ: P ⟺ Q, [prop P, prop Q] then ¬P ⟺ ¬Q :=
+	apply iff_intro;
+	- if nP: ¬P :=
+		apply not_intro;
+		by not_imp_false[OF nP] iff_elim2[OF PQ];
+	- if nQ: ¬Q :=
+		apply not_intro;
+		by not_imp_false[OF nQ] iff_elim1[OF PQ];
+	done;
+
+show iff_imp_and: if PQ: P ⟺ Q, [prop P, prop Q] then (P ⟹ Q) ∧ (Q ⟹ P) :=
+	unfold PQ;
+	by and_intro;
 
 show iff_iff_and: if [prop P, prop Q] then (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P) :=
 	apply iff_intro;
@@ -292,6 +345,7 @@ show and_iff: if [prop P, prop Q] then
 		apply all;
 		by and_intro;
 	done;
+
 
 fix (∨);
 import or: Magma prop (∨);

@@ -53,6 +53,8 @@ public:
 			Error(Term("#theorem_not_found")(name)) {}
 	};
 	Locale();
+	/** make context as locale */
+	Locale( Locale const& loc, Ctxt const& ctxt );
 	/** Creates an anonymous branch locale. */
 	Locale branch() const;
 	/** Creates a named branch. */
@@ -216,6 +218,10 @@ public:
 };
 
 inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
+
+inline Locale::Locale( Locale const& parent, Ctxt const& ctxt ) :
+	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,"")) {}
+
 inline Locale Locale::branch() const {
 	return Locale(Ref<_Body>::make(Opt<Locale const>(*this),""), Ctxt::branch());
 }

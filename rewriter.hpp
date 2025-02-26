@@ -22,6 +22,10 @@ class Rewriter {
 		Thm thm;
 		size_t ind;
 	};
+	struct Imp {
+		Thm thm;// s = t ⟹ conditions ... ⟹ s ⟹ t
+		size_t conds;// number of conditions
+	};
 	std::vector<std::vector<Cong>> _congs;
 	/** relation symbols, e.g., ⟺ or = */
 	StrMap<size_t const> _rels;
@@ -32,9 +36,9 @@ class Rewriter {
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
 	Map<size_t,Thm> _trans;
 	/** ∀P Q. P ⟺ Q ⟹ P ⟹ Q */
-	Map<size_t,Thm> _imps;
+	Map<size_t,Imp> _imps;
 	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
-	Map<size_t,Thm> _revimps;
+	Map<size_t,Imp> _revimps;
 public:
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
@@ -76,8 +80,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, CTerm const& source, size_t ind = 0 ) const {
-		return _step(rules,source,ind);
+	Opt<Thm> step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind = 0 ) const {
+		return _step(rules,loc,source,ind);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -85,20 +89,20 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
-		return _step(rules,source,ind,pos.begin(),pos.end());
+	Opt<Thm> step( Rules const& rules, Locale const& loc, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
+		return _step(rules,loc,source,ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
 	void apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
 	/** @brief Rewrites a theorem */
-	Thm rewrite( Rules const& rules, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
+	Thm rewrite( Rules const& rules, Locale const& loc, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
-	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Thm _steps( Rules const& rules, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Thm _steps( Rules const& rules, Locale const& loc, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

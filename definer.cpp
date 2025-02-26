@@ -36,11 +36,11 @@ pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<
 	// rule: ∀x... l = r,  t: λx... l
 	string thesis = avoid("thesis",[&](string const& x){ return loc.constant(x); });
 	// proving the existence
-	Ctxt sub = loc.Ctxt::branch();
+	auto sub = loc.branch();
 	sub.fix(thesis);
 	Thm thm = sub.assume( f &= rule >>= thesis );// (∀f x... l = r) ⟹ thesis
 	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
-	thm = rewriter->rewrite(beta,thm,steps,steps,true,{0,1});// (∀x... r = r) ⟹ thesis
+	thm = rewriter->rewrite(beta,sub,thm,steps,steps,true,{0,1});// (∀x... r = r) ⟹ thesis
 	thm = thm << refl.weaken(sub);// thesis
 	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis
 	auto [cf,spec] = loc.obtain( f, thm, make_spec_name( name ? *name : f ) );// f, ((∀x... l = r) ⟹ thesis) ⟹ thesis

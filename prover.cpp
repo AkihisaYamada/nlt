@@ -173,7 +173,7 @@ public:
 			_rewriter->add_rule(rules,*arg,rev);
 		}
 		if( thm ) {
-			*thm = _rewriter->rewrite(rules,*thm,min,max,safe,pos,rel);
+			*thm = _rewriter->rewrite(rules,loc,*thm,min,max,safe,pos,rel);
 		} else {
 			_rewriter->apply(rules,*_thesis,min,max,safe,pos,rel);
 		}
@@ -735,11 +735,15 @@ public:
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
 					Thm trans = get_thm();
+					cout << "Registering rewriter:\n" <<
+						"\n\timp: " << _syntax->pretty_thm(imp) <<
+						"\n\trev: " <<  _syntax->pretty_thm(revimp) <<
+						"\n\trefl: " << _syntax->pretty_thm(refl) <<
+						"\n\ttrans: " << _syntax->pretty_thm(trans) << endl;
 					_rewriter->register_refl(refl);
 					_rewriter->register_imp(imp,true);
 					_rewriter->register_imp(revimp,false);
 					_rewriter->register_trans(trans);
-					cout << "Registered rewriter: imp: " << _syntax->pretty_thm(imp) << ", rev: " <<  _syntax->pretty_thm(revimp) << ", refl: " << _syntax->pretty_thm(refl) << ", trans: " << _syntax->pretty_thm(trans) << endl;
 				} else if( _parser.skips("refl") ) {
 					cout << "Registering reflexivity: ";
 					while( auto const& thm = gets_thm() ) {
@@ -762,10 +766,10 @@ public:
 					};
 					cout << endl;
 				} else if( _parser.skips("cong") ) {
-					cout << "Registering congruence: ";
+					cout << "Registering congruence:";
 					while( auto const& thm = gets_thm() ) {
 						_rewriter->register_cong(*thm);
-						cout << _syntax->pretty_thm(*thm) << flush;
+						cout << "\n\t" << _syntax->pretty_thm(*thm);
 					};
 					cout << endl;
 				} else if( _parser.skips("define") ) {

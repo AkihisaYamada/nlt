@@ -7,29 +7,19 @@ base Root;
 import PositiveLogic;
 import MinimalNot;
 
-setup conclude true_intro imp.refl iff.refl;
-
-setup rewrite iff_elim1 iff.refl iff.trans;
+setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
 
 setup dual iff.sym;
 
 show iff_cong_not: if PQ: P ⟺ Q then ¬P ⟺ ¬Q :=
 	apply iff_intro;
-	case nP: ¬P :=
+	- if nP: ¬P :=
 		apply not_intro;
-		case Q: Q :=
-			show P: P :=
-				by iff_elim2[OF PQ Q];
-			by not_imp_false[OF nP P];
-		qed;
-	case nQ: ¬Q :=
+		by not_imp_false[OF nP] iff_elim2[OF PQ];
+	- if nQ: ¬Q :=
 		apply not_intro;
-		case P: P :=
-			show Q: Q :=
-				by iff_elim1[OF PQ P];
-			by not_imp_false[OF nQ Q];
-		qed;
-	qed;
+		by not_imp_false[OF nQ] iff_elim1[OF PQ];
+	done;
 
 setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not iff_cong_all;
 
@@ -42,31 +32,21 @@ show nnnot_iff: ¬¬¬P ⟺ ¬P :=
 
 show imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P) :=
 	apply iff_intro;
-	note! imp_not_sym;
-	note! imp_not_sym;
-	qed;
+	just imp_not_sym;
 
 show not_true_iff: ¬true ⟺ false :=
 	apply iff_intro;
-	show! if nt: ¬true then false :=
-		by not_imp_false[OF nt true_intro];
-	show! if f: false then ¬true :=
-		apply not_intro;
-		case t: true :=
-			by f;
-		qed;
-	qed;
+	- if nt: ¬true :=
+		by not_imp_false[OF nt];
+	by not_intro;
 
 show not_false_iff: ¬false ⟺ true :=
 	by iff_true[OF not_false];
 
 show false_and_false_iff: false ∧ false ⟺ false :=
 	apply iff_intro;
-	show! false ∧ false ⟹ false :=
-		note! and_elim1;
-		qed;
-	show! if 0: false then false ∧ false :=
-		by and_intro[OF 0 0];
+	- := just and_elim1;
+	- := by and_intro;
 	qed;
 
 show false_imp_false_iff: (false ⟹ false) ⟺ true :=
@@ -74,19 +54,19 @@ show false_imp_false_iff: (false ⟹ false) ⟺ true :=
 
 show nand_intro1: if nP: ¬P then ¬(P ∧ Q) :=
 	apply not_intro;
-	show! if PQ: P ∧ Q then false :=
+	- if PQ: P ∧ Q then false :=
 		by not_imp_false[OF nP and_elim1[OF PQ]];
 	qed;
 
 show nand_intro2: if nQ: ¬Q then ¬(P ∧ Q) :=
 	apply not_intro;
-	show! if PQ: P ∧ Q then false :=
+	- if PQ: P ∧ Q then false :=
 		by not_imp_false[OF nQ and_elim2[OF PQ]];
 	qed;
 
 show nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q) :=
 	unfold+ not_iff_imp_false and_imp_iff;
-	by iff.refl;
+	done;
 
 show non_contradiction: ¬(P ∧ ¬P) :=
 	unfold nand_iff_imp_not;
@@ -103,10 +83,9 @@ show nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
 
 show nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
 	apply iff_intro;
-	show! if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
+	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
 		by nnimp_imp_nnot[OF nnimp P][unfolded nnnot_iff];
-	note! nnot_intro;
-	qed;
+	by nnot_intro;
 
 show nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q) :=
 	unfold+ nand_iff_imp_not;

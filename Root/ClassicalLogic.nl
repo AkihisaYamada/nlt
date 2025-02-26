@@ -8,26 +8,24 @@ import ExcludedMiddle;
 
 finalize;
 
-setup rewrite iff_elim1 iff.refl iff.trans;
+setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
 setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not;
 
-setup conclude imp.refl iff.refl true_intro;
-
-show prop_cases: if pP: prop P, pQ: prop Q, PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q :=
+show prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP: prop P, [prop Q] then Q :=
 	apply or_elim[OF excluded_middle[OF pP]];
-	apply+ prop_imp_intro not.type pP pQ;
-	by PQ nPQ;
+	- if [P] := by PQ;
+	- if [¬P] := by nPQ;
+	by pP;
 
-show nnot_iff: if pP: prop P then ¬¬P ⟺ P :=
-	apply prop_cases[OF pP];
-	apply+ iff.type not.type pP;
-	case P: P :=
+show nnot_iff: if [prop P] then ¬¬P ⟺ P :=
+	apply prop_cases(P);
+	- if P: P :=
 		unfold+ iff_true[OF P] not_true_iff not_false_iff;
-		by iff.refl;
-	case nP: ¬P :=
+		done;
+	- if nP: ¬P :=
 		apply iff_intro;
-		case nnP: ¬¬P :=
+		- if nnP: ¬¬P :=
 			by not_elim[OF nnP nP pP];
 		by nnot_intro;
 	qed;

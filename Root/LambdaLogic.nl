@@ -74,42 +74,41 @@ interpret Iff (⟺) :=
 
 interpret PositiveLogic;
 
-setup rewrite iff_elim1 iff.refl iff.trans;
+setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
 setup dual iff.sym;
 setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
-setup conclude iff.refl;
 
 
 define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 interpret Or (∨) :=
-	discharge if P: P then P ∨ Q :=
+	- if P: P then P ∨ Q :=
 		show 1: if PR: P ⟹ R, QR: Q ⟹ R then R :=
 			by PR[OF P];
 		by eq_prop2[OF or_def 1];
-	discharge if Q: Q then P ∨ Q :=
+	- if Q: Q then P ∨ Q :=
 		show 1: if PR: P ⟹ R, QR: Q ⟹ R then R :=
 			by QR[OF Q];
 		by eq_prop2[OF or_def 1];
-	discharge if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R :=
+	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R :=
 		by eq_prop1[OF or_def PQ PR QR];
 	end;
 
 show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 	apply not_intro;
-	case or: ∀P. P ∨ ¬P :=
+	- if or: ∀P. P ∨ ¬P :=
 		define R x := ¬ x x;
 		show eq: R R = (¬ R R) :=
 			by R_def;
 		show Ror: R R ∨ ¬ R R :=
 			by or;
 		apply or_elim[OF Ror];
-		case RR: R R :=
+		- if RR: R R :=
 			show nRR: ¬ R R :=
 				fold eq;
 				by RR;
 			by not_imp_false[OF nRR RR];
-		case nRR: ¬ R R :=
+		- if nRR: ¬ R R :=
 			show RR: R R :=
 				unfold eq;
 				by nRR;
@@ -141,22 +140,20 @@ show neq_refl_imp_false: if xx: x ≠ x then false :=
 
 show true_neq_false: true ≠ false :=
 	apply neq_intro;
-	show! if tf: true = false then false :=
+	- if tf: true = false then false :=
 		fold tf;
-		by true_intro;
+		done;
 	qed;
 
 define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
 interpret Ex (∃) :=
-	discharge for α x, if ax: α.[x] then ∃x. α.[x] :=
+	- for α x, if ax: α.[x] then ∃x. α.[x] :=
 		unfold ex_def;
-		case for P, all: ∀x. α.[x] ⟹ P :=
+		- for P, if all: ∀x. α.[x] ⟹ P :=
 			by all[OF ax];
 		qed;
-	discharge if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
-		by ex[unfolded ex_def];
+	- if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
+		just ex[unfolded ex_def];
 	end;
-
-interpret UntypedIntuitionisticLogic;
 
