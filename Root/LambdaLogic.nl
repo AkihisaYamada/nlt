@@ -11,77 +11,51 @@ finalize;
 ----
 
 define true := ∀P. P ⟹ P;
+define false := ∀P. P;
+define (not_def) ¬ P := P ⟹ false;
+define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
+define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
+define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
-interpret True :=
+interpret TypeFreeIntuitionistic :=
 	substitute true :=
 		unfold true_def;
 		done;
-	end;
-
-define (false_def) false := ∀P. P;
-
-interpret False :=
 	substitute false :=
 		- for P, if f: false then P :=
 			by f[unfolded false_def];
 		qed;
-	end;
 
-define (not_def) ¬ P := P ⟹ false;
-
-interpret MinimalNot false (¬) :=
-	- for P, if nP: ¬P, P: P then false :=
-		by nP[unfolded not_def][OF P];
-	- for P, if nP: P ⟹ false then ¬P :=
-		by nP[folded not_def];
-	end;
-
-define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
-
-interpret And (∧) :=
-	- for P Q, if P: P, Q: Q then P ∧ Q :=
+	- for P Q, if [P, Q] then P ∧ Q :=
 		apply eq_prop2[OF and_def];
 		- for R, if PQR: P ⟹ Q ⟹ R :=
-			by PQR[OF P Q];
+			by PQR;
 		qed;
 	- for P Q, if PQ: P ∧ Q then P :=
-		apply eq_prop1[OF and_def][OF PQ];
-		- if P: P, Q: Q :=
-			by P;
-		qed;
+		by eq_prop1[OF and_def][OF PQ];
 	- for P Q, if PQ: P ∧ Q then Q :=
-		apply eq_prop1[OF and_def][OF PQ];
-		- if P: P, Q: Q :=
-			by Q;
-		qed;
-	end;
+		by eq_prop1[OF and_def][OF PQ];
 
-define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
+	- for P, if nP: ¬P, [P] then false :=
+		by nP[unfolded not_def];
+	- for P, if nP: P ⟹ false then ¬P :=
+		by nP[folded not_def];
 
-interpret Iff (⟺) :=
 	- for P Q, if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q :=
 		apply eq_prop2[OF iff_def];
-		by and_intro[OF PQ QP];
+		unfold and_def;
+		- for R, if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R :=
+			by imp[OF PQ QP];
+		qed;
 	- for P Q, if PQ: P ⟺ Q then P ⟹ Q :=
-		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
-			by eq_prop1[OF iff_def PQ];
-		by and_elim1[OF and];
+		apply PQ[unfolded iff_def and_def];
+		done;
 	- for P Q, if PQ: P ⟺ Q then Q ⟹ P :=
 		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
 			by eq_prop1[OF iff_def PQ];
 		by and_elim2[OF and];
-	end;
 
-interpret PositiveLogic;
-
-setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
-setup dual iff.sym;
-setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
-
-
-define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-
-interpret Or (∨) :=
 	- if P: P then P ∨ Q :=
 		show 1: if PR: P ⟹ R, QR: Q ⟹ R then R :=
 			by PR[OF P];
@@ -92,6 +66,37 @@ interpret Or (∨) :=
 		by eq_prop2[OF or_def 1];
 	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R :=
 		by eq_prop1[OF or_def PQ PR QR];
+
+oops
+interpret True :=
+	substitute true :=
+		unfold true_def;
+		done;
+	end;
+
+interpret False :=
+	end;
+
+interpret MinimalNot false (¬) :=
+	end;
+
+
+interpret And (∧) :=
+	end;
+
+
+interpret Iff (⟺) :=
+	end;
+
+interpret PositiveLogic;
+
+setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
+setup dual iff.sym;
+setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
+
+
+
+interpret Or (∨) :=
 	end;
 
 show russel_paradox: ¬(∀P. P ∨ ¬P) :=
@@ -116,7 +121,6 @@ show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 		qed;
 	qed;
 
-infix ≠ 50 50 50;
 
 define (neq_def) x ≠ y := ¬ x = y;
 
@@ -145,7 +149,6 @@ show true_neq_false: true ≠ false :=
 		done;
 	qed;
 
-define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
 interpret Ex (∃) :=
 	- for α x, if ax: α.[x] then ∃x. α.[x] :=

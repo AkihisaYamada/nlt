@@ -171,7 +171,6 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 				intp.discharge(prove(*assm,loc));
 			}
 			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
-DEB(ret);
 			return ret;
 		}
 	}
@@ -213,7 +212,6 @@ DEB(ret);
 				while( auto o = blasts(ret,loc) ) {// blasts remaining conditions
 					ret = *o;
 				}
-DEB(ret);
 				return ret;
 			}
 			return {};
@@ -354,7 +352,7 @@ Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source,
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
 	auto eq = _steps(rules,loc,source,min,max,safe,pos,ind);
 	auto tmp = o->second.thm.weaken(loc);
-	tmp << eq;
+	tmp = tmp << eq;
 	for( int i = 0; i < o->second.conds; i++ ) {
 		tmp = *blasts(tmp,loc);
 	}// s ⟹ t

@@ -1,6 +1,4 @@
-base TypeFreeIntuitionistic;
-
-
+base LambdaLogic;
 
 -----
 ## More notions

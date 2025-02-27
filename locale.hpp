@@ -14,7 +14,7 @@ template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
 
 inline std::string make_spec_name( std::string base ) {
-	return std::move(base)+"$spec";
+	return std::move(base)+"#spec";
 }
 
 class Locale : public Ctxt {
@@ -79,7 +79,7 @@ public:
 	/** finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
-	AThm add_assm(std::string_view const& name, CTerm const& assm);
+	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
 	/** Declares import */
 	Import& import(std::string&& name, Locale const& loc) &;

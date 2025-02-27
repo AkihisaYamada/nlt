@@ -34,19 +34,28 @@ void add_concluder( Locale& loc, Thm const& thm ) {
 	loc.add_thm( thm.binder(ALL) ? Inference::CONCL : Inference::EXACT, thm );
 }
 
-void Inference::apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) & {
-	for( int i = 0;; i++ ) {
-		if( i == max ) {
-			if( safe ) return;
-			throw Error("\"apply limit exceeded\"")(to_string(max));
-		}
-		if( _goals == 0 ||
-			!_apply(rules,goal().weaken(_thm.ctxt().branch())) ) {
-			if( i < min ) throw Error("\"apply failed\"");
+void Inference::_apply( std::set<Rule> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) & {
+	for(;;) {
+		if( _goals == 0 ) {
+			if( suc < min ) throw Error("\"no more goal to apply on\"");
 			return;
 		}
+		if( suc == max ) {
+			if( !safe ) throw Error("\"apply limit exceeded\"")(to_string(max));
+			return;
+		}
+		if( !_apply(rules,goal().weaken(_thm.ctxt().branch())) ) {
+			break;
+		}
+		suc++;
 	}
+	if( deep && push() ) {
+		_apply(rules,suc,min,max,safe,deep);
+		pop();
+	}
+	if( suc < min ) throw Error("\"apply failed\"");
 }
+
 bool Inference::_apply( Rule const& rule, CTerm const& goal ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
@@ -77,10 +86,10 @@ Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Inference::Rule>
 }
 
 Thm prove( CTerm const& claim, Locale const& loc, std::set<Inference::Rule> const& rules ) {
-	auto x = Inference(loc,claim);
+	auto x = Inference::claim_strip(loc,claim);
 	size_t fuel = 255;
 	x.blast(rules,fuel);
-	return *x.concluding();
+	return x.concluding()->intro();
 }
 
 void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
@@ -90,33 +99,25 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
 	auto const& goal = imp->first;
-	Locale subloc = _loc.branch();
-	CTerm subgoal = strip_all(goal,subloc);
-	while( auto const& imp2 = subgoal.cbinary(IMP) ) {// make assumptions for the subgoal
-		auto const& assm = imp2->first;
-		add_concluder(subloc,subloc.assume(assm));
-		subgoal = imp2->second;
-	}
-	auto subthesis = Inference(subloc,subgoal);
-	auto g = subgoal.weaken(subgoal.ctxt().branch());
-	if( // try explicitly given rules
-		!subthesis._apply(rules,g) &&
-		// try exact conclusions
-		!subloc.find_thm( EXACT, [&](auto& thm){ return subthesis._discharges(thm); } ) &&
+	auto thesis = claim_strip(_loc,goal);
+	// try exact conclusions
+	if( !thesis._loc.find_thm( EXACT, [&]( auto& thm ){ return thesis._discharges(thm); } ) ) {
+		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
+		// try explicitly given rules
+		if( !thesis._apply(rules,g) )
 		// try schematic conclusions
-		!subloc.find_thm( CONCL, [&](auto& thm){ return subthesis._apply(axiom(thm),g); } ) &&
+		if( !thesis._loc.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(axiom(thm),g); } ) )
 		// try forced rules
-		!subloc.find_thm( INTRO, [&](auto& thm){ return subthesis._apply(rule(thm),g); } )
-	) {
-		throw Error("\"failed blast\"")(subgoal);
+		if( !thesis._loc.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(rule(thm),g); } ) )
+			throw Error("\"failed to blast\"")(goal);
 	}
-	// blast all sub-sub-goals:
+	// blast all new subgoals:
 	fuel--;
-	while( subthesis._goals > 0 ) {
-		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*subthesis.has_goal());
-		subthesis.blast(rules,fuel);
+	while( thesis._goals > 0 ) {
+		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*thesis.has_goal());
+		thesis.blast(rules,fuel);
 	}
-	_thm = _thm.impE(subthesis._thm.intro());
+	_thm = _thm.impE(thesis._thm.intro());
 	_goals--;
 	return;
 }

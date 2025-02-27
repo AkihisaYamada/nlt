@@ -10,11 +10,10 @@ std::function<Thm(Thm const&)> const Locale::_triv_proc =
 std::function<bool(AThm const&)> const Locale::_triv_test =
 	[]( AThm const& ) { return true; };
 
-AThm Locale::add_assm(std::string_view const& name, CTerm const& assm) {
+Thm Locale::add_assm(std::string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
-	auto const& thm = add_thm(name,Ctxt::assume(assm));
 	_ref->assm_names.emplace(rev,name);
-	return thm;
+	return assume(assm);
 }
 
 AThm Locale::add_thm(std::string_view const& name, Thm const& thm) {
@@ -219,7 +218,7 @@ function<ostream&(ostream&)> const Locale::pretty(Syntax const& syntax, size_t n
 			}
 		}
 		for( auto& [name,imp] : _ref->imports ) {
-			mk_indent(os,n) << "imports " << name << ": " << imp.source().print_name(syntax) << "..." << endl;
+			mk_indent(os,n) << "interprets " << name << ": " << imp.source().print_name(syntax) << "..." << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
 			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << ';' << endl;

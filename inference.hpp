@@ -3,15 +3,17 @@
 
 #include "locale.hpp"
 
+/** @brief Add concluder theorem to locale */
+void add_concluder( Locale&, Thm const& thm );
+
 /** Class for inference */
 class Inference {
 	Locale _loc;
 	Thm _thm;
+	CTerm _claim;
 	size_t _goals;
-	static Thm _make_claim( CTerm const& claim ) {
-		Ctxt ctxt = claim.ctxt().branch();
-		return ctxt.assume(claim.weaken(ctxt)).intro();// claim ⟹ claim
-	}
+	Inference( Locale const& loc, Thm const& thesis, CTerm const& claim, size_t goals ) :
+		_loc(loc), _thm(thesis), _claim(claim), _goals(goals) {}
 public:
 	/** name for introduction rules */
 	static std::string const INTRO;
@@ -19,6 +21,8 @@ public:
 	static std::string const CONCL;
 	/** name for exact concluder */
 	static std::string const EXACT;
+	/** name for elimination rules */
+	static std::string const ELIM;
 	/** Inference rule */
 	class Rule {
 		friend Inference;
@@ -64,10 +68,20 @@ public:
 	static Rule axiom( Thm const& thm ) {
 		return Rule(strip_all(thm));
 	}
-	Inference( Locale const& loc, CTerm const& claim ) :
-		_loc(loc), _thm(_make_claim(claim)), _goals(1) {
-		assert( claim.ctxt() == loc );
-	};
+	static Inference claim_exact( Locale const& loc, CTerm const& claim ) {
+		Ctxt ctxt = claim.ctxt().branch();
+		return Inference( loc, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
+	}
+	static Inference claim_strip( Locale const& loc, CTerm const& claim ) {
+		Locale subloc = loc.branch();
+		CTerm goal = claim.weaken(subloc);
+		goal = strip_all(goal,subloc);
+		while( auto imp = goal.cbinary(IMP) ) {
+			add_concluder(subloc,subloc.assume(imp->first));
+			goal = imp->second;
+		}
+		return claim_exact(subloc,goal);
+	}
 	Locale const& locale() const& {
 		return _loc;
 	}
@@ -109,13 +123,36 @@ public:
 		if( !_apply(rules,g) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
-	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe ) &;
+	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe, bool deep ) & {
+		size_t suc = 0;
+		_apply(rules,suc,min,max,safe,deep);
+	}
+	void _apply( std::set<Rule> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) &;
 	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw NoGoal;
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
 	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
+	/** @brief pushes the top subgoal into assumption.
+	 * @return false if there will be no further subgoal */
+	bool push() & {
+		if( _goals < 2 ) return false;
+		_loc = _loc.branch();
+		auto assm = _loc.assume(goal().weaken(_loc));
+		add_concluder(_loc,assm);
+		_thm = _thm.weaken(_loc).impE(assm);
+		_goals--;
+		return true;
+	}
+	void pop() & {
+		auto p = _loc.parent();
+		assert(p);
+		_loc = *p;
+		_thm = _thm.intro();
+		_goals++;
+	}
+
 private:
 	bool _discharges( Thm const& thm ) & {
 		if( auto o = _thm.impEs(thm) ) {
@@ -134,9 +171,6 @@ private:
 		return false;
 	}
 };
-
-/** @brief Add concluder theorem to locale */
-void add_concluder( Locale&, Thm const& thm );
 
 /**
  * @brief Blasts first assumption of implication.

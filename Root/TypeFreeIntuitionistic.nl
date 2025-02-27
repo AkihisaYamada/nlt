@@ -1,5 +1,5 @@
 -------
-# Type-Free Part of Intuitionistic Logic
+# Type-Free Intuitionistic Logic
 -------
 
 base Root;
@@ -9,17 +9,15 @@ import False;
 
 import TypeFreeMinimal;
 
-setup rewrite iff_elim1 iff.refl iff.trans;
-setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not iff_cong_all;
+finalize;
 
-setup conclude imp.refl iff.refl true_intro;
+setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
+setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not iff_cong_all iff_cong_or;
 
 show not_imp_iff_false: if nP: ¬P then P ⟺ false :=
 	apply iff_intro;
-	case P: P :=
-		by not_imp_false[OF nP P];
-	case f: false :=
-		by false_elim[OF f];
+	- := by not_imp_false[OF nP];
+	- := just false_elim;
 	qed;
 
 show false_imp_iff: (false ⟹ P) ⟺ true :=
@@ -27,10 +25,8 @@ show false_imp_iff: (false ⟹ P) ⟺ true :=
 
 show false_and_iff: false ∧ P ⟺ false :=
 	apply iff_intro;
-	show! if fP: false ∧ P then false :=
-		by and_elim1[OF fP];
-	show! if f: false then false ∧ P :=
-		by false_elim[OF f];
+	- := just and_elim1;
+	- := just false_elim;
 	qed;
 
 show and_false_iff: P ∧ false ⟺ false :=
@@ -38,7 +34,5 @@ show and_false_iff: P ∧ false ⟺ false :=
 	by false_and_iff;
 
 show not_elim: if nP: ¬P, P: P then Q :=
-	show f: false :=
-		by not_imp_false[OF nP P];
-	by false_elim[OF f];
-
+	apply false_elim;
+	by not_imp_false[OF nP P];

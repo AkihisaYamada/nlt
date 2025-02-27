@@ -2,15 +2,17 @@
 # Typed Classical Logic
 ------
 
-base Propositional;
+base Root;
 
-import ExcludedMiddle;
+import TypedIntuitionisticLogic;
+
+assume excluded_middle: prop P ⟹ P ∨ ¬P;
 
 finalize;
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
-setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not;
+setup cong iff_cong_imp iff_cong_iff iff_cong_all iff_cong_not iff_cong_and iff_cong_or;
 
 show prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP: prop P, [prop Q] then Q :=
 	apply or_elim[OF excluded_middle[OF pP]];
@@ -26,21 +28,18 @@ show nnot_iff: if [prop P] then ¬¬P ⟺ P :=
 	- if nP: ¬P :=
 		apply iff_intro;
 		- if nnP: ¬¬P :=
-			by not_elim[OF nnP nP pP];
+			apply not_elim[OF nnP nP];
+			done;
 		by nnot_intro;
-	qed;
+	done;
 
-show pierces_law: if pP: prop P, pQ: prop Q then ((P ⟹ Q) ⟹ P) ⟹ P :=
-	apply prop_cases[OF pP];
-	apply+ prop_imp_intro pP pQ;
-	note! pQ;
-	note! pP;
-	note! pP;
-	case P: P :=
+show pierces_law: if [prop P, prop Q] then ((P ⟹ Q) ⟹ P) ⟹ P :=
+	apply prop_cases(P);
+	- if P: P :=
 		unfold+ iff_true[OF P] imp_true_iff;
 		by true_intro;
-	case nP: ¬P :=
-		unfold+ not_imp_iff_false[OF nP pP] false_imp_iff[OF pQ] true_imp_iff;
+	- if nP: ¬P :=
+		unfold+ not_imp_iff_false[OF nP] false_imp_iff true_imp_iff;
 		done;
-	qed;
+	done;
 

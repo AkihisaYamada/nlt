@@ -7,24 +7,23 @@ disjunction and existential quantifier by certain form.
 Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
 ------
 base TypedIntuitionisticLogic;
+ctxt TypedIntuitionisticLogic;
 
 fix image_nnot nnot_or nnot_ex;
 
-assume image_nnot_iff_and: image_nnot P ⟺ prop P ∧ (∃P'. P ⟺ ¬¬P');
+assume prop_image_nnot#intro: prop P ⟹ prop (image_nnot P);
+assume image_nnot_iff_and: prop P ⟹ image_nnot P ⟺ (∃P'. prop P' ∧ (P ⟺ ¬¬P'));
 
-show image_nnot_imp_type: if pP: image_nnot P then prop P :=
-	by and_elim1[OF pP[unfolded image_nnot_iff_and]];
-
-show image_nnot_imp_iff: if tP: image_nnot P then ¬¬P ⟺ P :=
-	note 1: tP[unfolded image_nnot_iff_and];
-	apply and_elim[OF 1];
-	case pP: prop P, ex: ∃P'. P ⟺ ¬¬P' :=
-		apply ex_elim[OF ex];
-		case for P', P: P ⟺ ¬¬P' :=
-			unfold+ P nnnot_iff;
-			by iff.refl;
-		by iff.type not.type pP;
-	qed;
+show image_nnot_imp_iff: if tP: image_nnot P, [prop P] then ¬¬P ⟺ P :=
+	note 1: tP[unfolded image_nnot_iff_and(P)];
+	apply ex_elim[OF 1];
+	- for P', if and: prop P' ∧ (P ⟺ ¬¬P') :=
+		apply and_elim[OF and];
+		- if [prop P'], iff: P ⟺ ¬¬P' :=
+			unfold+ iff nnnot_iff;
+			done;
+		done;
+	done;
 
 show image_nnot_iff: image_nnot P ⟺ prop P ∧ (¬¬P ⟺ P) :=
 	apply iff_intro;

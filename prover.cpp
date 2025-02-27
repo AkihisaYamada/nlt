@@ -48,6 +48,7 @@ Ref<Syntax> make_syntax() {
 	ret->infix(":=",-1,-1,-2);
 	ret->prefix("if",-3,-2);
 	ret->infix("then",-3,-2,-2);
+	ret->infix("else",-3,-2,-2);
 	return ret;
 }
 
@@ -169,8 +170,13 @@ public:
 			min = 1; max = 1; safe = true;
 		}
 		Rewriter::Rules rules = _rewriter->make_rules();
+		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
 			_rewriter->add_rule(rules,*arg,rev);
+			n++;
+		}
+		if( max == 1 ) {
+			max = n;
 		}
 		if( thm ) {
 			*thm = _rewriter->rewrite(rules,loc,*thm,min,max,safe,pos,rel);
@@ -193,8 +199,16 @@ public:
 				_parser.skip(")");
 			} else if( _parser.skips("[") ) {
 				if( _parser.skips("OF") ) {
-					while( auto const& arg = _gets_thm(loc) ) {
-						ret = discharge(ret,*arg);
+					for(;;) {
+						if( _parser.skips("!") ) {
+							auto opt = blasts(ret,loc);
+							if( !opt ) throw Error("\"blast failed\"")(ret);
+							ret = *opt;
+						} else if( auto const& arg = _gets_thm(loc) ) {
+							ret = discharge(ret,*arg);
+						} else {
+							break;
+						}
 					}
 				} else if( _parser.skips("unfolded") ) {
 					_rewrite(loc,ret,{},1,1,true,false);
@@ -391,35 +405,9 @@ public:
 		_parser.skip(":=");
 		CTerm goal = var_loc.enclose(conc).weaken(assm_loc);
 		cout << _syntax->pretty_cterm(goal) << endl;
-		ret._thesis = Inference(assm_loc,goal);
+		ret._thesis = Inference::claim_exact(assm_loc,goal);
 		ret.deepen()._prompt();
 		return {ret,goal};
-	}
-	Thm note() {
-		auto goal_loc = _loc.branch();
-		vector<pair<ClaimStatus,CTerm>> assms;
-		if( _parser.skips("for") ) {
-			while( auto const& sym = gets_sym() ) {
-				goal_loc.fix(*sym);
-			}
-			_parser.skip(",");
-		}
-		if( _parser.skips("if") ) {
-			for(;;) {
-				auto [cs,t] = get_assm();
-				assms.emplace_back(cs,goal_loc.enclose(t));
-				if( !_parser.skips(",") ) break;
-			};
-			_parser.skip("then");
-		}
-		for( auto const& [cs,assm] : assms ) {
-			add_claim(goal_loc,cs,goal_loc.assume(assm));
-		}
-		swap(goal_loc,_loc);
-		Thm ret = get_thm().intro();
-		_parser.skip(";");
-		swap(goal_loc,_loc);
-		return ret;
 	}
 	void import( bool mod ) {
 		string prefix;
@@ -545,7 +533,7 @@ public:
 // props[sym:=term]... ⟹ var
 						auto const& rule = Inference::rule(thesis_loc.add_assm("?thesis",t));
 // assume this and prove var, i.e., prove props[sym:=term]...
-						auto thesis = Inference(thesis_loc,var);// var ⟹ var
+						auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
 						thesis.apply(rule);// prop[sym:=term]... ⟹ var
 						auto const& spec = Prover(*this,thesis_loc,thesis).deepen().proof_loop().intro();
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
@@ -618,9 +606,14 @@ public:
 				cout << "term " << _syntax->pretty_term(term) << endl;
 			} else if( _parser.skips("note") ) {
 				auto cs = get_claim_status();
-				auto const& thm = note();
+				auto thm = get_thm();
 				add_claim(_loc,cs,thm);
 				cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
+				while( auto o = gets_thm() ) {
+					add_claim(_loc,cs,*o);
+					cout << "\t" << cs << _syntax->pretty_thm(*o) << endl;
+				}
+				_parser.skip(";");
 			} else if( _parser.skips("show") ) {
 				auto cs = get_claim_status();
 				cout << "Showing " << cs << flush;
@@ -661,7 +654,7 @@ public:
 				_indent();
 				cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
 				Opt<Inference> bak = _thesis;
-				auto const& thm = Prover(*this,_loc,Inference(_loc,goal)).deepen()._prompt().proof_loop();
+				auto const& thm = Prover(*this,_loc,Inference::claim_exact(_loc,goal)).deepen()._prompt().proof_loop();
 				auto [sym_term,spec] = _loc.obtain(sym,thm,make_spec_name(string(sym)));
 				cout << "Obtained " << sym << " where ";
 				// register properties
@@ -829,18 +822,18 @@ public:
 					print_goal();
 				} else if( _parser.skips("apply") ) {
 					int min, max;
-					bool safe;
+					bool safe, deep;
 					if( _parser.skips("+") ) {
-						min = 1; max = 255; safe = false;
+						min = 1; max = 255; safe = false; deep = true;
 					} else {
-						min = max = 1; safe = true;
+						min = max = 1; safe = true; deep = false;
 					}
 					set<Inference::Rule> rules;
 					while( auto const& thm = gets_thm() ) {
-						rules.emplace(Inference::rule(*thm));
+						rules.emplace( _parser.skips("!") ? Inference::axiom(*thm) : Inference::rule(*thm) );
 					}
 					_parser.skip(";");
-					_thesis->apply(rules,min,max,safe);
+					_thesis->apply(rules,min,max,safe,deep);
 					print_goal();
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
 					_rewrite(_loc,{},{},1,discharge?255:0,!discharge,dir);
@@ -895,7 +888,7 @@ public:
 					}
 					_parser.skip(":=");
 					cout << "show " << _syntax->pretty_cterm(newgoal) << endl;
-					subprf._thesis = Inference(subprf._loc,newgoal);
+					subprf._thesis = Inference::claim_exact(subprf._loc,newgoal);
 					_thesis->discharge(subprf._prompt().proof_loop().intro());
 					print_goal();
 				} else if( _parser.skips("just") ) {
@@ -966,7 +959,6 @@ public:
 					for_variables(var_loc);
 					CTerm assm = var_loc.enclose(get_term()).lift(_loc.cterm(ALL));
 					Thm thm = cs.name ? _loc.add_assm(*cs.name,assm) : _loc.assume(assm);
-					cs.name = {};
 					add_claim(_loc,cs,thm);
 					_parser.skip(";");
 					cout << "Assumed " << cs << _syntax->pretty_term(assm) << "; " << endl;
