@@ -35,6 +35,7 @@ Ref<Syntax> make_syntax() {
 	ret->register_multi_op('=');
 	ret->register_multi_op('*');
 	ret->register_multi_op('+');
+	ret->register_multi_op('-');
 	ret->register_multi_op('#');
 	ret->opener("(",-1000,[&]( Parser& parser ){
 		Opt<Term> t = parser.gets_term(-1000);
@@ -170,7 +171,7 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			_rewriter->add_rule(loc,rules,*arg,rev);
+			_rewriter->add_rule( loc, rules, *arg, _parser.skips("-") ? !rev : rev );
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -909,9 +910,9 @@ public:
 								throw Error("\"conclusion mismatch\"")(newgoal);
 							}
 						}
+						_parser.skip(":=");
+						cout << "then " << _syntax->pretty_cterm(newgoal) << endl;
 					}
-					_parser.skip(":=");
-					cout << "then " << _syntax->pretty_cterm(newgoal) << endl;
 					subprf._thesis = Inference::claim_exact(subprf._loc,newgoal);
 					_thesis->discharge(subprf._prompt().proof_loop().intro());
 					print_goal("next goal ");
