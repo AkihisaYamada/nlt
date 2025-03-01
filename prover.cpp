@@ -528,7 +528,7 @@ public:
 // ∀sym. props... ⟹ var
 					t = t.capp()->second.inst(term);
 // props[sym:=term]... ⟹ var
-					auto const& rule = Inference::rule(thesis_loc.add_assm("?thesis",t));
+					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
 // assume this and prove var, i.e., prove props[sym:=term]...
 					auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
 					thesis.apply(rule);// prop[sym:=term]... ⟹ var
@@ -547,16 +547,16 @@ public:
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
-	set<Inference::Rule> get_rules() {
-		set<Inference::Rule> rules;
+	set<Intro> get_rules() {
+		set<Intro> rules;
 		for(;;) {
 			if( _parser.skips("!") ) {
 				auto thm = get_thm();
-				rules.emplace(Inference::axiom(thm));
+				rules.emplace(Intro::axiom(thm));
 				continue;
 			}
 			if( auto thm = gets_thm() ) {
-				rules.emplace(Inference::rule(*thm));
+				rules.emplace(Intro::rule(*thm));
 				continue;
 			}
 			break;
@@ -869,10 +869,10 @@ public:
 					_thesis->discharge(subprf._prompt().proof_loop().intro());
 					print_goal("next goal ");
 				} else if( _parser.skips("just") ) {
-					set<Inference::Rule> rules;
+					set<Intro> rules;
 					for(;;) {
 						if( auto thm = gets_thm() ) {
-							rules.emplace(Inference::axiom(*thm));
+							rules.emplace(Intro::axiom(*thm));
 							continue;
 						}
 						break;
@@ -889,30 +889,31 @@ public:
 					_parser.skip(";");
 					size_t fuel = 255;
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast({},fuel);
+						_thesis->blast(fuel);
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("by") ) {
-					auto rules = get_rules();
+					auto intros = get_rules();
+					set<Elim> elims;
+					function<bool(Inference&)> extra = [&](auto){ return false; };
 					size_t fuel = 255;
-					if( _parser.skips("#") ) {
-						if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
+					while( _parser.skips("#") ) {
+						if( _parser.skips("elim") ) {
+							while( auto elim = gets_thm() ) {
+								elims.emplace(Elim::rule(*elim));
+							}
+						} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
 							auto [rrules,ctrl] = _get_rewrite(_loc,dir);
-							auto extra = [&](auto& thesis){
+							extra = [rrules,ctrl,this](Inference& thesis){
 								return _rewriter->applies(rrules,thesis,ctrl);
 							};
-							_parser.skip(";");
-							while( _thesis->goal_count() > 0 ) {
-								_thesis->blast(rules,fuel,extra);
-							}
 						} else {
 							throw Error("\"unexpected\"")(_parser.peek_token());
 						}
-					} else {
-						_parser.skip(";");
-						while( _thesis->goal_count() > 0 ) {
-							_thesis->blast(rules,fuel);
-						}
+					}
+					_parser.skip(";");
+					while( _thesis->goal_count() > 0 ) {
+						_thesis->blast(fuel,intros,elims,extra);
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("sorry") ) {

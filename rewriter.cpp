@@ -83,7 +83,7 @@ void Rewriter::register_imp( Thm const& thm, bool dir ) {
 	throw MalformedImp(thm);
 }
 void Rewriter::register_refl( Thm const& thm ) {
-	auto rule = Inference::rule(thm);
+	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw MalformedRefl(thm);
 	size_t ind = _rels.size();
@@ -104,7 +104,7 @@ void Rewriter::register_trans( Thm const& thm ) {
 }
 void Rewriter::register_cong( Thm const& thm ) {
 	// parsing congruence rule
-	auto rule = Inference::rule(thm);
+	auto rule = Intro::rule(thm);
 	Ctxt ctxt = rule.ctxt();
 	size_t rev = 0;
 	vector<size_t> inds;
@@ -352,14 +352,13 @@ bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl 
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& loc = thesis.locale();
 	auto [eq,n] = _steps(rules,loc,*goal,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
-	DEB(n << ", " << eq);
 	if( n == 0 ) return false;
 	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
 	imp = imp << eq; // conditions... ⟹ t ⟹ s
 	for( size_t i = 0; i < o->second.conds; i++ ) {
 		imp = *blasts(imp,loc);
 	}// t ⟹ s
-	thesis.apply(Inference::imp(imp));// t ⟹ rest
+	thesis.apply(Intro::imp(imp));// t ⟹ rest
 	return true;
 }
 Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source, Ctrl const& ctrl ) const {

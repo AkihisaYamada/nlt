@@ -175,7 +175,7 @@ interpret or: Magma prop (∨) :=
 		done;
 	done;
 
-interpret prop: ClassicalLogic :=
+interpret typed: PropositionalClassical :=
 	- if P0: P ⟹ false, [prop P] then ¬ P :=
 		by not_intro[OF P0];
 	- if nP: ¬P, [P, prop P] then false :=
@@ -198,7 +198,8 @@ interpret prop: ClassicalLogic :=
 		by or_intro2;
 	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then prop P ⟹ prop Q ⟹ prop R ⟹ R :=
 		by or_elim[OF PQ PR QR];
-
+	- if f: false then prop P ⟹ P :=
+		by false_elim[OF f];
 	- if p: prop P then P ∨ ¬P :=
 		apply prop_elim[OF p];
 		- if P1: P = true :=
@@ -210,17 +211,11 @@ interpret prop: ClassicalLogic :=
 		done;
 	done;
 
-interpret PropOr prop (∨) :=
-	know;
-	know;
-	know;
-	- if or: P ∨ Q, R: prop R, PR: P ⟹ R, QR: Q ⟹ R then R :=
-		by or_elim[OF or PR QR];
-	done;
+thm typed.pierces_law;
 
 lemma not_prop_iff: ¬ prop x ⟺ x ≠ true ∧ x ≠ false :=
 	unfold+ prop_def neq_def;
-	unfold(⟺) nor_iff;
+	unfold(⟺) typed.nor_iff;
 	done;
 
 lemma not_prop_elim: if np: ¬ prop P then (P ≠ true ⟹ P ≠ false ⟹ Q) ⟹ Q :=

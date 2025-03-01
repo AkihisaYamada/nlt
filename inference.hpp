@@ -6,6 +6,91 @@
 /** @brief Add concluder theorem to locale */
 void add_forced( Locale&, Thm const& thm );
 
+/** Introduction rule */
+class Intro {
+	friend class Inference;
+	Thm _conclusion;
+	explicit Intro( Thm const& conc ) : _conclusion(conc) {}
+public:
+	static Intro just( Thm const& thm ) {
+		return Intro(thm.weaken(thm.ctxt().branch()));
+	}
+	/** @brief Makes implication a rule. */
+	static Intro imp( Thm const& thm );
+	/** @brief Makes a theorem into a rule. */
+	static Intro rule( Thm const& thm );
+	/** @brief Makes a theorem into an axiom.
+	 * universal quantifications are processed but not implications.
+     */
+	static Intro axiom( Thm const& thm ) {
+		return Intro(strip_all(thm));
+	}
+	Thm const& conclusion() const& {
+		return _conclusion;
+	}
+	Thm thm() const& {
+		return _conclusion.intro();
+	}
+	Opt<CSubst> matches( CTerm const& goal ) const {
+		return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
+	}
+	Ctxt ctxt() && = delete;
+	Ctxt const& ctxt() const& {
+		return _conclusion.ctxt();
+	}
+	/** @brief interpretation of the rule into given context.
+	 * 
+	 */
+	Intp intp( Ctxt const& tgt ) const {
+		return Intp(ctxt(),tgt);
+	}
+	/** @brief instantiates the rule. */
+	Thm inst( Intp const& intp ) const {
+		return intp.subst(_conclusion);
+	}
+	bool operator<( Intro const& y ) const {
+		return _conclusion < y._conclusion;
+	}
+};
+
+class Elim {
+	Thm _premise;
+	Thm _thm;
+	explicit Elim( Thm const& premise, Thm const& thm ) : _premise(premise), _thm(thm) {}
+public:
+	static Elim rule( Thm const& thm ) {
+		Ctxt ctxt = thm.ctxt().branch();
+		Thm body = strip_all(thm,ctxt);
+		auto imp = body.cbinary(IMP);
+		if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
+		Thm premise = ctxt.assume(imp->first);
+		return Elim(premise,body.impE(premise));
+	}
+	Opt<CSubst> matches( Thm const& assm ) const {
+		return match( _premise, assm, [&](auto v){ return ctxt().fixes(v); } );
+	}
+	Ctxt ctxt() && = delete;
+	Ctxt const& ctxt() const& {
+		return _premise.ctxt();
+	}
+	Thm premise() const {
+		return _premise;
+	}
+	/** @brief interpretation of the rule into given context.
+	 * 
+	 */
+	Intp intp( Ctxt const& tgt ) const {
+		return Intp(ctxt(),tgt);
+	}
+	/** @brief instantiates the rule. */
+	Thm inst( Intp const& intp ) const {
+		return intp.subst(_thm);
+	}
+	bool operator<( Elim const& y ) const {
+		return _premise < y._premise;
+	}
+};
+
 /** Class for inference */
 class Inference {
 	Locale _loc;
@@ -23,68 +108,13 @@ public:
 	static std::string const EXACT;
 	/** name for elimination rules */
 	static std::string const ELIM;
-	/** Inference rule */
-	class Rule {
-		friend Inference;
-		Thm _conclusion;
-	public:
-		explicit Rule( Thm const& conc ) : _conclusion(conc) {}
-		Thm const& conclusion() const& {
-			return _conclusion;
-		}
-		Thm thm() const& {
-			return _conclusion.intro();
-		}
-		Opt<CSubst> matches( CTerm const& goal ) const {
-			return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
-		}
-		Ctxt ctxt() && = delete;
-		Ctxt const& ctxt() const& {
-			return _conclusion.ctxt();
-		}
-		/** @brief interpretation of the rule into given context.
-		 * 
-		 */
-		Intp intp( Ctxt const& tgt ) const {
-			return Intp(ctxt(),tgt);
-		}
-		/** @brief instantiates the rule. */
-		Thm inst( Intp const& intp ) const {
-			return intp.subst(_conclusion);
-		}
-		bool operator<( Rule const& y ) const {
-			return _conclusion < y._conclusion;
-		}
-	};
 	static Error const NoGoal;
 	static Error const Unapplicable;
-	static Rule just( Thm const& thm ) {
-		return Rule(thm.weaken(thm.ctxt().branch()));
-	}
-	/** @brief Makes implication a rule. */
-	static Rule imp( Thm const& thm );
-	/** @brief Makes a theorem into a rule. */
-	static Rule rule( Thm const& thm );
-	/** @brief Makes a theorem into an axiom.
-	 * universal quantifications are processed but not implications.
-     */
-	static Rule axiom( Thm const& thm ) {
-		return Rule(strip_all(thm));
-	}
 	static Inference claim_exact( Locale const& loc, CTerm const& claim ) {
 		Ctxt ctxt = claim.ctxt().branch();
 		return Inference( loc, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
 	}
-	static Inference claim_strip( Locale const& loc, CTerm const& claim ) {
-		Locale subloc = loc.branch();
-		CTerm goal = claim.weaken(subloc);
-		goal = strip_all(goal,subloc);
-		while( auto imp = goal.cbinary(IMP) ) {
-			add_forced(subloc,subloc.assume(imp->first));
-			goal = imp->second;
-		}
-		return claim_exact(subloc,goal);
-	}
+	static Inference claim_strip( Locale const& loc, CTerm const& claim, std::set<Elim> const& elims = {} );
 	Locale const& locale() const& {
 		return _loc;
 	}
@@ -116,27 +146,32 @@ public:
 		return {};
 	}
 	/** @brief Tries to apply a rule once */
-	void apply( Rule const& rule ) & {
+	void apply( Intro const& rule ) & {
 		auto g = strip_all(goal());
 		if( !_apply(rule,g) ) throw Unapplicable(g)(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
-	void apply( std::set<Rule> const& rules ) & {
+	void apply( std::set<Intro> const& rules ) & {
 		auto g = strip_all(goal());
 		if( !_apply(rules,g) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
-	void apply( std::set<Rule> const& rules, size_t min, size_t max, bool safe, bool deep ) & {
+	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool deep ) & {
 		size_t suc = 0;
 		_apply(rules,suc,min,max,safe,deep);
 	}
-	void _apply( std::set<Rule> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) &;
+	void _apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) &;
 	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw NoGoal;
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
-	void blast( std::set<Rule> const& rules, size_t& fuel, std::function<bool(Inference&)> extra = [](auto){ return false; } ) &;
+	void blast(
+		size_t& fuel,
+		std::set<Intro> const& intros = {},
+		std::set<Elim> const& elims = {},
+		std::function<bool(Inference&)> extra = [](auto){ return false; }
+	) &;
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {
@@ -166,9 +201,9 @@ private:
 		return false;
 	}
 	/** goal must be in a fresh context */
-	bool _apply( Rule const& rule, CTerm const& goal ) &;
-	bool _apply( std::set<Rule> const& rules, CTerm const& goal ) & {
-		for( auto const& rule : rules ) {
+	bool _apply( Intro const& intros, CTerm const& goal ) &;
+	bool _apply( std::set<Intro> const& intros, CTerm const& goal ) & {
+		for( auto const& rule : intros ) {
 			if( _apply(rule,goal) ) return true;
 		}
 		return false;
@@ -181,14 +216,14 @@ private:
  * @param loc the locale which tells blast the lemmas to use
  * @return Thm the conclusion
  */
-Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Inference::Rule> const& rules = {} );
-inline Thm blast( Thm const& thesis, Locale const& loc, std::set<Inference::Rule> const& rules = {} ) {
+Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Intro> const& rules = {} );
+inline Thm blast( Thm const& thesis, Locale const& loc, std::set<Intro> const& rules = {} ) {
 	auto opt = blasts(thesis,loc,rules);
 	assert(opt);
 	return *opt;
 }
 
-Thm prove( CTerm const& claim, Locale const& loc, std::set<Inference::Rule> const& rules = {} );
+Thm prove( CTerm const& claim, Locale const& loc, std::set<Intro> const& intros = {}, std::set<Elim> const& elims = {} );
 
 
 #endif
