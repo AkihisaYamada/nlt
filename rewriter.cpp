@@ -291,11 +291,12 @@ size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 	}
 }
 
-Thm Rewriter::_steps(
+pair<Thm,size_t> Rewriter::_steps(
 	Rules const& rules,
 	Locale const& loc,
 	CTerm const& source,
-	unsigned int min, unsigned int max, bool safe,
+	size_t max,
+	bool safe,
 	vector<char> const& pos,
 	size_t ind
 ) const {
@@ -312,16 +313,13 @@ Thm Rewriter::_steps(
 	CTerm s = source;
 	for( unsigned int i = 0;; i++ ) {
 		if( i == max ) {
-			if( safe ) break;
-			throw Error("\"rewrite limit exceeded\"")(to_string(max));
+			if( !safe )
+				throw Error("\"rewrite limit exceeded\"")(to_string(max));
+			return {eq,i};
 		}
 		auto const& step = _step(rules,loc,s,ind,begin,end);
 		if( !step ) {
-			if( i < min ) {
-				throw TooFewSteps(i,min,source);
-			} else {
-				return eq;
-			}
+			return {eq,i};
 		}
 		auto const& app = step->capp();
 		assert(app);
@@ -333,29 +331,34 @@ Thm Rewriter::_steps(
 		}
 		s = t;
 	}
-	return eq;// source ⟺ target
 }
-void Rewriter::apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel ) const {
+bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
-	if( !goal ) throw Error("\"no goal to rewrite\"");
-	size_t ind = _get_ind(rel);
+	if( !goal ) return false;
+	size_t ind = _get_ind(ctrl.rel);
 	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conditions ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& loc = thesis.locale();
-	auto eq = _steps(rules,loc,*goal,min,max,safe,pos,ind);// s = t
+	auto [eq,n] = _steps(rules,loc,*goal,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
+	DEB(n << ", " << eq);
+	if( n == 0 ) return false;
 	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
 	imp = imp << eq; // conditions... ⟹ t ⟹ s
 	for( size_t i = 0; i < o->second.conds; i++ ) {
 		imp = *blasts(imp,loc);
 	}// t ⟹ s
 	thesis.apply(Inference::imp(imp));// t ⟹ rest
+	return true;
 }
-Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source, unsigned int min, unsigned int max, bool safe, vector<char> const& pos, Opt<std::string> const& rel ) const {
-	size_t ind = _get_ind(rel);
+Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source, Ctrl const& ctrl ) const {
+	size_t ind = _get_ind(ctrl.rel);
 	auto const& o = _imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto eq = _steps(rules,loc,source,min,max,safe,pos,ind);
+	auto [eq,n] = _steps(rules,loc,source,ctrl.max,ctrl.safe,ctrl.pos,ind);
+	if( n < ctrl.min ) {
+		throw Error("\"Too few rewrite\"")(to_string(n))(to_string(ctrl.min))(eq);
+	}
 	auto tmp = o->second.thm.weaken(loc);
 	tmp = tmp << eq;
 	for( int i = 0; i < o->second.conds; i++ ) {

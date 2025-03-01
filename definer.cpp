@@ -40,7 +40,7 @@ pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<
 	sub.fix(thesis);
 	Thm thm = sub.assume( f &= rule >>= thesis );// (∀f x... l = r) ⟹ thesis
 	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
-	thm = rewriter->rewrite(beta,sub,thm,steps,steps,true,{0,1});// (∀x... r = r) ⟹ thesis
+	thm = rewriter->rewrite(beta,sub,thm,Rewriter::Ctrl{EQ,{0,1},steps,steps,true});// (∀x... r = r) ⟹ thesis
 	thm = thm << refl.weaken(sub);// thesis
 	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis
 	auto [cf,spec] = loc.obtain( f, thm, make_spec_name( name ? *name : f ) );// f, ((∀x... l = r) ⟹ thesis) ⟹ thesis

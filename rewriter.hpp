@@ -50,6 +50,12 @@ public:
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewriter;
 	};
+	struct Ctrl {
+		Opt<std::string> rel;
+		std::vector<char> pos;
+		size_t min, max;
+		bool safe;
+	};
 	struct TooFewSteps : Error {
 		static inline Term const RT = "#too_few_steps";
 		TooFewSteps(size_t a, size_t e, Term const& term) :
@@ -93,16 +99,19 @@ public:
 		return _step(rules,loc,source,ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
-	void apply( Rules const& rules, Inference& thesis, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
+	bool applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
+	void apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
+		if( !applies(rules,thesis,ctrl) ) throw Error("\"failed to rewrite\"")(thesis.goal());
+	}
 	/** @brief Rewrites a theorem */
-	Thm rewrite( Rules const& rules, Locale const& loc, Thm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, Opt<std::string> const& rel = {} ) const;
+	Thm rewrite( Rules const& rules, Locale const& loc, Thm const& source, Ctrl const& ctrl ) const;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
 	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Thm _steps( Rules const& rules, Locale const& loc, CTerm const& source, unsigned int min, unsigned int max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	std::pair<Thm,size_t> _steps( Rules const& rules, Locale const& loc, CTerm const& source, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

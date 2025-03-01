@@ -92,7 +92,7 @@ Thm prove( CTerm const& claim, Locale const& loc, std::set<Inference::Rule> cons
 	return x.concluding()->intro();
 }
 
-void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
+void Inference::blast( set<Rule> const& rules, size_t& fuel, std::function<bool(Inference&)> extra ) & {
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");
 	}
@@ -101,7 +101,9 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	auto const& goal = imp->first;
 	auto thesis = claim_strip(_loc,goal);
 	// try exact conclusions
-	if( !thesis._loc.find_thm( EXACT, [&]( auto& thm ){ return thesis._discharges(thm); } ) ) {
+	if( !thesis._loc.find_thm( EXACT, [&]( auto& thm ){ return thesis._discharges(thm); } ) )
+	// try extra method
+	if( !extra(thesis) ) {
 		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
 		// try explicitly given rules
 		if( !thesis._apply(rules,g) )
@@ -115,7 +117,7 @@ void Inference::blast( set<Rule> const& rules, size_t& fuel ) & {
 	fuel--;
 	while( thesis._goals > 0 ) {
 		if( fuel == 0 ) throw Error("\"blast exceeded\"")(*thesis.has_goal());
-		thesis.blast(rules,fuel);
+		thesis.blast(rules,fuel,extra);
 	}
 	_thm = _thm.impE(thesis._thm.intro());
 	_goals--;

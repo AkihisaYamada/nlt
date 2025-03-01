@@ -149,41 +149,34 @@ public:
 		}
 		throw Parser::Error("expects a theorem");
 	}
-	void _rewrite( Locale& loc, Opt<Thm&> thm, vector<char> pos, size_t min, size_t max, bool safe, bool rev = false ) {
-		auto rel = [&]()->Opt<string>{
-			if( _parser.skips("(") ) {
-				string ret = _parser.get();
-				_parser.skip(")");
-				return ret;
-			}
-			return {};
-		}();
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Locale& loc, bool rev = false ) {
+		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_rewriter->make_rules(),{}};
+		auto& [rules,ctrl] = ret;
+		if( _parser.skips("(") ) {
+			ctrl.rel = _parser.get();
+			_parser.skip(")");
+		}
 		if( _parser.skips("[") ) {// parse position
 			while( !_parser.skips("]") ) {
-				pos.push_back(_parser.get_int());
+				ctrl.pos.push_back(_parser.get_int());
 			}
 		}
 		if( _parser.skips("*") ) {
-			min = 0; max = 255; safe = false;
+			ctrl.min = 0; ctrl.max = 255; ctrl.safe = false;
 		} else if( _parser.skips("+") ) {
-			min = 1; max = 255; safe = false;
+			ctrl.min = 1; ctrl.max = 255; ctrl.safe = false;
 		} else {
-			min = 1; max = 1; safe = true;
+			ctrl.min = 1; ctrl.max = 1; ctrl.safe = true;
 		}
-		Rewriter::Rules rules = _rewriter->make_rules();
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
 			_rewriter->add_rule(loc,rules,*arg,rev);
 			n++;
 		}
-		if( max == 1 ) {
-			max = n;
+		if( ctrl.max < n ) {
+			ctrl.max = n;
 		}
-		if( thm ) {
-			*thm = _rewriter->rewrite(rules,loc,*thm,min,max,safe,pos,rel);
-		} else {
-			_rewriter->apply(rules,*_thesis,min,max,safe,pos,rel);
-		}
+		return ret;
 	}
 
 	Opt<Thm> _gets_thm(Locale loc) {
@@ -211,10 +204,9 @@ public:
 							break;
 						}
 					}
-				} else if( _parser.skips("unfolded") ) {
-					_rewrite(loc,ret,{},1,1,true,false);
-				} else if( _parser.skips("folded") ) {
-					_rewrite(loc,ret,{},1,1,true,true);
+				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
+					auto [rules,ctrl] = _get_rewrite(loc,dir);
+					_rewriter->rewrite(rules,loc,ret,ctrl);
 				}
 				_parser.skip("]");
 			} else {
@@ -866,8 +858,9 @@ public:
 					_thesis->apply(rules,min,max,safe,deep);
 					print_goal("applied goals:\n\t");
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
-					_rewrite(_loc,{},{},1,discharge?255:0,!discharge,dir);
+					auto [rules,ctrl] = _get_rewrite(_loc,dir);
 					_parser.skip(";");
+					_rewriter->apply(rules,*_thesis,ctrl);
 					print_goal( dir ? "unfolded goal " : "folded goal " );
 				} else if( _parser.skips("-") ) {
 					auto goal = has_goal();
@@ -948,10 +941,25 @@ public:
 					return _thesis->concluding();
 				} else if( _parser.skips("by") ) {
 					auto rules = get_rules();
-					_parser.skip(";");
 					size_t fuel = 255;
-					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(rules,fuel);
+					if( _parser.skips("#") ) {
+						if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
+							auto [rrules,ctrl] = _get_rewrite(_loc,dir);
+							auto extra = [&](auto& thesis){
+								return _rewriter->applies(rrules,thesis,ctrl);
+							};
+							_parser.skip(";");
+							while( _thesis->goal_count() > 0 ) {
+								_thesis->blast(rules,fuel,extra);
+							}
+						} else {
+							throw Error("\"unexpected\"")(_parser.peek_token());
+						}
+					} else {
+						_parser.skip(";");
+						while( _thesis->goal_count() > 0 ) {
+							_thesis->blast(rules,fuel);
+						}
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("sorry") ) {

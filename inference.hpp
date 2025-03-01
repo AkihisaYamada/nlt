@@ -136,7 +136,7 @@ public:
 		if( _goals == 0 ) throw NoGoal;
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
-	void blast( std::set<Rule> const& rules, size_t& fuel ) &;
+	void blast( std::set<Rule> const& rules, size_t& fuel, std::function<bool(Inference&)> extra = [](auto){ return false; } ) &;
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {
