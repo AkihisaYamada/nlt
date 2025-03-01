@@ -14,13 +14,13 @@ setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
 setup cong iff_cong_imp iff_cong_iff iff_cong_all iff_cong_not iff_cong_and iff_cong_or;
 
-show prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP: prop P, [prop Q] then Q :=
+lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP: prop P, [prop Q] then Q :=
 	apply or_elim[OF excluded_middle[OF pP]];
 	- if [P] := by PQ;
 	- if [¬P] := by nPQ;
 	by pP;
 
-show nnot_iff: if [prop P] then ¬¬P ⟺ P :=
+lemma nnot_iff: if [prop P] then ¬¬P ⟺ P :=
 	apply prop_cases(P);
 	- if P: P :=
 		unfold+ iff_true[OF P] not_true_iff not_false_iff;
@@ -33,7 +33,7 @@ show nnot_iff: if [prop P] then ¬¬P ⟺ P :=
 		by nnot_intro;
 	done;
 
-show pierces_law: if [prop P, prop Q] then ((P ⟹ Q) ⟹ P) ⟹ P :=
+lemma pierces_law: if [prop P, prop Q] then ((P ⟹ Q) ⟹ P) ⟹ P :=
 	apply prop_cases(P);
 	- if P: P :=
 		unfold+ iff_true[OF P] imp_true_iff;

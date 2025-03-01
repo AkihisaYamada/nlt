@@ -4,7 +4,7 @@
 #include "locale.hpp"
 
 /** @brief Add concluder theorem to locale */
-void add_concluder( Locale&, Thm const& thm );
+void add_forced( Locale&, Thm const& thm );
 
 /** Class for inference */
 class Inference {
@@ -80,7 +80,7 @@ public:
 		CTerm goal = claim.weaken(subloc);
 		goal = strip_all(goal,subloc);
 		while( auto imp = goal.cbinary(IMP) ) {
-			add_concluder(subloc,subloc.assume(imp->first));
+			add_forced(subloc,subloc.assume(imp->first));
 			goal = imp->second;
 		}
 		return claim_exact(subloc,goal);
@@ -143,7 +143,7 @@ public:
 		if( _goals < 2 ) return false;
 		_loc = _loc.branch();
 		auto assm = _loc.assume(goal().weaken(_loc));
-		add_concluder(_loc,assm);
+		add_forced(_loc,assm);
 		_thm = _thm.weaken(_loc).impE(assm);
 		_goals--;
 		return true;

@@ -30,8 +30,16 @@ Inference::Rule Inference::rule( Thm const& thm ) {
 	}
 	return Rule(rule);
 }
-void add_concluder( Locale& loc, Thm const& thm ) {
-	loc.add_thm( thm.binder(ALL) ? Inference::CONCL : Inference::EXACT, thm );
+void add_forced( Locale& loc, Thm const& thm ) {
+	if( auto all = thm.binder(ALL) ) {
+		if( all->second.binary(IMP) ) {
+			loc.add_thm(Inference::INTRO,thm);
+		} else {
+			loc.add_thm(Inference::CONCL,thm);
+		}
+	} else {
+		loc.add_thm(Inference::EXACT,thm);
+	}
 }
 
 void Inference::_apply( std::set<Rule> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) & {

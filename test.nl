@@ -1,4 +1,4 @@
-base TypedMinimalLogic;
+base LambdaClassical;
 
 -----
 ## More Axioms for Constructors

@@ -11,6 +11,14 @@ Rewriter::Error const Rewriter::UnregisteredRel = Error("\"unregistered rewrite 
 Rewriter::Error const Rewriter::MalformedImp = Error("\"malformed rewrite implication\"");
 static Error const UnregisteredTrans = Rewriter::Error("\"missing setup trans\"");
 
+Opt<tuple<string,Term,Term>> strips_binary( Term const& term ) {
+	if( auto const& app = term.app() )
+	if( auto const& app2 = app->first.app() )
+	if( auto const& rel = app2->first.sym() ) {
+		return {{*rel,app2->second,app->second}};
+	}
+	return {};
+}
 Opt<tuple<string,CTerm,CTerm>> strips_binary( CTerm const& term ) {
 	if( auto const& app = term.capp() )
 	if( auto const& app2 = app->first.capp() )
@@ -36,7 +44,7 @@ void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool r
 	Thm body = strip_all(thm,subloc,fresh_maker());
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subloc.assume(imp->first);
-		add_concluder(subloc,assm);
+		add_forced(subloc,assm);
 		body = body.impE(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
@@ -102,22 +110,25 @@ void Rewriter::register_cong( Thm const& thm ) {
 	vector<size_t> inds;
 	vector<bool> abss;
 	while( ctxt.fixed(rev) ) rev++;
-	while( auto const& o = ctxt.assumed(rev) ) {
+	while( auto o = ctxt.assumed(rev) ) {
 		Term assm = *o;
-		if( auto const& all = assm.binder(ALL) ) {
+		if( auto all = assm.binder(ALL) ) {
 			assm = all->second;
 			abss.emplace_back(true);
 		} else {
 			abss.emplace_back(false);
 		}
-		auto const& rel = gets_binary_sym(assm);
-		if( !rel ) {
+		Opt<size_t> ind;
+		while( auto x = strips_binary(assm) ) {
+			auto const* rel = &get<0>(*x);
+			if( *rel == IMP ) {
+				assm = get<2>(*x);
+				continue;
+			}
+			ind = gets_rel_ind(*rel);
 			break;
 		}
-		auto const& ind = gets_rel_ind(*rel);
-		if( !ind ) {
-			throw UnregisteredRel(*rel)("#in_congruence")(thm);
-		}
+		if( !ind ) break;
 		inds.emplace_back(*ind);
 		rev++;
 	}

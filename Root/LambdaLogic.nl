@@ -18,6 +18,9 @@ define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
 define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 define (ex_def) (∃) α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
+define (tall_def) (∀:) ι α := ∀x. ι x ⟹ α.[x];
+define (tex_def) (∃:) ι α := ∃x. ι x ∧ α.[x];
+
 interpret TypeFreeIntuitionistic :=
 	substitute true :=
 		unfold true_def;
@@ -95,7 +98,7 @@ interpret eq_iff: MetaCommutative (=) (⟺) :=
 		done;
 	done;
 
-show russel_paradox: ¬(∀P. P ∨ ¬P) :=
+theorem russel_paradox: ¬(∀P. P ∨ ¬P) :=
 	apply not_intro;
 	- if or: ∀P. P ∨ ¬P :=
 		define R x := ¬ x x;
@@ -120,25 +123,25 @@ show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 
 define (neq_def) x ≠ y := ¬ x = y;
 
-show neq_intro: if xyf: x = y ⟹ false then x ≠ y :=
+lemma neq_intro: if xyf: x = y ⟹ false then x ≠ y :=
 	unfold neq_def;
 	apply not_intro;
 	by xyf;
 
 note neq_elim: eq_prop1[OF neq_def];
 
-show neq_irrefl: ¬ x ≠ x :=
+lemma neq_irrefl: ¬ x ≠ x :=
 	unfold neq_def;
 	apply nnot_intro;
 	by eq.refl;
 
-show neq_imp_false: if neq: x ≠ y, eq: x = y then false :=
+lemma neq_imp_false: if neq: x ≠ y, eq: x = y then false :=
 	by not_imp_false[OF neq[unfolded neq_def] eq];
 
-show neq_refl_imp_false: if xx: x ≠ x then false :=
+lemma neq_refl_imp_false: if xx: x ≠ x then false :=
 	by neq_imp_false[OF xx eq.refl];
 
-show true_neq_false: true ≠ false :=
+lemma true_neq_false: true ≠ false :=
 	apply neq_intro;
 	- if tf: true = false then false :=
 		fold tf;
@@ -146,17 +149,17 @@ show true_neq_false: true ≠ false :=
 	done;
 
 
-prefix ∃! 0 0;
+binder ∃! 0 0;
 
 define (ex1_def) (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y);
 
-show ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x] :=
+lemma ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x] :=
 	unfold ex1_def;
 	apply ex_intro1(x);
 	apply and_intro;
 	by x 1;
 
-show ex1_elim:
+lemma ex1_elim:
 	if ex1: ∃!x. α.[x], body: ∀x. α.[x] ⟹ (∀y. α.[y] ⟹ x = y) ⟹ P
 	then P
 :=

@@ -27,13 +27,13 @@ infix + 100 101 100;
 infix * 110 111 110;
 
 
-show mp: if P: P, PQ: P ⟹ Q then Q :=
+lemma mp: if P: P, PQ: P ⟹ Q then Q :=
 	by PQ[OF P];
 
-show weaken: if P: P, Q: Q then P :=
+lemma weaken: if P: P, Q: Q then P :=
 	by P;
 
-show ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R :=
+lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R :=
 	by PQR Q;
 
 
@@ -99,27 +99,27 @@ interpret imp: MetaPreorder (⟹) :=
 		by QR PQ;
 	done;
 
-show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
+lemma imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	by PQR;
 
-show insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q :=
+lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q :=
 	by PQ RP;
 
-show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R :=
+lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R :=
 	apply PQQR;
 	- if PQ: P ⟹ Q :=
 		by PQ;
 	done;
 
-show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
+lemma imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
 	- for x, if P: P :=
 		by imp[OF P];
 	done;
 
-show all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x] :=
+lemma all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x] :=
 	by all;
 
-show all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
+lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x] :=
 	by imp;
 
 -- Obtains true, which is provable.

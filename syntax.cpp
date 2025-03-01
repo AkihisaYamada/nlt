@@ -13,7 +13,7 @@ Syntax::Syntax() {
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const & {
 	return [this,&term,level](ostream& os) -> ostream& {
 		if( auto sym = term.sym() ) {
-			if( _prefixes.contains(*sym) || _infixes.contains(*sym) ) {
+			if( _prefixes.contains(*sym) || _binders.contains(*sym) || _infixes.contains(*sym) ) {
 				return os << '(' << *sym << ')';
 			}
 			return os << *sym;

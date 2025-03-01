@@ -6,29 +6,29 @@ finalize;
 
 interpret TwoValuedTrue;
 
-show true_and_true_eq: (true ∧ true) = true :=
+lemma true_and_true_eq: (true ∧ true) = true :=
 	by eq_true[OF true_and_true];
 
-show eq_true_iff: P = true ⟺ P :=
+lemma eq_true_iff: P = true ⟺ P :=
 	apply iff_intro;
 	- if Pt: P = true :=
 		unfold Pt;
 		done;
 	by eq_true;
 
-show true_eq_iff: true = P ⟺ P :=
+lemma true_eq_iff: true = P ⟺ P :=
 	unfold(⟺) eq_iff.commute;
 	by eq_true_iff;
 
-show false_imp_eq: (false ⟹ P) = true :=
+lemma false_imp_eq: (false ⟹ P) = true :=
 	apply eq_true;
 	by false_elim;
 
-show not_false_eq: (¬false) = true :=
+lemma not_false_eq: (¬false) = true :=
 	apply eq_true;
 	by not_false;
 
-show not_true_eq: (¬true) = false :=
+lemma not_true_eq: (¬true) = false :=
 	unfold not_def;
 	by true_imp_eq;
 
@@ -58,59 +58,41 @@ interpret or: MetaRightAbsorb (∨) true (=) :=
 		done;
 	done;
 
-show false_or_false_eq: (false ∨ false) = false :=
+lemma false_or_false_eq: (false ∨ false) = false :=
 	unfold+ or_def false_imp_eq true_imp_eq;
 	unfold false_def;
 	done;
 
-show true_iff_false_eq: (true ⟺ false) = false :=
+lemma true_iff_false_eq: (true ⟺ false) = false :=
 	unfold+ iff_def true_imp_eq and.left_absorb;
 	done;
 
-show false_iff_true_eq: (false ⟺ true) = false :=
+lemma false_iff_true_eq: (false ⟺ true) = false :=
 	unfold+ iff_def true_imp_eq and.right_absorb;
 	done;
 
-show all_true_eq: (∀x. true) = true :=
+lemma all_true_eq: (∀x. true) = true :=
 	apply eq_true;
 	by true_intro;
 
-show ex_false_eq: (∃x. false) = false :=
+lemma ex_false_eq: (∃x. false) = false :=
 	unfold+ ex_def false_imp_eq all_true_eq true_imp_eq;
 	unfold false_def;
 	done;
 
 define prop x := x = true ∨ x = false;
 
-show prop_elim: if x: prop x, 1: x = true ⟹ P, 0: x = false ⟹ P then P :=
+lemma prop_elim: if x: prop x, 1: x = true ⟹ P, 0: x = false ⟹ P then P :=
 	apply or_elim[OF x[unfolded prop_def]];
 	just 1 0;
 
-show nnot_eq: if p: prop P then (¬¬P) = P :=
+lemma nnot_eq: if p: prop P then (¬¬P) = P :=
 	apply prop_elim[OF p];
 	- if P1: P = true :=
 		unfold+ P1 not_true_eq not_false_eq;
 		done;
 	- if P0: P = false :=
 		unfold+ P0 not_false_eq not_true_eq;
-		done;
-	done;
-
-interpret ClassicalLogic :=
-	- prop (prop x) :=
-		unfold prop_def;
-		apply or_intro;
-		- for R, if 1: prop x = true ⟹ R, 2: prop x = false ⟹ R :=
-			
-
-	- if p: prop P then P ∨ ¬P :=
-		apply prop_elim[OF p];
-		- if P1: P = true :=
-			unfold+ P1 or.left_absorb;
-			done;
-		- if P0: P = false :=
-			unfold+ P0 not_false_eq or.right_absorb;
-			done;
 		done;
 	done;
 
@@ -161,7 +143,7 @@ interpret and: Magma prop (∧) :=
 			- if Q0: Q = false :=
 				unfold+ Q0 and.right_absorb;
 				by false.type;
-			qed;
+			done;
 		- if P0: P = false :=
 			unfold+ P0 and.left_absorb;
 			by false.type;
@@ -193,6 +175,41 @@ interpret or: Magma prop (∨) :=
 		done;
 	done;
 
+interpret prop: ClassicalLogic :=
+	- if P0: P ⟹ false, [prop P] then ¬ P :=
+		by not_intro[OF P0];
+	- if nP: ¬P, [P, prop P] then false :=
+		by not_imp_false[OF nP];
+	- P ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P ∧ Q :=
+		by and_intro;
+	- if PQ: P ∧ Q then prop P ⟹ prop Q ⟹ P :=
+		by and_elim1[OF PQ];
+	- if PQ: P ∧ Q then prop P ⟹ prop Q ⟹ Q :=
+		by and_elim2[OF PQ];
+	- if PQ: P ⟹ Q, QP: Q ⟹ P then prop P ⟹ prop Q ⟹ P ⟺ Q :=
+		by iff_intro[OF PQ QP];
+	- if PQ: P ⟺ Q then P ⟹ prop P ⟹ prop Q ⟹ Q :=
+		by iff_elim1[OF PQ];
+	- if PQ: P ⟺ Q then Q ⟹ prop P ⟹ prop Q ⟹ P :=
+		by iff_elim2[OF PQ];
+	- P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q :=
+		by or_intro1;
+	- Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q :=
+		by or_intro2;
+	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then prop P ⟹ prop Q ⟹ prop R ⟹ R :=
+		by or_elim[OF PQ PR QR];
+
+	- if p: prop P then P ∨ ¬P :=
+		apply prop_elim[OF p];
+		- if P1: P = true :=
+			unfold+ P1 or.left_absorb;
+			done;
+		- if P0: P = false :=
+			unfold+ P0 not_false_eq or.right_absorb;
+			done;
+		done;
+	done;
+
 interpret PropOr prop (∨) :=
 	know;
 	know;
@@ -201,10 +218,10 @@ interpret PropOr prop (∨) :=
 		by or_elim[OF or PR QR];
 	done;
 
-show not_prop_iff: ¬ prop x ⟺ x ≠ true ∧ x ≠ false :=
+lemma not_prop_iff: ¬ prop x ⟺ x ≠ true ∧ x ≠ false :=
 	unfold+ prop_def neq_def;
 	unfold(⟺) nor_iff;
 	done;
 
-show not_prop_elim: if np: ¬ prop P then (P ≠ true ⟹ P ≠ false ⟹ Q) ⟹ Q :=
+lemma not_prop_elim: if np: ¬ prop P then (P ≠ true ⟹ P ≠ false ⟹ Q) ⟹ Q :=
 	by and_elim[OF np[unfolded(⟺) not_prop_iff]];

@@ -82,6 +82,8 @@ Opt<Term> Parser::gets_term(int level) {
 			} else {
 				ret = Term(x->first)( *var /= nest_abs(x->first,x->second.rlevel) );
 			}
+		} else {
+			ret = Term(x->first);
 		}
 	} else if( auto x = _syntax->finds_infix(peek) ) {
 		if( x->second.level < level ) {
