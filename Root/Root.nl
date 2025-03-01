@@ -8,13 +8,13 @@ symbol λ ∧ ∨ ∃ ≠ ! ≤;
 symbol solo ¬;
 
 infix ⟹ 1 0 0;
-prefix ∀ 0 0;
+binder ∀ 0 0;
 
 prefix ¬ 40 40;
 infix ∧ 35 36 36;
 infix ∨ 30 31 30;
 infix ⟺ 1 1 0;
-prefix ∃ 0 0;
+binder ∃ 0 0;
 
 infix = 51 51 50;
 infix ≠ 51 51 50;
@@ -97,7 +97,7 @@ interpret imp: MetaPreorder (⟹) :=
 		done;
 	- if PQ: P ⟹ Q, QR: Q ⟹ R, [P] then R :=
 		by QR PQ;
-	end;
+	done;
 
 show imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R :=
 	by PQR;
@@ -109,12 +109,12 @@ show imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R :=
 	apply PQQR;
 	- if PQ: P ⟹ Q :=
 		by PQ;
-	qed;
+	done;
 
 show imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x] :=
 	- for x, if P: P :=
 		by imp[OF P];
-	qed;
+	done;
 
 show all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x] :=
 	by all;
@@ -127,7 +127,7 @@ locale True :=
 	obtain true where true_intro#concl: true :=
 		- for thesis, if assm: ∀true. true ⟹ thesis :=
 			by assm(∀x. x ⟹ x);
-		qed;
+		done;
 	end;
 
 -- Obtains false, which derives everything, including non-propositions.
@@ -135,7 +135,7 @@ locale False :=
 	obtain false where false_elim: ∀P. false ⟹ P :=
 		- for thesis, if assm: ∀false. (∀P. false ⟹ P) ⟹ thesis then thesis :=
 			by assm(∀P. P);
-		qed;
+		done;
 	end;
 
 

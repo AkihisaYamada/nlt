@@ -42,8 +42,19 @@ public:
 		int llevel;
 		int rlevel;
 	};
+	struct MidBinder {
+		std::string prefix;
+		std::string mid;
+		int llevel;
+		int rlevel;
+		MidBinder( std::string_view const& prefix, std::string_view const& mid, int llevel, int rlevel ) : prefix(prefix), mid(mid), llevel(llevel), rlevel(rlevel) {}
+	};
+	struct Binder {
+		int llevel;
+		int rlevel;
+		StrMap<std::string> mids;
+	};
 	struct Opener {
-		std::string closer;
 		int level;
 		std::function<Term(Parser&)> handler;
 	};
@@ -52,6 +63,8 @@ private:
 	StrSet _closers;
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
+	StrMap<Binder> _binders;
+	StrMap<MidBinder> _mid_binders;
 	bool _print_ctxt = false;
 public:
 	Syntax();
@@ -79,12 +92,23 @@ public:
 	bool has_closer(std::string_view const& sym) const {
 		return _closers.contains(sym);
 	}
-	void encloser(std::string const& opener, std::string const& cl, int level, std::function<Term(Parser&)> handler) {
-		_openers.insert({opener,{cl,level,handler}});
-		closer(cl);
+	void opener(std::string const& opener, int level, std::function<Term(Parser&)> handler) {
+		_openers.insert({opener,{level,handler}});
 	}
 	Opt<std::pair<std::string const, Opener> const&> finds_opener(std::string_view const& sym) const {
 		return _openers.finds(sym);
+	}
+	void binder( std::string_view const& binder, int llevel, int rlevel ) {
+		_binders.emplace(binder,Binder{llevel,rlevel,{}});
+	}
+	auto finds_binder( std::string_view const& binder ) const& {
+		return _binders.finds(binder);
+	}
+	void binder_mid( std::string_view const& prefix, std::string_view const& mid, std::string_view const& sym ) {
+		auto bind = _binders.finds(prefix);
+		if( !bind ) throw Error("\"binder not registered\"")(prefix)(mid);
+		bind->second.mids.emplace(mid,sym);
+		_mid_binders.emplace(sym,MidBinder(prefix,mid,bind->second.llevel,bind->second.rlevel));
 	}
 	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_cterm(CTerm const& term) const &;

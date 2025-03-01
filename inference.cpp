@@ -44,7 +44,7 @@ void Inference::_apply( std::set<Rule> const& rules, size_t& suc, size_t min, si
 			if( !safe ) throw Error("\"apply limit exceeded\"")(to_string(max));
 			return;
 		}
-		if( !_apply(rules,goal().weaken(_thm.ctxt().branch())) ) {
+		if( !_apply(rules,strip_all(goal())) ) {
 			break;
 		}
 		suc++;

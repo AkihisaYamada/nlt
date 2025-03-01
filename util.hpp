@@ -58,6 +58,10 @@ CTerm strip_all( CTerm t, Ctxt& ctxt, Renamer const& renamer );
 inline CTerm strip_all(CTerm t, Ctxt& ctxt) {
 	return strip_all(t,ctxt,avoider(ctxt));
 }
+inline CTerm strip_all( CTerm thm ) {
+	Ctxt ctxt = thm.ctxt().branch();
+	return strip_all(thm,ctxt);
+}
 
 /**
  * @brief strips universal quantifiers.

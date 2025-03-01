@@ -6,7 +6,8 @@ Syntax SYNTAX;
 
 Syntax::Syntax() {
 	infix("⟹",0,1,0);
-	prefix("∀",0,0);
+	binder("∀",0,0);
+	infix(".",-1,-1,-2);
 }
 
 function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) const & {
@@ -19,8 +20,8 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 		} else if( auto app = term.app() ) {
 			auto const& fun = app->first, arg = app->second;
 			if( auto sym = fun.sym() ) {
-				if( auto it = _prefixes.find(*sym); it != _prefixes.end() ) {
-					auto const& op = it->second;
+				if( auto x = _prefixes.finds(*sym) ) {
+					auto const& op = x->second;
 					if( level > op.llevel ) {
 						os << '(';
 					}
@@ -30,12 +31,29 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 					}
 					return os;
 				}
+				if( auto abs = arg.abs() )
+				if( auto x = _binders.finds(*sym) ) {
+					auto const& op = x->second;
+					if( level > op.llevel ) {
+						os << '(';
+					}
+					os << *sym << ' ' << abs->first;
+					Term cur = abs->second;
+					while( auto abs2 = cur.binder(*sym) ) {
+						os << ' ' << abs2->first;
+						cur = abs2->second;
+					}
+					os << ". " << pretty_term(cur,op.rlevel);
+					if( level > op.llevel ) {
+						os << ')';
+					}
+					return os;
+				}
 			} else if( auto app_in = fun.app() ) {
 				auto const& fun_in = app_in->first, arg_in = app_in->second;
 				if( auto sym = fun_in.sym() ) {
-					auto it = _infixes.find(*sym);
-					if( it != _infixes.end() ) {
-						auto const& op = it->second;
+					if( auto x = _infixes.finds(*sym) ) {
+						auto const& op = x->second;
 						if( level > op.level ) {
 							os << '(';
 						}
@@ -43,6 +61,18 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 						os << ' ' << *sym << ' ';
 						os << pretty_term(arg,op.rlevel);
 						if( level > op.level ) {
+							os << ')';
+						}
+						return os;
+					}
+					if( auto abs = arg.abs() )
+					if( auto x = _mid_binders.finds(*sym) ) {
+						auto const& op = x->second;
+						if( level > op.llevel ) {
+							os << '(';
+						}
+						os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty_term(arg_in,op.rlevel) << ". " << pretty_term(abs->second,level);
+						if( level > op.llevel ) {
 							os << ')';
 						}
 						return os;

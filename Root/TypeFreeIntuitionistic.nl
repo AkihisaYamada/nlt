@@ -18,7 +18,7 @@ show not_imp_iff_false: if nP: ¬P then P ⟺ false :=
 	apply iff_intro;
 	- := by not_imp_false[OF nP];
 	- := just false_elim;
-	qed;
+	done;
 
 show false_imp_iff: (false ⟹ P) ⟺ true :=
 	by iff_true[OF false_elim];
@@ -27,7 +27,7 @@ show false_and_iff: false ∧ P ⟺ false :=
 	apply iff_intro;
 	- := just and_elim1;
 	- := just false_elim;
-	qed;
+	done;
 
 show and_false_iff: P ∧ false ⟺ false :=
 	unfold and_iff.commute;

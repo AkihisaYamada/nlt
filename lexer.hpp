@@ -86,8 +86,8 @@ public:
 		}
 		return {};
 	}
-	std::string get_token() {
-		if( auto const& opt = gets(~Unset) ) {
+	std::string get( TokenType t = ~Unset ) {
+		if( auto const& opt = gets(t) ) {
 			return *opt;
 		}
 		throw SyntaxError("\"token expected\"");

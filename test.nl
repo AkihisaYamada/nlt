@@ -1,31 +1,4 @@
-base LambdaLogic;
-
------
-## More notions
------
-
-prefix ∃! 0 0;
-
-define (ex1_def) (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y);
-
-show ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then (∃!) α;
-	unfold ex1_def;
-	apply ex_intro1(x);
-	show! α.[x] ∧ (∀y. α.[y] ⟹ x = y);
-		apply and_intro;
-		note! x;
-		by 1;
-	qed;
-
-show ex1_elim: if ex1: (∃!) α, body: ∀x. α.[x] ⟹ (∀y. α.[y] ⟹ x = y) ⟹ P then P;
-	obtain x where and: (α.[x]) ∧ (∀y. α.[y] ⟹ x = y);
-		by ex1[unfolded+ ex1_def ex_def];
-	show ax: α.[x];
-		by and_elim1[OF and];
-	show 1: ∀y. α.[y] ⟹ x = y;
-		by and_elim2[OF and];
-	by body[OF ax 1];
-
+base TypedMinimalLogic;
 
 -----
 ## More Axioms for Constructors
@@ -33,14 +6,14 @@ show ex1_elim: if ex1: (∃!) α, body: ∀x. α.[x] ⟹ (∀y. α.[y] ⟹ x = y
 
 prefix THE 0 1;
 fix THE;
-assume ex1_imp_THE: (∃!) α ⟹ α.[(THE) α];
+assume ex1_imp_THE: (∃!x. α.[x]) ⟹ α.[THE x. α.[x]];
 
-show ex1_imp_THE_eq: if ex1: (∃!) α, x: α.[x] then (THE) α = x;
+show ex1_imp_THE_eq: if ex1: ∃!y. α.[y], x: α.[x] then (THE y. α.[y]) = x :=
 	apply ex1_elim[OF ex1];
-	show! if az: α.[z], 1: ∀y. α.[y] ⟹ z = y then (THE) α = x;
-		show zx: z = x;
+	- for z, if az: α.[z], 1: ∀y. α.[y] ⟹ z = y :=
+		show zx: z = x :=
 			by 1[OF x];
-		show zT: z = (THE) α;
+		show zT: z = (THE x. α.[x]) :=
 			by 1[OF ex1_imp_THE[OF ex1]];
 		by zx[unfolded zT];
 	qed;
@@ -55,23 +28,23 @@ assume const_app: is_const c ⟹ is_const (c x);
 
 assume const_app_eq_app: is_const c ⟹ is_const d ⟹ c x = d y ⟹ c = d ∧ x = y;
 
-define const_arg v := (THE x. ∃ c. is_const c ∧ v = c x);
+define const_arg v := (THE x. ∃c. is_const c ∧ v = c x);
 
 thm const_arg_def;
 
-show const_arg: if c: is_const c then const_arg (c x) = x;
+show const_arg: if c: is_const c then const_arg (c x) = x :=
 	unfold const_arg_def;
 	apply ex1_imp_THE_eq;
 	apply ex1_intro(x);
 	apply ex_intro1(c);
 	apply and_intro;
-	note! c;
-	note! eq.refl;
-	show! if ex: ∃c'. is_const c' ∧ c x = c' y then x = y;
-		obtain c' where c': is_const c', cc': c x = c' y;
+	- := just c;
+	- := just eq.refl;
+	- for y, if ex: ∃c'. is_const c' ∧ c x = c' y then x = y :=
+		obtain c' where c': is_const c', cc': c x = c' y :=
 			note 1: ex[unfolded ex_def];
-			note 2: 1[unfolded[iff] and_imp_iff];
-			by 2;
+			note 2: 1[unfolded(⟺) and_imp_iff];
+			just 2;
 		note and: const_app_eq_app[OF c c' cc'];
 		by and_elim2[OF and];
 	show! ∃c'. is_const c' ∧ c x = c' x;

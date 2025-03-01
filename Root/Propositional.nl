@@ -10,12 +10,11 @@ base Root;
 
 fix prop; -- We axiomatize what expressions are propositions.
 
-assume prop_prop#concl: prop (prop x);
-
 ---
-Implication yields a proposition, if the condition is a proposition and so is the conclusion whenever the condition holds.
+Implication will also be used for describing type constraints.
+Hence, we consider implication forms a proposition if the conclusion is a proposition assuming the condition.
 ---
-assume prop_imp_intro#intro: prop P ⟹ (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
+assume prop_imp_intro#intro: (P ⟹ prop Q) ⟹ prop (P ⟹ Q);
 
 ---
 The universal quantifier yields a proposition if the body forms a proposition for any argument.
@@ -34,4 +33,4 @@ obtain true where true_intro#concl: true, [prop true] :=
 interpret true: Member prop true :=
 	- prop true :=
 		done;
-	end;
+	done;

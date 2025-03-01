@@ -11,6 +11,7 @@ class Definer {
 	Thm const refl;// ∀P. P = P
 	Rewriter::Rules beta;
 	struct _Init {
+		Locale loc;
 		Ref<Rewriter const> rewriter;
 		std::string EQ;
 		Term LAM;
@@ -19,11 +20,11 @@ class Definer {
 	};
 	Definer( _Init && init ) :
 		rewriter(std::move(init.rewriter)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(rewriter->make_rules()), refl(std::move(init.refl)) {
-		rewriter->add_rule(this->beta,std::move(init.beta));
+		rewriter->add_rule(init.loc,this->beta,std::move(init.beta));
 	}
-	static _Init _init( Ref<Rewriter const> const& rewriter, Thm const& beta );
+	static _Init _init( Locale const& loc, Ref<Rewriter const> const& rewriter, Thm const& beta );
 public:
-	Definer( Ref<Rewriter const> const& rewriter, Thm const& beta ) : Definer(_init(rewriter,beta)) {}
+	Definer( Locale const& loc, Ref<Rewriter const> const& rewriter, Thm const& beta ) : Definer(_init(loc,rewriter,beta)) {}
 	std::pair<std::string,Thm> define(Locale& loc, Term const& l, Term const& r, Opt<std::string const&> name) const;
 };
 

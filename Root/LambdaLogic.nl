@@ -16,7 +16,7 @@ define (not_def) ¬ P := P ⟹ false;
 define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P);
 define (or_def) P ∨ Q := ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-define (ex_def) ∃ α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
+define (ex_def) (∃) α := (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
 
 interpret TypeFreeIntuitionistic :=
 	substitute true :=
@@ -25,13 +25,13 @@ interpret TypeFreeIntuitionistic :=
 	substitute false :=
 		- for P, if f: false then P :=
 			by f[unfolded false_def];
-		qed;
+		done;
 
 	- for P Q, if [P, Q] then P ∧ Q :=
 		apply eq_prop2[OF and_def];
 		- for R, if PQR: P ⟹ Q ⟹ R :=
 			by PQR;
-		qed;
+		done;
 	- for P Q, if PQ: P ∧ Q then P :=
 		by eq_prop1[OF and_def][OF PQ];
 	- for P Q, if PQ: P ∧ Q then Q :=
@@ -47,14 +47,17 @@ interpret TypeFreeIntuitionistic :=
 		unfold and_def;
 		- for R, if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R :=
 			by imp[OF PQ QP];
-		qed;
+		done;
 	- for P Q, if PQ: P ⟺ Q then P ⟹ Q :=
 		apply PQ[unfolded iff_def and_def];
+		- if PQ: P ⟹ Q :=
+			by PQ;
 		done;
 	- for P Q, if PQ: P ⟺ Q then Q ⟹ P :=
-		show and: (P ⟹ Q) ∧ (Q ⟹ P) :=
-			by eq_prop1[OF iff_def PQ];
-		by and_elim2[OF and];
+		apply PQ[unfolded iff_def and_def];
+		- if PQ: P ⟹ Q, QP: Q ⟹ P :=
+			by QP;
+		done;
 
 	- if P: P then P ∨ Q :=
 		show 1: if PR: P ⟹ R, QR: Q ⟹ R then R :=
@@ -67,37 +70,30 @@ interpret TypeFreeIntuitionistic :=
 	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R :=
 		by eq_prop1[OF or_def PQ PR QR];
 
-oops
-interpret True :=
-	substitute true :=
-		unfold true_def;
+	- for α x, if ax: α.[x] then ∃x. α.[x] :=
+		unfold ex_def;
+		- for P, if all: ∀x. α.[x] ⟹ P :=
+			by all[OF ax];
 		done;
-	end;
-
-interpret False :=
-	end;
-
-interpret MinimalNot false (¬) :=
-	end;
-
-
-interpret And (∧) :=
-	end;
-
-
-interpret Iff (⟺) :=
-	end;
-
-interpret PositiveLogic;
+	- if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
+		just ex[unfolded ex_def];
+	done;
 
 setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
 setup dual iff.sym;
 setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_all;
 
-
-
-interpret Or (∨) :=
-	end;
+interpret eq_iff: MetaCommutative (=) (⟺) :=
+	- x = y ⟺ y = x :=
+		apply iff_intro;
+		- if xy: x = y :=
+			unfold xy;
+			done;
+		- if yx: y = x :=
+			unfold yx;
+			done;
+		done;
+	done;
 
 show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 	apply not_intro;
@@ -118,8 +114,8 @@ show russel_paradox: ¬(∀P. P ∨ ¬P) :=
 				unfold eq;
 				by nRR;
 			by not_imp_false[OF nRR RR];
-		qed;
-	qed;
+		done;
+	done;
 
 
 define (neq_def) x ≠ y := ¬ x = y;
@@ -147,16 +143,32 @@ show true_neq_false: true ≠ false :=
 	- if tf: true = false then false :=
 		fold tf;
 		done;
-	qed;
+	done;
 
 
-interpret Ex (∃) :=
-	- for α x, if ax: α.[x] then ∃x. α.[x] :=
-		unfold ex_def;
-		- for P, if all: ∀x. α.[x] ⟹ P :=
-			by all[OF ax];
-		qed;
-	- if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
-		just ex[unfolded ex_def];
-	end;
+prefix ∃! 0 0;
+
+define (ex1_def) (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y);
+
+show ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x] :=
+	unfold ex1_def;
+	apply ex_intro1(x);
+	apply and_intro;
+	by x 1;
+
+show ex1_elim:
+	if ex1: ∃!x. α.[x], body: ∀x. α.[x] ⟹ (∀y. α.[y] ⟹ x = y) ⟹ P
+	then P
+:=
+	obtain x where and: (α.[x]) ∧ (∀y. α.[y] ⟹ x = y) :=
+		- for thesis :=
+			just ex1[unfolded+ ex1_def ex_def];
+		done;
+	show ax: α.[x] :=
+		by and_elim1[OF and];
+	show 1: ∀y. α.[y] ⟹ x = y :=
+		by and_elim2[OF and];
+	by body[OF ax 1];
+
+
 

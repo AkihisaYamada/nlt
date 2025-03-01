@@ -68,7 +68,7 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	void add_rule( Rules& rules, Thm const& thm, bool rev = false ) const;
+	void add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool rev = false ) const;
 	void register_imp( Thm const& thm, bool dir );
 	void register_refl(Thm const& thm);
 	void register_trans(Thm const& thm);

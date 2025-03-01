@@ -2,19 +2,21 @@
 
 using namespace std;
 
+const Error Parser::Error = ::Error("#parser");
+
 Opt<string> Parser::gets_thm_name() {
 	string ret;
 	switch( _lexer->next_token_type() ) {
 		case Lexer::Dots:
-			ret = _lexer->get_token();
+			ret = _lexer->get();
 			if( _lexer->next_token_type() == Lexer::Word ) {
-				ret += _lexer->get_token();
+				ret += _lexer->get();
 			}
 			break;
 		case Lexer::Word:
-			ret = _lexer->get_token();
+			ret = _lexer->get();
 			break;
-		case Lexer::Number: return _lexer->get_token();
+		case Lexer::Number: return _lexer->get();
 		default: return {};
 	}
 	for(;;) {
@@ -25,7 +27,7 @@ Opt<string> Parser::gets_thm_name() {
 		if( _lexer->next_token_type() != Lexer::Word ) {
 			return ret;
 		}
-		ret += _lexer->get_token();
+		ret += _lexer->get();
 	}
 }
 string Parser::get_thm_name() {
@@ -36,6 +38,13 @@ string Parser::get_thm_name() {
 	}
 }
 
+Term Parser::nest_abs( Term const& bind, int level ) {
+	if( auto next = gets(Word) ) {
+		return bind( *next /= nest_abs(bind,level) );
+	}
+	skip(".");
+	return get_term(level);
+}
 Opt<Term> Parser::gets_term(int level) {
 	string_view peek = _lexer->peek_token();
 	if( peek == "" || _syntax->has_closer(peek) ) {
@@ -55,6 +64,25 @@ Opt<Term> Parser::gets_term(int level) {
 		if( auto const& r = gets_term(x->second.rlevel) ) {
 			ret = ret(*r);
 		}
+	} else if( auto x = _syntax->finds_binder(peek) ) {
+		if( x->second.llevel < level ) {
+			return {};
+		}
+		_lexer->ignore_token();
+		if( auto var = _lexer->gets(Word) ) {
+			auto follow = _lexer->get();
+			if( follow == "." ) {
+				ret = Term(x->first)( *var /= get_term(x->second.rlevel) );
+			} else if( auto y = x->second.mids.finds(follow) ) {
+				auto sym = y->second;
+				auto typ = get_term();
+				_lexer->skip(".");
+				auto body = get_term(x->second.rlevel);
+				ret = Term(sym)(typ)(*var/=body);
+			} else {
+				ret = Term(x->first)( *var /= nest_abs(x->first,x->second.rlevel) );
+			}
+		}
 	} else if( auto x = _syntax->finds_infix(peek) ) {
 		if( x->second.level < level ) {
 			return {};
@@ -62,17 +90,15 @@ Opt<Term> Parser::gets_term(int level) {
 		ret = Term(x->first);
 		_lexer->ignore_token();
 	} else {
-		string sym(peek);
+		auto sym = string(peek);
 		_lexer->ignore_token();
-		if( _lexer->skips(".") ) {
-			if( auto const& t = gets_term(level) ) {
-				ret = sym /= *t;
-			}
+		if( level < 0 && _lexer->skips(".") ) {
+			auto t = gets_term(level);
+			if( !t ) throw Error("\"abstraction expects body\"");
+			ret = sym /= *t;
 		} else if( _lexer->skips(".[") ) {
 			auto const& t = gets_term(-1000);
-			if( !t ) {
-				throw Error("#term");
-			}
+			if( !t ) throw Error("\"fix expects body\"");
 			ret = sym %= *t;
 			_lexer->skip("]");
 		} else {

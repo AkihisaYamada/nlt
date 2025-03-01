@@ -58,6 +58,9 @@ public:
 	};
 	static Error const NoGoal;
 	static Error const Unapplicable;
+	static Rule just( Thm const& thm ) {
+		return Rule(thm.weaken(thm.ctxt().branch()));
+	}
 	/** @brief Makes implication a rule. */
 	static Rule imp( Thm const& thm );
 	/** @brief Makes a theorem into a rule. */
@@ -114,12 +117,12 @@ public:
 	}
 	/** @brief Tries to apply a rule once */
 	void apply( Rule const& rule ) & {
-		auto g = goal().weaken(_thm.ctxt().branch());
+		auto g = strip_all(goal());
 		if( !_apply(rule,g) ) throw Unapplicable(g)(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Rule> const& rules ) & {
-		auto g = goal().weaken(_thm.ctxt().branch());
+		auto g = strip_all(goal());
 		if( !_apply(rules,g) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */

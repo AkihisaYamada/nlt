@@ -30,19 +30,24 @@ Opt<string const&> gets_binary_sym( Term const& term ) {
 }
 Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 
-void Rewriter::add_rule( Rules& rules, Thm const& thm, bool rev ) const {
+void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
-	Ctxt loc = thm.ctxt().branch();
-	Thm body = strip_all(thm,loc,fresh_maker());
+	Locale subloc = loc.branch();
+	Thm body = strip_all(thm,subloc,fresh_maker());
 	while( auto imp = body.cbinary(IMP) ) {
-		body = body.impE(loc.assume(imp->first));
+		Thm assm = subloc.assume(imp->first);
+		add_concluder(subloc,assm);
+		body = body.impE(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
 		if( rev ) {
 			auto const& dual = _duals.finds(*ind);
 			if( !dual ) throw Error("\"no dual rule registered\"");
-			Thm dual_thm = dual->second.thm.weaken(loc) << body;
+			Thm dual_thm = dual->second.thm.weaken(subloc) << body;
+			while( auto o = blasts(dual_thm,subloc) ) {
+				dual_thm = *o;
+			}
 			rules[dual->second.ind].emplace_back(get<2>(*bin),dual_thm);
 		} else {
 			rules[*ind].emplace_back(get<1>(*bin),body);

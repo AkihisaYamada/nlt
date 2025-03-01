@@ -21,10 +21,7 @@ public:
 	std::string location() const {
 		return _lexer->location();
 	}
-	struct Error : std::exception {
-		std::string message;
-		Error(std::string const& message) : message(message) {}
-	};
+	static const Error Error;
 	Parser( Lexer& lexer, Syntax const& syntax ) :
 		_lexer(&lexer), _syntax(&syntax) {
 //		assert( &lexer.get_lex() == &syntax );
@@ -43,6 +40,7 @@ public:
 	std::string get_thm_name();
 	Opt<Term> gets_term(int level = 0);
 	Term get_term(int level = 0);
+	Term nest_abs( Term const& bind, int level );
 };
 
 #endif

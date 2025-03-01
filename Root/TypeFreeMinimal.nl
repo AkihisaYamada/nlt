@@ -28,7 +28,7 @@ assume or_intro2: Q ⟹ P ∨ Q;
 assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 fix (∃);
-assume ex_intro1: ∀x. ∀α. α.[x] ⟹ ∃x. α.[x];
+assume ex_intro1: ∀x α. α.[x] ⟹ ∃x. α.[x];
 assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
 
 finalize;
@@ -48,7 +48,7 @@ interpret iff: MetaEquivalence (⟺) :=
 		note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
 		note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 		by iff_intro[OF PR RP];
-	end;
+	done;
 note #concl: iff.refl;
 
 show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
@@ -57,7 +57,7 @@ show iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		by iff_elim1[OF RS] PR iff_elim2[OF PQ];
 	- if QS: Q ⟹ S, [P] then R :=
 		by iff_elim2[OF RS] QS iff_elim1[OF PQ];
-	qed;
+	done;
 
 show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
 	apply iff_intro;
@@ -69,7 +69,7 @@ show iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
 		show PS: P ⟺ S :=
 			by iff.trans[OF PQ QS];
 		by iff.trans[OF PS iff.sym[OF RS]];
-	qed;
+	done;
 
 show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
 	apply iff_intro;
@@ -77,7 +77,7 @@ show iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x.
 		by iff_elim1[OF ab];
 	- if [∀x. β.[x]] then ∀x. α.[x] :=
 		by iff_elim2[OF ab];
-	qed;
+	done;
 
 setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
 setup dual iff.sym;
@@ -86,7 +86,7 @@ setup cong iff_cong_imp iff_cong_iff iff_cong_all;
 interpret iff_iff: MetaCommutative (⟺) (⟺) :=
 	- (P ⟺ Q) ⟺ (Q ⟺ P) :=
 		by iff_intro[OF iff.sym iff.sym];
-	end;
+	done;
 
 show imp_imp_iff: if [P] then (P ⟹ Q) ⟺ Q :=
 	apply iff_intro;
@@ -99,7 +99,7 @@ show imp_iff_iff: if [P] then (P ⟺ Q) ⟺ Q :=
 	- if PQ: P ⟺ Q :=
 		by iff_elim1[OF PQ];
 	- := by iff_intro;
-	qed;
+	done;
 
 show all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P :=
 	apply iff_intro;
@@ -109,15 +109,15 @@ show all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P :=
 	- if [P] :=
 		- for Q, if PQ: P ⟹ Q :=
 			by PQ;
-		qed;
-	qed;
+		done;
+	done;
 
 show imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q) :=
 	apply iff_intro;
 	- := just imp2_imp_imp;
 	- if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q :=
 		by PQQ[OF PQ];
-	qed;
+	done;
 
 show imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]) :=
 	by iff_intro[OF imp_all all_imp];
@@ -128,7 +128,7 @@ show imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q :=
 		by iff_elim1[OF PQ];
 	- if [Q] :=
 		by iff_intro;
-	qed;
+	done;
 
 show iff_true: if [P] then P ⟺ true :=
 	by iff_intro;
@@ -147,7 +147,7 @@ show true_iff_iff: (true ⟺ P) ⟺ P :=
 	- if P: P :=
 		unfold iff_true[OF P];
 		done;
-	qed;
+	done;
 
 show iff_true_iff: (P ⟺ true) ⟺ P :=
 	unfold[0] iff_iff.commute;
@@ -160,12 +160,12 @@ show iff_true_iff: (P ⟺ true) ⟺ P :=
 interpret and: MetaSymmetric (∧) :=
 	- if PQ: P ∧ Q then Q ∧ P :=
 		by and_intro and_elim2[OF PQ] and_elim1[OF PQ];
-	end;
+	done;
 
 show and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R :=
 	- for R, if PQR: P ⟹ Q ⟹ R :=
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ];
-	qed;
+	done;
 
 show and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R) :=
 	apply iff_intro;
@@ -173,7 +173,7 @@ show and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R) :=
 	- if all: ∀R. (P ⟹ Q ⟹ R) ⟹ R :=
 		apply all;
 		by and_intro;
-	qed;
+	done;
 
 show iff_cong_and: if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S :=
 	apply iff_intro;
@@ -183,22 +183,22 @@ show iff_cong_and: if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S :=
 			by iff_elim1[OF PQ] and_elim1[OF PR];
 		- :=
 			by iff_elim1[OF RS] and_elim2[OF PR];
-		qed;
+		done;
 	- if QS: Q ∧ S :=
 		apply and_intro;
 		- :=
 			by iff_elim2[OF PQ] and_elim1[OF QS];
 		- :=
 			by iff_elim2[OF RS] and_elim2[OF QS];
-		qed;
-	qed;
+		done;
+	done;
 
 setup cong iff_cong_and;
 
 interpret and_iff: MetaCommutative (∧) (⟺) :=
 	- P ∧ Q ⟺ Q ∧ P :=
 		by iff_intro[OF and.sym and.sym];
-	end;
+	done;
 
 interpret and_iff: MetaAssociative (∧) (⟺) :=
 	- P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
@@ -218,8 +218,8 @@ interpret and_iff: MetaAssociative (∧) (⟺) :=
 			show! R :=
 				by and_elim2[OF and_elim2[OF PQR]];
 			done;
-		qed;
-	end;
+		done;
+	done;
 
 show and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R) :=
 	apply iff_intro;
@@ -227,7 +227,7 @@ show and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R) :=
 		by imp and_intro;
 	- if imp: P ⟹ Q ⟹ R, and: P ∧ Q then R :=
 		by imp and_elim1[OF and] and_elim2[OF and];
-	qed;
+	done;
 
 show true_and_iff: true ∧ P ⟺ P :=
 	apply iff_intro;
@@ -251,7 +251,7 @@ show iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P) :=
 	- if and: (P ⟹ Q) ∧ (Q ⟹ P) :=
 		apply and_elim[OF and];
 		just iff_intro;
-	qed;
+	done;
 
 ---
 ### Negation
@@ -261,7 +261,7 @@ show imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q) :=
 	apply not_intro;
 	- if PQ: P ⟹ Q :=
 		by not_imp_false[OF nQ] PQ;
-	qed;
+	done;
 
 show imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P :=
 	apply not_intro;
@@ -273,7 +273,7 @@ show imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P :=
 		show nQ: ¬Q :=
 			by PnQ;
 		by not_imp_false[OF nQ];
-	qed;
+	done;
 
 show not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]) :=
 	by not_intro not_imp_false[OF nax];
@@ -313,7 +313,7 @@ show false_and_false_iff: false ∧ false ⟺ false :=
 	apply iff_intro;
 	- := just and_elim1;
 	- := by and_intro;
-	qed;
+	done;
 
 show false_imp_false_iff: (false ⟹ false) ⟺ true :=
 	by iff_true[OF imp.refl];
@@ -322,13 +322,13 @@ show nand_intro1: if nP: ¬P then ¬(P ∧ Q) :=
 	apply not_intro;
 	- if PQ: P ∧ Q then false :=
 		by not_imp_false[OF nP and_elim1[OF PQ]];
-	qed;
+	done;
 
 show nand_intro2: if nQ: ¬Q then ¬(P ∧ Q) :=
 	apply not_intro;
 	- if PQ: P ∧ Q then false :=
 		by not_imp_false[OF nQ and_elim2[OF PQ]];
-	qed;
+	done;
 
 show nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q) :=
 	unfold+ not_iff_imp_false and_imp_iff;
@@ -338,7 +338,7 @@ show nnot_intro: if [P] then ¬¬P :=
 	apply not_intro;
 	- if nP: ¬P :=
 		by not_imp_false[OF nP];
-	qed;
+	done;
 
 show nnot_imp: if imp: ¬¬P ⟹ Q, [P] then Q :=
 	by imp nnot_intro;
@@ -349,7 +349,7 @@ show nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q :=
 		show! ¬P :=
 			by imp_not_imp[OF PQ];
 		by not_imp_false[OF nnP];
-	qed;
+	done;
 
 show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
 	apply not_intro;
@@ -357,8 +357,8 @@ show nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
 		apply+ not_imp_false[OF nnPQ] not_intro;
 		- if PQ: P ⟹ Q :=
 			by not_imp_false[OF nQ] PQ;
-		qed;
-	qed;
+		done;
+	done;
 
 show nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
 	apply not_intro;
@@ -366,7 +366,7 @@ show nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
 		show nnQ: ¬¬Q :=
 			by nnot_imp_nnot[OF nnP PQ];
 		by not_imp_false[OF nnQ];
-	qed;
+	done;
 
 show nnnot_iff: ¬¬¬P ⟺ ¬P :=
 	unfold+ not_iff_imp_false;
@@ -386,7 +386,7 @@ show or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q :=
 interpret or: MetaSymmetric (∨) :=
 	- if PQ: P ∨ Q then Q ∨ P :=
 		by or_elim[OF PQ or_intro2 or_intro1];
-	end;
+	done;
 
 show iff_cong_or: if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S :=
 	apply iff_intro;
@@ -410,13 +410,13 @@ show ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x] :=
 	apply assm;
 	- for x :=
 		just ex_intro1;
-	qed;
+	done;
 
 show ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P :=
 	apply ex_elim[OF ex];
 	- for x, if imp: α.[x] ⟹ P :=
 		by imp;
-	qed;
+	done;
 
 show raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R) :=
 	apply iff_intro;
@@ -426,17 +426,17 @@ show raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R)
 			apply or_imp;
 			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
 				by PS;
-			qed;
+			done;
 		- if [Q] :=
 			apply or_imp;
 			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
 				by QS;
-			qed;
-		qed;
+			done;
+		done;
 	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) :=
 		apply or;
 		just and_elim1[OF and] and_elim2[OF and];
-	qed;
+	done;
 
 show all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]) :=
 	apply iff_intro;
@@ -446,27 +446,27 @@ show all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]
 			by and_elim1[OF ab];
 		- for x :=
 			by and_elim2[OF ab];
-		qed;
+		done;
 	unfold and_imp_iff;
 	- if [∀x. α.[x], ∀x. β.[x]] :=
 		by and_intro;
-	qed;
+	done;
 
 show all_imp_iff_raw_ex: (∀x. α.[x] ⟹ P) ⟺ (∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q) ⟹ P :=
 	apply iff_intro;
 	- if imp: ∀x. α.[x] ⟹ P, ex: ∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q :=
 		obtain x where ax: α.[x] :=
 			- for P := just ex;
-			qed;
+			done;
 		by imp[OF ax];
 	- if imp: (∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q) ⟹ P :=
 		- for x, if ax: α.[x] :=
 			apply imp;
 			- for Q, if all: ∀x. α.[x] ⟹ Q :=
 				by all[OF ax];
-			qed;
-		qed;
-	qed;
+			done;
+		done;
+	done;
 
 
 ---
@@ -517,8 +517,8 @@ show nnall_imp: if nnall: ¬¬(∀x. α.[x]) then (∀x. ¬¬α.[x]) :=
 		apply not_intro;
 		- if nax: ¬α.[x] :=
 			by not_imp_false[OF nnall] not_imp_not_all[OF nax];
-		qed;
-	qed;
+		done;
+	done;
 
 ---
 The other direction is provable if inside the quantification has negation.

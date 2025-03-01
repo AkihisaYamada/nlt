@@ -16,12 +16,12 @@ obtain false where false_elim: ∀P. false ⟹ prop P ⟹ P, [prop false] :=
 			apply f;
 			done;
 		done;
-	qed;
+	done;
 
 interpret false: Member prop false :=
 	- prop false :=
 		done;
-	end;
+	done;
 
 import TypedMinimalLogic;
 
