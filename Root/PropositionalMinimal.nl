@@ -416,12 +416,7 @@ interpret or: Symmetric prop (∨) :=
 
 interpret or_iff: Commutative prop (∨) (⟺) :=
 	- if [prop P, prop Q] then P ∨ Q ⟺ Q ∨ P :=
-		apply iff_intro;
-		- if PQ: P ∨ Q :=
-			by or.sym[OF PQ];
-		- if QP: Q ∨ P :=
-			by or.sym[OF QP];
-		done;
+		by iff_intro or_intro #elim or_elim;
 	done;
 
 interpret or_iff: Associative prop (∨) (⟺) :=
@@ -465,12 +460,8 @@ lemma or_imp_iff:
 :=
 	apply iff_intro;
 	- if nor: P ∨ Q ⟹ R :=
-		apply and_intro;
-		- by nor or_intro1;
-		- by nor or_intro2;
-		done;
-	- by #elim or_elim and_elim;
-	done;
+		by and_intro nor or_intro;
+	by #elim or_elim and_elim;
 
 lemma nor_iff: if [prop P, prop Q] then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q :=
 	unfold+ not_iff_imp_false;
@@ -497,14 +488,11 @@ lemma or_imp_nand: if PQ: P ∨ Q, [prop P, prop Q] then ¬(¬P ∧ ¬Q) :=
 
 lemma false_or_false_iff: false ∨ false ⟺ false :=
 	apply iff_intro;
-	- if or: false ∨ false then false :=
-		apply or_elim[OF or];
-		done;
-	by or_intro1;
+	by or_intro1 #elim or_elim;
 
 lemma true_or: if [prop P] then true ∨ P :=
-	by or_intro1[OF true_intro];
+	by or_intro1;
 
 lemma or_true: if [prop P] then P ∨ true :=
-	by or_intro2[OF true_intro];
+	by or_intro2;
 

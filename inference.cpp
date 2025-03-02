@@ -183,6 +183,7 @@ bool Inference::_blast(
 							return thesis._apply_blast(fuel,goal,Intro::rule(thm),intros,elims,extra);
 						} ) ) {
 							if( fail ) return false;
+							DEB(subloc.print_thms(WEAK));
 							DEB(subloc.print_thms(EXACT));
 							throw Error("\"failed to blast\"")(goal);
 						}
