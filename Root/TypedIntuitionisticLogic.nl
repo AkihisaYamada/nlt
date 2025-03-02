@@ -5,6 +5,6 @@
 base Root;
 
 import TypedMinimalLogic;
-import IntuitionisticPropositionalLogic;
+import PropositionalIntuitionistic;
 
 finalize;

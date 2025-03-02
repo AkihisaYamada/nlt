@@ -66,7 +66,7 @@ int main() try {
 		loc.fix("thesis");
 		Thm assm = loc.assume("true" &= True >>= thesis);
 		Thm imp_refl2 = imp_refl.weaken(loc);
-		return Root.obtain("true",assm.allE(imp_refl2).impE(imp_refl2).intro()).second;
+		return Root.obtain("true",assm.instantiate(imp_refl2).discharge(imp_refl2).intro()).second;
 	}();
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
 	cout << "context Root:\n" << Root << endl;
@@ -85,8 +85,8 @@ int main() try {
 		loc.fix("P");
 		loc.fix("Q");
 		Thm assm = loc.assume("R" &= (p >>= q >>= r) >>= r);
-		Thm lem = andI1.weaken(loc).allE(p).allE(q);
-		return assm.allE(loc.cterm(p & q)).impE(lem).intro();
+		Thm lem = andI1.weaken(loc).instantiate(p).instantiate(q);
+		return assm.instantiate(loc.cterm(p & q)).discharge(lem).intro();
 	}();
 	cout << "proved andI: " << andI << endl;
 	Thm andE = [&]{
@@ -94,12 +94,12 @@ int main() try {
 		loc.fix("P");
 		loc.fix("Q");
 		Thm pq = loc.assume(p & q);
-		Thm P = andE1.weaken(loc).allE(p).allE(q).impE(pq);
-		Thm Q = andE2.weaken(loc).allE(p).allE(q).impE(pq);
+		Thm P = andE1.weaken(loc).instantiate(p).instantiate(q).discharge(pq);
+		Thm Q = andE2.weaken(loc).instantiate(p).instantiate(q).discharge(pq);
 		Ctxt loc2 = loc.branch();
 		loc2.fix("R");
 		Thm pqr = loc2.assume(p >>= q >>= r);
-		return pqr.impE(P.weaken(loc2)).impE(Q.weaken(loc2)).intro().intro();
+		return pqr.discharge(P.weaken(loc2)).discharge(Q.weaken(loc2)).intro().intro();
 	}();
 	cout << "proved andE: " << andE << endl;
 	cout << "\n--- Iff ---" << endl;
@@ -124,16 +124,16 @@ int main() try {
 		Thm p_r = [&]{
 			Ctxt loc2 = loc.branch();
 			Thm P = loc2.assume(p);
-			Thm Q = iffE1.weaken(loc2).allE(p).allE(q).impE(pq.weaken(loc2)).impE(P);
-			return iffE1.weaken(loc2).allE(q).allE(r).impE(qr.weaken(loc2)).impE(Q).intro();
+			Thm Q = iffE1.weaken(loc2).instantiate(p).instantiate(q).discharge(pq.weaken(loc2)).discharge(P);
+			return iffE1.weaken(loc2).instantiate(q).instantiate(r).discharge(qr.weaken(loc2)).discharge(Q).intro();
 		}();
 		Thm r_p = [&]{
 			Ctxt loc2 = loc.branch();
 			Thm R = loc2.assume(r);
-			Thm Q = iffE2.weaken(loc2).allE(q).allE(r).impE(qr.weaken(loc2)).impE(R);
-			return iffE2.weaken(loc2).allE(p).allE(q).impE(pq.weaken(loc2)).impE(Q).intro();
+			Thm Q = iffE2.weaken(loc2).instantiate(q).instantiate(r).discharge(qr.weaken(loc2)).discharge(R);
+			return iffE2.weaken(loc2).instantiate(p).instantiate(q).discharge(pq.weaken(loc2)).discharge(Q).intro();
 		}();
-		return iffI1.weaken(loc).allE(p).allE(r).impE(p_r).impE(r_p).intro();
+		return iffI1.weaken(loc).instantiate(p).instantiate(r).discharge(p_r).discharge(r_p).intro();
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
 	cout << "\n--- PropLogic ---" << endl;
@@ -160,9 +160,9 @@ int main() try {
 		Ctxt loc = Logic.branch();
 		loc.fix("P");
 		loc.fix("Q");
-		Thm I = Logic_And.subst(andI).weaken(loc).allE(p).allE(q);
-		Thm E = Logic_And.subst(andE).weaken(loc).allE(p).allE(q);
-		return Logic_Iff.subst(iffI1).weaken(loc).allE(p & q).allE("R" &= (p >>= q >>= r) >>= r).impE(E).impE(I).intro();
+		Thm I = Logic_And.subst(andI).weaken(loc).instantiate(p).instantiate(q);
+		Thm E = Logic_And.subst(andE).weaken(loc).instantiate(p).instantiate(q);
+		return Logic_Iff.subst(iffI1).weaken(loc).instantiate(p & q).instantiate("R" &= (p >>= q >>= r) >>= r).discharge(E).discharge(I).intro();
 	}();
 	cout << "proved and_iff: " << and_iff << endl;
 	Thm and_imp_iff = [&]{
@@ -171,9 +171,9 @@ int main() try {
 		loc.fix("Q");
 		Thm assm = loc.assume((p >>= q) & (q >>= p));
 		Term PQ = (p >>= q);
-		Thm pq = Logic_And.subst(andE1).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
-		Thm qp = Logic_And.subst(andE2).weaken(loc).allE(p>>=q).allE(q>>=p).impE(assm);
-		return Logic_Iff.subst(iffI1).weaken(loc).allE(p).allE(q).impE(pq).impE(qp).intro();
+		Thm pq = Logic_And.subst(andE1).weaken(loc).instantiate(p>>=q).instantiate(q>>=p).discharge(assm);
+		Thm qp = Logic_And.subst(andE2).weaken(loc).instantiate(p>>=q).instantiate(q>>=p).discharge(assm);
+		return Logic_Iff.subst(iffI1).weaken(loc).instantiate(p).instantiate(q).discharge(pq).discharge(qp).intro();
 	}();
 	cout << "proved and_imp_iff: " << and_imp_iff << endl;
 	cout << "=== core test is done ===" << endl;

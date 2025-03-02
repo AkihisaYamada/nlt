@@ -215,7 +215,7 @@ Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer ) {
 		auto [v,b] = *all;
 		auto nv = renamer(v);
 		if( !nv ) break;
-		thm = thm.allE(ctxt.fix(*nv));
+		thm = thm.instantiate(ctxt.fix(*nv));
 	}
 	return thm;
 }
@@ -255,7 +255,7 @@ Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	if( !m ) {
 		return {};
 	}
-	rule = rule.impE(rule_ctxt.assume(imp->first));
+	rule = rule.discharge(rule_ctxt.assume(imp->first));
 	auto intp = Intp(rule_ctxt,ctxt);
 	subst_intp(intp,*m);
 	auto const& assm = intp.assuming();

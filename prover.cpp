@@ -189,7 +189,7 @@ public:
 		for(;;) {
 			if( _parser.skips("(") ) {
 				do {
-					ret = ret.allE(loc.enclose(_parser.get_term(-1)));
+					ret = ret.instantiate(loc.enclose(_parser.get_term(-1)));
 				} while( _parser.skips(",") );
 				_parser.skip(")");
 			} else if( _parser.skips("[") ) {

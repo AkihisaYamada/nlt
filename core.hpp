@@ -774,29 +774,29 @@ public:
 	 * @return Thm P(t)
 	 * @exception MalformedIntpantiation
 	 */
-	Thm allE(Term const& t) const {
+	Thm instantiate(Term const& t) const {
 		return _allE(_ctxt.cterm(t));
 	}
-	Thm allE(CTerm const& t) const {
+	Thm instantiate(CTerm const& t) const {
 		if( t._ctxt != _ctxt ) {
 			throw WrongContext("allE");
 		}
 		return _allE(t);
 	}
-	/** @brief implication elimination. This theorem must be of form P ⟹ Q.
+	/** @brief implication elimination.
 	 * 
-	 * @param t must be alpha equal to P and in the same context as this.
-	 * @return Thm Q.
+	 * @param t the premise.
+	 * @return The conclusion if this theorem is an implication whose premise is t. None otherwise.
 	 * @exception MalformedDischarge
 	 * @exception WrongContext
 	 */
-	Thm impE(Thm const& t) const {
-		if( auto o = impEs(t) ) {
+	Opt<Thm> discharges(Thm const& t) const;
+	Thm discharge(Thm const& t) const {
+		if( auto o = discharges(t) ) {
 			return *o;
 		}
 		throw MalformedDischarge(*this)(t);
 	}
-	Opt<Thm> impEs(Thm const& t) const;
 	/** @brief Moves the theorem to the parent context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.

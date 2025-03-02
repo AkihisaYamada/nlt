@@ -324,7 +324,7 @@ Thm Thm::_allE(CTerm const& t) const {
 	throw MalformedInstantiation(*this,t);
 }
 
-Opt<Thm> Thm::impEs(Thm const& t) const {
+Opt<Thm> Thm::discharges(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) {
 		throw WrongContext("impE");
 	}

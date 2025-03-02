@@ -39,7 +39,7 @@ pair<string,Thm> Definer::define(Locale& loc, Term const& l, Term const& r, Opt<
 	auto sub = loc.branch();
 	sub.fix(thesis);
 	Thm thm = sub.assume( f &= rule >>= thesis );// (∀f x... l = r) ⟹ thesis
-	thm = thm.allE(t);// (∀x... l[f:=t] = r) ⟹ thesis
+	thm = thm.instantiate(t);// (∀x... l[f:=t] = r) ⟹ thesis
 	thm = rewriter->rewrite(beta,sub,thm,Rewriter::Ctrl{EQ,{0,1},steps,steps,true});// (∀x... r = r) ⟹ thesis
 	thm = thm << refl.weaken(sub);// thesis
 	thm = thm.intro();// ((∀f x... l = r) ⟹ thesis) ⟹ thesis

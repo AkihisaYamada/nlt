@@ -360,15 +360,15 @@ Thm discharge(Thm thm, Thm arg) {
 	arg = arg.weaken(discharger_ctxt);
 	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		arg = arg.allE( discharger_ctxt.cterm( val ? *val : Term(x) ) );
+		arg = arg.instantiate( discharger_ctxt.cterm( val ? *val : Term(x) ) );
 	});
 	arg = arg.intro();
 	thm = thm.weaken(ret_ctxt);
 	iter_local_vars(thm_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		thm = thm.allE( ret_ctxt.cterm( val ? *val : Term(x) ) );
+		thm = thm.instantiate( ret_ctxt.cterm( val ? *val : Term(x) ) );
 	});
-	thm = thm.impE(arg);
+	thm = thm.discharge(arg);
 	thm = thm.intro();
 	return thm;
 }

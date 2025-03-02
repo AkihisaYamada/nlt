@@ -45,7 +45,7 @@ void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool r
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subloc.assume(imp->first);
 		add_forced(subloc,assm);
-		body = body.impE(assm);
+		body = body.discharge(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
@@ -217,7 +217,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					ret = *o;
 					success = true;
 				} else {
-					Thm refl = _refls[ind_i].weaken(source_ctxt).allE(*si);
+					Thm refl = _refls[ind_i].weaken(source_ctxt).instantiate(*si);
 					while( auto o = blasts(refl,loc) ) {
 						refl = *o;
 					}
@@ -270,7 +270,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					for(;;) {// remaining variables are instantiated as is
 						i++;
 						if( i == var_end ) break;
-						ret = ret << _refls[cong.inds[i]].weaken(source_ctxt).allE(*m->get(*pat_ctxt.fixed(i)));
+						ret = ret << _refls[cong.inds[i]].weaken(source_ctxt).instantiate(*m->get(*pat_ctxt.fixed(i)));
 					}
 					while( auto o = blasts(ret,loc) ) {// blast conditions
 						ret = *o;
@@ -281,7 +281,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 				if( i == var_end ) {
 					return {};
 				}
-				auto ref = _refls[ind_i].weaken(source_ctxt).allE(*si);
+				auto ref = _refls[ind_i].weaken(source_ctxt).instantiate(*si);
 				while( auto o = blasts(ref,loc) ) {
 					ref = *o;
 				}
@@ -313,13 +313,13 @@ pair<Thm,size_t> Rewriter::_steps(
 ) const {
 	Ctxt const& source_ctxt = source.ctxt();
 	Thm lrefl = _refls[ind].weaken(source_ctxt);// ∀P. conds ⟹ P = P
-	Thm eq = lrefl.allE(source);
+	Thm eq = lrefl.instantiate(source);
 	while( auto o = blasts(eq,loc) ) {
 		eq = *o;
 	}// source = source
 	auto const& tranp = _trans.finds(ind);
 	if( !tranp ) throw UnregisteredTrans;
-	Thm ltrans = tranp->second.weaken(source_ctxt).allE(source);// ∀Q R. source = Q ⟹ Q = R ⟹ conds... ⟹ source = R
+	Thm ltrans = tranp->second.weaken(source_ctxt).instantiate(source);// ∀Q R. source = Q ⟹ Q = R ⟹ conds... ⟹ source = R
 	auto begin = pos.begin(), end = pos.end();
 	CTerm s = source;
 	for( unsigned int i = 0;; i++ ) {

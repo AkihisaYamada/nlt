@@ -386,6 +386,116 @@ lemma iff_cong_or: if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S :=
 
 setup cong iff_cong_or;
 
+interpret or: MetaSymmetric (∨) :=
+	- if or: P ∨ Q then Q ∨ P :=
+		apply or_elim[OF or];
+		- by or_intro2;
+		- by or_intro1;
+		done;
+	done;
+
+interpret or_iff: MetaCommutative (∨) (⟺) :=
+	- P ∨ Q ⟺ Q ∨ P :=
+		apply iff_intro;
+		- if PQ: P ∨ Q :=
+			by or.sym[OF PQ];
+		- if QP: Q ∨ P :=
+			by or.sym[OF QP];
+		done;
+	done;
+
+interpret or_iff: MetaAssociative (∨) (⟺) :=
+	- P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
+		apply iff_intro;
+		- if PQR: P ∨ Q ∨ R :=
+			apply or_elim[OF PQR];
+			- if PQ: P ∨ Q :=
+				apply or_elim[OF PQ];
+				- by or_intro1;
+				- if [Q] :=
+					apply or_intro2;
+					apply or_intro1;
+					done;
+				done;
+			- if [R] :=
+				apply or_intro2;
+				apply or_intro2;
+				done;
+			done;
+		- if PQR: P ∨ (Q ∨ R) :=
+			apply or_elim[OF PQR];
+			- if [P] :=
+				apply or_intro1;
+				apply or_intro1;
+				done;
+			- if QR: Q ∨ R :=
+				apply or_elim[OF QR];
+				- if [Q] :=
+					apply or_intro1;
+					apply or_intro2;
+					done;
+				by or_intro2;
+			done;
+		done;
+	done;
+
+lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R) :=
+	apply iff_intro;
+	- if nor: P ∨ Q ⟹ R :=
+		apply and_intro;
+		- by nor or_intro1;
+		- by nor or_intro2;
+		done;
+	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: P ∨ Q :=
+		apply or_elim[OF or];
+		- by and_elim1[OF and];
+		- by and_elim2[OF and];
+		done;
+	done;
+
+lemma nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q :=
+	unfold+ not_iff_imp_false;
+	by or_imp_iff;
+
+lemma nnot_nor_iff: ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q) :=
+	unfold+ nor_iff nnnot_iff;
+	by iff.refl;
+
+lemma nor_nnot_iff: ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q) :=
+	unfold+ nor_iff nnnot_iff;
+	by iff.refl;
+
+lemma nnot_excluded_middle: ¬¬(P ∨ ¬P) :=
+	unfold nor_iff;
+	by non_contradiction;
+
+lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q) :=
+	apply not_intro;
+	- if and: ¬P ∧ ¬Q :=
+		show nP: ¬P :=
+			by and_elim1[OF and];
+		show nQ: ¬Q :=
+			by and_elim2[OF and];
+		apply or_elim[OF PQ];
+		- by not_imp_false[OF nP];
+		- by not_imp_false[OF nQ];
+		done;
+	done;
+
+lemma false_or_false_iff: false ∨ false ⟺ false :=
+	apply iff_intro;
+	- if or: false ∨ false then false :=
+		apply or_elim[OF or];
+		done;
+	by or_intro1;
+
+lemma true_or: true ∨ P :=
+	by or_intro1[OF true_intro];
+
+lemma or_true: P ∨ true :=
+	by or_intro2[OF true_intro];
+
+
 --### Existence
 
 lemma ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x] :=

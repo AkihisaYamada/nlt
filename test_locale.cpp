@@ -53,7 +53,7 @@ int main() try {
 		loc.add_assm( "assm", "true" &= TRUE >>= thesis );
 		Thm assm = loc.thm("assm");
 		Thm imp_refl2 = loc.thm("imp.refl");
-		True.obtain( assm.allE(imp_refl2).impE(imp_refl2).intro(), vector{"trueI"}.begin() );
+		True.obtain( assm.instantiate(imp_refl2).discharge(imp_refl2).intro(), vector{"trueI"}.begin() );
 	};
 
 	cout << "locale True: " << True << endl;

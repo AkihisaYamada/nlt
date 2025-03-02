@@ -64,7 +64,7 @@ public:
 		auto imp = body.cbinary(IMP);
 		if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 		Thm premise = ctxt.assume(imp->first);
-		return Elim(premise,body.impE(premise));
+		return Elim(premise,body.discharge(premise));
 	}
 	Opt<CSubst> matches( Thm const& assm ) const {
 		return match( _premise, assm, [&](auto v){ return ctxt().fixes(v); } );
@@ -83,7 +83,7 @@ public:
 		return Intp(ctxt(),tgt);
 	}
 	/** @brief instantiates the rule. */
-	Thm inst( Intp const& intp ) const {
+	Thm subst( Intp const& intp ) const {
 		return intp.subst(_thm);
 	}
 	bool operator<( Elim const& y ) const {
@@ -114,7 +114,6 @@ public:
 		Ctxt ctxt = claim.ctxt().branch();
 		return Inference( loc, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
 	}
-	static Inference claim_strip( Locale const& loc, CTerm const& claim, std::set<Elim> const& elims = {} );
 	Locale const& locale() const& {
 		return _loc;
 	}
@@ -166,12 +165,25 @@ public:
 		if( _goals == 0 ) throw NoGoal;
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
+	void elim( std::set<Elim> const& elims ) &;
 	void blast(
 		size_t& fuel,
 		std::set<Intro> const& intros = {},
 		std::set<Elim> const& elims = {},
 		std::function<bool(Inference&)> extra = [](auto){ return false; }
 	) &;
+	void blast_all(
+		size_t& fuel,
+		std::set<Intro> const& intros = {},
+		std::set<Elim> const& elims = {},
+		std::function<bool(Inference&)> extra = [](auto){ return false; }
+	) & {
+		while( _goals > 0 ) {
+			if( fuel == 0 ) throw Error("\"blast exceeded\"")(*has_goal());
+			blast(fuel,intros,elims,extra);
+		}
+	}
+
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {
@@ -179,7 +191,7 @@ public:
 		_loc = _loc.branch();
 		auto assm = _loc.assume(goal().weaken(_loc));
 		add_forced(_loc,assm);
-		_thm = _thm.weaken(_loc).impE(assm);
+		_thm = _thm.weaken(_loc).discharge(assm);
 		_goals--;
 		return true;
 	}
@@ -193,7 +205,7 @@ public:
 
 private:
 	bool _discharges( Thm const& thm ) & {
-		if( auto o = _thm.impEs(thm) ) {
+		if( auto o = _thm.discharges(thm) ) {
 			_thm = *o;
 			_goals--;
 			return true;
@@ -210,20 +222,48 @@ private:
 	}
 };
 
+inline Thm prove(
+	CTerm const& claim,
+	Locale const& loc,
+	std::set<Intro> const& intros = {},
+	std::set<Elim> const& elims = {},
+	std::function<bool(Inference&)> extra = [](auto){ return false; }
+) {
+	auto x = Inference::claim_exact(loc,claim);
+	size_t fuel = 255;
+	x.blast(fuel,intros,elims,extra);
+	return *x.concluding();
+}
 /**
  * @brief Blasts first assumption of implication.
  * 
  * @param loc the locale which tells blast the lemmas to use
  * @return Thm the conclusion
  */
-Opt<Thm> blasts( Thm const& thesis, Locale const& loc, std::set<Intro> const& rules = {} );
-inline Thm blast( Thm const& thesis, Locale const& loc, std::set<Intro> const& rules = {} ) {
-	auto opt = blasts(thesis,loc,rules);
+inline Opt<Thm> blasts(
+	Thm const& thesis,
+	Locale const& loc,
+	std::set<Intro> const& intros = {},
+	std::set<Elim> const& elims = {},
+	std::function<bool(Inference&)> extra = [](auto){ return false; }
+) {
+	if( auto imp = thesis.cbinary(IMP) ) {
+		return thesis.discharge(prove(imp->first,loc,intros,elims,extra));
+	}
+	return {};
+}
+inline Thm blast(
+	Thm const& thesis,
+	Locale const& loc,
+	std::set<Intro> const& intros = {},
+	std::set<Elim> const& elims = {},
+	std::function<bool(Inference&)> extra = [](auto){ return false; }
+) {
+	auto opt = blasts(thesis,loc,intros,elims,extra);
 	assert(opt);
 	return *opt;
 }
 
-Thm prove( CTerm const& claim, Locale const& loc, std::set<Intro> const& intros = {}, std::set<Elim> const& elims = {} );
 
 
 #endif

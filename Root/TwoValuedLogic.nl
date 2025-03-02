@@ -215,8 +215,11 @@ thm typed.pierces_law;
 
 lemma not_prop_iff: ¬ prop x ⟺ x ≠ true ∧ x ≠ false :=
 	unfold+ prop_def neq_def;
-	unfold(⟺) typed.nor_iff;
+	unfold(⟺) nor_iff;
 	done;
 
-lemma not_prop_elim: if np: ¬ prop P then (P ≠ true ⟹ P ≠ false ⟹ Q) ⟹ Q :=
-	by and_elim[OF np[unfolded(⟺) not_prop_iff]];
+lemma not_prop_elim: if np: ¬ prop P, imp: P ≠ true ⟹ P ≠ false ⟹ Q then Q :=
+	apply and_elim[OF np[unfolded(⟺) not_prop_iff]];
+	just imp;
+
+ctxt;
