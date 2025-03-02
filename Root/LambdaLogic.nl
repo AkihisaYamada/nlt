@@ -70,16 +70,18 @@ interpret TypeFreeIntuitionistic :=
 		show 1: if PR: P ⟹ R, QR: Q ⟹ R then R :=
 			by QR[OF Q];
 		by eq_prop2[OF or_def 1];
-	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R :=
-		by eq_prop1[OF or_def PQ PR QR];
+	- P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) :=
+		unfold or_def;
+		just imp.refl;
 
 	- for α x, if ax: α.[x] then ∃x. α.[x] :=
 		unfold ex_def;
 		- for P, if all: ∀x. α.[x] ⟹ P :=
 			by all[OF ax];
 		done;
-	- if ex: ∃x. α.[x] then (∀x. α.[x] ⟹ P) ⟹ P :=
-		just ex[unfolded ex_def];
+	- (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P :=
+		unfold ex_def;
+		just imp.refl;
 	done;
 
 setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;

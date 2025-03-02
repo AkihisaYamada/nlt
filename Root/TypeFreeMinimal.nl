@@ -25,11 +25,11 @@ assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
 fix (∨);
 assume or_intro1: P ⟹ P ∨ Q;
 assume or_intro2: Q ⟹ P ∨ Q;
-assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 fix (∃);
 assume ex_intro1: for x, α.[x] ⟹ ∃x. α.[x];
-assume ex_elim: (∃x. α.[x]) ⟹ (∀x. α.[x] ⟹ P) ⟹ P;
+assume ex_elim: (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P;
 
 finalize;
 

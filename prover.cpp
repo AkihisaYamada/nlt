@@ -891,7 +891,7 @@ public:
 					_parser.skip(";");
 					size_t fuel = 255;
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(fuel);
+						_thesis->blast(fuel,0);
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("by") ) {
@@ -915,7 +915,7 @@ public:
 					}
 					_parser.skip(";");
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(fuel,intros,elims,extra);
+						_thesis->blast(fuel,1,intros,elims,extra);
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("sorry") ) {

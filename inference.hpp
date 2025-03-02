@@ -166,21 +166,23 @@ public:
 	void elim( std::set<Elim> const& elims ) &;
 	bool blasts(
 		size_t& fuel,
+		size_t trial,
 		std::set<Intro> const& intros = {},
 		std::set<Elim> const& elims = {},
 		std::function<bool(Inference&)> extra = [](auto){ return false; }
 	) & {
 		std::vector<Intro> elim_res;
-		return _blast(fuel,true,intros,elims,extra,elim_res,0);
+		return _blast(fuel,trial,true,intros,elims,extra,elim_res,0);
 	}
 	void blast(
 		size_t& fuel,
+		size_t trial,
 		std::set<Intro> const& intros = {},
 		std::set<Elim> const& elims = {},
 		std::function<bool(Inference&)> extra = [](auto){ return false; }
 	) & {
 		std::vector<Intro> elim_res;
-		_blast(fuel,false,intros,elims,extra,elim_res,0);
+		_blast(fuel,trial,false,intros,elims,extra,elim_res,0);
 	}
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
@@ -220,6 +222,7 @@ private:
 	}
 	bool _apply_blast(
 		size_t& fuel,
+		size_t trial,
 		CTerm const& goal,
 		Intro const& intro,
 		std::set<Intro> const& intros,
@@ -228,6 +231,7 @@ private:
 	) &;
 	bool _blast(
 		size_t& fuel,
+		size_t trial,
 		bool fail,
 		std::set<Intro> const& intros,
 		std::set<Elim> const& elims,
@@ -246,7 +250,7 @@ inline Opt<Thm> proves(
 ) {
 	auto x = Inference::claim_exact(loc,claim);
 	size_t fuel = 255;
-	if( x.blasts(fuel,intros,elims,extra) ) {
+	if( x.blasts(fuel,0,intros,elims,extra) ) {
 		return *x.concluding();
 	}
 	return {};

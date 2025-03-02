@@ -196,8 +196,8 @@ interpret typed: PropositionalClassical :=
 		by or_intro1;
 	- Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q :=
 		by or_intro2;
-	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then prop P ⟹ prop Q ⟹ prop R ⟹ R :=
-		by or_elim[OF PQ PR QR];
+	- P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R :=
+		by #elim or_elim;
 	- if f: false then prop P ⟹ P :=
 		by false_elim[OF f];
 	- if p: prop P then P ∨ ¬P :=

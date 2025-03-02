@@ -77,6 +77,7 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 }
 bool Inference::_apply_blast(
 	size_t& fuel,
+	size_t trial,
 	CTerm const& goal,// belong to _loc
 	Intro const& intro,
 	set<Intro> const& intros,
@@ -95,8 +96,7 @@ bool Inference::_apply_blast(
 	}
 	while( auto const& assm = rule_intp.assuming() ) {// make assumptions
 		Inference thesis = claim_exact(_loc,*assm);
-		size_t fuel = 1;
-		if( !thesis.blasts(fuel,intros,elims,extra) ) return false;
+		if( !thesis.blasts(fuel,trial,intros,elims,extra) ) return false;
 		rule_intp.discharge(thesis._thm);
 	}
 	auto claim = intro.inst(rule_intp);
@@ -129,6 +129,7 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 
 bool Inference::_blast(
 	size_t& fuel,
+	size_t trial,
 	bool fail,
 	set<Intro> const& intros,
 	set<Elim> const& elims,
@@ -146,24 +147,29 @@ bool Inference::_blast(
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
 	auto subloc = _loc.branch();
-	auto goal = strip_all(imp->first,subloc);
+	auto goal = imp->first.weaken(subloc);
 	size_t n_elim_res = 0;
-	while( auto imp = goal.cbinary(IMP) ) {// make assumptions
-		auto assm = subloc.assume(imp->first);
-		goal = imp->second;
-		for( auto elim = elims.begin();; elim++ ) {// checks if an elimination rule matches
-			if( elim == elims.end() ) {
-				// no elimination matches, so just declare the assumption as forced
-				add_forced(subloc,assm);
-				break;
+	for(;;) {
+		goal = strip_all(goal,subloc);
+		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
+			auto assm = subloc.assume(imp->first);
+			goal = imp->second;
+			for( auto elim = elims.begin();; elim++ ) {// checks if an elimination rule matches
+				if( elim == elims.end() ) {
+					// no elimination matches, so just declare the assumption as forced
+					add_forced(subloc,assm);
+					break;
+				}
+				if( auto o = elim->matches(assm) ) {
+					// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
+					elim_res.push_back(*o);
+					n_elim_res++;
+					break;
+				}
 			}
-			if( auto o = elim->matches(assm) ) {
-				// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
-				elim_res.push_back(*o);
-				n_elim_res++;
-				break;
-			}
+			continue;
 		}
+		break;
 	}
 	// try exact conclusions
 	if( !subloc.find_thm( EXACT, [&]( auto& thm ){
@@ -179,9 +185,12 @@ bool Inference::_blast(
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
-						if( !subloc.find_thm( WEAK, [&]( auto& thm ){
-							return thesis._apply_blast(fuel,goal,Intro::rule(thm),intros,elims,extra);
-						} ) ) {
+						if( trial == 0 ||
+							( trial--,
+							 !subloc.find_thm( WEAK, [&]( auto& thm ){
+								return thesis._apply_blast(fuel,trial,goal,Intro::rule(thm),intros,elims,extra);
+							} ) )
+						) {
 							if( fail ) return false;
 							DEB(subloc.print_thms(WEAK));
 							DEB(subloc.print_thms(EXACT));
@@ -190,14 +199,17 @@ bool Inference::_blast(
 						break;
 					}
 // apply elimination result
+DEB(elim_res[elim_res_ind].thm());
 					bool suc = thesis._apply(elim_res[elim_res_ind],g);
+assert(suc);
+DEB(thesis.thm());
 					elim_res_ind++;
 					if( suc ) break;
 				}
 			}
 			// blast all new subgoals:
 			while( thesis._goals > 0 ) {
-				if( !thesis._blast(fuel,fail,intros,elims,extra,elim_res,elim_res_ind) ) {
+				if( !thesis._blast(fuel,trial,fail,intros,elims,extra,elim_res,elim_res_ind) ) {
 					return false;
 				}
 			}
