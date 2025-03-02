@@ -124,7 +124,7 @@ lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β
 
 -- Obtains true, which is provable.
 locale True :=
-	obtain true where true_intro#concl: true :=
+	obtain true where true_intro! true :=
 		- for thesis, if assm: ∀true. true ⟹ thesis :=
 			by assm(∀x. x ⟹ x);
 		done;

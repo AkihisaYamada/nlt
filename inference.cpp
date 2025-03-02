@@ -1,9 +1,9 @@
 #include "inference.hpp"
 using namespace std;
 
-string const Inference::INTRO = "#intro";
-string const Inference::CONCL = "#concl";
 string const Inference::EXACT = "#exact";
+string const Inference::CONCL = "#concl";
+string const Inference::INTRO = "#intro";
 
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
@@ -30,13 +30,27 @@ Intro Intro::rule( Thm const& thm ) {
 	}
 	return Intro(rule);
 }
-void add_forced( Locale& loc, Thm const& thm ) {
-	if( auto all = thm.binder(ALL) ) {
-		if( all->second.binary(IMP) ) {
+Elim Elim::rule( Thm const& thm ) {
+	Ctxt ctxt = thm.ctxt().branch();
+	Thm body = strip_all(thm,ctxt);
+	auto imp = body.cbinary(IMP);
+	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
+	Thm premise = ctxt.assume(imp->first);
+	body = body.discharge(premise);
+	auto all = body.binder(ALL);
+	if( !all ) throw Error("\"malformed elimination rule\"")(thm);
+	return Elim(premise,body);
+}
+
+void add_forced( Locale& loc, Thm const& thm, bool allow_intro ) {
+	if( auto all = thm.cbinder(ALL) ) {
+		if( strip_all(all->second).binary(IMP) ) {
 			loc.add_thm(Inference::INTRO,thm);
 		} else {
 			loc.add_thm(Inference::CONCL,thm);
 		}
+	} else if( thm.binary(IMP) ) {
+		loc.add_thm(Inference::INTRO,thm);
 	} else {
 		loc.add_thm(Inference::EXACT,thm);
 	}
@@ -85,57 +99,70 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 	return true;
 }
 
-void Inference::blast( size_t& fuel, set<Intro> const& intros, set<Elim> const& elims, function<bool(Inference&)> extra ) & {
+void Inference::_blast(
+	size_t& fuel,
+	set<Intro> const& intros,
+	set<Elim> const& elims,
+	function<bool(Inference&)> extra,
+	vector<Intro>& elim_res,
+	size_t elim_res_ind
+) & {
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");
 	}
+	if( fuel == 0 ) {
+		throw Error("\"blast limit exceeded\"");
+	}
+DEB(goal());
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
 	auto subloc = _loc.branch();
 	auto goal = strip_all(imp->first,subloc);
+	size_t n_elim_res = 0;
 	while( auto imp = goal.cbinary(IMP) ) {// make assumptions
 		auto assm = subloc.assume(imp->first);
 		goal = imp->second;
+DEB( assm << " then " << goal );
 		for( auto elim : elims ) {// checks if an elimination rule matches
 			if( auto o = elim.matches(assm) ) {
-				// apply the rule on the remaining goal.
-				auto intp = elim.intp(subloc);
-				while( auto const& sym = intp.fixing() ) {
-					auto const& val = o->get(*sym);
-					intp.instantiate( val ? *val : goal );
-				}
-				auto thesis = claim_exact(subloc,goal);
-				thesis.apply(Intro::rule(elim.subst(intp)));
-				fuel--;
-				// as this can produce new goals, blast all return the conclusion.
-				thesis.blast_all(fuel,intros,elims,extra);
-				_thm = _thm.discharge(thesis._thm.intro());
-				_goals--;
-				return;
+				// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
+				elim_res.push_back(*o);
+				n_elim_res++;
 			}
 		}
-		// no elimination matches, so just declare the assumption forced
+		// no elimination matches, so just declare the assumption as forced
 		add_forced(subloc,assm);
 	}
-	// No elimination was applied. Try to conclude.
-	auto thesis = claim_exact(subloc,goal);
 	// try exact conclusions
-	if( !subloc.find_thm( EXACT, [&]( auto& thm ){ return thesis._discharges(thm); } ) )
-	// try extra method
-	if( !extra(thesis) ) {
+	if( !subloc.find_thm( EXACT, [&]( auto& thm ){
+		return thm == goal ? _thm = _thm.discharge(thm.intro()), true : false;
+	} ) ) {
+		auto thesis = claim_exact(subloc,goal);
 		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
-		// try explicitly given rules
-		if( !thesis._apply(intros,g) )
-		// try schematic conclusions
-		if( !thesis._loc.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) )
-		// try forced rules
-		if( !thesis._loc.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } ) )
-			throw Error("\"failed to blast\"")(goal);
+		if( !subloc.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) ) {
+			fuel--;
+			if( !extra(thesis) &&
+				!thesis._apply(intros,g) &&
+				!subloc.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } )
+			) {
+				if( elim_res_ind < elim_res.size() ) {// apply elimination result
+					thesis._apply(elim_res[elim_res_ind],g);
+					elim_res_ind++;
+				} else {
+					DEB(subloc.print_thms(EXACT));
+					throw Error("\"failed to blast\"")(goal);
+				}
+			}
+			// blast all new subgoals:
+			while( thesis._goals > 0 ) {
+				thesis._blast(fuel,intros,elims,extra,elim_res,elim_res_ind);
+			}
+		}
+		_thm = _thm.discharge(thesis._thm.intro());
 	}
-	// blast all new subgoals:
-	fuel--;
-	thesis.blast_all(fuel,intros,elims,extra);
-	_thm = _thm.discharge(thesis._thm.intro());
 	_goals--;
+	for( int i = 0; i < n_elim_res; i++ ) {// clean up elim results
+		elim_res.pop_back();
+	}
 	return;
 }

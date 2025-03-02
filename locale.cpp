@@ -4,27 +4,27 @@ using namespace std;
 
 Locale::Error const Locale::LocaleNotFound = Error("\"locale not found\"");
 
-std::function<Thm(Thm const&)> const Locale::_triv_proc =
+function<Thm(Thm const&)> const Locale::_triv_proc =
 	[]( Thm const& thm ) { return thm; };
 
-std::function<bool(AThm const&)> const Locale::_triv_test =
+function<bool(AThm const&)> const Locale::_triv_test =
 	[]( AThm const& ) { return true; };
 
-Thm Locale::add_assm(std::string_view const& name, CTerm const& assm) {
+Thm Locale::add_assm(string_view const& name, CTerm const& assm) {
 	size_t rev = revision();
 	_ref->assm_names.emplace(rev,name);
 	return assume(assm);
 }
 
-AThm Locale::add_thm(std::string_view const& name, Thm const& thm) {
+AThm Locale::add_thm(string_view const& name, Thm const& thm) {
 	if( thm.ctxt() != *this ) {
 		throw Error(Term("#locale")("add_thm")(thm));
 	}
-	auto const& [thm2,info] = _ref->thms.emplace(name,std::pair(thm,ThmInfo()))->second;
+	auto const& [thm2,info] = _ref->thms.emplace(name,pair(thm,ThmInfo()))->second;
 	return AThm(*this,thm,info);
 }
 
-pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name ) {
+pair<CTerm,Thm> Locale::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name ) {
 	size_t rev = revision();
 	auto const& ret = Ctxt::obtain(sym,ex);
 	add_thm(spec_name,ret.second);
@@ -32,9 +32,9 @@ pair<CTerm,Thm> Locale::obtain( std::string_view const& sym, Thm const& ex, std:
 	return ret;
 }
 Opt<AThm> Locale::_find_thm(
-	std::string_view const& name,
-	std::function<Thm(Thm const&)> const& proc,
-	std::function<bool(AThm const&)> const& test,
+	string_view const& name,
+	function<Thm(Thm const&)> const& proc,
+	function<bool(AThm const&)> const& test,
 	bool ancestor,
 	bool noprefix,
 	Locale const& orig
@@ -77,10 +77,10 @@ Opt<AThm> Locale::_find_thm(
 	return {};
 }
 Opt<AThm> Locale::_find_thm(
-	std::string_view const& pre,
-	std::string_view const& name,
-	std::function<Thm(Thm const&)> const& proc,
-	std::function<bool(AThm const&)> const& test,
+	string_view const& pre,
+	string_view const& name,
+	function<Thm(Thm const&)> const& proc,
+	function<bool(AThm const&)> const& test,
 	Locale const& orig
 ) const {
 	// pre as interpretations
@@ -92,9 +92,9 @@ Opt<AThm> Locale::_find_thm(
 	return {};
 }
 Opt<AThm> Import::_find_thm(
-	std::string_view const& name,
-	std::function<Thm(Thm const&)> const& proc,
-	std::function<bool(AThm const&)> const& test,
+	string_view const& name,
+	function<Thm(Thm const&)> const& proc,
+	function<bool(AThm const&)> const& test,
 	bool noprefix,
 	Locale const& orig
 ) const {
@@ -228,5 +228,15 @@ function<ostream&(ostream&)> const Locale::pretty(Syntax const& syntax, size_t n
 		}
 		n--;
 		return mk_indent(os,n) << "}";
+	};
+}
+function<ostream&(ostream&)> Locale::print_thms( string_view const& name, Syntax const& syntax ) const& {
+	return [&]( ostream& os )->ostream& {
+		auto fun = [&]( AThm const& thm ){
+			os << syntax.pretty_thm(thm) << endl;
+			return false;
+		};
+		find_thm(name,fun);
+		return os;
 	};
 }

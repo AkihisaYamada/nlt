@@ -102,6 +102,7 @@ public:
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax const& syntax) const&;
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
+	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, Syntax const& syntax = SYNTAX ) const&;
 };
 
 /** Annotated theorem */

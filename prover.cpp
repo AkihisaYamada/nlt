@@ -8,7 +8,7 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool intro = false, concl = false;
+	bool intro = false, force = false;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -281,19 +281,21 @@ public:
 	}
 	ClaimStatus get_claim_status() {
 		ClaimStatus cs;
-		if( _parser.skips("!") ) {
-			cs.concl = true;
-			return cs;
-		}
 		cs.name = _parser.gets_thm_name();
 		while( _parser.skips("#") ) {
 			if( _parser.skips("intro") ) {
 				cs.intro = true;
 			} else if( _parser.skips("concl") ) {
-				cs.concl = true;
+				cs.force = true;
+			} else {
+				throw Error("\"unknown #\"");
 			}
 		}
-		_parser.skip(":");
+		if( _parser.skips("!") ) {
+			cs.force = true;
+		} else {
+			_parser.skip(":");
+		}
 		return cs;
 	}
 	pair<ClaimStatus,Term> get_assm() {
@@ -308,8 +310,8 @@ public:
 		if( cs.intro ) {
 			loc.add_thm(Inference::INTRO,thm);
 		}
-		if( cs.concl ) {
-			add_forced(loc,thm);
+		if( cs.force ) {
+			add_forced(loc,thm,true);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -378,7 +380,7 @@ public:
 					for(;;) {
 						auto t = get_term();
 						cout << t;
-						add_forced(assm_loc,add_assm(t));
+						add_forced(assm_loc,add_assm(t),true);
 						if( !_parser.skips(",") ) break;
 						cout << ", ";
 					}
@@ -840,7 +842,7 @@ public:
 								cout << "[ ";
 								for(;;) {
 									auto assm = eat_assm(get_term());
-									add_forced(subprf._loc,assm);
+									add_forced(subprf._loc,assm,true);
 									cout << _syntax->pretty_term(assm);
 									if( !_parser.skips(",") ) break;
 									cout << ", ";

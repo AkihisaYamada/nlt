@@ -12,7 +12,7 @@ fix prop; -- We axiomatize what expressions are propositions.
 
 fix true;
 import true: Member prop true;
-assume true_intro#concl: true;
+assume true_intro! true;
 
 fix false;
 import false: Member prop false;
@@ -31,11 +31,12 @@ assume and_intro: P ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P ∧ Q;
 assume and_elim1: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ P;
 assume and_elim2: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q;
 
-lemma and_elim:
-	if and: P ∧ Q, PQR: P ⟹ Q ⟹ R, [prop P, prop Q] then R
+lemma and_elim: if and: P ∧ Q then
+	∀R. (P ⟹ Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ R
 :=
-	apply PQR;
-	by and_elim1[OF and] and_elim2[OF and];
+	- for R, if PQR: P ⟹ Q ⟹ R :=
+		by PQR and_elim1[OF and] and_elim2[OF and];
+	done;
 
 fix (⟺);
 import iff: Magma prop (⟺);
@@ -51,13 +52,13 @@ assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ pr
 
 finalize;
 
-note #intro: imp.type;
-note #intro: true.type;
-note #intro: false.type;
-note #intro: not.type;
-note #intro: iff.type;
-note #intro: and.type;
-note #intro: or.type;
+note ! imp.type;
+note ! true.type;
+note ! false.type;
+note ! not.type;
+note ! iff.type;
+note ! and.type;
+note ! or.type;
 
 
 ---
@@ -69,7 +70,7 @@ interpret iff: Reflexive prop (⟺) :=
 		by iff_intro;
 	done;
 
-note #intro: iff.refl;
+note ! iff.refl;
 
 interpret iff: Symmetric prop (⟺) :=
 	- if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟺ P :=
@@ -93,6 +94,7 @@ lemma iff_imp_rev: if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟹ P :=
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
+ctxt;
 
 lemma iff_cong_imp:
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
@@ -135,12 +137,8 @@ lemma iff_cong_and:
 	then P ∧ R ⟺ Q ∧ S
 :=
 	apply iff_intro;
-	- if PR: P ∧ R :=
-		apply and_elim[OF PR];
-		by and_intro #fold PQ RS;
-	- if QS: Q ∧ S :=
-		apply and_elim[OF QS];
-		by and_intro #unfold PQ RS;
+	- by and_intro #fold PQ RS #elim and_elim;
+	- by and_intro #unfold PQ RS #elim and_elim;
 	done;
 
 lemma iff_cong_or:
@@ -285,8 +283,8 @@ interpret and: Magma prop (∧) :=
 	done;
 
 interpret and: Symmetric prop (∧) :=
-	- if PQ: P ∧ Q, [prop P, prop Q] then Q ∧ P :=
-		by and_intro and_elim1[OF PQ] and_elim2[OF PQ];
+	- P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q ∧ P :=
+		by and_intro #elim and_elim;
 	done;
 
 interpret and_iff: Commutative prop (∧) (⟺) :=
@@ -394,6 +392,20 @@ lemma nand_iff_imp_not: if [prop P, prop Q] then ¬(P ∧ Q) ⟺ (P ⟹ ¬Q) :=
 lemma non_contradiction: if [prop P] then ¬(P ∧ ¬P) :=
 	unfold nand_iff_imp_not;
 	by nnot_intro;
+
+---
+### Disjunction
+---
+
+lemma or_intro:
+	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R,
+		[prop P, prop Q]
+	then P ∨ Q
+:=
+	apply PQR;
+	- by or_intro1;
+	- by or_intro2;
+	done;
 
 interpret or: Symmetric prop (∨) :=
 	- if or: P ∨ Q, [prop P, prop Q] then Q ∨ P :=

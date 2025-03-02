@@ -4,11 +4,11 @@
 #include "locale.hpp"
 
 /** @brief Add concluder theorem to locale */
-void add_forced( Locale&, Thm const& thm );
+void add_forced( Locale&, Thm const& thm, bool allow_intro = false );
 
 /** Introduction rule */
 class Intro {
-	friend class Inference;
+	friend class Elim;
 	Thm _conclusion;
 	explicit Intro( Thm const& conc ) : _conclusion(conc) {}
 public:
@@ -54,20 +54,20 @@ public:
 };
 
 class Elim {
-	Thm _premise;
-	Thm _thm;
+	Thm _thm;// ∀thesis. ψ... ⟹ thesis, where the context fixes other variables and assumes premise φ
+	Thm _premise;// φ
 	explicit Elim( Thm const& premise, Thm const& thm ) : _premise(premise), _thm(thm) {}
 public:
-	static Elim rule( Thm const& thm ) {
-		Ctxt ctxt = thm.ctxt().branch();
-		Thm body = strip_all(thm,ctxt);
-		auto imp = body.cbinary(IMP);
-		if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
-		Thm premise = ctxt.assume(imp->first);
-		return Elim(premise,body.discharge(premise));
-	}
-	Opt<CSubst> matches( Thm const& assm ) const {
-		return match( _premise, assm, [&](auto v){ return ctxt().fixes(v); } );
+	static Elim rule( Thm const& thm );
+	Opt<Intro> matches( Thm const& assm ) const {
+		auto pat_ctxt = _premise.ctxt();
+		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
+		if( !m ) return {};
+		auto intp = Intp( pat_ctxt, assm.ctxt() );
+		subst_intp(intp,*m);
+		intp.discharge(assm);
+		auto thm = intp.subst(_thm);// ∀thesis. ψθ... ⟹ thesis
+		return Intro::rule(thm);
 	}
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
@@ -81,10 +81,6 @@ public:
 	 */
 	Intp intp( Ctxt const& tgt ) const {
 		return Intp(ctxt(),tgt);
-	}
-	/** @brief instantiates the rule. */
-	Thm subst( Intp const& intp ) const {
-		return intp.subst(_thm);
 	}
 	bool operator<( Elim const& y ) const {
 		return _premise < y._premise;
@@ -100,12 +96,12 @@ class Inference {
 	Inference( Locale const& loc, Thm const& thesis, CTerm const& claim, size_t goals ) :
 		_loc(loc), _thm(thesis), _claim(claim), _goals(goals) {}
 public:
+	/** name for exact concluder */
+	static std::string const EXACT;
 	/** name for introduction rules */
 	static std::string const INTRO;
 	/** name for schematic concluders */
 	static std::string const CONCL;
-	/** name for exact concluder */
-	static std::string const EXACT;
 	/** name for elimination rules */
 	static std::string const ELIM;
 	static Error const NoGoal;
@@ -171,19 +167,10 @@ public:
 		std::set<Intro> const& intros = {},
 		std::set<Elim> const& elims = {},
 		std::function<bool(Inference&)> extra = [](auto){ return false; }
-	) &;
-	void blast_all(
-		size_t& fuel,
-		std::set<Intro> const& intros = {},
-		std::set<Elim> const& elims = {},
-		std::function<bool(Inference&)> extra = [](auto){ return false; }
 	) & {
-		while( _goals > 0 ) {
-			if( fuel == 0 ) throw Error("\"blast exceeded\"")(*has_goal());
-			blast(fuel,intros,elims,extra);
-		}
+		std::vector<Intro> elim_res;
+		_blast(fuel,intros,elims,extra,elim_res,0);
 	}
-
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {
@@ -220,6 +207,14 @@ private:
 		}
 		return false;
 	}
+	void _blast(
+		size_t& fuel,
+		std::set<Intro> const& intros,
+		std::set<Elim> const& elims,
+		std::function<bool(Inference&)> extra,
+		std::vector<Intro>& elim_res,
+		size_t elim_res_ind
+	) &;
 };
 
 inline Thm prove(
