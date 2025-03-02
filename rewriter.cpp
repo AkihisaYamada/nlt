@@ -184,7 +184,11 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 			}
 			// discharge conditions
 			while( auto assm = intp.assuming() ) {
-				intp.discharge(prove(*assm,loc));
+				auto prem = proves(*assm,loc);
+				if( !prem ) {
+					throw Error("\"failed to discharge\"")(*assm);
+				}
+				intp.discharge(*prem);
 			}
 			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
 			return ret;

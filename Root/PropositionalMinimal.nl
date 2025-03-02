@@ -48,7 +48,7 @@ fix (∨);
 import or: Magma prop (∨);
 assume or_intro1: P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q;
 assume or_intro2: for P Q, Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q;
-assume or_elim: P ∨ Q ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R;
+assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R;
 
 finalize;
 
@@ -141,24 +141,7 @@ lemma iff_cong_and:
 	- by and_intro #unfold PQ RS #elim and_elim;
 	done;
 
-lemma iff_cong_or:
-	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
-	then P ∨ R ⟺ Q ∨ S
-:=
-	apply iff_intro;
-	- if PR: P ∨ R :=
-		apply or_elim[OF PR];
-		- by or_intro1 #fold PQ;
-		- by or_intro2 #fold RS;
-		done;
-	- if QS: Q ∨ S :=
-		apply or_elim[OF QS];
-		- by or_intro1 #unfold PQ;
-		- by or_intro2 #unfold RS;
-		done;
-	done;
-
-setup cong iff_cong_imp iff_cong_iff iff_cong_not iff_cong_and iff_cong_or;
+setup cong iff_cong_imp iff_cong_iff iff_cong_not iff_cong_and;
 
 lemma imp_imp_iff: if [P, prop P, prop Q] then (P ⟹ Q) ⟺ Q :=
 	apply iff_intro;
@@ -398,13 +381,29 @@ lemma non_contradiction: if [prop P] then ¬(P ∧ ¬P) :=
 ---
 
 lemma or_intro:
-	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R,
-		[prop P, prop Q]
+	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R, [prop P, prop Q]
 	then P ∨ Q
 :=
 	apply PQR;
 	- by or_intro1;
 	- by or_intro2;
+	done;
+
+lemma iff_cong_or:
+	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
+	then P ∨ R ⟺ Q ∨ S
+:=
+	apply iff_intro;
+	- if PR: P ∨ R :=
+		apply or_elim[OF PR];
+		- by or_intro1 #fold PQ;
+		- by or_intro2 #fold RS;
+		done;
+	- if QS: Q ∨ S :=
+		apply or_elim[OF QS];
+		- by or_intro1 #unfold PQ;
+		- by or_intro2 #unfold RS;
+		done;
 	done;
 
 interpret or: Symmetric prop (∨) :=
@@ -470,11 +469,7 @@ lemma or_imp_iff:
 		- by nor or_intro1;
 		- by nor or_intro2;
 		done;
-	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: P ∨ Q :=
-		apply or_elim[OF or];
-		- by and_elim1[OF and];
-		- by and_elim2[OF and];
-		done;
+	- by #elim or_elim and_elim;
 	done;
 
 lemma nor_iff: if [prop P, prop Q] then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q :=
@@ -495,15 +490,9 @@ lemma nnot_excluded_middle: if [prop P] then ¬¬(P ∨ ¬P) :=
 
 lemma or_imp_nand: if PQ: P ∨ Q, [prop P, prop Q] then ¬(¬P ∧ ¬Q) :=
 	apply not_intro;
-	- if and: ¬P ∧ ¬Q :=
-		show nP: ¬P :=
-			by and_elim1[OF and];
-		show nQ: ¬Q :=
-			by and_elim2[OF and];
-		apply or_elim[OF PQ];
-		- by not_imp_false[OF nP];
-		- by not_imp_false[OF nQ];
-		done;
+	apply or_elim[OF PQ];
+	- by not_imp_false(P) #elim and_elim;
+	- by not_imp_false(Q) #elim and_elim;
 	done;
 
 lemma false_or_false_iff: false ∨ false ⟺ false :=

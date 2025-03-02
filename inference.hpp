@@ -100,6 +100,8 @@ public:
 	static std::string const EXACT;
 	/** name for introduction rules */
 	static std::string const INTRO;
+	/** name for weak introduction rules */
+	static std::string const WEAK;
 	/** name for schematic concluders */
 	static std::string const CONCL;
 	/** name for elimination rules */
@@ -162,6 +164,15 @@ public:
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
 	void elim( std::set<Elim> const& elims ) &;
+	bool blasts(
+		size_t& fuel,
+		std::set<Intro> const& intros = {},
+		std::set<Elim> const& elims = {},
+		std::function<bool(Inference&)> extra = [](auto){ return false; }
+	) & {
+		std::vector<Intro> elim_res;
+		return _blast(fuel,true,intros,elims,extra,elim_res,0);
+	}
 	void blast(
 		size_t& fuel,
 		std::set<Intro> const& intros = {},
@@ -169,7 +180,7 @@ public:
 		std::function<bool(Inference&)> extra = [](auto){ return false; }
 	) & {
 		std::vector<Intro> elim_res;
-		_blast(fuel,intros,elims,extra,elim_res,0);
+		_blast(fuel,false,intros,elims,extra,elim_res,0);
 	}
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
@@ -200,15 +211,24 @@ private:
 		return false;
 	}
 	/** goal must be in a fresh context */
-	bool _apply( Intro const& intros, CTerm const& goal ) &;
+	bool _apply( Intro const& intro, CTerm const& goal ) &;
 	bool _apply( std::set<Intro> const& intros, CTerm const& goal ) & {
 		for( auto const& rule : intros ) {
 			if( _apply(rule,goal) ) return true;
 		}
 		return false;
 	}
-	void _blast(
+	bool _apply_blast(
 		size_t& fuel,
+		CTerm const& goal,
+		Intro const& intro,
+		std::set<Intro> const& intros,
+		std::set<Elim> const& elims,
+		std::function<bool(Inference&)> extra
+	) &;
+	bool _blast(
+		size_t& fuel,
+		bool fail,
 		std::set<Intro> const& intros,
 		std::set<Elim> const& elims,
 		std::function<bool(Inference&)> extra,
@@ -217,7 +237,7 @@ private:
 	) &;
 };
 
-inline Thm prove(
+inline Opt<Thm> proves(
 	CTerm const& claim,
 	Locale const& loc,
 	std::set<Intro> const& intros = {},
@@ -226,8 +246,10 @@ inline Thm prove(
 ) {
 	auto x = Inference::claim_exact(loc,claim);
 	size_t fuel = 255;
-	x.blast(fuel,intros,elims,extra);
-	return *x.concluding();
+	if( x.blasts(fuel,intros,elims,extra) ) {
+		return *x.concluding();
+	}
+	return {};
 }
 /**
  * @brief Blasts first assumption of implication.
@@ -242,8 +264,9 @@ inline Opt<Thm> blasts(
 	std::set<Elim> const& elims = {},
 	std::function<bool(Inference&)> extra = [](auto){ return false; }
 ) {
-	if( auto imp = thesis.cbinary(IMP) ) {
-		return thesis.discharge(prove(imp->first,loc,intros,elims,extra));
+	if( auto imp = thesis.cbinary(IMP) )
+	if( auto prem = proves(imp->first,loc,intros,elims,extra) ) {
+		return thesis.discharge(*prem);
 	}
 	return {};
 }
