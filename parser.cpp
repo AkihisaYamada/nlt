@@ -80,7 +80,7 @@ Opt<Term> Parser::gets_term(int level) {
 				auto body = get_term(x->second.rlevel);
 				ret = Term(sym)(typ)(*var/=body);
 			} else {
-				ret = Term(x->first)( *var /= nest_abs(x->first,x->second.rlevel) );
+				ret = Term(x->first)( *var /= Term(x->first)( follow /= nest_abs(x->first,x->second.rlevel) ) );
 			}
 		} else {
 			ret = Term(x->first);

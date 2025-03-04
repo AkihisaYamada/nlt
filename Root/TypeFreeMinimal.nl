@@ -24,7 +24,7 @@ assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
 
 fix (∨);
 assume or_intro1: P ⟹ P ∨ Q;
-assume or_intro2: Q ⟹ P ∨ Q;
+assume or_intro2: for P Q, Q ⟹ P ∨ Q;
 assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 
 fix (∃);
@@ -42,11 +42,10 @@ finalize;
 ---
 
 interpret iff: MetaEquivalence (⟺) :=
-	- if PQ: P ⟺ Q then Q ⟺ P :=
+	- for P Q, if PQ: P ⟺ Q then Q ⟺ P :=
 		by iff_intro[OF iff_elim2[OF PQ] iff_elim1[OF PQ]];
-	- P ⟺ P :=
-		by iff_intro[OF imp.refl imp.refl];
-	- if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R :=
+	- by iff_intro[OF imp.refl imp.refl];
+	- for P Q R, if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R :=
 		note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]];
 		note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 		by iff_intro[OF PR RP];
@@ -86,8 +85,7 @@ lemma iff_cong_all#cong: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ 
 	done;
 
 interpret iff_iff: MetaCommutative (⟺) (⟺) :=
-	- (P ⟺ Q) ⟺ (Q ⟺ P) :=
-		by iff_intro[OF iff.sym iff.sym];
+	- by iff_intro[OF iff.sym iff.sym];
 	done;
 
 lemma imp_imp_iff: if [P] then (P ⟹ Q) ⟺ Q :=
@@ -157,7 +155,7 @@ lemma iff_true_iff: (P ⟺ true) ⟺ P :=
 ---
 
 interpret and: MetaSymmetric (∧) :=
-	- if PQ: P ∧ Q then Q ∧ P :=
+	- for P Q, if PQ: P ∧ Q then Q ∧ P :=
 		by and_intro and_elim2[OF PQ] and_elim1[OF PQ];
 	done;
 
@@ -183,12 +181,11 @@ lemma iff_cong_and#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q
 	done;
 
 interpret and_iff: MetaCommutative (∧) (⟺) :=
-	- P ∧ Q ⟺ Q ∧ P :=
-		by iff_intro[OF and.sym and.sym];
+	- by iff_intro[OF and.sym and.sym];
 	done;
 
 interpret and_iff: MetaAssociative (∧) (⟺) :=
-	- P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
+	- for P Q R, show P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
 		apply iff_intro;
 		- if PQR: P ∧ Q ∧ R :=
 			by and_intro
@@ -364,7 +361,7 @@ lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q :=
 	by assm[OF or_intro1 or_intro2];
 
 interpret or: MetaSymmetric (∨) :=
-	- if PQ: P ∨ Q then Q ∨ P :=
+	- for P Q, if PQ: P ∨ Q then Q ∨ P :=
 		by or_elim[OF PQ or_intro2 or_intro1];
 	done;
 
@@ -383,7 +380,7 @@ lemma iff_cong_or#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q 
 	done;
 
 interpret or: MetaSymmetric (∨) :=
-	- if or: P ∨ Q then Q ∨ P :=
+	- for P Q, if or: P ∨ Q then Q ∨ P :=
 		apply or_elim[OF or];
 		- by or_intro2;
 		- by or_intro1;
@@ -391,7 +388,7 @@ interpret or: MetaSymmetric (∨) :=
 	done;
 
 interpret or_iff: MetaCommutative (∨) (⟺) :=
-	- P ∨ Q ⟺ Q ∨ P :=
+	- for P Q, show P ∨ Q ⟺ Q ∨ P :=
 		apply iff_intro;
 		- if PQ: P ∨ Q :=
 			by or.sym[OF PQ];
@@ -401,7 +398,7 @@ interpret or_iff: MetaCommutative (∨) (⟺) :=
 	done;
 
 interpret or_iff: MetaAssociative (∨) (⟺) :=
-	- P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
+	- for P Q R, show P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
 		apply iff_intro;
 		- if PQR: P ∨ Q ∨ R :=
 			apply or_elim[OF PQR];

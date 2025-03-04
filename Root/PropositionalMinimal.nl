@@ -67,21 +67,20 @@ ctxt;
 ---
 
 interpret iff: Reflexive prop (⟺) :=
-	- if [prop P] then P ⟺ P :=
-		by iff_intro;
+	- by iff_intro;
 	done;
 
 note ! iff.refl;
 
 interpret iff: Symmetric prop (⟺) :=
-	- if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟺ P :=
+	- for P Q, if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟺ P :=
 		apply iff_intro;
 		- by iff_elim2[OF PQ];
 		by iff_elim1[OF PQ];
 	done;
 
 interpret iff: Transitive prop (⟺) :=
-	- if PQ: P ⟺ Q, QR: Q ⟺ R, [prop P, prop Q, prop R] then P ⟺ R :=
+	- for P Q R, if PQ: P ⟺ Q, QR: Q ⟺ R, [prop P, prop Q, prop R] then P ⟺ R :=
 		apply iff_intro;
 		- by iff_elim1[OF QR] iff_elim1[OF PQ];
 		by iff_elim2[OF PQ] iff_elim2[OF QR];
@@ -263,17 +262,15 @@ lemma nnnot_iff: if [prop P] then ¬¬¬P ⟺ ¬P :=
 ---
 
 interpret and: Magma prop (∧) :=
-	- if [prop P, prop Q] then prop (P ∧ Q) :=
-		done;
+	- done;
 	done;
 
 interpret and: Symmetric prop (∧) :=
-	- P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q ∧ P :=
-		by and_intro #elim and_elim;
+	- by and_intro #elim and_elim;
 	done;
 
 interpret and_iff: Commutative prop (∧) (⟺) :=
-	- if [prop P, prop Q] then P ∧ Q ⟺ Q ∧ P :=
+	- for P Q, if [prop P, prop Q] then P ∧ Q ⟺ Q ∧ P :=
 		apply iff_intro;
 		- if [P ∧ Q] :=
 			apply and.sym;
@@ -285,19 +282,7 @@ interpret and_iff: Commutative prop (∧) (⟺) :=
 	done;
 
 interpret and_iff: Associative prop (∧) (⟺) :=
-	- if [prop P, prop Q, prop R] then P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
-		apply iff_intro;
-		- if PQR: P ∧ Q ∧ R :=
-			apply+ and_intro;
-			by	and_elim1[OF and_elim1[OF PQR ! !]]
-				and_elim2[OF and_elim1[OF PQR ! !]]
-				and_elim2[OF PQR];
-		- if PQR: P ∧ (Q ∧ R) :=
-			apply+ and_intro;
-			by	and_elim1[OF PQR]
-				and_elim1[OF and_elim2[OF PQR ! !]]
-				and_elim2[OF and_elim2[OF PQR ! !]];
-		done;
+	- by iff_intro and_intro #elim and_elim;
 	done;
 
 lemma iff_imp_and: if PQ: P ⟺ Q, [prop P, prop Q] then (P ⟹ Q) ∧ (Q ⟹ P) :=
@@ -409,20 +394,15 @@ lemma iff_cong_or#cong: for P R,
 	done;
 
 interpret or: Symmetric prop (∨) :=
-	- if or: P ∨ Q, [prop P, prop Q] then Q ∨ P :=
-		apply or_elim[OF or];
-		- by or_intro2;
-		- by or_intro1;
-		done;
+	- by or_intro #elim or_elim;
 	done;
 
 interpret or_iff: Commutative prop (∨) (⟺) :=
-	- if [prop P, prop Q] then P ∨ Q ⟺ Q ∨ P :=
-		by iff_intro or_intro #elim or_elim;
+	- by iff_intro or_intro #elim or_elim;
 	done;
 
 interpret or_iff: Associative prop (∨) (⟺) :=
-	- if [prop P, prop Q, prop R] then P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
+	- for P Q R, if [prop P, prop Q, prop R] then P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
 		apply iff_intro;
 		- if PQR: P ∨ Q ∨ R :=
 			apply or_elim[OF PQR];

@@ -449,7 +449,8 @@ public:
 					cout << "Completed" << endl;
 				}
 				_indent();
-				if( _parser.skips("instantiate") ) {
+				if( _term() || _thm() || _thms() || _ctxt() ) {
+				} else if( _parser.skips("instantiate") ) {
 					while( intp.discharges(mod) || intp.retains() );
 					auto x = intp.fixing();
 					if( !x ) throw Error("\"unexpected instantiate\"");
@@ -464,45 +465,21 @@ public:
 					}
 					_parser.skip(";");
 				} else if( _parser.skips("-") ) {
-					cout << "discharge ";
+					cout << "discharge: ";
 					while( intp.instantiates(mod) || intp.retains() );
+					auto a = intp.assuming();
+					if( !a ) throw Error("\"unexpected discharge\"");
+					auto [name,axiom] = *a;
 					if( _parser.skips("know") ) {
 						_parser.skip(";");
 						intp.discharge();
 					} else if( mod && _parser.skips("assume") ) {
 						_parser.skip(";");
-						auto a = intp.assuming();
-						if( !a ) throw Error("\"unexpected discharge\"");
-						auto [name,axiom] = *a;
 						Thm thm = _loc.add_assm(name,axiom);
 						intp.discharge(thm);
 						cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
 					} else {
-						auto [prover,concl] = get_statement();
-						auto const& claim = concl.intro();
-						auto const& var_loc = *prover._loc.parent();
-						for(;;) {
-							auto a = intp.assuming();
-							if( !a ) {
-								throw Error("\"no matching discharge\"")(claim);
-							}
-							auto [name,axiom] = *a;
-							auto axiom_vars = axiom.ctxt().branch();
-							auto goal = strip_all(axiom,axiom_vars);
-							auto m = match(claim,goal,[&](auto v){ return var_loc.fixes(v); });
-							if( !m ) {
-								if( intp.discharges(mod) ) {
-									while( intp.instantiates(mod) || intp.retains() );
-									continue;
-								}
-								throw Error("\"failed to skip\"")(goal);
-							}
-							auto const& thm = prover.proof_loop().intro();
-							auto local_intp = Intp(var_loc,axiom_vars);
-							subst_intp(local_intp,*m);
-							intp.discharge(local_intp.subst(thm).intro());
-							break;
-						}
+						intp.discharge(_subgoal(axiom));
 					}
 				} else if( _parser.skips("obtain") ) {
 					_obtain();
@@ -663,6 +640,73 @@ public:
 		_loc.add_thm(name,def);
 		cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 	}
+	Thm _subgoal( CTerm const& goal ) {
+		auto subloc = _loc.branch();
+		CTerm subgoal = goal.weaken(subloc);
+		bool needsep = false;
+		if( _parser.skips("for") ) {// instantiate variables as long as names are given
+			needsep = true;
+			cout << "for";
+			subgoal = strip_all(subgoal,subloc,[&](string_view const& v)->Opt<string>{
+				auto o = gets_sym();
+				if( o ) {
+					cout << ' ' << *o;
+				}
+				return o;
+			});
+			_parser.skips(",");
+			cout << ", ";
+		}
+		if( _parser.skips("show") ) {
+			auto claim = _parser.get_term();
+			if( claim != subgoal ) {
+				throw Error("\"claim mismatch\"")(subgoal)(claim);
+			}
+			cout << _syntax->pretty_cterm(subgoal) << endl;
+			needsep = true;
+		} else if( _parser.skips("if") ) {
+			needsep = true;
+			cout << "if ";
+			auto eat_assm = [&]( Term const& t ){
+				auto imp = subgoal.cbinary(IMP);
+				if( !imp ) throw Error("\"unexpected assumption\"")(subgoal);
+				subgoal = imp->second;
+				if( imp->first != t ) throw Error("\"assumption mismatch\"")(imp->first)(t);
+				return subloc.assume(subloc.enclose(t));
+			};
+			for(;;) {
+				if( _parser.skips("[") ) {
+					cout << "[ ";
+					for(;;) {
+						auto assm = eat_assm(get_term());
+						add_forced(subloc,assm,true);
+						cout << _syntax->pretty_term(assm);
+						if( !_parser.skips(",") ) break;
+						cout << ", ";
+					}
+					_parser.skip("]");
+					cout << " ] ";
+				} else {
+					auto [cs,t] = get_assm();
+					add_claim(subloc,cs,eat_assm(t));
+					cout << cs << _syntax->pretty_term(t) << ", " << flush;
+				}
+				if( !_parser.skips(",") ) break;
+			};
+			if( _parser.skips("then") ) {
+				if( _parser.get_term() != subgoal ) {
+					throw Error("\"conclusion mismatch\"")(subgoal);
+				}
+			}
+			cout << "then " << _syntax->pretty_cterm(subgoal) << endl;
+		}
+		auto prover = Prover(*this,subloc,Inference::claim_exact(subloc,subgoal)).deepen();
+		if( needsep ) {
+			_parser.skip(":=");
+			prover._prompt();
+		}
+		return prover.proof_loop().intro();
+	}
 	Opt<Thm> loop() {
 		for(;;) try {
 			if( _parser.skips("include") ) {
@@ -821,65 +865,8 @@ public:
 					if( !goal ) {
 						throw Error("\"unexpected subgoal\"");
 					}
-					auto subloc = _loc.branch();
-					CTerm newgoal = goal->weaken(subloc);
-					cout << "subgoal ";
-					bool needsep = false;
-					if( _parser.skips("for") ) {// instantiate variables as long as names are given
-						needsep = true;
-						cout << "for";
-						newgoal = strip_all(newgoal,subloc,[&](string_view const& v)->Opt<string>{
-							auto o = gets_sym();
-							if( o ) {
-								cout << ' ' << *o;
-							}
-							return o;
-						});
-						_parser.skips(",");
-						cout << ", ";
-					}
-					if( _parser.skips("if") ) {
-						needsep = true;
-						cout << "if ";
-						auto eat_assm = [&]( Term const& t ){
-							auto imp = newgoal.cbinary(IMP);
-							if( !imp ) throw Error("\"unexpected assumption\"")(t);
-							newgoal = imp->second;
-							if( imp->first != t ) throw Error("\"assumption mismatch\"")(imp->first)(t);
-							return subloc.assume(subloc.enclose(t));
-						};
-						for(;;) {
-							if( _parser.skips("[") ) {
-								cout << "[ ";
-								for(;;) {
-									auto assm = eat_assm(get_term());
-									add_forced(subloc,assm,true);
-									cout << _syntax->pretty_term(assm);
-									if( !_parser.skips(",") ) break;
-									cout << ", ";
-								}
-								_parser.skip("]");
-								cout << " ] ";
-							} else {
-								auto [cs,t] = get_assm();
-								add_claim(subloc,cs,eat_assm(t));
-								cout << cs << _syntax->pretty_term(t) << ", " << flush;
-							}
-							if( !_parser.skips(",") ) break;
-						};
-						if( _parser.skips("then") ) {
-							if( _parser.get_term() != newgoal ) {
-								throw Error("\"conclusion mismatch\"")(newgoal);
-							}
-						}
-					}
-					if( needsep ) {
-						_parser.skip(":=");
-						cout << "then ";
-					}
-					cout << _syntax->pretty_cterm(newgoal) << endl;
-					auto subprf = Prover(*this,subloc,Inference::claim_exact(subloc,newgoal)).deepen()._prompt();
-					_thesis->discharge(subprf.proof_loop().intro());
+					cout << "subgoal: ";
+					_thesis->discharge(_subgoal(*goal));
 					print_goal("next goal ");
 				} else if( _parser.skips("just") ) {
 					set<Intro> rules;

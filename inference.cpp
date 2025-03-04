@@ -199,10 +199,8 @@ bool Inference::_blast(
 						break;
 					}
 // apply elimination result
-DEB(elim_res[elim_res_ind].thm());
 					bool suc = thesis._apply(elim_res[elim_res_ind],g);
-assert(suc);
-DEB(thesis.thm());
+					assert(suc);
 					elim_res_ind++;
 					if( suc ) break;
 				}

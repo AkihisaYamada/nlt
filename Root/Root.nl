@@ -93,9 +93,9 @@ locale MetaUnitalCommutative (+) (0) (=) :=
 			
 ---
 interpret imp: MetaPreorder (⟹) :=
-	- if [P] then P :=
+	- for P, if [P] then P :=
 		done;
-	- if PQ: P ⟹ Q, QR: Q ⟹ R, [P] then R :=
+	- for P Q R, if PQ: P ⟹ Q, QR: Q ⟹ R, [P] then R :=
 		by QR PQ;
 	done;
 
