@@ -522,13 +522,34 @@ public:
 // ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 					intp.retain(_loc.cterm(term),spec);
 				} else {
-					_parser.skip("done");
-					_depth--;
 					break;
 				}
 			}
+			_parser.skip("done");
+			_depth--;
+			for(;;) {
+				if( intp.instantiates(mod) || intp.retains() ) continue;
+				if( auto a = intp.assuming() ) {
+					auto& [name,assm] = *a;
+					if( _loc.find_thm(name,[&](auto thm){
+						if( thm == assm ) {
+							intp.discharge(thm);
+							return true;
+						}
+						return false;
+					},true,true) ) {
+						continue;
+					}
+					auto thm = proves(assm,_loc);
+					if( !thm ) throw Error("\"failed to blast\"")(assm);
+					intp.discharge(*thm);
+					continue;
+				}
+				break;
+			}
+		} else {
+			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
-		while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}

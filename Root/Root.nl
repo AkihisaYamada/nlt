@@ -132,8 +132,8 @@ locale True :=
 
 -- Obtains false, which derives everything, including non-propositions.
 locale False :=
-	obtain false where false_elim: ∀P. false ⟹ P :=
-		- for thesis, if assm: ∀false. (∀P. false ⟹ P) ⟹ thesis then thesis :=
+	obtain false where false_elim: false ⟹ ∀P. P :=
+		- for thesis, if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis :=
 			by assm(∀P. P);
 		done;
 	end;

@@ -129,7 +129,7 @@ lemma imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q :=
 	- by iff_intro;
 	done;
 
-lemma iff_true: if [P] then P ⟺ true :=
+lemma iff_true: P ⟹ P ⟺ true :=
 	by iff_intro;
 
 lemma true_imp_iff: (true ⟹ P) ⟺ P :=
@@ -148,7 +148,16 @@ lemma true_iff_iff: (true ⟺ P) ⟺ P :=
 
 lemma iff_true_iff: (P ⟺ true) ⟺ P :=
 	unfold[0] iff_iff.commute;
-	by true_iff_iff(P);
+	by true_iff_iff;
+
+lemma imp_refl_iff: (P ⟹ P) ⟺ true :=
+	by #unfold iff_true_iff;
+
+lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R :=
+	- for R :=
+		unfold+ PQ imp_refl_iff true_imp_iff;
+		done;
+	done;
 
 ---
 ### Conjunction

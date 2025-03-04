@@ -238,7 +238,8 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 void subst_intp( Intp& intp, CSubst& subst ) {
 	while( auto const& sym = intp.fixing() ) {
 		auto const& val = subst.get(*sym);
-		intp.instantiate( val ? *val : subst.ctxt().fix(*sym));
+		auto ctxt = subst.ctxt();
+		intp.instantiate( val ? *val : ctxt.fix(*avoider(ctxt)(*sym)));
 	}
 }
 
