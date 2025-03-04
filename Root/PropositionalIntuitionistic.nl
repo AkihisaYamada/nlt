@@ -8,7 +8,6 @@ finalize;
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
-setup cong iff_cong_imp iff_cong_iff iff_cong_not iff_cong_and iff_cong_or;
 
 lemma not_imp_iff_false: if nP: ¬P, [prop P] then P ⟺ false :=
 	apply iff_intro;

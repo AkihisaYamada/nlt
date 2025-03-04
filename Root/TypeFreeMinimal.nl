@@ -35,7 +35,9 @@ finalize;
 
 ---
 ## Theorems
+---
 
+---
 ### If-and-only-if
 ---
 
@@ -49,9 +51,13 @@ interpret iff: MetaEquivalence (⟺) :=
 		note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]];
 		by iff_intro[OF PR RP];
 	done;
-note #concl: iff.refl;
 
-lemma iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
+note! iff.refl;
+
+setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
+setup dual iff.sym;
+
+lemma iff_cong_imp#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 	apply iff_intro;
 	- if PR: P ⟹ R, [Q] then S :=
 		by iff_elim1[OF RS] PR iff_elim2[OF PQ];
@@ -59,29 +65,25 @@ lemma iff_cong_imp: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S) :=
 		by iff_elim2[OF RS] QS iff_elim1[OF PQ];
 	done;
 
-lemma iff_cong_iff: if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
+lemma iff_cong_iff#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S) :=
 	apply iff_intro;
 	- if PR: P ⟺ R then Q ⟺ S :=
-		show QR: Q ⟺ R :=
+		have QR: Q ⟺ R :=
 			by iff.trans[OF iff.sym[OF PQ] PR];
 		by iff.trans[OF QR RS];
 	- if QS: Q ⟺ S then P ⟺ R :=
-		show PS: P ⟺ S :=
+		have PS: P ⟺ S :=
 			by iff.trans[OF PQ QS];
 		by iff.trans[OF PS iff.sym[OF RS]];
 	done;
 
-lemma iff_cong_all: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
+lemma iff_cong_all#cong: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]) :=
 	apply iff_intro;
 	- if [∀x. α.[x]] then ∀x. β.[x] :=
 		by iff_elim1[OF ab];
 	- if [∀x. β.[x]] then ∀x. α.[x] :=
 		by iff_elim2[OF ab];
 	done;
-
-setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
-setup dual iff.sym;
-setup cong iff_cong_imp iff_cong_iff iff_cong_all;
 
 interpret iff_iff: MetaCommutative (⟺) (⟺) :=
 	- (P ⟺ Q) ⟺ (Q ⟺ P) :=
@@ -172,15 +174,13 @@ lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R) :=
 		by and_intro;
 	done;
 
-lemma iff_cong_and: if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S :=
+lemma iff_cong_and#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S :=
 	apply iff_intro;
 	- if PR: P ∧ R :=
 		by and_intro and_elim1[OF PR] and_elim2[OF PR] #fold PQ RS;
 	- if QS: Q ∧ S :=
 		by and_intro and_elim1[OF QS] and_elim2[OF QS] #unfold PQ RS;
 	done;
-
-setup cong iff_cong_and;
 
 interpret and_iff: MetaCommutative (∧) (⟺) :=
 	- P ∧ Q ⟺ Q ∧ P :=
@@ -252,7 +252,7 @@ lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P :=
 lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P :=
 	apply not_intro;
 	- if [P] :=
-		show nQ: ¬Q :=
+		have nQ: ¬Q :=
 			by PnQ;
 		by not_imp_false[OF nQ];
 	done;
@@ -263,7 +263,7 @@ lemma not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]) :=
 lemma not_false: ¬false :=
 	by not_intro[OF imp.refl];
 
-lemma iff_cong_not: if PQ: P ⟺ Q then ¬P ⟺ ¬Q :=
+lemma iff_cong_not#cong: if PQ: P ⟺ Q then ¬P ⟺ ¬Q :=
 	apply iff_intro;
 	- if nP: ¬P :=
 		apply not_intro;
@@ -272,8 +272,6 @@ lemma iff_cong_not: if PQ: P ⟺ Q then ¬P ⟺ ¬Q :=
 		apply not_intro;
 		by not_imp_false[OF nQ] iff_elim1[OF PQ];
 	done;
-
-setup cong iff_cong_not;
 
 lemma not_iff_imp_false: ¬P ⟺ (P ⟹ false) :=
 	by iff_intro[OF not_imp_false not_intro];
@@ -322,13 +320,13 @@ lemma nnot_intro: if [P] then ¬¬P :=
 		by not_imp_false[OF nP];
 	done;
 
-lemma nnot_imp: if imp: ¬¬P ⟹ Q, [P] then Q :=
+lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q :=
 	by imp nnot_intro;
 
 lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q :=
 	apply not_intro;
 	- if [¬Q] :=
-		show! ¬P :=
+		have! ¬P :=
 			by imp_not_imp[OF PQ];
 		by not_imp_false[OF nnP];
 	done;
@@ -345,7 +343,7 @@ lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
 	apply not_intro;
 	- if PQ: P ⟹ Q :=
-		show nnQ: ¬¬Q :=
+		have nnQ: ¬¬Q :=
 			by nnot_imp_nnot[OF nnP PQ];
 		by not_imp_false[OF nnQ];
 	done;
@@ -370,7 +368,7 @@ interpret or: MetaSymmetric (∨) :=
 		by or_elim[OF PQ or_intro2 or_intro1];
 	done;
 
-lemma iff_cong_or: if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S :=
+lemma iff_cong_or#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S :=
 	apply iff_intro;
 	- if PR: P ∨ R :=
 		apply or_elim[OF PR];
@@ -383,8 +381,6 @@ lemma iff_cong_or: if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S :=
 		- by or_intro2 iff_elim2[OF RS];
 		done;
 	done;
-
-setup cong iff_cong_or;
 
 interpret or: MetaSymmetric (∨) :=
 	- if or: P ∨ Q then Q ∨ P :=
@@ -439,6 +435,9 @@ interpret or_iff: MetaAssociative (∨) (⟺) :=
 		done;
 	done;
 
+lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R :=
+	by or[unfolded imp_imp_iff];
+
 lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R) :=
 	apply iff_intro;
 	- if nor: P ∨ Q ⟹ R :=
@@ -472,9 +471,9 @@ lemma nnot_excluded_middle: ¬¬(P ∨ ¬P) :=
 lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q) :=
 	apply not_intro;
 	- if and: ¬P ∧ ¬Q :=
-		show nP: ¬P :=
+		have nP: ¬P :=
 			by and_elim1[OF and];
-		show nQ: ¬Q :=
+		have nQ: ¬Q :=
 			by and_elim2[OF and];
 		apply or_elim[OF PQ];
 		- by not_imp_false[OF nP];

@@ -1,4 +1,4 @@
-base LambdaLogic;
+base LambdaPropositional;
 
 import TwoValued;
 
@@ -211,7 +211,7 @@ interpret typed: PropositionalClassical :=
 		done;
 	done;
 
-thm typed.pierces_law;
+thm typed.pierce_law;
 
 lemma not_prop_iff: ¬ prop x ⟺ x ≠ true ∧ x ≠ false :=
 	unfold+ prop_def neq_def;

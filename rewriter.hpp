@@ -13,10 +13,14 @@ class Rewriter {
 		Thm thm;
 	};
 	struct Cong : Thm {
+		struct Cond {
+			size_t ind;
+			bool abs;
+			CTerm assm;
+		};
 		CTerm pat;
-		std::vector<size_t> inds;
-		std::vector<bool> abss;
-		Cong( CTerm const& pat, Thm const& thm, std::vector<size_t> && inds, std::vector<bool> && abss ) : pat(pat), Thm(thm), inds(std::move(inds)), abss(std::move(abss)) {}
+		std::vector<Cond> conds;
+		Cong( CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : pat(pat), Thm(thm), conds(std::move(conds)) {}
 	};
 	struct Dual {
 		Thm thm;
@@ -40,6 +44,7 @@ class Rewriter {
 	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
 	Map<size_t,Imp> _revimps;
 public:
+	static std::string const CONG;
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
@@ -108,7 +113,7 @@ public:
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const;
 	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	std::pair<Thm,size_t> _steps( Rules const& rules, Locale const& loc, CTerm const& source, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;

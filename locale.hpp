@@ -82,11 +82,7 @@ public:
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
 	/** Declares import */
-	Import& import(std::string&& name, Locale const& loc) &;
-	/** Declares import */
-	Import& import(std::string_view const& name, Locale const& loc) & {
-		return import(std::string(name),loc);
-	}
+	Import& import(std::string_view const& name, Locale const& loc) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
 	/** Finds branch locale */
@@ -102,7 +98,7 @@ public:
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax const& syntax) const&;
 	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
-	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, Syntax const& syntax = SYNTAX ) const&;
+	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, Syntax const& syntax = SYNTAX, std::string_view const& prefix = "\t" ) const&;
 };
 
 /** Annotated theorem */
@@ -266,9 +262,9 @@ inline std::ostream& operator<<(std::ostream& os, Locale const& loc) {
 	return os << loc.pretty(SYNTAX);
 }
 
-inline Import& Locale::import(std::string&& name, Locale const& loc) & {
+inline Import& Locale::import(std::string_view const& name, Locale const& loc) & {
 	auto it = _ref->imports.emplace(std::piecewise_construct,
-		std::make_tuple(std::move(name)),
+		std::make_tuple(name),
 		std::forward_as_tuple(*this,loc)
 	);
 	return it->second;

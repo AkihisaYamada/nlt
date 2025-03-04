@@ -1,40 +1,35 @@
 ------
 # Gödel―Gentzen Negative Translation
-
-Theorems in the classical logic can be translated in a double-negated form in the intuitionistic logic.
-To do so, we must replace the prop type of classical logic by the image of double negation,
-disjunction and existential quantifier by certain form.
-Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
 ------
 base TypedIntuitionisticLogic;
 ctxt TypedIntuitionisticLogic;
 
+----
+The intuitionistic logic can prove theorems of the classical logic after a double-negation translation.
+To formally state the result, we interpret the classical logic context, replacing the `prop` type of by the image of double negation,
+disjunction and existential quantifier by certain forms.
+
+Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
+----
+
 fix image_nnot nnot_or nnot_ex;
 
+-- `image_nnot` should turn a proposition into a proposition.
 assume prop_image_nnot#intro: prop P ⟹ prop (image_nnot P);
-assume image_nnot_iff_and: prop P ⟹ image_nnot P ⟺ (∃P'. prop P' ∧ (P ⟺ ¬¬P'));
 
-show image_nnot_imp_iff: if tP: image_nnot P, [prop P] then ¬¬P ⟺ P :=
-	note 1: tP[unfolded image_nnot_iff_and(P)];
+--
+
+assume image_nnot_iff: prop P ⟹ image_nnot P ⟺ (∃P' : prop. P ⟺ ¬¬P');
+assume image_nnot_imp_prop: image_nnot P ⟹ prop P;
+assume prop_image_nnot: prop P ⟹ prop (image_nnot P);
+
+lemma image_nnot_imp_iff: if tP: image_nnot P, [prop P] then ¬¬P ⟺ P :=
+	note 1: tP[unfolded image_nnot_iff(P)];
 	apply ex_elim[OF 1];
-	- for P', if and: prop P' ∧ (P ⟺ ¬¬P') :=
-		apply and_elim[OF and];
-		- if [prop P'], iff: P ⟺ ¬¬P' :=
-			unfold+ iff nnnot_iff;
-			done;
+	- for P', if iff: (P ⟺ ¬¬P'), [prop P'] :=
+		unfold+ iff nnnot_iff;
 		done;
 	done;
-
-show image_nnot_iff: image_nnot P ⟺ prop P ∧ (¬¬P ⟺ P) :=
-	apply iff_intro;
-	case pP: image_nnot P :=
-		by and_intro image_nnot_imp_type[OF pP] image_nnot_imp_iff[OF pP];
-	unfold+ and_imp_iff image_nnot_iff_and;
-	case pP: prop P, nn: ¬¬P ⟺ P :=
-		apply+ and_intro pP ex_intro1(P);
-		unfold! nn;
-		blast and.type prop_prop iff.type not.type;
-	qed;
 
 --The negative translation of disjunction is specified as follows.
 
@@ -57,50 +52,56 @@ import nnot_ex: Binder prop nnot_ex;
 ----
 
 interpret image_nnot.true: Member image_nnot true :=
-	discharge image_nnot true :=
-		unfold+ image_nnot_iff not_true_iff not_false_iff iff_true[OF true.type] true_and_iff;
-		by iff.refl;
-	end;
+	- image_nnot true :=
+		unfold image_nnot_iff;
+		apply ex_intro1(true);
+		unfold+ not_true_iff not_false_iff;
+		done;
+	done;
 
 interpret image_nnot.false: Member image_nnot false :=
-	discharge image_nnot false :=
-		unfold+ image_nnot_iff not_true_iff not_false_iff iff_true[OF false.type] true_and_iff;
-		by iff.refl;
-	end;
+	- image_nnot false :=
+		unfold image_nnot_iff;
+		apply ex_intro1(false);
+		unfold+ not_true_iff not_false_iff;
+		done;
+	done;
 
 interpret image_nnot.imp: Magma image_nnot (⟹) :=
-	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟹ Q) :=
+	- if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟹ Q) :=
+		note! image_nnot_imp_prop[OF tP];
+		note! image_nnot_imp_prop[OF tQ];
+
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
-		case pP: prop P, nnP: ¬¬P ⟺ P :=
+		- if pP: prop P, nnP: ¬¬P ⟺ P :=
 			apply and_elim[OF tQ[unfolded image_nnot_iff]];
-			case pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
+			- if pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
 				unfold image_nnot_iff;
 				fold nnQ;
 				unfold+ nnimp_not_iff nnQ iff_true[OF iff.refl] and_true_iff;
-				blast prop_imp_intro pP pQ;
-				qed;
-			qed;
-		qed;
-	end;
+				by prop_imp_intro pP pQ;
+			done;
+		done;
+	done;
 
 interpret image_nnot.and: Magma image_nnot (∧) :=
-	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q) :=
+	- if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q) :=
 		apply and_elim[OF tQ[unfolded image_nnot_iff]];
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
-		case pP: prop P, nnP: ¬¬P ⟺ P, pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
+		- if pP: prop P, nnP: ¬¬P ⟺ P, pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
 			unfold+ image_nnot_iff nnand_iff nnP nnQ iff_true[OF iff.refl] and_true_iff;
 			apply+ and.type pP pQ;
-			qed;
-		qed;
-	end;
+			done;
+		done;
+	done;
 
 interpret image_nnot.iff: Magma image_nnot (⟺) :=
-	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟺ Q) :=
+	- if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟺ Q) :=
 		unfold image_nnot_iff;
 		apply and_intro;
 		show! prop (P ⟺ Q) :=
 			apply+ iff.type image_nnot_imp_type[OF tP] image_nnot_imp_type[OF tQ];
-			qed;
+			done;
 		show! ¬¬(P ⟺ Q) ⟺ (P ⟺ Q) :=
 			note nnPP: image_nnot_imp_iff[OF tP];
 			note nnQQ: image_nnot_imp_iff[OF tQ];
@@ -111,25 +112,25 @@ interpret image_nnot.iff: Magma image_nnot (⟺) :=
 			unfold+ nnimp_not_iff nnPP nnQQ;
 			fold iff_iff_and;
 			done;
-		qed;
-	end;
+		done;
+	done;
 
 interpret image_nnot.or: PropOr image_nnot nnot_or :=
-	discharge if tP: image_nnot P, tQ: image_nnot Q then image_nnot (nnot_or P Q) :=
+	- if tP: image_nnot P, tQ: image_nnot Q then image_nnot (nnot_or P Q) :=
 		apply and_elim[OF tQ[unfolded image_nnot_iff]];
 		apply and_elim[OF tP[unfolded image_nnot_iff]];
 		case pP: prop P, nnP: ¬¬P ⟺ P, pQ: prop Q, nnQ: ¬¬Q ⟺ Q :=
 			unfold+ image_nnot_iff nnot_or_iff nnnot_iff iff_true[OF iff.refl] and_true_iff;
 			blast nnot_or.type pP pQ;
-			qed;
-		qed;
-	discharge if P: P then nnot_or P Q :=
+			done;
+		done;
+	- if P: P then nnot_or P Q :=
 		unfold+ nnot_or_iff iff_true[OF P] not_true_iff;
 		by not_false;
-	discharge if Q: Q then nnot_or P Q :=
+	- if Q: Q then nnot_or P Q :=
 		unfold+ nnot_or_iff iff_true[OF Q] not_true_iff and_false_iff;
 		by not_false;
-	discharge if 1: nnot_or P Q, tR: image_nnot R, PR: P ⟹ R, QR: Q ⟹ R then R :=
+	- if 1: nnot_or P Q, tR: image_nnot R, PR: P ⟹ R, QR: Q ⟹ R then R :=
 		apply and_elim[OF tR[unfolded image_nnot_iff]];
 		case pR: prop R, nnRR: ¬¬R ⟺ R :=
 			show 2: ¬(¬P ∧ ¬Q);
@@ -140,13 +141,13 @@ interpret image_nnot.or: PropOr image_nnot nnot_or :=
 					apply not_elim[OF 2];
 					apply and_intro;
 					by imp_not_imp[OF PR nR] imp_not_imp[OF QR nR];
-				qed;
+				done;
 			by nnR[unfolded nnRR];
-		qed;
+		done;
 	end;
 
 interpret image_nnot.all: Binder image_nnot (∀) :=
-	discharge if ta: ∀x. image_nnot α.[x] then image_nnot (∀x. α.[x]) :=
+	- if ta: ∀x. image_nnot α.[x] then image_nnot (∀x. α.[x]) :=
 		unfold image_nnot_iff;
 		apply+ and_intro all.type;
 		note 1: ta[unfolded+ image_nnot_iff all_and_iff];
@@ -158,47 +159,47 @@ interpret image_nnot.all: Binder image_nnot (∀) :=
 	end;
 
 interpret image_nnot.not: Unary image_nnot (¬) :=
-	discharge if pP: image_nnot P then image_nnot (¬P) :=
+	- if pP: image_nnot P then image_nnot (¬P) :=
 		unfold+ image_nnot_iff nnnot_iff iff_true[OF iff.refl] and_true_iff;
 		apply+ not.type image_nnot_imp_type[OF pP];
-		qed;
+		done;
 	end;
 
 interpret image_nnot.ex: PropEx image_nnot nnot_ex :=
-	discharge if ta: ∀x. image_nnot α.[x] then image_nnot (nnot_ex (x. α.[x])) :=
+	- if ta: ∀x. image_nnot α.[x] then image_nnot (nnot_ex (x. α.[x])) :=
 		unfold image_nnot_iff;
 		apply+ and_intro nnot_ex.type;
 		note 1: ta[unfolded+ image_nnot_iff all_and_iff];
 		note! and_elim1[OF 1];
 		unfold+ nnot_ex_iff nnnot_iff;
 		done;
-	discharge for x, if ax: α.[x] then nnot_ex (x'. α.[x']) :=
+	- for x, if ax: α.[x] then nnot_ex (x'. α.[x']) :=
 		unfold nnot_ex_iff;
 		apply not_intro;
-		case alln: ∀x'. ¬ α.[x'];
+		- if alln: ∀x'. ¬ α.[x'] :=
 			by not_imp_false[OF alln ax];
-		qed;
-	discharge if nnex: nnot_ex (x. α.[x]), tP: image_nnot P, all: ∀x. α.[x] ⟹ P then P :=
+			done;
+	- if nnex: nnot_ex (x. α.[x]), tP: image_nnot P, all: ∀x. α.[x] ⟹ P then P :=
 		fold image_nnot_imp_iff[OF tP];
 		apply not_intro;
-		case nP: ¬P;
+		- if nP: ¬P :=
 			apply not_imp_false[OF nnex[unfolded nnot_ex_iff]];
 			show! ¬ α.[x] :=
 				apply not_intro;
 				case ax: α.[x] :=
 					apply not_imp_false[OF nP];
 					by all[OF ax];
-				qed;
-			qed;
-		qed;
+				done;
+			done;
+		done;
 	end;
 
 interpret image_nnot: ExcludedMiddle image_nnot nnot_or (¬) :=
-	discharge if pP: image_nnot P then nnot_or P (¬P) :=
+	- if pP: image_nnot P then nnot_or P (¬P) :=
 		unfold+ nnot_or_iff nand_nnot_iff;
 		unfold and_iff.commute;
 		apply non_contradiction;
-		qed;
+		done;
 	end;
 
 interpret image_nnot: ClassicalLogic image_nnot (∧) nnot_or (⟺) (¬) nnot_ex;

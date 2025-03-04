@@ -60,6 +60,7 @@ note ! iff.type;
 note ! and.type;
 note ! or.type;
 
+ctxt;
 
 ---
 ## Theorems
@@ -94,11 +95,11 @@ lemma iff_imp_rev: if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟹ P :=
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
-ctxt;
 
-lemma iff_cong_imp:
+lemma iff_cong_imp#cong: for P R,
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
-	then (P ⟹ R) ⟺ (Q ⟹ S) :=
+	then (P ⟹ R) ⟺ (Q ⟹ S)
+:=
 	apply iff_intro;
 	- if PR: P ⟹ R :=
 		by PR #fold RS PQ-;
@@ -106,9 +107,10 @@ lemma iff_cong_imp:
 		by QS #unfold RS PQ-;
 	done;
 
-lemma iff_cong_iff:
+lemma iff_cong_iff#cong: for P R,
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
-	then (P ⟺ R) ⟺ (Q ⟺ S) :=
+	then (P ⟺ R) ⟺ (Q ⟺ S)
+:=
 	apply iff_intro;
 	- if PR: P ⟺ R :=
 		apply iff_intro;
@@ -122,7 +124,9 @@ lemma iff_cong_iff:
 		done;
 	done;
 
-lemma iff_cong_not: if PQ: P ⟺ Q, [prop P, prop Q] then ¬P ⟺ ¬Q :=
+lemma iff_cong_not#cong: for P,
+	if PQ: P ⟺ Q, [prop P, prop Q] then ¬P ⟺ ¬Q
+:=
 	apply iff_intro;
 	- if nP: ¬P :=
 		apply not_intro;
@@ -132,7 +136,7 @@ lemma iff_cong_not: if PQ: P ⟺ Q, [prop P, prop Q] then ¬P ⟺ ¬Q :=
 		by not_imp_false[OF nQ] iff_elim1[OF PQ];
 	done;
 
-lemma iff_cong_and:
+lemma iff_cong_and#cong: for P R,
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
 	then P ∧ R ⟺ Q ∧ S
 :=
@@ -140,8 +144,6 @@ lemma iff_cong_and:
 	- by and_intro #fold PQ RS #elim and_elim;
 	- by and_intro #unfold PQ RS #elim and_elim;
 	done;
-
-setup cong iff_cong_imp iff_cong_iff iff_cong_not iff_cong_and;
 
 lemma imp_imp_iff: if [P, prop P, prop Q] then (P ⟹ Q) ⟺ Q :=
 	apply iff_intro;
@@ -222,7 +224,7 @@ lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, [prop P, prop Q] then ¬P :=
 lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q, prop P, prop Q] then ¬P :=
 	apply not_intro;
 	- if [P] :=
-		show nQ: ¬Q :=
+		have nQ: ¬Q :=
 			by PnQ;
 		by not_imp_false[OF nQ];
 	done;
@@ -230,7 +232,7 @@ lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q, prop P, prop Q] then ¬P :=
 lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, [prop P, prop Q] then ¬¬Q :=
 	apply not_intro;
 	- if nQ: ¬Q :=
-		show nP: ¬P :=
+		have nP: ¬P :=
 			by imp_not_imp[OF PQ nQ];
 		by not_imp_false[OF nnP] nP;
 	done;
@@ -247,7 +249,7 @@ lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P, prop P, prop Q] then ¬¬Q :=
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [prop P, prop Q] then ¬(P ⟹ Q) :=
 	apply not_intro;
 	- if PQ: P ⟹ Q :=
-		show nnQ: ¬¬Q :=
+		have nnQ: ¬¬Q :=
 			by nnot_imp_nnot[OF nnP] PQ;
 		by not_imp_false[OF nnQ nQ];
 	done;
@@ -389,7 +391,7 @@ lemma or_intro:
 	- by or_intro2;
 	done;
 
-lemma iff_cong_or:
+lemma iff_cong_or#cong: for P R,
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
 	then P ∨ R ⟺ Q ∨ S
 :=

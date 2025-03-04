@@ -224,16 +224,16 @@ function<ostream&(ostream&)> const Locale::pretty(Syntax const& syntax, size_t n
 			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << ';' << endl;
 		}
 		for( auto& [name,loc] : _ref->locales ) {
-			mk_indent(os,n) << "locale " << name << ": " << loc.pretty(syntax,n) << endl;
+			mk_indent(os,n) << loc.pretty(syntax,n) << endl;
 		}
 		n--;
 		return mk_indent(os,n) << "}";
 	};
 }
-function<ostream&(ostream&)> Locale::print_thms( string_view const& name, Syntax const& syntax ) const& {
+function<ostream&(ostream&)> Locale::print_thms( string_view const& name, Syntax const& syntax, string_view const& prefix ) const& {
 	return [&]( ostream& os )->ostream& {
 		auto fun = [&]( AThm const& thm ){
-			os << syntax.pretty_thm(thm) << endl;
+			os << prefix << syntax.pretty_thm(thm) << endl;
 			return false;
 		};
 		find_thm(name,fun);

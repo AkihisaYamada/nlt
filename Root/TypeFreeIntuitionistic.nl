@@ -12,7 +12,7 @@ import TypeFreeMinimal;
 finalize;
 
 setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
-setup cong iff_cong_imp iff_cong_iff iff_cong_and iff_cong_not iff_cong_all iff_cong_or;
+setup dual iff.sym;
 
 lemma not_imp_iff_false: if nP: ¬P then P ⟺ false :=
 	apply iff_intro;

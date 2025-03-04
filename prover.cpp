@@ -8,7 +8,7 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool intro = false, force = false;
+	bool intro = false, force = false, cong = false;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -287,8 +287,10 @@ public:
 				cs.intro = true;
 			} else if( _parser.skips("concl") ) {
 				cs.force = true;
+			} else if( _parser.skips("cong") ) {
+				cs.cong = true;
 			} else {
-				throw Error("\"unknown #\"");
+				throw Error("\"unknown #\"")(_parser.peek_token());
 			}
 		}
 		if( _parser.skips("!") ) {
@@ -312,6 +314,10 @@ public:
 		}
 		if( cs.force ) {
 			add_forced(loc,thm,true);
+		}
+		if( cs.cong ) {
+			loc.add_thm(Rewriter::CONG,thm);
+			_rewriter->register_cong(thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -459,13 +465,12 @@ public:
 					_parser.skip(";");
 				} else if( _parser.skips("-") ) {
 					cout << "discharge ";
+					while( intp.instantiates(mod) || intp.retains() );
 					if( _parser.skips("know") ) {
 						_parser.skip(";");
-						while( intp.instantiates(mod) || intp.retains() );
 						intp.discharge();
 					} else if( mod && _parser.skips("assume") ) {
 						_parser.skip(";");
-						while( intp.instantiates(mod) || intp.retains() );
 						auto a = intp.assuming();
 						if( !a ) throw Error("\"unexpected discharge\"");
 						auto [name,axiom] = *a;
@@ -477,7 +482,6 @@ public:
 						auto const& claim = concl.intro();
 						auto const& var_loc = *prover._loc.parent();
 						for(;;) {
-							while( intp.instantiates(mod) || intp.retains() );
 							auto a = intp.assuming();
 							if( !a ) {
 								throw Error("\"no matching discharge\"")(claim);
@@ -487,8 +491,11 @@ public:
 							auto goal = strip_all(axiom,axiom_vars);
 							auto m = match(claim,goal,[&](auto v){ return var_loc.fixes(v); });
 							if( !m ) {
-								if( intp.discharges(mod) ) continue;
-								throw Error("\"failed to discharge\"")(goal);
+								if( intp.discharges(mod) ) {
+									while( intp.instantiates(mod) || intp.retains() );
+									continue;
+								}
+								throw Error("\"failed to skip\"")(goal);
 							}
 							auto const& thm = prover.proof_loop().intro();
 							auto local_intp = Intp(var_loc,axiom_vars);
@@ -498,7 +505,7 @@ public:
 						}
 					}
 				} else if( _parser.skips("obtain") ) {
-					obtain();
+					_obtain();
 				} else if( _parser.skips("retain") ) {
 					while( intp.discharges(mod) || intp.instantiates(mod) );
 					auto x = intp.obtaining();
@@ -543,9 +550,8 @@ public:
 					break;
 				}
 			}
-		} else {
-			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
+		while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
@@ -565,13 +571,108 @@ public:
 		}
 		return rules;
 	}
+	bool _ctxt() {
+		if( _parser.skips("ctxt") ) {
+			if( _parser.skips(";") ) {
+				cout << _loc.pretty(*_syntax) << endl;
+			} else {
+				string name = _parser.get();
+				_parser.skip(";");
+				auto loc = find_locale(name);
+				cout << loc.pretty(*_syntax) << endl;
+			}
+			return true;
+		}
+		return false;
+	}
+	bool _thm() {
+		if( _parser.skips("thm") ) {
+			string pref = "thm ";
+			do {
+				Thm thm = get_thm();
+				cout << pref << _syntax->pretty_thm(thm) << ';' << endl;
+				pref = "\t";
+			} while( !_parser.skips(";") );
+			return true;
+		}
+		return false;
+	}
+	bool _thms() {
+		if( _parser.skips("thms") ) {
+			bool shp = _parser.skips("#");
+			string name = _parser.get_thm_name();
+			string ref = shp ? "#"+name : name;
+			cout << "thms " << ref << ":\n" << _loc.print_thms(ref);
+			_parser.skip(";");
+			return true;
+		}
+		return false;
+	}
+	bool _term() {
+		if( _parser.skips("term") ) {
+			Term term = get_term();
+			_parser.skip(";");
+			cout << "term " << _syntax->pretty_term(term) << endl;
+			return true;
+		}
+		return false;
+	}
+	bool _note() {
+		if( _parser.skips("note") ) {
+			auto cs = get_claim_status();
+			auto thm = get_thm();
+			add_claim(_loc,cs,thm);
+			cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
+			while( auto o = gets_thm() ) {
+				add_claim(_loc,cs,*o);
+				cout << "\t" << cs << _syntax->pretty_thm(*o) << endl;
+			}
+			_parser.skip(";");
+			return true;
+		}
+		return false;
+	}
+	void _state() {
+		auto cs = get_claim_status();
+		cout << "Showing " << cs << flush;
+		auto [prover,goal] = get_statement();
+		auto thm = prover.proof_loop().intro().intro();
+		add_claim(_loc,cs,thm);
+		if( _thesis ) {
+			print_goal();
+		} else {
+			cout << "proved " << cs << _syntax->pretty_thm(thm) << endl;
+		}
+	}
+	void _define() {
+		Opt<string> name_op;
+		if( _parser.skips("(") ) {
+			name_op = _parser.get();
+			_parser.skip(")");
+		}
+		Term l = get_term();
+		_parser.skip(":=");
+		Term r = get_term();
+		_parser.skip(";");
+		if( !_definer ) {
+			throw Error("definer not setup");
+		}
+		auto [f,spec] = _definer->define(_loc,l,r,name_op);
+		Thm def = spec << _loc.thm("imp.refl");
+		string name = name_op ? *name_op : f + "_def";
+		_loc.add_thm(name,def);
+		cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
+	}
 	Opt<Thm> loop() {
 		for(;;) try {
 			if( _parser.skips("include") ) {
-				load_locale(_parser.get_thm_name(),true);
+				auto loc = load_locale(_parser.get_thm_name());
+				auto& intp = _loc.import("",loc);
+				while( intp.instantiates(!_final) || intp.discharges(!_final) || intp.retains() );
+				assert(intp.ready());
 				_parser.skip(";");
 			} else if( _parser.skips("locale") ) {
-				string name = _parser.get();
+				string name = _parser.get(Parser::Word);
 				auto loc = _loc.branch(name);
 				while( auto sym = gets_sym() ) {
 					loc.fix(*sym);
@@ -582,114 +683,41 @@ public:
 					cout << "end locale " << name << endl;
 				}
 				_parser.skip(";");
+			} else if( _parser.skips("context") ) {
+				auto name = _parser.gets(Parser::Word);
+				_parser.skip(":=");
+				auto loc = _loc.branch();
+				Prover(*this,loc).deepen()._prompt().loop();
+				_loc.import( name ? *name : "", loc );
+				cout << "end context ";
+				if( name ) cout << *name;
+				cout << endl;
+				_parser.skip(";");
 			} else if( _parser.skips("interpret") ) {
 				import(false);
-			} else if( _parser.skips("ctxt") ) {
-				if( _parser.skips(";") ) {
-					cout << _loc.pretty(*_syntax) << endl;
-				} else {
-					string name = _parser.get();
-					_parser.skip(";");
-					auto loc = find_locale(name);
-					cout << loc.pretty(*_syntax) << endl;
-				}
+			} else if( _ctxt() ) {
 			} else if( _parser.skips("in") ) {
 				string name = _parser.get();
-				_parser.skip("{");
+				_parser.skip(":=");
 				cout << "in " << name << endl;
 				auto loc = find_locale(name);
 				auto sub = Prover(*this,loc).deepen().loop();
-				_parser.skip("}");
+				_parser.skip("end");
 				cout << "left " << name << endl;
-			} else if( _parser.skips("thm") ) {
-				string pref = "thm ";
-				do {
-					Thm thm = get_thm();
-					cout << pref << _syntax->pretty_thm(thm) << ';' << endl;
-					pref = "\t";
-				} while( !_parser.skips(";") );
-			} else if( _parser.skips("term") ) {
-				Term term = get_term();
-				_parser.skip(";");
-				cout << "term " << _syntax->pretty_term(term) << endl;
-			} else if( _parser.skips("note") ) {
-				auto cs = get_claim_status();
-				auto thm = get_thm();
-				add_claim(_loc,cs,thm);
-				cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
-				while( auto o = gets_thm() ) {
-					add_claim(_loc,cs,*o);
-					cout << "\t" << cs << _syntax->pretty_thm(*o) << endl;
-				}
-				_parser.skip(";");
+			} else if( _thm() ) {
+			} else if( _thms() ) {
+			} else if( _term() ) {
+			} else if( _note() ) {
 			} else if(
-				_thesis ? _parser.skips("show") :
+				_thesis ? _parser.skips("have") :
 					_parser.skips("lemma") ||
 					_parser.skips("theorem")
 			) {
-				auto cs = get_claim_status();
-				cout << "Showing " << cs << flush;
-				auto [prover,goal] = get_statement();
-				auto thm = prover.proof_loop().intro().intro();
-				add_claim(_loc,cs,thm);
-				if( _thesis ) {
-					print_goal();
-				} else {
-					cout << "proved " << cs << _syntax->pretty_thm(thm) << endl;
-				}
+				_state();
 			} else if( _parser.skips("obtain") ) {
-				obtain();
+				_obtain();
 			} else if( _parser.skips("define") ) {
-				Opt<string> name_op;
-				if( _parser.skips("(") ) {
-					name_op = _parser.get();
-					_parser.skip(")");
-				}
-				Term l = get_term();
-				_parser.skip(":=");
-				Term r = get_term();
-				_parser.skip(";");
-				if( !_definer ) {
-					throw Error("definer not setup");
-				}
-				auto [f,spec] = _definer->define(_loc,l,r,name_op);
-				Thm def = spec << _loc.thm("imp.refl");
-				string name = name_op ? *name_op : f + "_def";
-				_loc.add_thm(name,def);
-				cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
-			} else if( _parser.skips("prefix") ) {
-				string sym = _parser.get();
-				int rlevel = _parser.get_int();
-				int level = _parser.get_int();
-				_parser.skip(";");
-				_make_own_parser();
-				_syntax->prefix(sym,level,rlevel);
-				cout << "New prefix operator " << sym << endl;
-			} else if( _parser.skips("infix") ) {
-				string sym = _parser.get();
-				int llevel = _parser.get_int();
-				int rlevel = _parser.get_int();
-				int level = _parser.get_int();
-				_parser.skip(";");
-				_make_own_parser();
-				_syntax->infix(sym,level,llevel,rlevel);
-				cout << "New infix operator " << sym << endl;
-			} else if( _parser.skips("binder") ) {
-				string sym = _parser.get();
-				int llevel = _parser.get_int();
-				int rlevel = _parser.get_int();
-				_parser.skip(";");
-				_make_own_parser();
-				_syntax->binder(sym,llevel,rlevel);
-				cout << "New binder " << sym << endl;
-			} else if( _parser.skips("binder_middle") ) {
-				string prefix = _parser.get();
-				string mid = _parser.get();
-				string sym = _parser.get();
-				_parser.skip(";");
-				_make_own_parser();
-				_syntax->binder_mid(prefix,mid,sym);
-				cout << "New binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
+				_define();
 			} else if( _parser.skips("setup") ) {
 				if( _parser.skips("rewrite") ) {
 					Thm imp = get_thm();
@@ -704,6 +732,12 @@ public:
 					_rewriter->register_imp(imp,true);
 					_rewriter->register_imp(revimp,false);
 					_rewriter->register_trans(trans);
+					_loc.find_thm( Rewriter::CONG, [&](AThm const& thm ){
+						_rewriter->register_cong(thm);
+						cout << "\n\tcong: " << _syntax->pretty_thm(thm);
+						return false;
+					} );
+					cout << endl;
 				} else if( _parser.skips("refl") ) {
 					cout << "Registering reflexivity: ";
 					while( auto const& thm = gets_thm() ) {
@@ -723,13 +757,6 @@ public:
 					while( auto const& thm = gets_thm() ) {
 						_rewriter->register_dual(*thm);
 						cout << _syntax->pretty_thm(*thm);
-					};
-					cout << endl;
-				} else if( _parser.skips("cong") ) {
-					cout << "Registering congruence:";
-					while( auto const& thm = gets_thm() ) {
-						_rewriter->register_cong(*thm);
-						cout << "\n\t" << _syntax->pretty_thm(*thm);
 					};
 					cout << endl;
 				} else if( _parser.skips("define") ) {
@@ -768,22 +795,6 @@ public:
 					}
 				}
 				_parser.skip(";");
-			} else if( _parser.skips("symbol") ) {
-				bool solo = _parser.skips("solo");
-				cout << "registering symbols";
-				while( !_parser.skips(";") ) {
-					string const& sym = _parser.get();
-					int ch = int_of_chars(sym.data());
-					if( solo ) {
-						_syntax->register_single_op(ch);
-					} else {
-						_syntax->register_multi_op(ch);
-					}
-					cout << ' ' << sym;
-				}
-				cout << endl;
-			} else if( _parser.skips("end") || _parser.skips("") ) {
-				return {};
 			} else if( _thesis ) {
 				if( _parser.skips("goal") ) {
 					_parser.skip(";");
@@ -804,20 +815,20 @@ public:
 					auto [rules,ctrl] = _get_rewrite(_loc,dir);
 					_parser.skip(";");
 					_rewriter->apply(rules,*_thesis,ctrl);
-					print_goal( dir ? "unfolded goal " : "folded goal " );
+					print_goal( dir ? "folded goal " : "unfolded goal " );
 				} else if( _parser.skips("-") ) {
 					auto goal = has_goal();
 					if( !goal ) {
 						throw Error("\"unexpected subgoal\"");
 					}
-					auto subprf = Prover(*this,_loc.branch()).deepen();
-					CTerm newgoal = goal->weaken(subprf._loc);
+					auto subloc = _loc.branch();
+					CTerm newgoal = goal->weaken(subloc);
 					cout << "subgoal ";
 					bool needsep = false;
 					if( _parser.skips("for") ) {// instantiate variables as long as names are given
 						needsep = true;
 						cout << "for";
-						newgoal = strip_all(newgoal,subprf._loc,[&](string_view const& v)->Opt<string> {
+						newgoal = strip_all(newgoal,subloc,[&](string_view const& v)->Opt<string>{
 							auto o = gets_sym();
 							if( o ) {
 								cout << ' ' << *o;
@@ -835,14 +846,14 @@ public:
 							if( !imp ) throw Error("\"unexpected assumption\"")(t);
 							newgoal = imp->second;
 							if( imp->first != t ) throw Error("\"assumption mismatch\"")(imp->first)(t);
-							return subprf._loc.assume(subprf._loc.enclose(t));
+							return subloc.assume(subloc.enclose(t));
 						};
 						for(;;) {
 							if( _parser.skips("[") ) {
 								cout << "[ ";
 								for(;;) {
 									auto assm = eat_assm(get_term());
-									add_forced(subprf._loc,assm,true);
+									add_forced(subloc,assm,true);
 									cout << _syntax->pretty_term(assm);
 									if( !_parser.skips(",") ) break;
 									cout << ", ";
@@ -851,7 +862,7 @@ public:
 								cout << " ] ";
 							} else {
 								auto [cs,t] = get_assm();
-								add_claim(subprf._loc,cs,eat_assm(t));
+								add_claim(subloc,cs,eat_assm(t));
 								cout << cs << _syntax->pretty_term(t) << ", " << flush;
 							}
 							if( !_parser.skips(",") ) break;
@@ -867,8 +878,8 @@ public:
 						cout << "then ";
 					}
 					cout << _syntax->pretty_cterm(newgoal) << endl;
-					subprf._thesis = Inference::claim_exact(subprf._loc,newgoal);
-					_thesis->discharge(subprf._prompt().proof_loop().intro());
+					auto subprf = Prover(*this,subloc,Inference::claim_exact(subloc,newgoal)).deepen()._prompt();
+					_thesis->discharge(subprf.proof_loop().intro());
 					print_goal("next goal ");
 				} else if( _parser.skips("just") ) {
 					set<Intro> rules;
@@ -924,6 +935,55 @@ public:
 				} else {
 					throw Error("unexpected")(_parser.get());
 				}
+			} else if( _parser.skips("symbol") ) {
+				bool solo = _parser.skips("solo");
+				cout << "registering symbols";
+				while( !_parser.skips(";") ) {
+					string const& sym = _parser.get();
+					int ch = int_of_chars(sym.data());
+					if( solo ) {
+						_syntax->register_single_op(ch);
+					} else {
+						_syntax->register_multi_op(ch);
+					}
+					cout << ' ' << sym;
+				}
+				cout << endl;
+			} else if( _parser.skips("prefix") ) {
+				string sym = _parser.get();
+				int rlevel = _parser.get_int();
+				int level = _parser.get_int();
+				_parser.skip(";");
+				_make_own_parser();
+				_syntax->prefix(sym,level,rlevel);
+				cout << "New prefix operator " << sym << endl;
+			} else if( _parser.skips("infix") ) {
+				string sym = _parser.get();
+				int llevel = _parser.get_int();
+				int rlevel = _parser.get_int();
+				int level = _parser.get_int();
+				_parser.skip(";");
+				_make_own_parser();
+				_syntax->infix(sym,level,llevel,rlevel);
+				cout << "New infix operator " << sym << endl;
+			} else if( _parser.skips("binder") ) {
+				string sym = _parser.get();
+				int llevel = _parser.get_int();
+				int rlevel = _parser.get_int();
+				_parser.skip(";");
+				_make_own_parser();
+				_syntax->binder(sym,llevel,rlevel);
+				cout << "New binder " << sym << endl;
+			} else if( _parser.skips("binder_middle") ) {
+				string prefix = _parser.get();
+				string mid = _parser.get();
+				string sym = _parser.get();
+				_parser.skip(";");
+				_make_own_parser();
+				_syntax->binder_mid(prefix,mid,sym);
+				cout << "New binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
+			} else if( _parser.skips("end") || _parser.skips("") ) {
+				return {};
 			} else if( !_final ) {
 				if( _parser.skips("fix") ) {
 					cout << "Fixing";
@@ -966,7 +1026,7 @@ public:
 			_error();
 		}
 	}
-	void obtain() {
+	void _obtain() {
 		string sym = _parser.get();
 		_parser.skip("where");
 		cout << "Obtaining " << sym << " where ";
@@ -1030,37 +1090,28 @@ public:
 			}
 		}
 	}
-	void load_locale( string_view const& name, bool open = false ) {
+	Locale load_locale( string_view const& name ) {
 		if( _path ) {
 			string dir = _path->dir + _path->name + "/";
 			auto fis = file_of_locale(dir,name);
 			if( !fis.fail() ) {
-				auto& prev = get_lexer();
 				Lexer local_lexer(fis,dir+name,*_syntax);
 				local_lexer.skip("base");
 				auto parent_name = local_lexer.get();
 				local_lexer.skip(";");
 				cout << "Loading " << name << endl;
-				if( open ) {
-					auto prev_loc = _loc;
-					_loc = _loc.branch(name);
-					set_lexer(local_lexer);
-					_indent();
-					loop();
-					set_lexer(prev);
-					_loc = prev_loc;
-				} else {
-					Prover sub = Prover(*this,_loc.branch(name),{},{{dir,name}}).deepen();
-					sub.set_lexer(local_lexer);
-					sub._indent();
-					sub.loop();
-				}
-				return;
+				Prover sub = Prover(*this,_loc.branch(name),{},{{dir,name}}).deepen();
+				sub.set_lexer(local_lexer);
+				sub._indent();
+				sub.loop();
+				cout << "Loaded " << name << endl;
+				return sub._loc;
 			}
 		}
 		if( _parent ) {
-			_parent->load_locale(name);
+			return _parent->load_locale(name);
 		}
+		throw Error("\"locale not found\"")(name);
 	}
 private:
 	void _make_own_parser() {
