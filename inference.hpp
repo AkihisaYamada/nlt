@@ -96,6 +96,14 @@ class Inference {
 	Inference( Locale const& loc, Thm const& thesis, CTerm const& claim, size_t goals ) :
 		_loc(loc), _thm(thesis), _claim(claim), _goals(goals) {}
 public:
+	struct Ctrl {
+		size_t fuel = 255;
+		size_t trial = 1;
+		std::set<Intro> intros;
+		std::set<Elim> elims;
+		std::function<bool(Inference&)> extra = [](auto){ return false; };
+	};
+	static const Ctrl DEFAULT_CTRL;
 	/** name for exact concluder */
 	static std::string const EXACT;
 	/** name for introduction rules */
@@ -164,25 +172,15 @@ public:
 		if( !_discharges(thm) ) throw Error("\"not exact\"")(thm);
 	}
 	void elim( std::set<Elim> const& elims ) &;
-	bool blasts(
-		size_t& fuel,
-		size_t trial,
-		std::set<Intro> const& intros = {},
-		std::set<Elim> const& elims = {},
-		std::function<bool(Inference&)> extra = [](auto){ return false; }
-	) & {
+	bool blasts( Ctrl const& ctrl = DEFAULT_CTRL ) & {
 		std::vector<Intro> elim_res;
-		return _blast(fuel,trial,true,intros,elims,extra,elim_res,0);
+		size_t fuel = ctrl.fuel;
+		return _blast(fuel,1,ctrl,true,elim_res,0);
 	}
-	void blast(
-		size_t& fuel,
-		size_t trial,
-		std::set<Intro> const& intros = {},
-		std::set<Elim> const& elims = {},
-		std::function<bool(Inference&)> extra = [](auto){ return false; }
-	) & {
+	void blast( Ctrl const& ctrl = DEFAULT_CTRL ) & {
 		std::vector<Intro> elim_res;
-		_blast(fuel,trial,false,intros,elims,extra,elim_res,0);
+		size_t fuel = ctrl.fuel;
+		_blast(fuel,1,ctrl,false,elim_res,0);
 	}
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
@@ -225,35 +223,39 @@ private:
 		size_t trial,
 		CTerm const& goal,
 		Intro const& intro,
-		std::set<Intro> const& intros,
-		std::set<Elim> const& elims,
-		std::function<bool(Inference&)> extra
+		Ctrl const& ctrl
 	) &;
 	bool _blast(
 		size_t& fuel,
 		size_t trial,
+		Ctrl const& ctrl,
 		bool fail,
-		std::set<Intro> const& intros,
-		std::set<Elim> const& elims,
-		std::function<bool(Inference&)> extra,
 		std::vector<Intro>& elim_res,
 		size_t elim_res_ind
 	) &;
 };
 
+inline const Inference::Ctrl Inference::DEFAULT_CTRL;
+
 inline Opt<Thm> proves(
 	CTerm const& claim,
 	Locale const& loc,
-	std::set<Intro> const& intros = {},
-	std::set<Elim> const& elims = {},
-	std::function<bool(Inference&)> extra = [](auto){ return false; }
+	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
 	auto x = Inference::claim_exact(loc,claim);
-	size_t fuel = 255;
-	if( x.blasts(fuel,0,intros,elims,extra) ) {
+	if( x.blasts(ctrl) ) {
 		return *x.concluding();
 	}
 	return {};
+}
+inline Thm prove(
+	CTerm const& claim,
+	Locale const& loc,
+	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
+) {
+	auto x = Inference::claim_exact(loc,claim);
+	x.blast(ctrl);
+	return *x.concluding();
 }
 /**
  * @brief Blasts first assumption of implication.
@@ -264,12 +266,10 @@ inline Opt<Thm> proves(
 inline Opt<Thm> blasts(
 	Thm const& thesis,
 	Locale const& loc,
-	std::set<Intro> const& intros = {},
-	std::set<Elim> const& elims = {},
-	std::function<bool(Inference&)> extra = [](auto){ return false; }
+	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
 	if( auto imp = thesis.cbinary(IMP) )
-	if( auto prem = proves(imp->first,loc,intros,elims,extra) ) {
+	if( auto prem = proves(imp->first,loc,ctrl) ) {
 		return thesis.discharge(*prem);
 	}
 	return {};
@@ -277,13 +277,11 @@ inline Opt<Thm> blasts(
 inline Thm blast(
 	Thm const& thesis,
 	Locale const& loc,
-	std::set<Intro> const& intros = {},
-	std::set<Elim> const& elims = {},
-	std::function<bool(Inference&)> extra = [](auto){ return false; }
+	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
-	auto opt = blasts(thesis,loc,intros,elims,extra);
-	assert(opt);
-	return *opt;
+	auto imp = thesis.cbinary(IMP);
+	if( !imp ) throw Error("nothing to blast");
+	return thesis.discharge(prove(imp->first,loc,ctrl));
 }
 
 

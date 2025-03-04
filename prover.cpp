@@ -525,7 +525,8 @@ public:
 					break;
 				}
 			}
-			_parser.skip("done");
+			Inference::Ctrl ctrl = _parser.skips("by") ? get_ctrl() :
+				(_parser.skip("done"), Inference::Ctrl());
 			_depth--;
 			for(;;) {
 				if( intp.instantiates(mod) || intp.retains() ) continue;
@@ -540,9 +541,11 @@ public:
 					},true,true) ) {
 						continue;
 					}
-					auto thm = proves(assm,_loc);
-					if( !thm ) throw Error("\"failed to blast\"")(assm);
-					intp.discharge(*thm);
+					try {
+						intp.discharge(prove(assm,_loc,ctrl));
+					} catch( ::Error const& e ) {
+						throw Error("\"failed to discharge\"")(assm)((Term)e);
+					}
 					continue;
 				}
 				break;
@@ -553,8 +556,7 @@ public:
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
-	set<Intro> get_rules() {
-		set<Intro> rules;
+	void get_rules( set<Intro>& rules ) {
 		for(;;) {
 			if( _parser.skips("!") ) {
 				auto thm = get_thm();
@@ -567,8 +569,27 @@ public:
 			}
 			break;
 		}
-		return rules;
 	}
+	Inference::Ctrl get_ctrl() {
+		auto ctrl = Inference::Ctrl();
+		get_rules(ctrl.intros);
+		while( _parser.skips("#") ) {
+			if( _parser.skips("elim") ) {
+				while( auto elim = gets_thm() ) {
+					ctrl.elims.emplace(Elim::rule(*elim));
+				}
+			} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
+				auto [rrules,rctrl] = _get_rewrite(_loc,dir);
+				ctrl.extra = [rrules,rctrl,this](Inference& thesis){
+					return _rewriter->applies(rrules,thesis,rctrl);
+				};
+			} else {
+				throw Error("\"unexpected\"")(_parser.peek_token());
+			}
+		}
+		return ctrl;
+	}
+
 	bool _ctxt() {
 		if( _parser.skips("ctxt") ) {
 			if( _parser.skips(";") ) {
@@ -872,7 +893,8 @@ public:
 					} else {
 						min = max = 1; safe = true; deep = false;
 					}
-					auto rules = get_rules();
+					auto rules = set<Intro>();
+					get_rules(rules);
 					_parser.skip(";");
 					_thesis->apply(rules,min,max,safe,deep);
 					print_goal("applied goals:\n\t");
@@ -908,33 +930,15 @@ public:
 					return _thesis->concluding();
 				} else if( _parser.skips("done") ) {
 					_parser.skip(";");
-					size_t fuel = 255;
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(fuel,0);
+						_thesis->blast();
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("by") ) {
-					auto intros = get_rules();
-					set<Elim> elims;
-					function<bool(Inference&)> extra = [&](auto){ return false; };
-					size_t fuel = 255;
-					while( _parser.skips("#") ) {
-						if( _parser.skips("elim") ) {
-							while( auto elim = gets_thm() ) {
-								elims.emplace(Elim::rule(*elim));
-							}
-						} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
-							auto [rrules,ctrl] = _get_rewrite(_loc,dir);
-							extra = [rrules,ctrl,this](Inference& thesis){
-								return _rewriter->applies(rrules,thesis,ctrl);
-							};
-						} else {
-							throw Error("\"unexpected\"")(_parser.peek_token());
-						}
-					}
+					auto ctrl = get_ctrl();
 					_parser.skip(";");
 					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(fuel,1,intros,elims,extra);
+						_thesis->blast(ctrl);
 					}
 					return _thesis->concluding();
 				} else if( _parser.skips("sorry") ) {
@@ -1027,7 +1031,7 @@ public:
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
-			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e.term) << endl;
+			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e) << endl;
 			_error();
 		} catch ( exception const& e ) {
 			cerr << _parser.location() << ": Other exception: " << e.what() << endl;

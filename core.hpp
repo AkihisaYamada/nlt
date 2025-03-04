@@ -342,11 +342,10 @@ inline Term operator&=(std::string_view const& v, Term const& s) {
 	return Term(ALL)(v/=s);
 }
 
-struct Error : public std::exception {
-	Term term;
-	Error(Term const& term) : term(term) {}
+struct Error : public std::exception, Term {
+	Error(Term const& term) : Term(term) {}
 	Error operator()(Term const& arg) const {
-		return term(arg);
+		return Term::operator()(arg);
 	}
 };
 struct UnexpectedTerm : public Error {
