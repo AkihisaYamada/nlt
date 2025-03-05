@@ -54,10 +54,10 @@ class Term {
 	struct Abs : Ref<StrTerm const> {
 		Abs(std::string_view const& var, Term const& body) : Ref(Ref<StrTerm const>::make(var,body)) {}
 	};
-	struct Bind : Ref<StrTerm const> {
-		Bind(std::string_view const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
+	struct Unbind : Ref<StrTerm const> {
+		Unbind(std::string_view const& var, Term const& val) : Ref(Ref<StrTerm const>::make(var,val)) {}
 	};
-	Sum<std::string,App,Abs,Bind> _un;
+	Sum<std::string,App,Abs,Unbind> _un;
 	struct _Mapper {
 		std::function<Term(std::string const&)> const& f;
 		std::function<bool(std::string_view const&)> const& fixed;
@@ -76,7 +76,7 @@ class Term {
 	};
 	Term(App const& app) : _un(app) {}
 	Term(Abs const& abs) : _un(abs) {}
-	Term(Bind const& bind) : _un(bind) {}
+	Term(Unbind const& bind) : _un(bind) {}
 public:
 	Term() {}
 	~Term() {
@@ -118,7 +118,7 @@ public:
 	 * @return Term 
 	 */
 	friend Term operator%=(std::string_view const& binder, Term const& val) {
-		return Term(Bind{binder,val});
+		return Term(Unbind{binder,val});
 	}
 	/** @brief Copy the string if the term is a symbol. */
 	Opt<std::string> sym() && {
@@ -158,14 +158,14 @@ public:
 	}
 	/** @brief Copy the variable and body if the term is a binding. */
 	Opt<StrTerm> fix() && {
-		if( auto const& opt = std::move(_un).ref<Bind>() ) {
+		if( auto const& opt = std::move(_un).ref<Unbind>() ) {
 			return **opt;
 		}
 		return {};
 	}
 	/** @brief Reference to the variable and body if the term is a binding. */
 	Opt<StrTerm const &> fix() const & {
-		if( auto opt = _un.ref<Bind>() ) {
+		if( auto opt = _un.ref<Unbind>() ) {
 			return **opt;
 		}
 		return {};
