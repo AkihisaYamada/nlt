@@ -488,8 +488,6 @@ public:
 	Ctxt branch() const {
 		return Ctxt(Ref<Body>::make(*this));
 	}
-	/** @brief interpret another context */
-	Intp interpret(Ctxt const& other) const;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
@@ -822,12 +820,12 @@ class Intp {
 	CSubst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
+public:
 	/** @brief makes initial interpretation.
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
 	Intp(Ctxt const& src, Ctxt const& tgt);
-public:
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
@@ -908,9 +906,6 @@ inline Opt<std::tuple<std::string,Thm,Thm>> Ctxt::obtained(size_t i) const & {
 	return {};
 }
 
-inline Intp Ctxt::interpret( Ctxt const& other ) const {
-	return Intp(other,*this);
-}
 // workaround for Visual Studio...?
 //template<> inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
 
