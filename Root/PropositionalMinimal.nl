@@ -50,7 +50,7 @@ assume or_intro1: P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q;
 assume or_intro2: for P Q, Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q;
 assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R;
 
-finalize;
+begin
 
 note ! imp.type;
 note ! true.type;

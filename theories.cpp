@@ -52,7 +52,7 @@ Theories::Theories() :
 		assume("AND.def", "P" %= "Q" %= (P && Q) ^ ("R" %= (P >>= Q >>= R) >>= R)).
 		assume("OR.def", "P" %= "Q" %= (P || Q) ^ ("R" %= (P >>= R) >>= (Q >>= R) >>= R)).
 		assume("EX.def", "α" %= EX(alpha) ^ ("P" %= ("x" %= "α"/x >>= P) >>= P));
-	{	Ctxt local = logical.branch().fix("P").fix("Q");
+	{	Ctxt local = logical.branch().fix("P").unbind("Q");
 		Thm t = local.thm("EQ.prop1").instantiate(P&&Q).instantiate("R" %= (P >>= Q >>= R) >>= R);
 		Thm t2 = local.thm("AND.def").instantiate(P).instantiate(Q);
 		t = t.discharge(t2);

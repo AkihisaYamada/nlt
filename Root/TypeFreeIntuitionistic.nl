@@ -9,7 +9,7 @@ import False;
 
 import TypeFreeMinimal;
 
-finalize;
+begin
 
 setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans;
 setup dual iff.sym;

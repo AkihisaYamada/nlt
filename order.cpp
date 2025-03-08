@@ -37,11 +37,11 @@ struct Comparator {
 				return compare(lapp->second,rapp->second);
 			}
 			return -1; // app < abs, fix
-		} else if( auto labs = l.abs() ) {
-			if( r.fix() ) {
+		} else if( auto labs = l.bind() ) {
+			if( r.unbind() ) {
 				return -1;// abs < fix
 			}
-			if( auto rabs = r.abs() ) {
+			if( auto rabs = r.bind() ) {
 				depth++;
 				auto const& linfo = linds.emplace(labs->first,depth);
 				unsigned int lprev;
@@ -73,8 +73,8 @@ struct Comparator {
 				return ret;
 			}
 			return 1;// abs > sym, app
-		} else if( auto lfix = l.fix() ) {
-			if( auto rfix = r.fix() ) {
+		} else if( auto lfix = l.unbind() ) {
+			if( auto rfix = r.unbind() ) {
 				if( auto pre = compare_var(lfix->first,rfix->first) ) {
 					return pre;
 				}

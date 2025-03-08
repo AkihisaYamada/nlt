@@ -31,7 +31,7 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 					}
 					return os;
 				}
-				if( auto abs = arg.abs() )
+				if( auto abs = arg.bind() )
 				if( auto x = _binders.finds(*sym) ) {
 					auto const& op = x->second;
 					if( level > op.llevel ) {
@@ -65,7 +65,7 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 						}
 						return os;
 					}
-					if( auto abs = arg.abs() )
+					if( auto abs = arg.bind() )
 					if( auto x = _mid_binders.finds(*sym) ) {
 						auto const& op = x->second;
 						if( level > op.llevel ) {
@@ -88,7 +88,7 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 				os << ')';
 			}
 			return os;
-		} else if( auto abs = term.abs() ) {
+		} else if( auto abs = term.bind() ) {
 			if( level > 0 ) {
 				os << '(';
 			}
@@ -97,7 +97,7 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 				os << ')';
 			}
 			return os;
-		} else if( auto fix = term.fix() ) {
+		} else if( auto fix = term.unbind() ) {
 			return os << fix->first << ".[" << pretty_term(fix->second) << ']';
 		} else {
 			assert(false);

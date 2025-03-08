@@ -32,8 +32,8 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 			return _eq(lapp->first,rapp->first,lmap,rmap,depth) &&
 				_eq(lapp->second,rapp->second,lmap,rmap,depth);
 		}
-	} else if( auto labs = l.abs() ) {
-		if( auto rabs = r.abs() ) {
+	} else if( auto labs = l.bind() ) {
+		if( auto rabs = r.bind() ) {
 			depth++;
 			auto const& linfo = lmap.emplace(labs->first,depth);
 			unsigned int lprev;
@@ -65,8 +65,8 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				return true;
 			}
 		}
-	} else if( auto lfix = l.fix() ) {
-		if( auto rfix = r.fix() ) {
+	} else if( auto lfix = l.unbind() ) {
+		if( auto rfix = r.unbind() ) {
 			return _eq_var(lfix->first,rfix->first,lmap,rmap) &&
 				_eq(lfix->second,rfix->second,lmap,rmap,depth);
 		}
@@ -90,11 +90,11 @@ void Term::_iter_syms(
 	} else if( auto app = this->app() ) {
 		app->first._iter_syms(bsyms,bsym,fsym);
 		app->second._iter_syms(bsyms,bsym,fsym);
-	} else if( auto abs = this->abs() ) {
+	} else if( auto abs = this->bind() ) {
 		auto it = bsyms.insert(abs->first);
 		abs->second._iter_syms(bsyms,bsym,fsym);
 		bsyms.erase(it);
-	} else if( auto fix = this->fix() ) {
+	} else if( auto fix = this->unbind() ) {
 		if( bsyms.contains(fix->first) ) {
 			bsym(fix->first);
 		} else {
@@ -106,7 +106,7 @@ void Term::_iter_syms(
 	}
 }
 
-CSubst& CSubst::_assign(string_view const& var, Term const& val) {
+CSubst& CSubst::_assign(string_view const& var, Term const& val) & {
 	auto const& info = _map.emplace(var,val);
 	if( !info.second ) {
 		info.first->second = val;
@@ -154,7 +154,7 @@ Term Term::_Mapper::map( Term const& t ) {
 		return map_var(*sym);
 	} else if( auto app = t.app() ) {
 		return map(app->first)(map(app->second));
-	} else if( auto abs = t.abs() ) {
+	} else if( auto abs = t.bind() ) {
 		auto const& var = abs->first;
 		Term body = abs->second;
 		string const& newvar = rename(var);
@@ -180,13 +180,13 @@ Term Term::_Mapper::map( Term const& t ) {
 		// release the new name
 		bsyms.erase(newvar_info.first);
 		return newvar /= body;
-	} else if( auto fix = t.fix() ) {// map(C[s])
+	} else if( auto fix = t.unbind() ) {// map(C[s])
 		auto const& [C,s] = *fix;
 		Term mapC = map_var(C);
 		Term maps = map(s);
 		if( auto nsym = mapC.sym() ) {
 			return *nsym %= maps;
-		} else if( auto nabs = mapC.abs() ) {// (x. t)[s']
+		} else if( auto nabs = mapC.bind() ) {// (x. t)[s']
 			auto const& [x,t] = *nabs;
 			// return t[x := s'], where bound variables are considered fixed.
 			auto newfixed = [&]( string_view const& sym ) {
@@ -202,7 +202,7 @@ Term Term::_Mapper::map( Term const& t ) {
 }
 
 Term Term::inst(CTerm const& arg) const {
-	auto a = abs();
+	auto a = bind();
 	if( !a ) {
 		throw MalformedInstantiation(*this,arg);
 	}
@@ -292,7 +292,7 @@ pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 	if( !all2 ) {
 		throw MalformedObtain(thm);
 	}
-	auto abs = all2->abs();
+	auto abs = all2->bind();
 	if( !abs ) {
 		throw MalformedObtain(thm);
 	}
@@ -360,7 +360,7 @@ CTerm CTerm::intro() const {
 	return CTerm(parent,stmt);
 }
 Opt<CTerm::StrTerm> CTerm::cabs() const {
-	if( auto tabs = Term::abs() ) {
+	if( auto tabs = Term::bind() ) {
 		string const& var = tabs->first;
 		Term const& body = tabs->second;
 		Ctxt loc = _ctxt.branch();

@@ -797,7 +797,8 @@ public:
 			} else if(
 				_thesis ? _parser.skips("have") :
 					_parser.skips("lemma") ||
-					_parser.skips("theorem")
+					_parser.skips("theorem") ||
+					_parser.skips("proposition")
 			) {
 				_state();
 			} else if( _parser.skips("obtain") ) {
@@ -861,7 +862,7 @@ public:
 							parser.skip("}");
 							return empty;
 						}
-						if( inner->abs() ) {
+						if( inner->bind() ) {
 							parser.skip("}");
 							return collect(lam(*inner));
 						}
@@ -1019,8 +1020,8 @@ public:
 					cout << "Assumed " << cs << _syntax->pretty_term(assm) << "; " << endl;
 				} else if( _parser.skips("import") ) {
 					import(true);
-				} else if( _parser.skips("finalize") ) {
-					_parser.skip(";");
+				} else if( _parser.skips("begin") ) {
+					_parser.skips(";");
 					_final = true;
 					cout << "Finalized" << endl;
 				} else {

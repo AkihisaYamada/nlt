@@ -8,6 +8,6 @@ import TypedIntuitionisticLogic;
 
 import PropositionalClassical;
 
-finalize;
+begin
 
 ctxt;

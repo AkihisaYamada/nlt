@@ -111,7 +111,7 @@ public:
 	friend Term operator/=(std::string_view const& var, Term const& body) {
 		return Term(Abs{var,body});
 	}
-	/** @brief binding
+	/** @brief unbinding
 	 * 
 	 * @param binder 
 	 * @param val 
@@ -143,28 +143,28 @@ public:
 		return {};
 	}
 	/** @brief Copy of the variable and body if the term is an abstraction. */
-	Opt<StrTerm> abs() && {
+	Opt<StrTerm> bind() && {
 		if( auto const& opt = std::move(_un).ref<Abs>() ) {
 			return **opt;
 		}
 		return {};
 	}
 	/** @brief Reference to the variable and body if the term is an abstraction. */
-	Opt<StrTerm const &> abs() const & {
+	Opt<StrTerm const &> bind() const & {
 		if( auto opt = _un.ref<Abs>() ) {
 			return **opt;
 		}
 		return {};
 	}
 	/** @brief Copy the variable and body if the term is a binding. */
-	Opt<StrTerm> fix() && {
+	Opt<StrTerm> unbind() && {
 		if( auto const& opt = std::move(_un).ref<Unbind>() ) {
 			return **opt;
 		}
 		return {};
 	}
 	/** @brief Reference to the variable and body if the term is a binding. */
-	Opt<StrTerm const &> fix() const & {
+	Opt<StrTerm const &> unbind() const & {
 		if( auto opt = _un.ref<Unbind>() ) {
 			return **opt;
 		}
@@ -176,7 +176,7 @@ public:
 	Opt<StrTerm const&> binder( std::string_view const& b ) const & {
 		if( auto opt1 = app() ) {
 			if( opt1->first == b ) {
-				return opt1->second.abs();
+				return opt1->second.bind();
 			}
 		}
 		return {};
@@ -488,6 +488,8 @@ public:
 	Ctxt branch() const {
 		return Ctxt(Ref<Body>::make(*this));
 	}
+	/** @brief interpret another context */
+	Intp interpret(Ctxt const& other) const;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
@@ -589,7 +591,7 @@ public:
 	 * returns tuple of string, closed term of the variable, and the argument
 	 */
 	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cfix() const {
-		if( auto tfix = Term::fix() ) {
+		if( auto tfix = Term::unbind() ) {
 			auto [v,b] = *tfix;
 			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));
 		}
@@ -738,13 +740,13 @@ public:
 		return _map.empty();
 	}
 	/** @brief (re)assigns a value to a variable */
-	CSubst& assign(std::string_view const& var, CTerm const& val) {
+	CSubst& assign(std::string_view const& var, CTerm const& val) & {
 		if( val.ctxt() != _ctxt ) {
 			throw WrongContext("CSubst::assign");
 		}
 		return _assign(var,val);
 	}
-	CSubst& assign(std::string_view const& var, Term const& val) {
+	CSubst& assign(std::string_view const& var, Term const& val) & {
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
 	Opt<CTerm> get(std::string_view const& var) const {
@@ -754,7 +756,7 @@ public:
 		return {};
 	}
 private:
-	CSubst& _assign(std::string_view const& var, Term const& val);
+	CSubst& _assign(std::string_view const& var, Term const& val) &;
 };
 
 class Thm : public CTerm {
@@ -820,12 +822,12 @@ class Intp {
 	CSubst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
-public:
 	/** @brief makes initial interpretation.
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
 	Intp(Ctxt const& src, Ctxt const& tgt);
+public:
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
@@ -906,6 +908,9 @@ inline Opt<std::tuple<std::string,Thm,Thm>> Ctxt::obtained(size_t i) const & {
 	return {};
 }
 
+inline Intp Ctxt::interpret( Ctxt const& other ) const {
+	return Intp(other,*this);
+}
 // workaround for Visual Studio...?
 //template<> inline constexpr bool std::is_nothrow_constructible_v<Ctxt,Ctxt&> = true;
 

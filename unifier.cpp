@@ -33,7 +33,7 @@ private:
 			return t;
 		} else if( auto app = t.app() ) {
 			return sanitize(app->first,bounds,avoids,escapes)(sanitize(app->second,bounds,avoids,escapes));
-		} else if( auto abs = t.abs() ) {
+		} else if( auto abs = t.bind() ) {
 			string const& x = abs->first;
 			auto const& info = bounds.insert(x);
 			auto const& body = sanitize(abs->second,bounds,avoids,escapes);
@@ -41,7 +41,7 @@ private:
 				bounds.erase(info.first);
 			}
 			return x /= body;
-		} else if( auto fix = t.fix() ) {
+		} else if( auto fix = t.unbind() ) {
 			return fix->first %= sanitize(fix->second,bounds,avoids,escapes);
 		} else {
 			assert(false);

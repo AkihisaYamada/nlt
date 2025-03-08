@@ -31,11 +31,10 @@ fix (∃);
 assume ex_intro1: for x, α.[x] ⟹ ∃x. α.[x];
 assume ex_elim: (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P;
 
-finalize;
-
 ---
 ## Theorems
 ---
+begin
 
 ---
 ### If-and-only-if

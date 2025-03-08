@@ -2,7 +2,7 @@
 # The Root File
 ------
 
-finalize; -- Root doesn't have any axiom
+begin -- Root doesn't have any axiom
 
 symbol λ ∧ ∨ ∃ ≠ ! ≤;
 symbol solo ¬;

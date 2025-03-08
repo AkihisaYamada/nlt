@@ -158,7 +158,7 @@ struct Matcher {
 						escaped_var.erase(it.first);
 						return ret;
 					}
-					if( auto const& abs = opt->abs() ) {// the context is instantiated
+					if( auto const& abs = opt->bind() ) {// the context is instantiated
 						auto it = escaped_var.insert(x);// inside the argument, x is escaping
 						bool ret = match(opt->inst(pat2),val);
 						escaped_var.erase(it.first);
