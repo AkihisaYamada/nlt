@@ -58,6 +58,9 @@ assume nnot_ex_iff: nnot_ex ι (x. α.[x]) ⟺ ¬(∀x:ι. ¬α.[x]);
 import nnot_ex: TypedBinder prop nnot_ex;
 
 begin
+
+note! nnot_or.type;
+note! nnot_ex.type;
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
@@ -112,25 +115,29 @@ interpret image_nnot: ClassicalLogic :=
 		note! image_nnot_imp_prop[OF tQ];
 		note! nnot_or.type;
 		by #unfold image_nnot_iff nnot_or_iff nnnot_iff;
-	- by image_nnot_imp_prop #unfold+ nnot_or_iff;
-	- for P Q, if Q: Q then nnot_or P Q :=
-		unfold+ nnot_or_iff iff_true[OF Q] not_true_iff and_false_iff;
-		by not_false;
-	- for P Q, if 1: nnot_or P Q, tR: image_nnot R, PR: P ⟹ R, QR: Q ⟹ R then R :=
-		apply and_elim[OF tR[unfolded image_nnot_iff]];
-		case pR: prop R, nnRR: ¬¬R ⟺ R :=
-			show 2: ¬(¬P ∧ ¬Q);
-				by 1[unfolded nnot_or_iff];
-			show nnR: ¬¬R;
-				apply not_intro;
-				case nR: ¬R :=
-					apply not_elim[OF 2];
-					apply and_intro;
-					by imp_not_imp[OF PR nR] imp_not_imp[OF QR nR];
-				done;
-			by nnR[unfolded nnRR];
+	- for P Q, if P: P :=
+		by #unfold+ nnot_or_iff iff_true[OF P] not_true_iff false_and_iff not_false_iff;
+	- for P Q, if Q: Q :=
+		by #unfold+ nnot_or_iff iff_true[OF Q] not_true_iff and_false_iff not_false_iff;
+	- for P Q, if 1: nnot_or P Q :=
+		- for R, if PR: P ⟹ R, QR: Q ⟹ R,
+			tP! image_nnot P, tQ! image_nnot Q, tR! image_nnot R then R
+		:= fold tR[unfolded image_nnot_iff];
+			apply not_intro;
+			- if nR: ¬R :=
+				have 2: ¬(¬P ∧ ¬Q) :=
+					by 1[unfolded nnot_or_iff];
+				apply not_elim[OF 2];
+				apply and_intro;
+				by imp_not_imp[OF PR nR] imp_not_imp[OF QR nR];
+			done;
 		done;
-	end;
+	instantiate (∀:);
+	- note! all.type;
+		by #unfold image_nnot_iff;
+
+oops
+
 
 interpret all: Binder image_nnot (∀) :=
 	- if ta: ∀x. image_nnot α.[x] then image_nnot (∀x. α.[x]) :=
