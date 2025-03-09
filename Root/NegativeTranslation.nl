@@ -110,10 +110,7 @@ interpret image_nnot: ClassicalLogic :=
 	- by image_nnot_imp_prop #elim iff_elim1;
 	- by image_nnot_imp_prop #elim iff_elim2;
 	instantiate nnot_or;
-	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (nnot_or P Q) :=
-		note! image_nnot_imp_prop[OF tP];
-		note! image_nnot_imp_prop[OF tQ];
-		note! nnot_or.type;
+	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (nnot_or P Q) :=
 		by #unfold image_nnot_iff nnot_or_iff nnnot_iff;
 	- for P Q, if P: P :=
 		by #unfold+ nnot_or_iff iff_true[OF P] not_true_iff false_and_iff not_false_iff;
@@ -143,75 +140,42 @@ interpret image_nnot: ClassicalLogic :=
 	- for x ι α, if all: ∀y:ι. α.[y], [∀y. ι y ⟹ image_nnot α.[y], ι x] then α.[x] :=
 		apply all_elim[OF all];
 		done;
-
-
- by all_intro;
-
-
-
-interpret all: Binder image_nnot (∀) :=
-	- if ta: ∀x. image_nnot α.[x] then image_nnot (∀x. α.[x]) :=
+	instantiate nnot_ex;
+	- for ι α, if ta! ∀x. ι x ⟹ image_nnot α.[x] then image_nnot (nnot_ex ι (x. α.[x])) :=
 		unfold image_nnot_iff;
-		apply+ and_intro all.type;
-		note 1: ta[unfolded+ image_nnot_iff all_and_iff];
-		note! and_elim1[OF 1];
-		fold and_elim2[OF 1];
-		unfold nnall_not_iff;
-		unfold and_elim2[OF 1];
-		by iff.refl;
-	end;
-
-interpret not: Unary image_nnot (¬) :=
-	- if pP: image_nnot P then image_nnot (¬P) :=
-		unfold+ image_nnot_iff nnnot_iff iff_true[OF iff.refl] and_true_iff;
-		apply+ not.type image_nnot_imp_type[OF pP];
-		done;
-	end;
-
-interpret ex: PropEx image_nnot nnot_ex :=
-	- if ta: ∀x. image_nnot α.[x] then image_nnot (nnot_ex (x. α.[x])) :=
-		unfold image_nnot_iff;
-		apply+ and_intro nnot_ex.type;
-		note 1: ta[unfolded+ image_nnot_iff all_and_iff];
-		note! and_elim1[OF 1];
-		unfold+ nnot_ex_iff nnnot_iff;
-		done;
-	- for x, if ax: α.[x] then nnot_ex (x'. α.[x']) :=
+		by #unfold nnot_ex_iff nnnot_iff;
+	- for x α ι, if [α.[x], ι x], ta! ∀y. ι y ⟹ image_nnot α.[y] then nnot_ex ι (z. α.[z]) :=
 		unfold nnot_ex_iff;
 		apply not_intro;
-		- if alln: ∀x'. ¬ α.[x'] :=
-			by not_imp_false[OF alln ax];
-			done;
-	- if nnex: nnot_ex (x. α.[x]), tP: image_nnot P, all: ∀x. α.[x] ⟹ P then P :=
-		fold image_nnot_imp_iff[OF tP];
+		- if an: ∀y:ι. ¬α.[y] :=
+			apply all_elim[OF an];
+			by not_imp_false(α.[x]);
+		done;
+	- for ι α P, if 1: nnot_ex ι (x. α.[x]), all: (∀x. α.[x] ⟹ ι x ⟹ P), ta! ∀x. ι x ⟹ image_nnot α.[x], tP! image_nnot P then P :=
+		fold tP[unfolded image_nnot_iff];
 		apply not_intro;
 		- if nP: ¬P :=
-			apply not_imp_false[OF nnex[unfolded nnot_ex_iff]];
-			show! ¬ α.[x] :=
+			have 2: ¬(∀x:ι. ¬α.[x]) :=
+				by 1[unfolded nnot_ex_iff];
+			apply not_elim[OF 2];
+			apply all_intro;
+			- for x, if [ι x] then ¬ α.[x] :=
 				apply not_intro;
-				case ax: α.[x] :=
-					apply not_imp_false[OF nP];
-					by all[OF ax];
+				- if ax: α.[x] :=
+					have P: P :=
+						by all[OF ax];
+					by not_imp_false[OF nP P];
 				done;
 			done;
 		done;
-	end;
-
-interpret ExcludedMiddle image_nnot nnot_or (¬) :=
-	- if pP: image_nnot P then nnot_or P (¬P) :=
-		unfold+ nnot_or_iff nand_nnot_iff;
-		unfold and_iff.commute;
-		apply non_contradiction;
+	- for P, if f: false, tP! image_nnot P :=
+		apply false_elim[OF f];
 		done;
-	end;
+	- for P, if tP! image_nnot P then nnot_or P (¬ P) :=
+		unfold nnot_or_iff;
+		by non_contradiction;
+	done;
 
-;
 
-ctxt;
-
-end;
-
-thm image_nnot.nnot_iff;
-
-thm image_nnot.pierces_law;
+thm image_nnot.pierce_law;
 

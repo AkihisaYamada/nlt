@@ -470,6 +470,24 @@ public:
 			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
 			} else if( _parser.skips("have") ) {
 				_state();
+			} else if( _parser.skips("interpret") ) {
+				import(false);
+			} else if( _parser.skips("show") ) {
+				auto cs = get_claim_status();
+				auto [prover,goal] = get_statement();
+				auto thm = prover.proof_loop().intro().intro();
+				add_claim(_loc,cs,thm);
+				for(;;) {
+					if( intp.instantiates(mod) || intp.retains() ) continue;
+					auto a = intp.assuming();
+					if( !a ) throw Error("\"unexpected show\"")(thm);
+					if( a->second != thm ) {
+						intp.discharge();
+						continue;
+					}
+					intp.discharge(thm);
+					break;
+				}
 			} else if( _parser.skips("instantiate") ) {
 				while( intp.discharges(mod) || intp.retains() );
 				auto x = intp.fixing();
@@ -721,14 +739,7 @@ public:
 			_parser.skips(",");
 			cout << ", ";
 		}
-		if( _parser.skips("show") ) {
-			auto claim = _parser.get_term();
-			if( claim != subgoal ) {
-				throw Error("\"claim mismatch\"")(subgoal)(claim);
-			}
-			cout << _syntax->pretty_cterm(subgoal);
-			needsep = true;
-		} else if( _parser.skips("if") ) {
+		if( _parser.skips("if") ) {
 			needsep = true;
 			cout << "if ";
 			auto eat_assm = [&]( Term const& t ){
