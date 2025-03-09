@@ -1,4 +1,4 @@
-base LambdaClassical;
+base NegativeTranslation;
 
 -----
 ## More Axioms for Constructors

@@ -439,16 +439,16 @@ public:
 			_depth++;
 			for(;;){
 				if( auto x = intp.fixing() ) {
-					cout << "Instantiate " << *x << endl;
+					cout << "fix " << *x << endl;
 				} else if( auto x = intp.assuming() ) {
 					auto [name,axiom] = *x;
-					cout << "Discharge " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
+					cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
 				} else if( auto x = intp.obtaining() ) {
-					cout << "Retain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
+					cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
 				} else {
 					cout << "Completed" << endl;
 				}
-				_indent();
+				_prompt();
 				if( _term() || _thm() || _thms() || _ctxt() ) {
 				} else if( _parser.skips("instantiate") ) {
 					while( intp.discharges(mod) || intp.retains() );
@@ -465,7 +465,6 @@ public:
 					}
 					_parser.skip(";");
 				} else if( _parser.skips("-") ) {
-					cout << "discharge: ";
 					while( intp.instantiates(mod) || intp.retains() );
 					auto a = intp.assuming();
 					if( !a ) throw Error("\"unexpected discharge\"");
@@ -704,7 +703,7 @@ public:
 			if( claim != subgoal ) {
 				throw Error("\"claim mismatch\"")(subgoal)(claim);
 			}
-			cout << _syntax->pretty_cterm(subgoal) << endl;
+			cout << _syntax->pretty_cterm(subgoal);
 			needsep = true;
 		} else if( _parser.skips("if") ) {
 			needsep = true;
@@ -740,14 +739,18 @@ public:
 					throw Error("\"conclusion mismatch\"")(subgoal);
 				}
 			}
-			cout << "then " << _syntax->pretty_cterm(subgoal) << endl;
+			cout << "then " << _syntax->pretty_cterm(subgoal);
 		}
 		auto prover = Prover(*this,subloc,Inference::claim_exact(subloc,subgoal)).deepen();
 		if( needsep ) {
 			_parser.skip(":=");
-			prover._prompt();
+			cout << endl;
 		}
-		return prover.proof_loop().intro();
+		auto ret = prover.proof_loop().intro();
+		if( needsep ) {
+			_prompt();
+		}
+		return ret;
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
@@ -1117,7 +1120,6 @@ public:
 				sub.set_lexer(local_lexer);
 				sub._indent();
 				sub.loop();
-				cout << "Loaded " << name << endl;
 				return sub._loc;
 			}
 		}

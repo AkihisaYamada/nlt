@@ -206,7 +206,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
 		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
 			Thm ret = cong.weaken(source_ctxt);
-			// ret: ∀x x'. (φ ⟹ x = x') ⟹ ... ⟹ C[x...] = C[x'...]
+			// ret: ∀x... x'.... (φ ⟹ x = x') ⟹ ... ⟹ C[x...] = C[x'...]
 			for( size_t i = 0; i<cong.conds.size(); i++ ) {
 				auto v = pat_ctxt.fixed(i);
 				assert(v);
@@ -281,7 +281,11 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					for(;;) {// remaining variables are instantiated as is
 						i++;
 						if( i == var_end ) break;
-						ret = ret << _refls[cond.ind].weaken(source_ctxt).instantiate(*m->get(*pat_ctxt.fixed(i)));
+						Thm refl = _refls[cong.conds[i].ind].weaken(source_ctxt).instantiate(*m->get(*pat_ctxt.fixed(i)));
+						while( auto o = blasts(refl,loc) ) {
+							refl = *o;
+						}
+						ret = ret << refl;
 					}
 					while( auto o = blasts(ret,loc) ) {// blast conditions
 						ret = *o;
@@ -313,45 +317,54 @@ size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 	}
 }
 
-pair<Thm,size_t> Rewriter::_steps(
+Opt<Thm> Rewriter::_steps(
 	Rules const& rules,
 	Locale const& loc,
-	CTerm const& source,
+	CTerm const& s,
+	size_t min,
 	size_t max,
 	bool safe,
 	vector<char> const& pos,
 	size_t ind
 ) const {
-	Ctxt const& source_ctxt = source.ctxt();
-	Thm lrefl = _refls[ind].weaken(source_ctxt);// ∀P. conds ⟹ P = P
-	Thm eq = lrefl.instantiate(source);
-	while( auto o = blasts(eq,loc) ) {
-		eq = *o;
-	}// source = source
+	auto begin = pos.begin(), end = pos.end();
+	auto const& init = _step(rules,loc,s,ind,begin,end);
+	if( !init ) {
+		if( min == 0 ) {
+			return {};
+		}
+		throw Error("\"rewrite failed\"")(s);
+	}
+	Thm eq = *init;
+	if( max <= 1 && safe ) {
+		return eq;
+	}
 	auto const& tranp = _trans.finds(ind);
 	if( !tranp ) throw UnregisteredTrans;
-	Thm ltrans = tranp->second.weaken(source_ctxt).instantiate(source);// ∀Q R. source = Q ⟹ Q = R ⟹ conds... ⟹ source = R
-	auto begin = pos.begin(), end = pos.end();
-	CTerm s = source;
-	for( unsigned int i = 0;; i++ ) {
+	// ltrans: ∀y z. s = y ⟹ y = z ⟹ types... ⟹ s = z
+	Thm ltrans = tranp->second.weaken(s.ctxt()).instantiate(s);
+	assert(eq.app());
+	CTerm t = eq.capp()->second;
+	for( unsigned int i = 1;; ) {
+		auto const& step = _step(rules,loc,t,ind,begin,end);
+		if( !step ) {
+			if( i < min ) throw TooFewSteps(i,min,t);
+			return eq;
+		}// t = u
+		i++;
 		if( i == max ) {
 			if( !safe )
 				throw Error("\"rewrite limit exceeded\"")(to_string(max));
-			return {eq,i};
-		}
-		auto const& step = _step(rules,loc,s,ind,begin,end);
-		if( !step ) {
-			return {eq,i};
+			return eq;
 		}
 		auto const& app = step->capp();
 		assert(app);
-		CTerm const& t = app->second;
-		Thm tr = ltrans;
-		eq = tr << eq << *step;
-		while( auto o = blasts(eq,loc) ) {// discharge conditions
-			eq = *o;
+		eq = ltrans << eq;// ∀z. t = z ⟹ types... ⟹ s = z
+		eq = eq << *step;// types... ⟹ s = u
+		while( auto imp = eq.cbinary(IMP) ) {// discharge types
+			eq = eq.discharge(prove(imp->first,loc));
 		}
-		s = t;
+		t = app->second;
 	}
 }
 bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
@@ -362,10 +375,10 @@ bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl 
 	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conditions ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& loc = thesis.locale();
-	auto [eq,n] = _steps(rules,loc,*goal,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
-	if( n == 0 ) return false;
+	auto steps = _steps(rules,loc,*goal,0,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
+	if( !steps ) return false;
 	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
-	imp = imp << eq; // conditions... ⟹ t ⟹ s
+	imp = imp << *steps; // conditions... ⟹ t ⟹ s
 	for( size_t i = 0; i < o->second.conds; i++ ) {
 		imp = *blasts(imp,loc);
 	}// t ⟹ s
@@ -376,12 +389,12 @@ Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source,
 	size_t ind = _get_ind(ctrl.rel);
 	auto const& o = _imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto [eq,n] = _steps(rules,loc,source,ctrl.max,ctrl.safe,ctrl.pos,ind);
-	if( n < ctrl.min ) {
-		throw Error("\"Too few rewrite\"")(to_string(n))(to_string(ctrl.min))(eq);
+	auto steps = _steps(rules,loc,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind);
+	if( !steps ) {
+		return source;
 	}
 	auto tmp = o->second.thm.weaken(loc);
-	tmp = tmp << eq;
+	tmp = tmp << *steps;
 	for( int i = 0; i < o->second.conds; i++ ) {
 		tmp = *blasts(tmp,loc);
 	}// s ⟹ t

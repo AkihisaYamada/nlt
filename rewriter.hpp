@@ -62,9 +62,14 @@ public:
 		bool safe;
 	};
 	struct TooFewSteps : Error {
-		static inline Term const RT = "#too_few_steps";
+		static inline Term const RT = "\"too few steps\"";
 		TooFewSteps(size_t a, size_t e, Term const& term) :
 			Error(RT(std::to_string(a))(std::to_string(e))(term)) {}
+	};
+	struct TooManySteps : Error {
+		static inline Term const RT = "#too many steps";
+		TooManySteps(size_t max, Term const& term) :
+			Error(RT(std::to_string(max))(term)) {}
 	};
 	Rules make_rules() const {
 		return Rules(_rels.size());
@@ -116,7 +121,7 @@ private:
 	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const;
 	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	std::pair<Thm,size_t> _steps( Rules const& rules, Locale const& loc, CTerm const& source, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	Opt<Thm> _steps( Rules const& rules, Locale const& loc, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

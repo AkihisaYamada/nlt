@@ -262,6 +262,12 @@ lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P :=
 		by not_imp_false[OF nQ];
 	done;
 
+lemma nnot_intro: if [P] then ¬¬P :=
+	apply not_intro;
+	- if nP: ¬P :=
+		by not_imp_false[OF nP];
+	done;
+
 lemma not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]) :=
 	by not_intro not_imp_false[OF nax];
 
@@ -285,6 +291,21 @@ lemma imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P) :=
 	apply iff_intro;
 	just imp_not_sym;
 
+lemma nnnot_iff: ¬¬¬P ⟺ ¬P :=
+	unfold+ not_iff_imp_false;
+	by imp3_iff;
+
+lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
+	unfold imp_not_commute;
+	unfold nnnot_iff;
+	done;
+
+lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
+	apply iff_intro;
+	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
+		by nnimp_imp_nnot[OF nnimp P][unfolded nnnot_iff];
+	just nnot_intro;
+
 lemma not_true_iff: ¬true ⟺ false :=
 	apply iff_intro;
 	- if nt: ¬true :=
@@ -294,14 +315,14 @@ lemma not_true_iff: ¬true ⟺ false :=
 lemma not_false_iff: ¬false ⟺ true :=
 	by iff_true[OF not_false];
 
+lemma false_imp_false_iff: (false ⟹ false) ⟺ true :=
+	by iff_true[OF imp.refl];
+
 lemma false_and_false_iff: false ∧ false ⟺ false :=
 	apply iff_intro;
 	- just and_elim1;
 	- by and_intro;
 	done;
-
-lemma false_imp_false_iff: (false ⟹ false) ⟺ true :=
-	by iff_true[OF imp.refl];
 
 lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q) :=
 	apply not_intro;
@@ -319,11 +340,9 @@ lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q) :=
 	unfold+ not_iff_imp_false and_imp_iff;
 	done;
 
-lemma nnot_intro: if [P] then ¬¬P :=
-	apply not_intro;
-	- if nP: ¬P :=
-		by not_imp_false[OF nP];
-	done;
+lemma non_contradiction: ¬(P ∧ ¬P) :=
+	unfold nand_iff_imp_not;
+	by nnot_intro;
 
 lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q :=
 	by imp nnot_intro;
@@ -353,13 +372,48 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
 		by not_imp_false[OF nnQ];
 	done;
 
-lemma nnnot_iff: ¬¬¬P ⟺ ¬P :=
-	unfold+ not_iff_imp_false;
-	by imp3_iff;
+lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q) :=
+	unfold+ nand_iff_imp_not;
+	unfold nnnot_iff;
+	done;
 
-lemma non_contradiction: ¬(P ∧ ¬P) :=
-	unfold nand_iff_imp_not;
-	by nnot_intro;
+lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q) :=
+	unfold and_iff.commute;
+	unfold nand_nnot_iff;
+	unfold and_iff.commute;
+	done;
+
+lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R) :=
+	apply iff_intro;
+	- if or_imp: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R :=
+		apply and_intro;
+		- if [P] :=
+			apply or_imp;
+			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
+				by PS;
+			done;
+		- if [Q] :=
+			apply or_imp;
+			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
+				by QS;
+			done;
+		done;
+	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) :=
+		apply or;
+		just and_elim1[OF and] and_elim2[OF and];
+	done;
+
+lemma raw_nor_iff_and: ¬(∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟺ ¬P ∧ ¬Q :=
+	unfold+ not_iff_imp_false;
+	by raw_or_imp_iff;
+
+lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q :=
+	fold nnot_nand_iff;
+	fold nand_nnot_iff;
+	fold raw_nor_iff_and;
+	unfold nnnot_iff;
+	unfold raw_nor_iff_and;
+	done;
 
 ---
 ### Disjunction
@@ -514,26 +568,6 @@ lemma ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P :=
 		by imp;
 	done;
 
-lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R) :=
-	apply iff_intro;
-	- if or_imp: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R :=
-		apply and_intro;
-		- if [P] :=
-			apply or_imp;
-			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
-				by PS;
-			done;
-		- if [Q] :=
-			apply or_imp;
-			- for S, if PS: P ⟹ S, QS: Q ⟹ S then S :=
-				by QS;
-			done;
-		done;
-	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) :=
-		apply or;
-		just and_elim1[OF and] and_elim2[OF and];
-	done;
-
 lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]) :=
 	apply iff_intro;
 	- if ab: ∀x. α.[x] ∧ β.[x] :=
@@ -564,44 +598,6 @@ lemma all_imp_iff_raw_ex: (∀x. α.[x] ⟹ P) ⟺ (∀Q. (∀x. α.[x] ⟹ Q) �
 		done;
 	done;
 
-
----
-## Double negation and conjunction.
----
-
-lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
-	unfold imp_not_commute;
-	unfold nnnot_iff;
-	done;
-
-lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
-	apply iff_intro;
-	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
-		by nnimp_imp_nnot[OF nnimp P][unfolded nnnot_iff];
-	just nnot_intro;
-
-lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q) :=
-	unfold+ nand_iff_imp_not;
-	unfold nnnot_iff;
-	done;
-
-lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q) :=
-	unfold and_iff.commute;
-	unfold nand_nnot_iff;
-	unfold and_iff.commute;
-	done;
-
-lemma raw_nor_iff_and: ¬(∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟺ ¬P ∧ ¬Q :=
-	unfold+ not_iff_imp_false;
-	by raw_or_imp_iff;
-
-lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q :=
-	fold nnot_nand_iff;
-	fold nand_nnot_iff;
-	fold raw_nor_iff_and;
-	unfold nnnot_iff;
-	unfold raw_nor_iff_and;
-	done;
 
 ---
 ## Double negation and universal quantification.

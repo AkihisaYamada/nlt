@@ -93,8 +93,7 @@ locale MetaUnitalCommutative (+) (0) (=) :=
 			
 ---
 interpret imp: MetaPreorder (⟹) :=
-	- for P, if [P] then P :=
-		done;
+	- done;
 	- for P Q R, if PQ: P ⟹ Q, QR: Q ⟹ R, [P] then R :=
 		by QR PQ;
 	done;
@@ -170,6 +169,10 @@ locale Magma mem (+) :=
 
 locale Binder mem ξ :=
 	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
+	end;
+
+locale TypedBinder mem ξ :=
+	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x]));
 	end;
 
 locale Commutative mem (+) (=) :=
