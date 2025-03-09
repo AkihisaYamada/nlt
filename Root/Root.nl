@@ -4,7 +4,7 @@
 
 begin -- Root doesn't have any axiom
 
-symbol λ ∧ ∨ ∃ ≠ ! ≤;
+symbol λ ∧ ∨ ∃ ≠ ≤;
 symbol solo ¬;
 
 infix ⟹ 1 0 0;

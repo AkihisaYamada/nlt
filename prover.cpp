@@ -8,15 +8,18 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool intro = false, force = false, cong = false;
+	bool weak = false, force = false, cong = false;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.name ) {
 		os << *cs.name;
 	}
-	if( cs.intro ) {
-		os << "#intro";
+	if( cs.force ) {
+		os << '!';
+	}
+	if( cs.weak ) {
+		os << '?';
 	}
 	return os << ": ";
 }
@@ -33,6 +36,8 @@ Ref<Syntax> make_syntax() {
 	ret->register_single_op(';');
 	ret->register_multi_op(':');
 	ret->register_multi_op('=');
+	ret->register_multi_op('!');
+	ret->register_multi_op('?');
 	ret->register_multi_op('*');
 	ret->register_multi_op('+');
 	ret->register_multi_op('-');
@@ -283,8 +288,8 @@ public:
 		ClaimStatus cs;
 		cs.name = _parser.gets_thm_name();
 		while( _parser.skips("#") ) {
-			if( _parser.skips("intro") ) {
-				cs.intro = true;
+			if( _parser.skips("weak") ) {
+				cs.weak = true;
 			} else if( _parser.skips("force") ) {
 				cs.force = true;
 			} else if( _parser.skips("cong") ) {
@@ -295,6 +300,8 @@ public:
 		}
 		if( _parser.skips("!") ) {
 			cs.force = true;
+		} else if( _parser.skips("?") ) {
+			cs.weak = true;
 		} else {
 			_parser.skip(":");
 		}
@@ -309,7 +316,7 @@ public:
 		return {get_claim_status(),get_term()};
 	}
 	void add_claim( Locale& loc, ClaimStatus cs, Thm const& thm ) {
-		if( cs.intro ) {
+		if( cs.weak ) {
 			add_forced(loc,thm);
 		}
 		if( cs.force ) {

@@ -15,7 +15,7 @@ fix image_nnot nnot_or nnot_ex;
 
 -- `image_nnot` should turn a proposition into a proposition.
 
-assume prop_image_nnot#intro: prop P ⟹ prop (image_nnot P);
+assume prop_image_nnot! prop P ⟹ prop (image_nnot P);
 
 --
 
@@ -63,6 +63,7 @@ begin
 ----
 
 interpret image_nnot: ClassicalLogic :=
+	note? image_nnot_imp_prop;
 	instantiate image_nnot;
 	instantiate true;
 	- by #unfold image_nnot_iff not_true_iff not_false_iff;

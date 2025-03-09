@@ -380,7 +380,7 @@ bool Rewriter::apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) 
 	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s
 	for( size_t i = 0; i < o->second.conds; i++ ) {
-		imp = *blasts(imp,loc);
+		imp = blast(imp,loc);
 	}// t ⟹ s
 	thesis.apply(Intro::imp(imp));// t ⟹ rest
 	return true;
