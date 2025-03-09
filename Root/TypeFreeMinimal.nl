@@ -240,6 +240,20 @@ lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P) :=
 		just iff_intro;
 	done;
 
+lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]) :=
+	apply iff_intro;
+	- if ab: ∀x. α.[x] ∧ β.[x] :=
+		apply and_intro;
+		- for x :=
+			by and_elim1[OF ab];
+		- for x :=
+			by and_elim2[OF ab];
+		done;
+	unfold and_imp_iff;
+	- if [∀x. α.[x], ∀x. β.[x]] :=
+		by and_intro;
+	done;
+
 ---
 ### Negation
 ---
@@ -300,6 +314,15 @@ lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
 	unfold nnnot_iff;
 	done;
 
+lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
+	apply not_intro;
+	- if nQ: ¬Q :=
+		apply+ not_imp_false[OF nnPQ] not_intro;
+		- if PQ: P ⟹ Q :=
+			by not_imp_false[OF nQ] PQ;
+		done;
+	done;
+
 lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q) :=
 	apply iff_intro;
 	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q :=
@@ -353,15 +376,6 @@ lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q :=
 		have! ¬P :=
 			by imp_not_imp[OF PQ];
 		by not_imp_false[OF nnP];
-	done;
-
-lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q :=
-	apply not_intro;
-	- if nQ: ¬Q :=
-		apply+ not_imp_false[OF nnPQ] not_intro;
-		- if PQ: P ⟹ Q :=
-			by not_imp_false[OF nQ] PQ;
-		done;
 	done;
 
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q) :=
@@ -554,12 +568,20 @@ lemma or_true: P ∨ true :=
 	by or_intro2[OF true_intro];
 
 
---### Existence
+---
+### Existence
+---
 
 lemma ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x] :=
 	apply assm;
 	- for x :=
 		just ex_intro1;
+	done;
+
+lemma ex_iff: (∃x. α.[x]) ⟺ (∀P. (∀x. α.[x] ⟹ P) ⟹ P) :=
+	apply iff_intro;
+	- just ex_elim;
+	- just ex_intro;
 	done;
 
 lemma ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P :=
@@ -568,33 +590,16 @@ lemma ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P :=
 		by imp;
 	done;
 
-lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]) :=
+lemma all_imp_iff_ex: (∀x. α.[x] ⟹ P) ⟺ (∃x. α.[x]) ⟹ P :=
 	apply iff_intro;
-	- if ab: ∀x. α.[x] ∧ β.[x] :=
-		apply and_intro;
-		- for x :=
-			by and_elim1[OF ab];
-		- for x :=
-			by and_elim2[OF ab];
-		done;
-	unfold and_imp_iff;
-	- if [∀x. α.[x], ∀x. β.[x]] :=
-		by and_intro;
-	done;
-
-lemma all_imp_iff_raw_ex: (∀x. α.[x] ⟹ P) ⟺ (∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q) ⟹ P :=
-	apply iff_intro;
-	- if imp: ∀x. α.[x] ⟹ P, ex: ∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q :=
+	- if imp: ∀x. α.[x] ⟹ P, ex: ∃x. α.[x] :=
 		obtain x where ax: α.[x] :=
-			- for P := just ex;
+			- for P := just ex[unfolded ex_iff];
 			done;
 		by imp[OF ax];
-	- if imp: (∀Q. (∀x. α.[x] ⟹ Q) ⟹ Q) ⟹ P :=
+	- if imp: (∃x. α.[x]) ⟹ P :=
 		- for x, if ax: α.[x] :=
-			apply imp;
-			- for Q, if all: ∀x. α.[x] ⟹ Q :=
-				by all[OF ax];
-			done;
+			by imp ex_intro1[OF ax];
 		done;
 	done;
 
@@ -616,13 +621,13 @@ lemma nnall_imp: if nnall: ¬¬(∀x. α.[x]) then (∀x. ¬¬α.[x]) :=
 The other direction is provable if inside the quantification has negation.
 ---
 
-lemma raw_nex_iff_all_not: ¬(∀P. (∀x. α.[x] ⟹ P) ⟹ P) ⟺ (∀x. ¬α.[x]) :=
+lemma nex_iff_all_not: ¬(∃x. α.[x]) ⟺ (∀x. ¬α.[x]) :=
 	unfold+ not_iff_imp_false;
-	fold all_imp_iff_raw_ex;
+	fold all_imp_iff_ex;
 	done;
 
 lemma nnall_not_iff: ¬¬(∀x. ¬α.[x]) ⟺ (∀x. ¬α.[x]) :=
-	fold+ raw_nex_iff_all_not;
+	fold+ nex_iff_all_not;
 	by nnnot_iff;
 
 

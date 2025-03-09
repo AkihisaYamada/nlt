@@ -603,6 +603,8 @@ public:
 				ctrl.extra = [rrules,rctrl,this](Inference& thesis){
 					return _rewriter->apply(rrules,thesis,rctrl);
 				};
+			} else if( _parser.skips("force") ) {
+				ctrl.force_assms = true;
 			} else {
 				throw Error("\"unexpected\"")(_parser.peek_token());
 			}

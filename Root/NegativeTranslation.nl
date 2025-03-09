@@ -133,10 +133,20 @@ interpret image_nnot: ClassicalLogic :=
 			done;
 		done;
 	instantiate (∀:);
-	- note! all.type;
-		by #unfold image_nnot_iff;
+	- for ι α, if ta! ∀x. ι x ⟹ image_nnot α.[x] then image_nnot (∀x:ι. α.[x]) :=
+		unfold image_nnot_iff;
+		have nna: for x, if xt! ι x then α.[x] ⟺ (¬¬α.[x]) :=
+			by #unfold ta[OF xt][unfolded image_nnot_iff];
+		unfold nna;
+		by #unfold nnall_not_iff;
+	- by all_intro #force;
+	- for x ι α, if all: ∀y:ι. α.[y], [∀y. ι y ⟹ image_nnot α.[y], ι x] then α.[x] :=
+		apply all_elim[OF all];
+		done;
 
-oops
+
+ by all_intro;
+
 
 
 interpret all: Binder image_nnot (∀) :=

@@ -18,6 +18,7 @@ public:
 	struct Ctrl {
 		size_t fuel = 255;
 		size_t trial = 1;
+		bool force_assms = false;
 		std::set<Intro> intros;
 		std::set<Elim> elims;
 		std::function<bool(Inference&)> extra = [](auto){ return false; };

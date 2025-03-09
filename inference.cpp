@@ -153,7 +153,7 @@ bool Inference::_blast(
 			for( auto elim = ctrl.elims.begin();; elim++ ) {// checks if an elimination rule matches
 				if( elim == ctrl.elims.end() ) {
 					// no elimination matches, so just declare the assumption as forced
-					add_forced(subloc,assm);
+					add_forced(subloc,assm,ctrl.force_assms);
 					break;
 				}
 				if( auto o = elim->matches(assm) ) {
