@@ -6,7 +6,7 @@ static Error const MalformedBeta = Error("#malformed-beta");
 static Error const UnknownEq = Error("#unknown-equality");
 
 Definer::_Init Definer::_init( Locale const& loc, Ref<Rewriter const> const& rewriter, Thm const& beta ) {
-	auto const& beta2 = strip_all(beta);// (λ α) x = α.[x]
+	auto const& beta2 = strip_all(beta).first;// (λ α) x = α.[x]
 	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
 	auto const& [EQ,l,r] = *bin;

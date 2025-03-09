@@ -242,6 +242,10 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [prop P, prop Q] then ¬(P ⟹ 
 	done;
 
 lemma nnnot_iff: if [prop P] then ¬¬¬P ⟺ ¬P :=
+thm not_iff_imp_false;
+thms #intro;
+thms #exact;
+thms #concl;
 	unfold+ not_iff_imp_false;
 	by imp3_iff;
 
@@ -512,5 +516,5 @@ lemma nnand_iff: if [prop P, prop Q] then ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q :=
 	by #unfold nnnot_iff;
 
 lemma nniff_iff: if [prop P, prop Q] then ¬¬(¬P ⟺ ¬Q) ⟺ ¬P ⟺ ¬Q :=
-	unfold[0] iff_iff_and nnand_iff nnimp_not_iff;
+	unfold[0]+ iff_iff_and nnand_iff nnimp_not_iff;
 	by #fold[0] iff_iff_and;

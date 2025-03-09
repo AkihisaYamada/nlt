@@ -89,7 +89,7 @@ interpret image_nnot: ClassicalLogic :=
 	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q) :=
 		note! image_nnot_imp_prop[OF tP];
 		note! image_nnot_imp_prop[OF tQ];
-		unfold image_nnot_iff nnand_iff;
+		unfold+ image_nnot_iff nnand_iff;
 		by #unfold tP[unfolded image_nnot_iff] tQ[unfolded image_nnot_iff];
 	- by and_intro image_nnot_imp_prop;
 	- by image_nnot_imp_prop #elim and_elim;

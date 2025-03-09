@@ -14,26 +14,28 @@ Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
-	Thm rule = strip_all(thm,ctxt);
+	auto [rule,vars] = strip_all(thm,ctxt);
 	auto imp = rule.cbinary(IMP);
 	assert(imp);
 	rule = rule.discharge(ctxt.assume(imp->first));
-	rule = strip_all(rule,ctxt);
-	return Intro(rule);
+	auto [rule2,vars2] = strip_all(rule,ctxt);
+	return Intro(rule2,vars+vars2,1);
 }
 
 Intro Intro::rule( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
-	Thm rule = strip_all(thm,ctxt);
+	auto [rule,vars] = strip_all(thm,ctxt);
+	size_t conds = 0;
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.discharge(ctxt.assume(imp->first));
-		rule = strip_all(rule,ctxt);
+		conds++;
+		rule = strip_all(rule,ctxt).first;
 	}
-	return Intro(rule);
+	return Intro(rule,vars,conds);
 }
 Elim Elim::rule( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
-	Thm body = strip_all(thm,ctxt);
+	Thm body = strip_all(thm,ctxt).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = ctxt.assume(imp->first);
@@ -42,14 +44,11 @@ Elim Elim::rule( Thm const& thm ) {
 }
 
 void add_forced( Locale& loc, Thm const& thm, bool allow_intro ) {
-	if( auto all = thm.cbinder(ALL) ) {
-		if( strip_all(all->second).binary(IMP) ) {
-			loc.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm );
-		} else {
-			loc.add_thm(Inference::CONCL,thm);
-		}
-	} else if( thm.binary(IMP) ) {
-		loc.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm );
+	auto intro = Intro::rule(thm);
+	if( intro.conds() > 0 ) {
+		loc.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm, {intro} );
+	} else if( intro.vars() > 0 ) {
+		loc.add_thm(Inference::CONCL,thm,{intro});
 	} else {
 		loc.add_thm(Inference::EXACT,thm);
 	}
@@ -189,8 +188,6 @@ bool Inference::_blast(
 							} ) )
 						) {
 							if( fail ) return false;
-							DEB(subloc.print_thms(WEAK));
-							DEB(subloc.print_thms(EXACT));
 							throw Error("\"failed to blast\"")(goal);
 						}
 						break;

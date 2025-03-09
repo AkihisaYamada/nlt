@@ -6,7 +6,8 @@
 
 class Locale;
 struct ThmInfo {
-	std::vector<bool> forces;
+	Opt<Intro> intro;
+	Opt<Elim> elim;
 };
 class AThm;
 class Import;
@@ -75,7 +76,7 @@ public:
 	/** @brief Adds a named theorem in the locale.
 	 * @exception is thrown if the theorem doesn't belong to this locale
 	 */
-	AThm add_thm(std::string_view const& name, Thm const& thm);
+	AThm add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
 	/** finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */

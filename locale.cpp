@@ -16,11 +16,11 @@ Thm Locale::add_assm(string_view const& name, CTerm const& assm) {
 	return assume(assm);
 }
 
-AThm Locale::add_thm(string_view const& name, Thm const& thm) {
+AThm Locale::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) {
 	if( thm.ctxt() != *this ) {
 		throw Error(Term("#locale")("add_thm")(thm));
 	}
-	auto const& [thm2,info] = _ref->thms.emplace(name,pair(thm,ThmInfo()))->second;
+	_ref->thms.emplace(name,pair(thm,info));
 	return AThm(*this,thm,info);
 }
 

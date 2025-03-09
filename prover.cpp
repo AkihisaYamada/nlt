@@ -285,7 +285,7 @@ public:
 		while( _parser.skips("#") ) {
 			if( _parser.skips("intro") ) {
 				cs.intro = true;
-			} else if( _parser.skips("concl") ) {
+			} else if( _parser.skips("force") ) {
 				cs.force = true;
 			} else if( _parser.skips("cong") ) {
 				cs.cong = true;
@@ -310,7 +310,7 @@ public:
 	}
 	void add_claim( Locale& loc, ClaimStatus cs, Thm const& thm ) {
 		if( cs.intro ) {
-			loc.add_thm(Inference::INTRO,thm);
+			add_forced(loc,thm);
 		}
 		if( cs.force ) {
 			add_forced(loc,thm,true);
@@ -437,124 +437,137 @@ public:
 		}
 		if( _parser.skips(":=") ) {
 			_depth++;
-			for(;;){
-				if( auto x = intp.fixing() ) {
-					cout << "fix " << *x << endl;
-				} else if( auto x = intp.assuming() ) {
-					auto [name,axiom] = *x;
-					cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
-				} else if( auto x = intp.obtaining() ) {
-					cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
-				} else {
-					cout << "Completed" << endl;
-				}
-				_prompt();
-				if( _term() || _thm() || _thms() || _ctxt() ) {
-				} else if( _parser.skips("instantiate") ) {
-					while( intp.discharges(mod) || intp.retains() );
-					auto x = intp.fixing();
-					if( !x ) throw Error("\"unexpected instantiate\"");
-					if( auto t = _parser.gets_term() ) {
-						intp.instantiate( mod ? _loc.cterm(*t) : _loc.enclose(*t) );
-						cout << "for " << _syntax->pretty_term(*t) << endl;
-					} else {
-						auto c = _loc.constant(*x);
-						if( c ) intp.instantiate(*c);
-						else if( mod ) intp.instantiate(_loc.fix(*x));
-						else throw Error("\"instantiation must be specified\"")(*x);
-					}
-					_parser.skip(";");
-				} else if( _parser.skips("-") ) {
-					while( intp.instantiates(mod) || intp.retains() );
-					auto a = intp.assuming();
-					if( !a ) throw Error("\"unexpected discharge\"");
-					auto [name,axiom] = *a;
-					if( _parser.skips("know") ) {
-						_parser.skip(";");
-						intp.discharge();
-					} else if( mod && _parser.skips("assume") ) {
-						_parser.skip(";");
-						Thm thm = _loc.add_assm(name,axiom);
-						intp.discharge(thm);
-						cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
-					} else {
-						intp.discharge(_subgoal(axiom));
-					}
-				} else if( _parser.skips("obtain") ) {
-					_obtain();
-				} else if( _parser.skips("retain") ) {
-					while( intp.discharges(mod) || intp.instantiates(mod) );
-					auto x = intp.obtaining();
-					if( !x ) throw Error("\"unexpected retain\"");
-					auto sym = x->sym;
-					if( _parser.skips(";") ) {
-					} else {
-						sym = _parser.get();
-						_parser.skip(";");
-					}
-					auto [sym_term,spec] = _loc.obtain(sym,x->ex,x->spec_name);
-					intp.retain(sym_term,spec);
-				} else if( _parser.skips("substitute") ) {
-					while( intp.discharges(mod) || intp.instantiates(mod) );
-					auto x = intp.obtaining();
-					if( !x ) throw Error("\"unexpected substitute\"");
-					auto sym = x->sym;
-					Locale thesis_loc = _loc.branch();
-					auto term = thesis_loc.cterm(_parser.get_term());
-					_parser.skip(":=");
-					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
-						return _loc.constant(x);
-					}));
-					CTerm t = x->ex.capp()->second;
-// var'. (∀sym. props... ⟹ var') ⟹ var'
-					t = t.weaken(thesis_loc).inst(var);
-// (∀sym. props... ⟹ var) ⟹ var
-					t = t.cbinary(IMP)->first;
-// ∀sym. props... ⟹ var
-					t = t.capp()->second.inst(term);
-// props[sym:=term]... ⟹ var
-					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
-// assume this and prove var, i.e., prove props[sym:=term]...
-					auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
-					thesis.apply(rule);// prop[sym:=term]... ⟹ var
-					auto const& spec = Prover(*this,thesis_loc,thesis).deepen().proof_loop().intro();
-// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
-					intp.retain(_loc.cterm(term),spec);
-				} else {
-					break;
-				}
-			}
-			Inference::Ctrl ctrl = _parser.skips("by") ? get_ctrl() :
-				(_parser.skip("done"), Inference::Ctrl());
+			_import_loop(intp,mod);
 			_depth--;
-			for(;;) {
-				if( intp.instantiates(mod) || intp.retains() ) continue;
-				if( auto a = intp.assuming() ) {
-					auto& [name,assm] = *a;
-					if( _loc.find_thm(name,[&](auto thm){
-						if( thm == assm ) {
-							intp.discharge(thm);
-							return true;
-						}
-						return false;
-					},true,true) ) {
-						continue;
-					}
-					try {
-						intp.discharge(prove(assm,_loc,ctrl));
-					} catch( ::Error const& e ) {
-						throw Error("\"failed to discharge\"")(assm)((Term)e);
-					}
-					continue;
-				}
-				break;
-			}
 		} else {
 			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
+	void _import_loop( Import& intp, bool mod ) {
+		auto org_loc = _loc;
+		_loc = Locale(org_loc,org_loc);// namescope
+		for(;;) try {
+			if( auto x = intp.fixing() ) {
+				cout << "fix " << *x << endl;
+			} else if( auto x = intp.assuming() ) {
+				auto [name,axiom] = *x;
+				cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
+			} else if( auto x = intp.obtaining() ) {
+				cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
+			} else {
+				cout << "Completed" << endl;
+			}
+			_prompt();
+			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
+			} else if( _parser.skips("have") ) {
+				_state();
+			} else if( _parser.skips("instantiate") ) {
+				while( intp.discharges(mod) || intp.retains() );
+				auto x = intp.fixing();
+				if( !x ) throw Error("\"unexpected instantiate\"");
+				if( auto t = _parser.gets_term() ) {
+					intp.instantiate( mod ? org_loc.cterm(*t) : org_loc.enclose(*t) );
+					cout << "for " << _syntax->pretty_term(*t) << endl;
+				} else {
+					auto c = org_loc.constant(*x);
+					if( c ) intp.instantiate(*c);
+					else if( mod ) intp.instantiate(org_loc.fix(*x));
+					else throw Error("\"instantiation must be specified\"")(*x);
+				}
+				_parser.skip(";");
+			} else if( _parser.skips("-") ) {
+				while( intp.instantiates(mod) || intp.retains() );
+				auto a = intp.assuming();
+				if( !a ) throw Error("\"unexpected discharge\"");
+				auto [name,axiom] = *a;
+				if( _parser.skips("know") ) {
+					_parser.skip(";");
+					intp.discharge();
+				} else if( mod && _parser.skips("assume") ) {
+					_parser.skip(";");
+					Thm thm = org_loc.add_assm(name,axiom);
+					intp.discharge(thm);
+					cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
+				} else {
+					intp.discharge(_subgoal(axiom));
+				}
+			} else if( _parser.skips("obtain") ) {
+				_obtain();
+			} else if( _parser.skips("retain") ) {
+				while( intp.discharges(mod) || intp.instantiates(mod) );
+				auto x = intp.obtaining();
+				if( !x ) throw Error("\"unexpected retain\"");
+				auto sym = x->sym;
+				if( _parser.skips(";") ) {
+				} else {
+					sym = _parser.get();
+					_parser.skip(";");
+				}
+				auto [sym_term,spec] = org_loc.obtain(sym,x->ex,x->spec_name);
+				intp.retain(sym_term,spec);
+			} else if( _parser.skips("substitute") ) {
+				while( intp.discharges(mod) || intp.instantiates(mod) );
+				auto x = intp.obtaining();
+				if( !x ) throw Error("\"unexpected substitute\"");
+				auto sym = x->sym;
+				Locale thesis_loc = _loc.branch();
+				auto term = thesis_loc.cterm(_parser.get_term());
+				_parser.skip(":=");
+				CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
+					return _loc.constant(x);
+				}));
+				CTerm t = x->ex.capp()->second;
+	// var'. (∀sym. props... ⟹ var') ⟹ var'
+				t = t.weaken(thesis_loc).inst(var);
+	// (∀sym. props... ⟹ var) ⟹ var
+				t = t.cbinary(IMP)->first;
+	// ∀sym. props... ⟹ var
+				t = t.capp()->second.inst(term);
+	// props[sym:=term]... ⟹ var
+				auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
+	// assume this and prove var, i.e., prove props[sym:=term]...
+				auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
+				thesis.apply(rule);// prop[sym:=term]... ⟹ var
+				auto const& spec = Prover(*this,thesis_loc,thesis).deepen().proof_loop().intro();
+	// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
+				intp.retain(org_loc.cterm(term),spec);
+			} else {
+				break;
+			}
+		} catch( ::Error const& e ) {
+			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e) << endl;
+			_error();
+		}
+		Inference::Ctrl ctrl = _parser.skips("by") ? get_ctrl() :
+			(_parser.skip("done"), Inference::Ctrl());
+		for(;;) {
+			if( intp.instantiates(mod) || intp.retains() ) continue;
+			if( auto a = intp.assuming() ) {
+				auto& [name,assm] = *a;
+				if( _loc.find_thm(name,[&](auto thm){
+					if( thm == assm ) {
+						intp.discharge(thm);
+						return true;
+					}
+					return false;
+				},true,true) ) {
+					continue;
+				}
+				try {
+					intp.discharge(prove(assm,_loc,ctrl));
+				} catch( ::Error const& e ) {
+					_loc = org_loc;
+					throw Error("\"failed to discharge\"")(assm)((Term)e);
+				}
+				continue;
+			}
+			break;
+		}
+		_loc = org_loc;
+	}
+
 	void get_rules( set<Intro>& rules ) {
 		for(;;) {
 			if( _parser.skips("!") ) {
@@ -579,8 +592,9 @@ public:
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
 				auto [rrules,rctrl] = _get_rewrite(_loc,dir);
+				rctrl.min = 0;// returns false when not applicable
 				ctrl.extra = [rrules,rctrl,this](Inference& thesis){
-					return _rewriter->applies(rrules,thesis,rctrl);
+					return _rewriter->apply(rrules,thesis,rctrl);
 				};
 			} else {
 				throw Error("\"unexpected\"")(_parser.peek_token());

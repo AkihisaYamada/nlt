@@ -323,7 +323,7 @@ Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
 	// expand thm into cond ⟹ concl
 	Ctxt thm_ctxt = ctxt.branch();
-	Thm thm_strip = strip_all(thm,thm_ctxt);
+	Thm thm_strip = strip_all(thm,thm_ctxt).first;
 	auto imp = thm_strip.cbinary(IMP);
 	if( !imp ) throw MalformedDischarge(thm_strip)(arg);
 	// expand cond
@@ -332,7 +332,7 @@ Thm discharge(Thm thm, Thm arg) {
 	CTerm cond_strip = strip_all(cond,cond_ctxt);
 	// expand arg
 	Ctxt arg_ctxt = cond_ctxt.branch();
-	Thm arg_strip = strip_all(arg,arg_ctxt);
+	Thm arg_strip = strip_all(arg,arg_ctxt).first;
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
 	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){

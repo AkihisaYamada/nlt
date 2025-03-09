@@ -109,10 +109,7 @@ public:
 		return _step(rules,loc,source,ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
-	bool applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
-	void apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
-		if( !applies(rules,thesis,ctrl) ) throw Error("\"failed to rewrite\"")(thesis.goal());
-	}
+	bool apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
 	/** @brief Rewrites a theorem */
 	Thm rewrite( Rules const& rules, Locale const& loc, Thm const& source, Ctrl const& ctrl ) const;
 private:

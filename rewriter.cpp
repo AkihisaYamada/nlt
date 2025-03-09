@@ -43,7 +43,7 @@ Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	Locale subloc = loc.branch();
-	Thm body = strip_all(thm,subloc,fresh_maker());
+	Thm body = strip_all(thm,subloc,fresh_maker()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subloc.assume(imp->first);
 		add_forced(subloc,assm);
@@ -67,7 +67,7 @@ void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool r
 	throw MalformedRule(thm);
 }
 void Rewriter::register_imp( Thm const& thm, bool dir ) {
-	Thm rule = strip_all(thm);// x = y ⟹ x ⟹ conds... ⟹ y
+	Thm rule = strip_all(thm).first;// x = y ⟹ x ⟹ conds... ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// x ⟹ conds... ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )// conds ... ⟹ y
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
@@ -94,7 +94,7 @@ void Rewriter::register_refl( Thm const& thm ) {
 	_congs.emplace_back();
 }
 void Rewriter::register_trans( Thm const& thm ) {
-	if( auto const& imp1 = strip_all(thm).cbinary(IMP) )
+	if( auto const& imp1 = strip_all(thm).first.cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
@@ -108,8 +108,8 @@ void Rewriter::register_cong( Thm const& thm ) {
 	// parsing congruence rule
 	auto rule = Intro::rule(thm);
 	Ctxt ctxt = rule.ctxt();
-	size_t rev = 0;
 	vector<Cong::Cond> conds;
+	size_t rev = 0;
 	while( ctxt.fixed(rev) ) rev++;
 	while( auto o = ctxt.assumed(rev) ) {
 		auto assm = *o;
@@ -145,7 +145,7 @@ void Rewriter::register_cong( Thm const& thm ) {
 
 void Rewriter::register_dual( Thm const& thm ) {
 	Ctxt loc = thm.ctxt().branch();
-	Thm thm_strip = strip_all(thm,loc);
+	Thm thm_strip = strip_all(thm,loc).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
 	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) ) {
@@ -229,8 +229,8 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					success = true;
 				} else {
 					Thm refl = _refls[cond.ind].weaken(source_ctxt).instantiate(*si);
-					while( auto o = blasts(refl,loc) ) {
-						refl = *o;
+					while( auto imp = refl.cbinary(IMP) ) {
+						refl = refl.discharge(prove(imp->first,loc));
 					}
 					ret = ret << refl;
 				}
@@ -367,7 +367,7 @@ Opt<Thm> Rewriter::_steps(
 		t = app->second;
 	}
 }
-bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
+bool Rewriter::apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
@@ -375,7 +375,7 @@ bool Rewriter::applies( Rules const& rules, Inference& thesis, Ctrl const& ctrl 
 	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conditions ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& loc = thesis.locale();
-	auto steps = _steps(rules,loc,*goal,0,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
+	auto steps = _steps(rules,loc,*goal,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
 	if( !steps ) return false;
 	auto imp = o->second.thm.weaken(loc);// x = y ⟹ conditions... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s

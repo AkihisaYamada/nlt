@@ -209,15 +209,17 @@ struct Matcher {
 Opt<CSubst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
-Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer ) {
-	thm = thm.weaken(ctxt);
-	while( auto all = thm.binder(ALL) ) {
+pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer ) {
+	pair<Thm,size_t> ret = {thm,0};
+	ret.first = thm.weaken(ctxt);
+	while( auto all = ret.first.binder(ALL) ) {
 		auto [v,b] = *all;
 		auto nv = renamer(v);
 		if( !nv ) break;
-		thm = thm.instantiate(ctxt.fix(*nv));
+		ret.second++;
+		ret.first = ret.first.instantiate(ctxt.fix(*nv));
 	}
-	return thm;
+	return ret;
 }
 CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	t = t.weaken(ctxt);
@@ -246,7 +248,7 @@ void subst_intp( Intp& intp, CSubst& subst ) {
 Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	Ctxt rule_ctxt = ctxt.branch();
-	Thm rule = strip_all(thm,rule_ctxt,fresh_maker());
+	Thm rule = strip_all(thm,rule_ctxt,fresh_maker()).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) {
 		throw Error("#match_discharge")(thm);

@@ -68,11 +68,11 @@ inline CTerm strip_all( CTerm thm ) {
  * @param thm the theorem to be stripped.
  * @param loc this context will fix the bound variables.
  */
-Thm strip_all( Thm thm, Ctxt& ctxt, Renamer const& renamer );
-inline Thm strip_all( Thm thm, Ctxt& ctxt ) {
+std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer );
+inline std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt ) {
 	return strip_all(thm,ctxt,avoider(ctxt));
 }
-inline Thm strip_all( Thm thm ) {
+inline std::pair<Thm,size_t> strip_all( Thm const& thm ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	return strip_all(thm,ctxt);
 }
@@ -142,5 +142,95 @@ inline Thm operator<<(Thm const& t, Thm arg) {
 
 /** detects trivial abstraction x. y.[x], and returns y */
 Opt<std::string> virtual_var( CTerm const& t );
+
+/** Introduction rule */
+class Intro {
+	friend class Elim;
+	Thm _conclusion;
+	size_t _vars, _conds;
+	explicit Intro( Thm const& conc, size_t vars, size_t conds ) :
+		_conclusion(conc), _vars(vars), _conds(conds) {}
+public:
+	size_t vars() const {
+		return _vars;
+	}
+	size_t conds() const {
+		return _conds;
+	}
+	static Intro just( Thm const& thm ) {
+		return Intro(thm.weaken(thm.ctxt().branch()),0,0);
+	}
+	/** @brief Makes implication a rule. */
+	static Intro imp( Thm const& thm );
+	/** @brief Makes a theorem into a rule. Number of conditions are returned. */
+	static Intro rule( Thm const& thm );
+	/** @brief Makes a theorem into an axiom.
+	 * universal quantifications are processed but not implications.
+     */
+	static Intro axiom( Thm const& thm ) {
+		auto [conc,vars] = strip_all(thm);
+		return Intro(conc,vars,0);
+	}
+	Thm const& conclusion() const& {
+		return _conclusion;
+	}
+	Thm thm() const& {
+		return _conclusion.intro();
+	}
+	Opt<CSubst> matches( CTerm const& goal ) const {
+		return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
+	}
+	Ctxt ctxt() && = delete;
+	Ctxt const& ctxt() const& {
+		return _conclusion.ctxt();
+	}
+	/** @brief interpretation of the rule into given context.
+	 * 
+	 */
+	Intp intp( Ctxt const& tgt ) const {
+		return Intp(ctxt(),tgt);
+	}
+	/** @brief instantiates the rule. */
+	Thm inst( Intp const& intp ) const {
+		return intp.subst(_conclusion);
+	}
+	bool operator<( Intro const& y ) const {
+		return _conclusion < y._conclusion;
+	}
+};
+
+class Elim {
+	Thm _thm;// ∀thesis. ψ... ⟹ thesis, where the context fixes other variables and assumes premise φ
+	Thm _premise;// φ
+	explicit Elim( Thm const& premise, Thm const& thm ) : _premise(premise), _thm(thm) {}
+public:
+	static Elim rule( Thm const& thm );
+	Opt<Intro> matches( Thm const& assm ) const {
+		auto pat_ctxt = _premise.ctxt();
+		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
+		if( !m ) return {};
+		auto intp = Intp( pat_ctxt, assm.ctxt() );
+		subst_intp(intp,*m);
+		intp.discharge(assm);
+		auto thm = intp.subst(_thm);// ∀thesis. ψθ... ⟹ thesis
+		return Intro::rule(thm);
+	}
+	Ctxt ctxt() && = delete;
+	Ctxt const& ctxt() const& {
+		return _premise.ctxt();
+	}
+	Thm premise() const {
+		return _premise;
+	}
+	/** @brief interpretation of the rule into given context.
+	 * 
+	 */
+	Intp intp( Ctxt const& tgt ) const {
+		return Intp(ctxt(),tgt);
+	}
+	bool operator<( Elim const& y ) const {
+		return _premise < y._premise;
+	}
+};
 
 #endif
