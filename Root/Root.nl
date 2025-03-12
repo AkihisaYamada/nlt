@@ -15,6 +15,14 @@ infix ∧ 35 36 36;
 infix ∨ 30 31 30;
 infix ⟺ 1 1 0;
 binder ∃ 0 0;
+binder_middle ∀ : ∀:;
+binder_middle ∃ : ∃:;
+
+infix ∈ 50 50 50;
+infix ⊆ 51 51 50;
+infix ⊂ 51 51 50;
+infix ⊇ 51 51 50;
+infix ⊃ 51 51 50;
 
 infix = 51 51 50;
 infix ≠ 51 51 50;
@@ -39,49 +47,49 @@ lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R :=
 
 locale MetaReflexive (≤) :=
 	assume refl: x ≤ x;
-	end;
+end;
 
 locale MetaTransitive (≤) :=
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z;
-	end;
+end;
 
 locale MetaPreorder :=
 	import MetaReflexive;
 	import MetaTransitive;
-	end;
+end;
 
 locale MetaSymmetric (=) :=
 	assume sym: x = y ⟹ y = x;
-	end;
+end;
 
 locale MetaEquivalence (=) :=
 	import MetaSymmetric;
 	import MetaPreorder (=);
-	end;
+end;
 
 locale MetaCommutative (+) (=) :=
 	assume commute: x + y = y + x;
-	end;
+end;
 
 locale MetaAssociative (+) (=) :=
 	assume assoc: x + y + z = x + (y + z);
-	end;
+end;
 
 locale MetaLeftNeutral (+) (0) (=) :=
 	assume left_neutral: 0 + x = x;
-	end;
+end;
 
 locale MetaRightNeutral (+) (0) (=) :=
 	assume right_neutral: x + 0 = x;
-	end;
+end;
 
 locale MetaLeftAbsorb (*) (0) (=) :=
 	assume left_absorb: 0 * x = 0;
-	end;
+end;
 
 locale MetaRightAbsorb (*) (0) (=) :=
 	assume right_absorb: x * 0 = 0;
-	end;
+end;
 
 ---
 locale MetaUnitalCommutative (+) (0) (=) :=
@@ -127,7 +135,7 @@ locale True :=
 		- for thesis, if assm: ∀true. true ⟹ thesis :=
 			by assm(∀x. x ⟹ x);
 		done;
-	end;
+end;
 
 -- Obtains false, which derives everything, including non-propositions.
 locale False :=
@@ -135,7 +143,7 @@ locale False :=
 		- for thesis, if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis :=
 			by assm(∀P. P);
 		done;
-	end;
+end;
 
 
 -----
@@ -144,64 +152,75 @@ locale False :=
 
 locale Reflexive mem (≤) :=
 	assume refl: mem x ⟹ x ≤ x;
-	end;
+end;
 
 locale Symmetric mem (≤) :=
 	assume sym: x ≤ y ⟹ mem x ⟹ mem y ⟹ y ≤ x;
-	end;
+end;
 
 locale Transitive mem (≤) :=
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ mem x ⟹ mem y ⟹ mem z ⟹ x ≤ z;
-	end;
+end;
 
 
 locale Member mem c :=
 	assume type: mem c;
-	end;
+end;
 
 locale Unary mem f :=
 	assume type: mem x ⟹ mem (f x);
-	end;
+end;
 
 locale Magma mem (+) :=
 	assume type: mem x ⟹ mem y ⟹ mem (x + y);
-	end;
+end;
 
 locale Binder mem ξ :=
 	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x]));
-	end;
+end;
 
 locale TypedBinder mem ξ :=
 	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x]));
-	end;
+end;
 
 locale Commutative mem (+) (=) :=
 	assume commute: mem x ⟹ mem y ⟹ x + y = y + x;
-	end;
+end;
 
 locale Associative mem (+) (=) :=
 	assume assoc: mem x ⟹ mem y ⟹ mem z ⟹ x + y + z = x + (y + z);
-	end;
+end;
 
 locale LeftNeutral mem (+) (0) (=) :=
 	assume left_neutral: mem x ⟹ 0 + x = x;
-	end;
+end;
 
 locale RightNeutral mem (+) (0) (=) :=
 	assume right_neutral: mem x ⟹ x + 0 = x;
-	end;
+end;
 
 locale LeftAbsorb mem (*) (0) (=) :=
 	assume left_absorb: mem x ⟹ 0 * x = 0;
-	end;
+end;
 
 locale RightAbsorb mem (*) (0) (=) :=
 	assume right_absorb: mem x ⟹ x * 0 = 0;
-	end;
+end;
 
-infix ∈ 50 50 50;
+locale If if (=) (¬) :=
+	assume if: P ⟹ (if P t e) = t;
+	assume if_not: ¬P ⟹ (if P t e) = e;
+end;
+
+locale Nat nat (0) suc rec (=) (∀:) :=
+	import zero: Member nat 0;
+	import suc: Unary nat suc;
+	assume induct: P 0 ⟹ (∀x:nat. P x ⟹ P (suc x)) ⟹ ∀x:nat. P x;
+	assume rec_0: rec z s 0 = z;
+	assume rec_suc: nat x ⟹ rec z s (suc x) = s x (rec z s x);
+end;
 
 locale Collect Collect (∈) :=
 	assume in_Collect_iff: x ∈ Collect P ⟺ P x;
-	end;
+end;
 

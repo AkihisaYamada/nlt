@@ -35,18 +35,23 @@ public:
 		return *this;
 	}
 	T const& operator*() const & {
+		assert(*this);
 		return *_opt;
 	}
 	T& operator*() & {
+		assert(*this);
 		return *_opt;
 	}
 	T operator*() && {
+		assert(*this);
 		return *std::move(_opt);
 	}
 	T const* operator->() const & {
+		assert(*this);
 		return _opt.operator->();
 	}
 	T* operator->() & {
+		assert(*this);
 		return _opt.operator->();
 	}
 	operator Opt<T const&>() && = delete;
@@ -84,8 +89,14 @@ public:
 	Opt( T& l ) : _ptr(&l) {}
 	operator Opt<T const&>() { return _ptr; }
 	operator bool() const { return _ptr; }
-	T& operator*() const { return *_ptr; }
-	T* operator->() const { return _ptr; }
+	T& operator*() const {
+		assert(*this);
+		return *_ptr;
+	}
+	T* operator->() const {
+		assert(*this);
+		return _ptr;
+	}
 };
 
 #endif

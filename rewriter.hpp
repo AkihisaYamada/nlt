@@ -85,11 +85,11 @@ public:
 		return _refls[ind];
 	}
 	void add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool rev = false ) const;
-	void register_imp( Thm const& thm, bool dir );
-	void register_refl(Thm const& thm);
-	void register_trans(Thm const& thm);
-	void register_cong(Thm const& thm);
-	void register_dual(Thm const& thm);
+	Rewriter& register_imp( Thm const& thm, bool dir ) &;
+	Rewriter& register_refl(Thm const& thm) &;
+	Rewriter& register_trans(Thm const& thm) &;
+	Rewriter& register_cong(Thm const& thm) &;
+	Rewriter& register_dual(Thm const& thm) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 

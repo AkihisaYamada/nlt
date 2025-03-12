@@ -66,7 +66,7 @@ void Rewriter::add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool r
 	}
 	throw MalformedRule(thm);
 }
-void Rewriter::register_imp( Thm const& thm, bool dir ) {
+Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	Thm rule = strip_all(thm).first;// x = y ⟹ x ⟹ conds... ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// x ⟹ conds... ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )// conds ... ⟹ y
@@ -80,11 +80,11 @@ void Rewriter::register_imp( Thm const& thm, bool dir ) {
 			conds++;
 		}
 		( dir ? _imps : _revimps ).emplace(*ind,Imp{thm,conds});
-		return;
+		return *this;
 	}
 	throw MalformedImp(thm);
 }
-void Rewriter::register_refl( Thm const& thm ) {
+Rewriter& Rewriter::register_refl( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw MalformedRefl(thm);
@@ -92,19 +92,20 @@ void Rewriter::register_refl( Thm const& thm ) {
 	_rels.emplace(*rel,ind);
 	_refls.emplace_back(thm);
 	_congs.emplace_back();
+	return *this;
 }
-void Rewriter::register_trans( Thm const& thm ) {
+Rewriter& Rewriter::register_trans( Thm const& thm ) & {
 	if( auto const& imp1 = strip_all(thm).first.cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) throw UnregisteredRel(*rel);
 		_trans.emplace(*ind,thm);
-		return;
+		return *this;
 	}
 	throw MalformedTrans(thm);
 }
-void Rewriter::register_cong( Thm const& thm ) {
+Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 	// parsing congruence rule
 	auto rule = Intro::rule(thm);
 	Ctxt ctxt = rule.ctxt();
@@ -141,9 +142,10 @@ void Rewriter::register_cong( Thm const& thm ) {
 	auto const& ind = gets_rel_ind(rel);
 	if( !ind ) throw UnregisteredRel(rel);
 	_congs[*ind].emplace_back(l,thm,std::move(conds));
+	return *this;
 }
 
-void Rewriter::register_dual( Thm const& thm ) {
+Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 	Ctxt loc = thm.ctxt().branch();
 	Thm thm_strip = strip_all(thm,loc).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
@@ -156,7 +158,7 @@ void Rewriter::register_dual( Thm const& thm ) {
 		if( auto const& bin2 = strips_binary(t) )
 		if( auto const& ind2 = gets_rel_ind(get<0>(*bin2)) ) {
 			_duals.emplace(*ind2,Dual(thm,*ind1));
-			return;
+			return *this;
 		}
 	}
 	throw Error("\"malformed dual rule\"")(thm);
@@ -347,18 +349,18 @@ Opt<Thm> Rewriter::_steps(
 			if( i < min ) throw TooFewSteps(i,min,t);
 			return eq;
 		}// t = u
-		i++;
-		if( i == max ) {
-			if( !safe )
-				throw Error("\"rewrite limit exceeded\"")(to_string(max));
-			return eq;
-		}
 		auto const& app = step->capp();
 		assert(app);
 		eq = ltrans << eq;// ∀z. t = z ⟹ types... ⟹ s = z
 		eq = eq << *step;// types... ⟹ s = u
 		while( auto imp = eq.cbinary(IMP) ) {// discharge types
 			eq = eq.discharge(prove(imp->first,loc));
+		}
+		i++;
+		if( i == max ) {
+			if( !safe )
+				throw Error("\"rewrite limit exceeded\"")(to_string(max));
+			return eq;
 		}
 		t = app->second;
 	}

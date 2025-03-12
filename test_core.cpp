@@ -178,5 +178,5 @@ int main() try {
 	cout << "proved and_imp_iff: " << and_imp_iff << endl;
 	cout << "=== core test is done ===" << endl;
 } catch( Error const& e ) {
-	cerr << e.term << endl;
+	cerr << e << endl;
 }

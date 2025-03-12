@@ -1,4 +1,4 @@
-base NegativeTranslation;
+base NegativeTranslationEq;
 
 -----
 ## More Axioms for Constructors

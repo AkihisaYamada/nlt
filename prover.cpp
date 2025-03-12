@@ -75,7 +75,6 @@ class Prover {
 	Ref<Syntax> _syntax;
 	Parser _parser;
 	Opt<Inference> _thesis;
-	Mem<Rewriter> _rewriter;
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
@@ -88,7 +87,6 @@ class Prover {
 		_parser(parent._parser.get_lexer(),*parent._syntax),
 		_own_parser(false),
 		_thesis(thesis),
-		_rewriter(parent._rewriter),
 		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
 	}
@@ -113,8 +111,7 @@ public:
 		_syntax(syntax),
 		_parser(lexer,*_syntax),
 		_own_parser(true),
-		_exit_on_error(exit_on_error),
-		_rewriter(Mem<Rewriter>::make()) {
+		_exit_on_error(exit_on_error) {
 		_prompt();
 	}
 	Prover& deepen() & {
@@ -156,7 +153,7 @@ public:
 		throw Parser::Error("expects a theorem");
 	}
 	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Locale& loc, bool rev = false ) {
-		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_rewriter->make_rules(),{}};
+		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_loc.rewriter().make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( _parser.skips("(") ) {
 			ctrl.rel = _parser.get();
@@ -176,7 +173,7 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			_rewriter->add_rule( loc, rules, *arg, _parser.skips("-") ? !rev : rev );
+			_loc.rewriter().add_rule( loc, rules, *arg, _parser.skips("-") ? !rev : rev );
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -212,7 +209,7 @@ public:
 					}
 				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = _rewriter->rewrite(rules,loc,ret,ctrl);
+					ret = _loc.rewriter().rewrite(rules,loc,ret,ctrl);
 				}
 				_parser.skip("]");
 			} else {
@@ -324,7 +321,7 @@ public:
 		}
 		if( cs.cong ) {
 			loc.add_thm(Rewriter::CONG,thm);
-			_rewriter->register_cong(thm);
+			_loc.rewriter().register_cong(thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -449,6 +446,7 @@ public:
 		} else {
 			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
+		if( !intp.ready() ) throw Error("\"failed to interpret\"");
 		_parser.skip(";");
 		cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
@@ -619,7 +617,7 @@ public:
 				auto [rrules,rctrl] = _get_rewrite(_loc,dir);
 				rctrl.min = 0;// returns false when not applicable
 				ctrl.extra = [rrules,rctrl,this](Inference& thesis){
-					return _rewriter->apply(rrules,thesis,rctrl);
+					return _loc.rewriter().apply(rrules,thesis,rctrl);
 				};
 			} else if( _parser.skips("force") ) {
 				ctrl.force_assms = true;
@@ -852,12 +850,12 @@ public:
 						"\n\trev: " <<  _syntax->pretty_thm(revimp) <<
 						"\n\trefl: " << _syntax->pretty_thm(refl) <<
 						"\n\ttrans: " << _syntax->pretty_thm(trans) << endl;
-					_rewriter->register_refl(refl);
-					_rewriter->register_imp(imp,true);
-					_rewriter->register_imp(revimp,false);
-					_rewriter->register_trans(trans);
+					_loc.rewriter().register_refl(refl).
+						register_imp(imp,true).
+						register_imp(revimp,false).
+						register_trans(trans);
 					_loc.find_thm( Rewriter::CONG, [&](AThm const& thm ){
-						_rewriter->register_cong(thm);
+						_loc.rewriter().register_cong(thm);
 						cout << "\n\tcong: " << _syntax->pretty_thm(thm);
 						return false;
 					} );
@@ -865,28 +863,28 @@ public:
 				} else if( _parser.skips("refl") ) {
 					cout << "Registering reflexivity: ";
 					while( auto const& thm = gets_thm() ) {
-						_rewriter->register_refl(*thm);
+						_loc.rewriter().register_refl(*thm);
 						cout << _syntax->pretty_thm(*thm);
 					}
 					cout << endl;
 				} else if( _parser.skips("trans") ) {
 					cout << "Registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
-						_rewriter->register_trans(*thm);
+						_loc.rewriter().register_trans(*thm);
 						cout << _syntax->pretty_thm(*thm);
 					}
 					cout << endl;
 				} else if( _parser.skips("dual") ) {
 					cout << "Registering dual: ";
 					while( auto const& thm = gets_thm() ) {
-						_rewriter->register_dual(*thm);
+						_loc.rewriter().register_dual(*thm);
 						cout << _syntax->pretty_thm(*thm);
 					};
 					cout << endl;
 				} else if( _parser.skips("define") ) {
 					Thm const& beta = get_thm();
 					cout << " beta: " << _syntax->pretty_thm(beta) << endl;
-					_definer = OptRef<Definer>::make(_loc,_rewriter,beta);
+					_definer = OptRef<Definer>::make(_loc,beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& empty = _parser.get_term(1000);
 					Term const& singleton = _parser.get_term(1000);
@@ -939,7 +937,7 @@ public:
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
 					auto [rules,ctrl] = _get_rewrite(_loc,dir);
 					_parser.skip(";");
-					_rewriter->apply(rules,*_thesis,ctrl);
+					_loc.rewriter().apply(rules,*_thesis,ctrl);
 					print_goal( dir ? "folded goal " : "unfolded goal " );
 				} else if( _parser.skips("-") ) {
 					auto goal = has_goal();
@@ -1149,8 +1147,18 @@ public:
 				local_lexer.skip("base");
 				auto parent_name = local_lexer.get();
 				local_lexer.skip(";");
+				auto parent = _loc;
+				if( parent_name == "Root" ) {
+					while( auto const& p = parent.parent() ) {
+						parent = *p;
+					}
+				} else {
+					auto pn = parent.find_locale(parent_name,true);
+					if( !pn ) throw Error("\"loading locale unreachable\"")(parent_name)(name);
+					parent = *pn;
+				}
 				cout << "Loading " << name << endl;
-				Prover sub = Prover(*this,_loc.branch(name),{},{{dir,name}}).deepen();
+				Prover sub = Prover(*this,parent.branch(name),{},{{dir,name}}).deepen();
 				sub.set_lexer(local_lexer);
 				sub._indent();
 				sub.loop();

@@ -4,7 +4,9 @@
 #include"util.hpp"
 #include"syntax.hpp"
 
-class Locale;
+class Rewriter;
+
+
 struct ThmInfo {
 	Opt<Intro> intro;
 	Opt<Elim> elim;
@@ -94,6 +96,9 @@ public:
 		}
 		throw Error(Term("#locale_not_found")(name));
 	}
+	Rewriter& rewriter() &;
+	Rewriter const& rewriter() const &;
+	Rewriter rewriter() && = delete;
 	/** Pretty printer for context */
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
@@ -113,17 +118,6 @@ public:
 	AThm weaken( Locale const& loc ) const {
 		return AThm(loc,Thm::weaken(loc),info);
 	}
-};
-struct Locale::_Body {
-	Opt<Locale const> parent;
-	std::string name;
-	StrMMap<std::pair<Thm,ThmInfo>> thms;
-	std::set<Thm> forced_intros;
-	StrMap<Locale const> locales;
-	Map<size_t,std::string> assm_names;
-	std::multimap<std::string,Import,std::less<>> imports;
-	_Body() {}
-	_Body( Opt<Locale const> parent, std::string_view const& name ) : parent(parent), name(name) {}
 };
 
 class Import : public Intp {
@@ -215,60 +209,8 @@ public:
 	}
 };
 
-inline Locale::Locale() : _ref(Ref<_Body>::make()) {};
-
-inline Locale::Locale( Locale const& parent, Ctxt const& ctxt ) :
-	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,"")) {}
-
-inline Locale Locale::branch() const {
-	return Locale(Ref<_Body>::make(Opt<Locale const>(*this),""), Ctxt::branch());
-}
-inline Locale Locale::branch( std::string_view const& name ) {
-	auto const& loc = Locale(Ref<_Body>::make(Opt<Locale const>(*this),name), Ctxt::branch());
-	_ref->locales.emplace(name,loc);
-	return loc;
-}
-inline Opt<Locale const> Locale::parent() const {
-	return _ref->parent;
-}
-
-inline Opt<AThm> Locale::find_thm(
-	std::string_view const& name,
-	std::function<bool(AThm const&)> const& test,
-	bool ancestor,
-	bool noprefix
-) const {
-	return _find_thm(name,_triv_proc,test,ancestor,noprefix,*this);
-}
-
-inline AThm Locale::thm(std::string_view const& name) const {
-	if( auto opt = find_thm(name) ) {
-		return *opt;
-	}
-	throw TheoremNotFound(name);
-}
-
-inline Opt<std::string> Locale::find_assm_name( size_t rev ) const {
-	if( auto x = _ref->assm_names.finds(rev) ) {
-		return x->second;
-	}
-	return {};
-}
-
-inline StrMMap<Import> const& Locale::imports() const {
-	return _ref->imports;
-}
-
 inline std::ostream& operator<<(std::ostream& os, Locale const& loc) {
 	return os << loc.pretty(SYNTAX);
 }
-
-inline Import& Locale::import(std::string_view const& name, Locale const& loc) & {
-	auto it = _ref->imports.emplace(std::piecewise_construct,
-		std::make_tuple(name),
-		std::forward_as_tuple(*this,loc)
-	);
-	return it->second;
-};
 
 #endif

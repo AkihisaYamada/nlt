@@ -23,6 +23,8 @@ assume image_nnot_iff_ex: prop P ⟹ image_nnot P ⟺ (∃P' : prop. P ⟺ ¬¬P
 assume image_nnot_imp_prop: image_nnot P ⟹ prop P;
 assume prop_image_nnot! prop P ⟹ prop (image_nnot P);
 
+ctxt TypedIntuitionisticLogic;
+
 lemma image_nnot_iff: if [prop P] then image_nnot P ⟺ (¬¬P ⟺ P) :=
 	apply iff_intro;
 	-  if tP: image_nnot P :=
