@@ -107,9 +107,13 @@ void Term::_iter_syms(
 }
 
 CSubst& CSubst::_assign(string_view const& var, Term const& val) & {
-	auto const& info = _map.emplace(var,val);
+	Opt<Term> r;
+	if( var != val ) {
+		r = val;
+	}
+	auto const& info = _map.emplace(var,r);
 	if( !info.second ) {
-		info.first->second = val;
+		info.first->second = r;
 	}
 	return *this;
 }

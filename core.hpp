@@ -686,7 +686,7 @@ inline bool operator!=(CTerm const& l, CTerm const& r) {
 /** @brief Substitution, whose range is closed with respect to a context. */
 class CSubst {
 private:
-	StrMap<Term> _map;
+	StrMap<Opt<Term>> _map;
 	Ctxt _ctxt;
 public:
 	/** @brief Creates a closed substituion
@@ -704,7 +704,7 @@ public:
 	 * 
 	 * @return StrMap<Term> const& 
 	 */
-	StrMap<Term> const& map() const {
+	StrMap<Opt<Term>> const& map() const {
 		return _map;
 	}
 	/** @brief Tests if the substitution domain contains a variable. */
@@ -733,7 +733,7 @@ public:
 	}
 	Opt<CTerm> get(std::string_view const& var) const {
 		if( auto it = _map.find(var); it != _map.end() ) {
-			return CTerm(_ctxt,it->second);
+			return CTerm( _ctxt, it->second ? *it->second : var );
 		}
 		return {};
 	}

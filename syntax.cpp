@@ -145,8 +145,9 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 }
 
 function<ostream&(ostream&)> Syntax::pretty_subst(CSubst const& subst) const & {
-	static function<void(ostream&,std::pair<std::string const,Term> const&)> pair = [this](ostream& os, auto p){
-		os << pretty_term(p.first) << " := " << pretty_term(p.second);
+	static function<void(ostream&,std::pair<std::string const,Opt<Term>> const&)> pair = [this](ostream& os, auto p){
+		auto t = p.second ? *p.second : p.first;
+		os << pretty_term(p.first) << " := " << pretty_term(t);
 	};
 	return [&](ostream& os)->ostream&{
 		os << "[ ";
