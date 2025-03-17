@@ -118,11 +118,11 @@ Term Term::subst(CSubst const& subst) const {
 	if( subst.empty() ) {
 		return *this;
 	}
-	auto f = [&](string_view const& sym)->Term {
+	auto f = [&](string_view const& sym)->Opt<Term> {
 		if( auto opt = subst.get(sym) ) {
 			return *opt;
 		} else {
-			return sym;
+			return {};
 		}
 	};
 	auto fixed = [&](string_view const& sym)->Opt<Term> {
@@ -149,18 +149,31 @@ Term Term::subst(string_view const& var, CTerm const& val) const {
 	);
 }
 
-Term Term::_Mapper::map( Term const& t ) {
+Opt<Term> Term::_Mapper::map( Term const& t ) {
 	if( auto sym = t.sym() ) {
 		return map_var(*sym);
 	} else if( auto app = t.app() ) {
-		return map(app->first)(map(app->second));
-	} else if( auto abs = t.bind() ) {
-		auto const& var = abs->first;
-		Term body = abs->second;
+		auto [fun,arg] = *app;
+		auto fun2 = map(fun);
+		auto arg2 = map(arg);
+		if( fun2 ) {
+			if( arg2 ) {
+				return (*fun2)(*arg2);
+			}
+			return (*fun2)(arg);
+		}
+		if( arg2 ) {
+			return fun(*arg2);
+		}
+		return {};
+	} else if( auto bind = t.bind() ) {
+		auto const& var = bind->first;
+		Term body = bind->second;
+		Opt<Term> body2;
 		string const& newvar = rename(var);
 		auto newvar_info = bsyms.emplace(newvar,newvar);// the new name should be avoided
 		if( newvar == var ) {// the bound variable is fresh
-			body = map(body);
+			body2 = map(body);
 		} else {
 			// replace the original name
 			auto replace_info = bsyms.emplace(var,newvar);
@@ -169,7 +182,7 @@ Term Term::_Mapper::map( Term const& t ) {
 				prev = replace_info.first->second;// remember the old assignment
 				replace_info.first->second = newvar;// update to the new name
 			}
-			body = map(body);
+			body2 = map(body);
 			// forget/recover replacement
 			if( replace_info.second ) {
 				bsyms.erase(replace_info.first);
@@ -179,23 +192,33 @@ Term Term::_Mapper::map( Term const& t ) {
 		}
 		// release the new name
 		bsyms.erase(newvar_info.first);
-		return newvar /= body;
-	} else if( auto fix = t.unbind() ) {// map(C[s])
-		auto const& [C,s] = *fix;
-		Term mapC = map_var(C);
-		Term maps = map(s);
-		if( auto nsym = mapC.sym() ) {
-			return *nsym %= maps;
-		} else if( auto nabs = mapC.bind() ) {// (x. t)[s']
-			auto const& [x,t] = *nabs;
-			// return t[x := s'], where bound variables are considered fixed.
-			auto newfixed = [&]( string_view const& sym ) {
-				return sym == x || fixed(sym) || bsyms.contains(sym);
-			};
-			return t.map(unit_map(x,maps),newfixed);
-		} else {
-			throw UnexpectedTerm(mapC);
+		if( body2 ) {
+			return newvar /= *body2;
 		}
+		return {};
+	} else if( auto unbind = t.unbind() ) {// map(C[s])
+		auto const& [C,s] = *unbind;
+		Opt<Term> mapC = map_var(C);
+		Opt<Term> maps = map(s);
+		if( mapC ) {
+			Term s2 = maps ? *maps : s;
+			if( auto nsym = mapC->sym() ) {
+				return *nsym %= s2;
+			} else if( auto nabs = mapC->bind() ) {// (x. t)[s']
+				auto const& [x,t] = *nabs;
+				// return t[x := s'], where bound variables are considered fixed.
+				auto newfixed = [&]( string_view const& sym ) {
+					return sym == x || fixed(sym) || bsyms.contains(sym);
+				};
+				return t.map(unit_map(x,s2),newfixed);
+			} else {
+				throw UnexpectedTerm(*mapC);
+			}
+		}
+		if( maps ) {
+			return C %= *maps;
+		}
+		return {};
 	} else {
 		assert(false);
 	}
@@ -204,7 +227,7 @@ Term Term::_Mapper::map( Term const& t ) {
 Term Term::inst(CTerm const& arg) const {
 	auto a = bind();
 	if( !a ) {
-		throw MalformedInstantiation(*this,arg);
+		throw MalformedInstantiation(*this)(arg);
 	}
 	return a->second.subst(a->first,arg);
 }
@@ -321,7 +344,7 @@ Thm Thm::_allE(CTerm const& t) const {
 	if( auto const& a = cunary(ALL) ) {
 		return a->inst(t);
 	}
-	throw MalformedInstantiation(*this,t);
+	throw MalformedInstantiation(*this)(t);
 }
 
 Opt<Thm> Thm::discharges(Thm const& t) const {
@@ -440,6 +463,15 @@ Thm Intp::subst(Thm const& thm) const {
 	}
 	return CTerm(_subst.ctxt(),ret.subst(_subst));
 }
+Ctxt Intp::subst(Ctxt const& ctxt) const {
+	if( ctxt.parent() != _src ) {
+		throw WrongContext("\"subst context\"");
+	}
+	if( !ready() ) {
+		throw Error("#intp")("\"not ready\"");
+	}
+}
+
 void Intp::instantiate(CTerm const& term) {
 	auto fix = _src.fixed(_rev);
 	if( !fix ) {

@@ -59,20 +59,19 @@ class Term {
 	};
 	Sum<std::string,App,Abs,Unbind> _un;
 	struct _Mapper {
-		std::function<Term(std::string const&)> const& f;
+		std::function<Opt<Term>(std::string const&)> const& f;
 		std::function<bool(std::string_view const&)> const& fixed;
 		StrMap<std::string> bsyms;
 		std::string rename( std::string_view const& var ) const {
 			return avoid(var,[&](std::string_view const& x){ return bsyms.contains(x) || fixed(x); });
 		}
-		Term map_var( std::string const& sym ) {
+		Opt<Term> map_var( std::string const& sym ) {
 			if( auto opt = bsyms.finds(sym) ) {
 				return opt->second;
 			}
 			return f(sym);
 		}
-		Term map_abs( std::string const& var, Term body );
-		Term map( Term const& t );
+		Opt<Term> map( Term const& t );
 	};
 	Term(App const& app) : _un(app) {}
 	Term(Abs const& abs) : _un(abs) {}
@@ -304,11 +303,14 @@ public:
 	 * @return Term 
 	 */
 	Term map(
-		std::function<Term(std::string_view const&)> const& f,
+		std::function<Opt<Term>(std::string_view const&)> const& f,
 		std::function<bool(std::string_view const&)> const&
 			fixed = [](std::string_view const&){ return false; }
 	) const {
-		return _Mapper{f,fixed}.map(*this);
+		if( auto res = _Mapper{f,fixed}.map(*this) ) {
+			return *res;
+		}
+		return *this;
 	};
 	/** @brief instantiates the bound variable. This must be an abstraction.
 	 * 
@@ -324,7 +326,6 @@ private:
 	) const;
 	/** equality test */
 	static bool _eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth);
-
 	friend bool operator==(Term const& l, Term const& r) {
 		StrMap<unsigned int> lmap, rmap;
 		return Term::_eq(l,r,lmap,rmap,0);
@@ -348,38 +349,21 @@ struct Error : public std::exception, Term {
 		return Term::operator()(arg);
 	}
 };
-struct UnexpectedTerm : public Error {
-	UnexpectedTerm(Term const& term) : Error(Term("#unexpected_term")(term)) {}
-};
-struct MalformedObtain : public Error {
-	MalformedObtain(Term const& term) : Error(Term("#malformed-obtain")(term)) {}
-};
-struct MalformedInstantiation : public Error {
-	MalformedInstantiation(Term const& all, Term const& arg) :
-		Error(Term("#malformed_instantiation")(all)(arg)) {}
-};
+inline Error const UnexpectedTerm = Error("#unexpected_term");
+inline Error const MalformedObtain = Error("#malformed_obtain");
+inline Error const MalformedInstantiation = Error("#malformed_instantiation");
 inline Error const MalformedDischarge = Error("#malformed_discharge");
-
-inline Error const MalformedRetain = Error("#malformed-retain");
-
-struct MissingProof : public Error {
-	MissingProof(Term const& term) : Error(Term("#missing_proof")(term)) {}
-};
-struct WrongContext : public Error {
-	WrongContext(std::string_view const& msg) : Error(Term("#wrong_context")(msg)) {}
-};
-
-struct DoubleFix : public Error {
-	DoubleFix(std::string_view const& name) : Error(Term("#double_fix")(name)) {}
-};
-
+inline Error const MalformedRetain = Error("#malformed_retain");
+inline Error const MissingProof = Error("#missing_proof");
+inline Error const WrongContext = Error("#wrong_context");
+inline Error const DoubleFix = Error("#double_fix");
 struct UnboundVariable : public Error {
-	UnboundVariable(std::string_view const& name) : Error(Term("#unbound_variable")(name)) {}
+	static Term const RT;
+	UnboundVariable(std::string_view const& var) : Error(RT(var)) {}
 };
+inline Term const UnboundVariable::RT = Term("#unbound_variable");
 
-struct ConstantEscape : public Error {
-	ConstantEscape(std::string_view const& name) : Error(Term("#escape")(name)) {}
-};
+inline Error const ConstantEscape = Error("#escape");
 
 /** @brief Context */
 class Ctxt {
@@ -855,6 +839,8 @@ public:
 	}
 	/** @brief instantiates a theorem. */
 	Thm subst(Thm const& thm) const;
+	/** @brief (limited) instantiates a context. */
+	Ctxt subst(Ctxt const& ctxt) const;
 	/** @brief Instantiates a context variable.
 	 * If the interpreted context is modified by fixing a new variable,
 	 * then this method should be used to instantiate the variable.
