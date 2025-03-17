@@ -195,8 +195,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 			while( auto assm = intp.assuming() ) {
 				intp.discharge(prove(*assm,loc));
 			}
-			auto const& ret = intp.subst(rule.thm); // l[m] = r[m]
-			return ret;
+			return intp.subst(rule.thm); // l[m] = r[m]
 		}
 	}
 	bool success = false;
@@ -394,7 +393,7 @@ Thm Rewriter::rewrite( Rules const& rules, Locale const& loc, Thm const& source,
 	auto tmp = o->second.thm.weaken(loc);
 	tmp = tmp << *steps;
 	for( int i = 0; i < o->second.conds; i++ ) {
-		tmp = *blasts(tmp,loc);
+		tmp = blast(tmp,loc);
 	}// s ⟹ t
 	return tmp << source;
 }

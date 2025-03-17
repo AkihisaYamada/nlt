@@ -69,7 +69,12 @@ Opt<Term> Parser::gets_term(int level) {
 			return {};
 		}
 		_lexer->ignore_token();
-		if( auto var = _lexer->gets(Word) ) {
+		Opt<string> var = _lexer->gets(Word);
+		if( !var && _lexer->skips("(") ) {
+			var = _lexer->get();
+			_lexer->skip(")");
+		}
+		if( var ) {
 			auto follow = _lexer->get();
 			if( follow == "." ) {
 				ret = Term(x->first)( *var /= get_term(x->second.rlevel) );
@@ -140,4 +145,3 @@ Term Parser::get_term(int level) {
 	}
 	throw Error("Required a term");
 }
-

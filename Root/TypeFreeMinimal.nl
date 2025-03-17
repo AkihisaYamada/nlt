@@ -193,7 +193,7 @@ interpret and_iff: MetaCommutative (∧) (⟺) :=
 	done;
 
 interpret and_iff: MetaAssociative (∧) (⟺) :=
-	- for P Q R, show P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
+	show: for P Q R, P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R) :=
 		apply iff_intro;
 		- if PQR: P ∧ Q ∧ R :=
 			by and_intro
@@ -464,7 +464,7 @@ interpret or: MetaSymmetric (∨) :=
 	done;
 
 interpret or_iff: MetaCommutative (∨) (⟺) :=
-	- for P Q, show P ∨ Q ⟺ Q ∨ P :=
+	show: for P Q, P ∨ Q ⟺ Q ∨ P :=
 		apply iff_intro;
 		- if PQ: P ∨ Q :=
 			by or.sym[OF PQ];
@@ -474,7 +474,7 @@ interpret or_iff: MetaCommutative (∨) (⟺) :=
 	done;
 
 interpret or_iff: MetaAssociative (∨) (⟺) :=
-	- for P Q R, show P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
+	show: for P Q R, P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R) :=
 		apply iff_intro;
 		- if PQR: P ∨ Q ∨ R :=
 			apply or_elim[OF PQR];

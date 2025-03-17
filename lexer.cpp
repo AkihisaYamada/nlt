@@ -189,7 +189,7 @@ string_view Lexer::peek_token() {
 				token_type = Operator;
 				break;
 			default:
-				token_type = Operator; // dot operator
+				token_type = Dots; // single dot
 				break;
 			}
 			break;
@@ -215,12 +215,18 @@ string_view Lexer::peek_token() {
 	return peeked_token;
 }
 
-int Tokenizer::get_int() {
+size_t Tokenizer::get_nat() {
 	auto const& t = peek_token();
 	int ret;
 	from_chars(t.data(),t.data()+t.size(),ret);
 	reset();
 	return ret;
+}
+int Tokenizer::get_int() {
+	if( skips("-") ) {
+		return -get_nat();
+	}
+	return get_nat();
 }
 float Tokenizer::get_float() {
 	auto const& t = peek_token();

@@ -9,14 +9,13 @@ struct Locale::_Body {
 	StrMap<Locale const> locales;
 	Map<size_t,std::string> assm_names;
 	std::multimap<std::string,Import,std::less<>> imports;
-	Rewriter rewriter;
-	_Body() {}
-	_Body( std::string_view const& name ) : name(name) {}
+	Mem<Rewriter> rewriter;
+	_Body( std::string_view const& name ) : name(name), rewriter(Mem<Rewriter>::make()) {}
 	_Body( Locale const& parent, std::string_view const& name ) : parent(parent), name(name), rewriter(parent._ref->rewriter) {
 	}
 };
 
-Locale::Locale() : _ref(Ref<_Body>::make()) {};
+Locale::Locale( std::string_view const& name ) : _ref(Ref<_Body>::make(name)) {};
 
 Locale::Locale( Locale const& parent, Ctxt const& ctxt ) :
 	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,"")) {}
@@ -41,10 +40,10 @@ Opt<AThm> Locale::find_thm(
 	return _find_thm(name,_triv_proc,test,ancestor,noprefix,*this);
 }
 Rewriter const& Locale::rewriter() const& {
-	return _ref->rewriter;
+	return *_ref->rewriter;
 }
 Rewriter& Locale::rewriter() & {
-	return _ref->rewriter;
+	return *_ref->rewriter;
 }
 AThm Locale::thm(std::string_view const& name) const {
 	if( auto opt = find_thm(name) ) {
@@ -119,19 +118,19 @@ Opt<AThm> Locale::_find_thm(
 			}
 		}
 	} else {
-		if( auto ret = _find_thm("",name,proc,test,orig) ) {// unnamed import
-			return ret;
+		auto sep = name.find('.');
+		if( sep == 0 ) {// explicit parent
+			auto opt = _ref->parent;
+			if( !opt ) throw Error("\"parent locale not found\"");
+			return opt->_find_thm(name.substr(1),proc,test,ancestor,noprefix,orig);
 		}
-		if( auto sep = name.find('.'); sep != string::npos ) {// named imports
-			if( sep == 0 ) {// explicit parent
-				if( auto opt = _ref->parent ) {
-					return opt->_find_thm(name.substr(sep+1),proc,test,ancestor,noprefix,orig);
-				}
-				throw Error("\"parent locale not found\"");
-			}
+		if( sep != string::npos ) {// named imports
 			if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),proc,test,orig) ) {
 				return ret;
 			}
+		}
+		if( auto ret = _find_thm("",name,proc,test,orig) ) {// unnamed import
+			return ret;
 		}
 	}
 	if( ancestor )
@@ -174,11 +173,16 @@ Opt<AThm> Import::_find_thm(
 	return {};
 }
 Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
-	if( size_t sep = name.find('.'); sep != string::npos ) {
-		if( auto const& p = _ref->parent ) {
-			return p->find_locale(name.substr(sep+1));
-		}
-		throw LocaleNotFound(".");
+	size_t sep = name.find('.');
+	if( sep == 0 ) {
+		auto const& p = _ref->parent;
+		if( !p ) throw LocaleNotFound(".");
+		return p->find_locale(name.substr(1));
+	}
+	if( sep != string::npos )
+	if( auto sub = _ref->locales.finds(name.substr(0,sep)) )
+	if( auto ret = sub->second.find_locale(name.substr(sep+1)) ) {
+		return ret;
 	}
 	if( auto ret = _ref->locales.finds(name) ) {
 		return ret->second;

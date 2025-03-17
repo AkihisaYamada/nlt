@@ -34,6 +34,10 @@ infix ≥ 51 51 50;
 infix + 100 101 100;
 infix * 110 111 110;
 
+prefix if -1 -1;
+infix then -1 -1 -1;
+infix else -1 -1 -1;
+
 
 lemma mp: if P: P, PQ: P ⟹ Q then Q :=
 	by PQ[OF P];
@@ -150,6 +154,18 @@ end;
 ## For typed logic
 -----
 
+locale Member mem c :=
+	assume type: mem c;
+end;
+
+locale Unary f dom cod :=
+	assume type: dom x ⟹ cod (f x);
+end;
+
+locale Binary f dom1 dom2 cod :=
+	assume type: dom1 x ⟹ dom2 y ⟹ cod (f x y);
+end;
+
 locale Reflexive mem (≤) :=
 	assume refl: mem x ⟹ x ≤ x;
 end;
@@ -162,17 +178,8 @@ locale Transitive mem (≤) :=
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ mem x ⟹ mem y ⟹ mem z ⟹ x ≤ z;
 end;
 
-
-locale Member mem c :=
-	assume type: mem c;
-end;
-
-locale Unary mem f :=
-	assume type: mem x ⟹ mem (f x);
-end;
-
-locale Magma mem (+) :=
-	assume type: mem x ⟹ mem y ⟹ mem (x + y);
+locale Irreflexive mem (<) (¬) :=
+	assume irrefl: mem x ⟹ ¬ (x < x);
 end;
 
 locale Binder mem ξ :=
@@ -181,6 +188,10 @@ end;
 
 locale TypedBinder mem ξ :=
 	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x]));
+end;
+
+locale Magma mem (+) :=
+	import Binary (+) mem mem mem;
 end;
 
 locale Commutative mem (+) (=) :=
@@ -199,6 +210,22 @@ locale RightNeutral mem (+) (0) (=) :=
 	assume right_neutral: mem x ⟹ x + 0 = x;
 end;
 
+locale UnitalMagma :=
+	import Magma;
+	import LeftNeutral;
+	import RightNeutral;
+end;
+
+locale Semigroup :=
+	import Magma;
+	import Associative;
+end;
+
+locale Monoid :=
+	import Semigroup;
+	import UnitalMagma;
+end;
+
 locale LeftAbsorb mem (*) (0) (=) :=
 	assume left_absorb: mem x ⟹ 0 * x = 0;
 end;
@@ -207,17 +234,9 @@ locale RightAbsorb mem (*) (0) (=) :=
 	assume right_absorb: mem x ⟹ x * 0 = 0;
 end;
 
-locale If if (=) (¬) :=
-	assume if: P ⟹ (if P t e) = t;
-	assume if_not: ¬P ⟹ (if P t e) = e;
-end;
-
-locale Nat nat (0) suc rec (=) (∀:) :=
-	import zero: Member nat 0;
-	import suc: Unary nat suc;
-	assume induct: P 0 ⟹ (∀x:nat. P x ⟹ P (suc x)) ⟹ ∀x:nat. P x;
-	assume rec_0: rec z s 0 = z;
-	assume rec_suc: nat x ⟹ rec z s (suc x) = s x (rec z s x);
+locale If if then else (=) (¬) :=
+	assume if: P ⟹ (if P then t else e) = t;
+	assume if_not: ¬P ⟹ (if P then t else e) = e;
 end;
 
 locale Collect Collect (∈) :=

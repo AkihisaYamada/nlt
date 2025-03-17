@@ -39,7 +39,7 @@ test_locale.exe: $(LOCALE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 test_locale: test_locale.exe
 	./$^
 
-nlm.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
+nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
 	${CPP} $^ -o $@
 
 test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
@@ -47,6 +47,11 @@ test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
 
 test: test.exe test.nl
 	./test.exe test.nl
+
+.PHONY: vscode
+
+vscode: vscode/language-configuration.json vscode/syntaxes
+	cd vscode; npx vsce package
 
 $(DEPEND)/%.d: %.cpp
 	@mkdir -p $(@D)

@@ -1,4 +1,4 @@
-base NegativeTranslationEq;
+base Heyting;
 
 -----
 ## More Axioms for Constructors

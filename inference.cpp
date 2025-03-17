@@ -12,14 +12,15 @@ CTerm dummy( Ctxt const& ctxt ) {
 Error const Inference::NoGoal = Error("\"no goal to apply\"");
 Error const Inference::Unapplicable = Error("\"apply failed\"");
 
-Intro Intro::imp( Thm const& thm ) {
+Intro Intro::imp( Thm const& thm, size_t n ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	auto [rule,vars] = strip_all(thm,ctxt);
-	auto imp = rule.cbinary(IMP);
-	assert(imp);
-	rule = rule.discharge(ctxt.assume(imp->first));
-	auto [rule2,vars2] = strip_all(rule,ctxt);
-	return Intro(rule2,vars+vars2,1);
+	for( size_t i = 0;; i++ ) {
+		if( i == n ) return Intro(rule,vars,i);
+		auto imp = rule.cbinary(IMP);
+		assert(imp);
+		rule = rule.discharge(ctxt.assume(imp->first));
+	}
 }
 
 Intro Intro::rule( Thm const& thm ) {
@@ -29,7 +30,7 @@ Intro Intro::rule( Thm const& thm ) {
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.discharge(ctxt.assume(imp->first));
 		conds++;
-		rule = strip_all(rule,ctxt).first;
+//		rule = strip_all(rule,ctxt).first;
 	}
 	return Intro(rule,vars,conds);
 }
@@ -53,7 +54,7 @@ void add_forced( Locale& loc, Thm const& thm, bool allow_intro ) {
 		loc.add_thm(Inference::EXACT,thm);
 	}
 }
-void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) & {
+void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
 	for(;;) {
 		if( _goals == 0 ) {
 			if( suc < min ) throw Error("\"no more goal to apply on\"");
@@ -63,13 +64,14 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 			if( !safe ) throw Error("\"apply limit exceeded\"")(to_string(max));
 			return;
 		}
-		if( !_apply(rules,strip_all(goal())) ) {
+		Ctxt subctxt = goal().ctxt().branch();
+		if( !_apply(rules,goal().weaken(subctxt)) ) {
 			break;
 		}
 		suc++;
 	}
-	if( deep && push() ) {
-		_apply(rules,suc,min,max,safe,deep);
+	if( wide && push() ) {
+		_apply(rules,suc,min,max,safe,wide);
 		pop();
 	}
 	if( suc < min ) throw Error("\"apply failed\"");

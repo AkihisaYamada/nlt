@@ -71,8 +71,11 @@ public:
 		return {};
 	}
 	/** @brief Tries to apply a rule once */
+	bool applies( Intro const& rule ) & {
+		return _apply(rule,goal().weaken(goal().ctxt().branch()));
+	}
 	void apply( Intro const& rule ) & {
-		auto g = strip_all(goal());
+		auto g = goal().weaken(goal().ctxt().branch());
 		if( !_apply(rule,g) ) throw Unapplicable(g)(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
@@ -81,11 +84,10 @@ public:
 		if( !_apply(rules,g) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
-	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool deep ) & {
+	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool wide ) & {
 		size_t suc = 0;
-		_apply(rules,suc,min,max,safe,deep);
+		_apply(rules,suc,min,max,safe,wide);
 	}
-	void _apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool deep ) &;
 	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw NoGoal;
@@ -138,6 +140,7 @@ private:
 		}
 		return false;
 	}
+	void _apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) &;
 	bool _apply_blast(
 		size_t& fuel,
 		size_t trial,

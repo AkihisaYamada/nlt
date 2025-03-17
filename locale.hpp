@@ -55,7 +55,7 @@ public:
 		TheoremNotFound(std::string_view const& name) :
 			Error(Term("#theorem_not_found")(name)) {}
 	};
-	Locale();
+	Locale( std::string_view const& name );
 	/** make context as locale */
 	Locale( Locale const& loc, Ctxt const& ctxt );
 	/** Creates an anonymous branch locale. */

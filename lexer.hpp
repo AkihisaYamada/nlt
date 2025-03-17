@@ -125,6 +125,7 @@ public:
 		peek_token();
 		reset();
 	}
+	size_t get_nat();
 	int get_int();
 	float get_float();
 	virtual std::string location() const = 0;

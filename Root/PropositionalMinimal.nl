@@ -16,12 +16,12 @@ assume true_intro! true;
 
 fix false;
 import false: Member prop false;
---Minimal Logic only asserts that false is a proposition.
+-- Minimal Logic only asserts that false is a proposition.
 
 import imp: Magma prop (⟹);
 
 fix (¬);
-import not: Unary prop (¬);
+import not: Unary (¬) prop prop;
 assume not_intro: (P ⟹ false) ⟹ prop P ⟹ ¬ P;
 assume not_imp_false: ¬ P ⟹ P ⟹ prop P ⟹ false;
 
@@ -88,7 +88,20 @@ lemma iff_imp_rev: if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟹ P :=
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans;
 setup dual iff.sym;
 
-lemma iff_cong_imp#cong: for P R,
+lemma iff_cong_imp: for P Q,
+	if PP': P ⟺ P', QQ': P' ⟹ Q ⟺ Q', [prop P, prop P', prop Q, prop Q']
+	then (P ⟹ Q) ⟺ (P' ⟹ Q')
+:=
+	apply iff_intro;
+	- if PQ: P ⟹ Q :=
+		by PQ #fold QQ' PP'-;
+	- if P'Q': P' ⟹ Q', P: P :=
+		have P': P' :=
+			by P[unfolded PP'];
+		by P'Q'[OF P'] #unfold QQ'[OF P'];
+	done;
+
+lemma iff_cong_imp_weak#cong: for P R,
 	if PQ: P ⟺ Q, RS: R ⟺ S, [prop P, prop Q, prop R, prop S]
 	then (P ⟹ R) ⟺ (Q ⟹ S)
 :=
@@ -518,3 +531,4 @@ lemma nnand_iff: if [prop P, prop Q] then ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q :=
 lemma nniff_iff: if [prop P, prop Q] then ¬¬(¬P ⟺ ¬Q) ⟺ ¬P ⟺ ¬Q :=
 	unfold[0]+ iff_iff_and nnand_iff nnimp_not_iff;
 	by #fold[0] iff_iff_and;
+

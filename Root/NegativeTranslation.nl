@@ -15,10 +15,6 @@ fix image_nnot nnot_or nnot_ex;
 
 -- `image_nnot` should turn a proposition into a proposition.
 
-assume prop_image_nnot! prop P ⟹ prop (image_nnot P);
-
---
-
 assume image_nnot_iff_ex: prop P ⟹ image_nnot P ⟺ (∃P' : prop. P ⟺ ¬¬P');
 assume image_nnot_imp_prop: image_nnot P ⟹ prop P;
 assume prop_image_nnot! prop P ⟹ prop (image_nnot P);
