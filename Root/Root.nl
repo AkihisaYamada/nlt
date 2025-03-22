@@ -34,10 +34,6 @@ infix ≥ 51 51 50.
 infix + 100 101 100.
 infix * 110 111 110.
 
-prefix if -1 -1.
-infix then -1 -1 -1.
-infix else -1 -1 -1.
-
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
 	by PQ[OF P].
 

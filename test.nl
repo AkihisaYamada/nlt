@@ -1,63 +1,4 @@
-base Heyting.
-
------
-## More Axioms for Constructors
------
-
-prefix THE 0 1.
-fix THE.
-assume ex1_imp_THE: (∃!x. α.[x]) ⟹ α.[THE x. α.[x]].
-
-show ex1_imp_THE_eq: if ex1: ∃!y. α.[y], x: α.[x] then (THE y. α.[y]) = x;
-	apply ex1_elim[OF ex1].
-	- for z, if az: α.[z], 1: ∀y. α.[y] ⟹ z = y;
-		show zx: z = x;
-			by 1[OF x].
-		show zT: z = (THE x. α.[x]);
-			by 1[OF ex1_imp_THE[OF ex1]].
-		by zx[unfolded zT].
-	qed.
-
-fix Const is_const.
-
-assume Const_is_const: is_const Const.
-
-assume Const_neq_app: is_const c ⟹ Const ≠ c x.
-
-assume const_app: is_const c ⟹ is_const (c x).
-
-assume const_app_eq_app: is_const c ⟹ is_const d ⟹ c x = d y ⟹ c = d ∧ x = y.
-
-define const_arg v := (THE x. ∃c. is_const c ∧ v = c x).
-
-thm const_arg_def.
-
-show const_arg: if c: is_const c then const_arg (c x) = x;
-	unfold const_arg_def.
-	apply ex1_imp_THE_eq.
-	apply ex1_intro(x).
-	apply ex_intro1(c).
-	apply and_intro.
-	- := just c.
-	- := just eq.refl.
-	- for y, if ex: ∃c'. is_const c' ∧ c x = c' y then x = y :=
-		obtain c' where c': is_const c', cc': c x = c' y :=
-			note 1: ex[unfolded ex_def].
-			note 2: 1[unfolded(⟺) and_imp_iff].
-			just 2.
-		note and: const_app_eq_app[OF c c' cc'].
-		by and_elim2[OF and].
-	show! ∃c'. is_const c' ∧ c x = c' x.
-		apply ex_intro1(c).
-		apply and_intro.
-		note! c.
-		note! eq.refl.
-		qed.
-	qed.
-
-fix IF.
-assume IF_true: IF true x y = x.
-assume IF_false: IF false x y = y.
+base Lambda.Const.
 
 -----
 ## Classes
@@ -65,25 +6,24 @@ assume IF_false: IF false x y = y.
 
 define Collect := Const true.
 
-show Collect_is_const: is_const Collect.
-	unfold Collect_def.
-	apply const_app.
+lemma Collect_is_const: is_const Collect;
+	unfold Collect_def,
+	apply const_app,
 	by Const_is_const.
 
-show const_arg_Collect: const_arg (Collect P) = P.
+lemma const_arg_Collect: const_arg (Collect P) = P;
 	by const_arg[OF Collect_is_const].
 
 infix ∈ 50 50 50.
 
-obtain ∈ where in_Collect: ∀x. ∀P. (x ∈ Collect P) = P x.
-	case for thesis, 1: ∀in. (∀x. ∀P. in x (Collect P) = P x) ⟹ thesis.
+obtain ∈ where in_Collect: ∀x. ∀P. (x ∈ Collect P) = P x;
+	- for thesis, if 1:;
 		define (in_def) x ∈ X := const_arg X x.
-		show 2: (x ∈ Collect P) = P x.
-			unfold in_def.
+		have 2: (x ∈ Collect P) = P x;
+			unfold in_def,
 			unfold const_arg_Collect.
-			by eq.refl.
 		by 1[OF 2].
-	qed.
+	.
 
 infix ∋ 50 50 50.
 define (has_eq_in) X ∋ x := x ∈ X.
@@ -99,15 +39,13 @@ define (un_def) X ∪ Y := Collect (λx. x ∈ X ∨ x ∈ Y).
 
 setup set_comprehension ∅ Singleton Collect (λ) (∪).
 
-show in_un: (x ∈ X ∪ Y) = (x ∈ X ∨ x ∈ Y).
-	unfold* un_def in_Collect beta.
-	done.
+lemma in_un: (x ∈ X ∪ Y) = (x ∈ X ∨ x ∈ Y);
+	unfold+ un_def in_Collect beta.
 
 define UNIV := {x. true}.
 
-show in_Singleton: (x ∈ {y}) = (x = y).
-	unfold* Singleton_def in_Collect beta.
-	done.
+lemma in_Singleton: (x ∈ {y}) = (x = y);
+	unfold+ Singleton_def in_Collect beta.
 
 ----
 ### The Set of Propositions
@@ -120,9 +58,8 @@ infix ` 100 100 100.
 
 define (image_def) f ` X := {y. ∃x. x ∈ X ∧ y = f x}.
 
-show in_image: (y ∈ f ` X) = (∃x. x ∈ X ∧ y = f x).
+lemma in_image: (y ∈ f ` X) = (∃x. x ∈ X ∧ y = f x).
 	unfold+ image_def in_Collect beta.
-	done.
 
 infix ⊆ 50 50 50.
 
@@ -133,7 +70,7 @@ define (map_def) X → Y := {f. f ` X ⊆ Y}.
 
 define Class := Collect ` (UNIV → Prop).
 
-show in_Class: (X ∈ Class) = (∃p. p ∈ UNIV → Prop ∧ X = Collect p).
+lemma in_Class: (X ∈ Class) = (∃p. p ∈ UNIV → Prop ∧ X = Collect p);
 
 oops
 

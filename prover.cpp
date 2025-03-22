@@ -24,8 +24,17 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	return os << ": ";
 }
 
-fstream file_of_locale( string dir, string_view const& name ) {
-	return fstream(dir+name+".nl");
+fstream file_of_locale( string path, string_view name ) {
+	for(;;) {
+		auto p = name.find('.');
+		if( p == string::npos ) break;
+		path += name.substr(0,p);
+		path += '/';
+		name = name.substr(p+1);
+	}
+	path += name;
+	path += ".nl";
+	return fstream(path);
 }
 
 Ref<Syntax> make_syntax() {
@@ -53,9 +62,9 @@ Ref<Syntax> make_syntax() {
 	ret->infix(",",-2,-2,-3);
 	ret->infix(";",-3,-3,-4);
 	ret->infix(":=",-1,-1,-2);
-	ret->prefix("if",-3,-2);
-	ret->infix("then",-3,-2,-2);
-	ret->infix("else",-3,-2,-2);
+	ret->prefix("if",-1,-2);
+	ret->infix("then",-2,-1,-2);
+	ret->infix("else",-2,-2,-1);
 	return ret;
 }
 

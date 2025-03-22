@@ -52,6 +52,18 @@ function<ostream&(ostream&)> Syntax::pretty_term(Term const& term, int level) co
 			} else if( auto app_in = fun.app() ) {
 				auto const& fun_in = app_in->first, arg_in = app_in->second;
 				if( auto sym = fun_in.sym() ) {
+					if( auto x = _prefixes.finds(*sym) ) {
+						auto const& op = x->second;
+						if( level > op.llevel ) {
+							os << '(';
+						}
+						os << *sym << ' ';
+						os << pretty_term(arg,op.rlevel);
+						if( level > op.llevel ) {
+							os << ')';
+						}
+						return os;
+					}
 					if( auto x = _infixes.finds(*sym) ) {
 						auto const& op = x->second;
 						if( level > op.level ) {
