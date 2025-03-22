@@ -244,7 +244,7 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [prop P, prop Q] then ¬(P ⟹ 
 	.
 
 theorem nnnot_iff: if [prop P] then ¬¬¬P ⟺ ¬P;
-	by #unfold+ not_iff_imp_false imp3_iff.
+	unfold+ not_iff_imp_false imp3_iff.
 
 lemma imp_not_commute: if [prop P, prop Q] then
 	(P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
@@ -253,7 +253,7 @@ lemma imp_not_commute: if [prop P, prop Q] then
 lemma nnot_imp_not_iff: if [prop P, prop Q] then
 	(¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	unfold imp_not_commute,
-	by #unfold nnnot_iff.
+	unfold nnnot_iff.
 
 lemma nnimp_not_iff: if [prop P, prop Q] then
 	¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
@@ -328,14 +328,15 @@ lemma true_and_iff: if [prop P] then true ∧ P ⟺ P;
 	apply iff_intro,
 	- if and: true ∧ P;
 		by and_elim2[OF and].
-	by and_intro[OF true_intro].
+	- by and_intro[OF true_intro].
+	.
 
 lemma true_and_true: true ∧ true;
-	by #unfold true_and_iff.
+	unfold true_and_iff.
 
 lemma and_true_iff: if [prop P] then P ∧ true ⟺ P;
 	unfold and_iff.commute,
-	by #unfold true_and_iff.
+	unfold true_and_iff.
 
 lemma iff_iff_and: if [prop P, prop Q] then
 	(P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
@@ -453,19 +454,18 @@ lemma or_imp_iff:
 	apply iff_intro,
 	- if nor: P ∨ Q ⟹ R;
 		by and_intro nor or_intro.
-	by #elim or_elim and_elim.
+	- by #elim or_elim and_elim.
+	.
 
 lemma nor_iff: if [prop P, prop Q] then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 	unfold+ not_iff_imp_false,
 	by or_imp_iff.
 
 lemma nnot_nor_iff: if [prop P, prop Q] then ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff,
-	by iff.refl.
+	unfold+ nor_iff nnnot_iff.
 
 lemma nor_nnot_iff: if [prop P, prop Q] then ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff,
-	by iff.refl.
+	unfold+ nor_iff nnnot_iff.
 
 lemma nnot_excluded_middle: if [prop P] then ¬¬(P ∨ ¬P);
 	unfold nor_iff,

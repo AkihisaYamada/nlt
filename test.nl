@@ -1,4 +1,4 @@
-base Lambda.Const.
+base NegativeTranslation.
 
 -----
 ## Classes

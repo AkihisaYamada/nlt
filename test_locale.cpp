@@ -1,12 +1,12 @@
 #include "misc.hpp"
-#include "locale.hpp"
+#include "theory.hpp"
 
 using namespace std;
 
 string const LE = "≤";
 
 int main() try {
-	cout << "=== locale test ===" << endl;
+	cout << "=== theory test ===" << endl;
 	SYNTAX.infix(AND,35,36,36);
 	SYNTAX.infix(IFF,0,1,1);
 	SYNTAX.infix(LE,50,51,51);
@@ -15,29 +15,29 @@ int main() try {
 	Term r = Term("R");
 	Term le = Term(LE);
 	Term thesis = Term("thesis");
-	Locale Root;
+	auto Root = Thy("Test");
 	Root.branch("Preorder");
-	auto Preorder = *Root.find_locale("Preorder");
+	auto Preorder = *Root.find_thy("Preorder");
 	Preorder.fix(LE);
 	Preorder.add_assm( "refl", "x" &= le("x")("x") );
 	Preorder.add_assm( "trans", "x" &= "y" &= "z" &= le("x")("y") >>= le("y")("z") >>= le("x")("z") );
-	cout << "locale Preorder: " << Preorder << endl;
+	cout << "theory Preorder: " << Preorder << endl;
 	auto& imp = Root.import("imp",Preorder);
 	imp.instantiate(Root.cterm(IMP));
 	imp.discharge([&]{
-		Locale loc = Root.branch();
+		Thy loc = Root.branch();
 		loc.fix("P");
 		loc.add_assm("P",p);
 		return loc.thm("P").intro();
 	}());
 	imp.discharge([&]{
-		Locale loc = Root.branch();
+		Thy loc = Root.branch();
 		loc.fix("P");
 		loc.fix("Q");
 		loc.fix("R");
 		loc.add_assm( "PQ", p >>= q );
 		loc.add_assm( "QR", q >>= r );
-		Locale loc2 = loc.branch();
+		Thy loc2 = loc.branch();
 		loc2.add_assm("P",p);
 		return ( loc2.thm("QR") << ( loc2.thm("PQ") << loc2.thm("P") ) ).intro().intro();
 	}());
@@ -46,9 +46,9 @@ int main() try {
 
 	cout << "\n--- True ---" << endl;
 	Term TRUE = "true";
-	Locale True = Root.branch();
+	Thy True = Root.branch();
 	{
-		Locale loc = True.branch();
+		Thy loc = True.branch();
 		loc.fix("thesis");
 		loc.add_assm( "assm", "true" &= TRUE >>= thesis );
 		Thm assm = loc.thm("assm");
@@ -59,24 +59,24 @@ int main() try {
 	cout << "locale True: " << True << endl;
 
 	cout << "\n--- And ---" << endl;
-	Locale And = Root.branch();
+	Thy And = Root.branch();
 	And.fix(AND);
 	And.add_assm( "andI1", "P" &= "Q" &= p >>= q >>= p & q );
 	And.add_assm( "andE1", "P" &= "Q" &= p & q >>= p );
 	And.add_assm( "andE2", "P" &= "Q" &= p & q >>= q );
 	And.add_thm( "andI", [&]{
-		Locale loc = And.branch();
+		Thy loc = And.branch();
 		loc.fix("P");
 		loc.fix("Q");
 		loc.add_assm( "assm", "R" &= (p >>= q >>= r) >>= r );
 		return ( loc.thm("assm") << loc.thm("andI1") ).intro();
 	}() );
 	And.add_thm( "andE", [&]{
-		Locale loc = And.branch();
+		Thy loc = And.branch();
 		loc.fix("P");
 		loc.fix("Q");
 		loc.add_assm( "pq", p & q );
-		Locale loc2 = loc.branch();
+		Thy loc2 = loc.branch();
 		loc2.fix("R");
 		loc2.add_assm( "pqr", p >>= q >>= r );
 		Thm P = loc2.thm("andE1") << loc2.thm("pq");
@@ -87,7 +87,7 @@ int main() try {
 	cout << "locale And: " << And << endl;
 
 	cout << "\n--- Iff ---" << endl;
-	Locale Iff = Root.branch();
+	Thy Iff = Root.branch();
 	Iff.fix(IFF);
 	Iff.add_assm( "I1", "P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q) );
 	Iff.add_assm( "E1", "P" &= "Q" &= (p <=> q) >>= p >>= q );
@@ -99,7 +99,7 @@ int main() try {
 			Iff.thm("I1") << Iff.thm("imp.refl") << Iff.thm("imp.refl")
 		);
 		iff_preorder.discharge( [&]{
-			Locale loc = Iff.branch();
+			Thy loc = Iff.branch();
 			loc.fix("P");
 			loc.fix("Q");
 			loc.fix("R");
@@ -123,7 +123,7 @@ int main() try {
 	cout << "locale Iff: " << Iff << endl;
 
 	cout << "\n--- PropLogic ---" << endl;
-	Locale Logic = Root.branch();
+	Thy Logic = Root.branch();
 	import_all(Logic.import("",True));
 	import_all(Logic.import("iff",Iff));
 	import_all(Logic.import("",And));

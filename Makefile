@@ -4,12 +4,10 @@ CORE_TEST_SRCS=$(CORE_SRCS) $(CORE_TEST_SRC)
 UTIL_SRCS=$(CORE_SRCS) matcher.cpp unifier.cpp
 UTIL_TEST_SRC=test_util.cpp
 UTIL_TEST_SRCS=$(UTIL_SRCS) $(UTIL_TEST_SRC)
-LOCALE_SRCS=$(UTIL_SRCS) order.cpp locale.cpp
-LOCALE_TEST_SRC=test_locale.cpp
-LOCALE_TEST_SRCS=$(LOCALE_SRCS) $(LOCALE_TEST_SRC)
+THEORY_SRCS=$(UTIL_SRCS) order.cpp theory.cpp
 PROVER_SRC=inference.cpp rewriter.cpp definer.cpp parser.cpp prover.cpp
-PROVER_SRCS=$(LOCALE_SRCS) $(PROVER_SRC)
-SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(LOCALE_TEST_SRC)
+PROVER_SRCS=$(THEORY_SRCS) $(PROVER_SRC)
+SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(THEORY_TEST_SRC)
 CPP=g++ -O3 -std=c++20 -Wfatal-errors
 DEPEND=_depend
 BUILD=_build
@@ -31,12 +29,6 @@ test_util.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DCPP} $^ -o $@
 
 test_util: test_util.exe
-	./$^
-
-test_locale.exe: $(LOCALE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
-	${DCPP} $^ -o $@
-
-test_locale: test_locale.exe
 	./$^
 
 nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)

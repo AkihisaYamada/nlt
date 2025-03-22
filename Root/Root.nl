@@ -43,11 +43,13 @@ lemma weaken: if P: P, Q: Q then P;
 lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 	by PQR Q.
 
-theory MetaReflexive (≤) :=
+theory MetaReflexive :=
+	fix (≤).
 	assume refl: x ≤ x.
 end
 
-theory MetaTransitive (≤) :=
+theory MetaTransitive :=
+	fix (≤).
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
 end
 
@@ -56,36 +58,44 @@ theory MetaPreorder :=
 	import MetaTransitive.
 end
 
-theory MetaSymmetric (=) :=
+theory MetaSymmetric :=
+	fix (=).
 	assume sym: x = y ⟹ y = x.
 end
 
-theory MetaEquivalence (=) :=
+theory MetaEquivalence :=
+	fix (=).
 	import MetaSymmetric.
 	import MetaPreorder (=).
 end
 
-theory MetaCommutative (+) (=) :=
+theory MetaCommutative :=
+	fix (+) (=).
 	assume commute: x + y = y + x.
 end
 
-theory MetaAssociative (+) (=) :=
+theory MetaAssociative :=
+	fix (+) (=).
 	assume assoc: x + y + z = x + (y + z).
 end
 
-theory MetaLeftNeutral (+) (0) (=) :=
+theory MetaLeftNeutral :=
+	fix (+) (0) (=).
 	assume left_neutral: 0 + x = x.
 end
 
-theory MetaRightNeutral (+) (0) (=) :=
+theory MetaRightNeutral :=
+	fix (+) (0) (=).
 	assume right_neutral: x + 0 = x.
 end
 
-theory MetaLeftAbsorb (*) (0) (=) :=
+theory MetaLeftAbsorb :=
+	fix (*) (0) (=).
 	assume left_absorb: 0 * x = 0.
 end
 
-theory MetaRightAbsorb (*) (0) (=) :=
+theory MetaRightAbsorb :=
+	fix (*) (0) (=).
 	assume right_absorb: x * 0 = 0.
 end
 
@@ -98,7 +108,8 @@ theory MetaUnitalCommutative (+) (0) (=) :=
 		discharge x + 0 = x;
 			
 ---
-interpret imp: MetaPreorder (⟹);
+interpret imp: MetaPreorder;
+	instantiate (≤) := (⟹).
 	- .
 	- for P Q R, if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 		by QR PQ.
@@ -148,59 +159,73 @@ end
 ## For typed logic
 -----
 
-theory Member mem c :=
+theory Member :=
+	fix mem c.
 	assume type: mem c.
 end
 
-theory Unary f dom cod :=
+theory Unary :=
+	fix f dom cod.
 	assume type: dom x ⟹ cod (f x).
 end
 
-theory Binary f dom1 dom2 cod :=
+theory Binary :=
+	fix f dom1 dom2 cod.
 	assume type: dom1 x ⟹ dom2 y ⟹ cod (f x y).
 end
 
-theory Reflexive mem (≤) :=
+theory Reflexive :=
+	fix mem (≤).
 	assume refl: mem x ⟹ x ≤ x.
 end
 
-theory Symmetric mem (≤) :=
+theory Symmetric :=
+	fix mem (≤).
 	assume sym: x ≤ y ⟹ mem x ⟹ mem y ⟹ y ≤ x.
 end
 
-theory Transitive mem (≤) :=
+theory Transitive :=
+	fix mem (≤).
 	assume trans: x ≤ y ⟹ y ≤ z ⟹ mem x ⟹ mem y ⟹ mem z ⟹ x ≤ z.
 end
 
-theory Irreflexive mem (<) (¬) :=
+theory Irreflexive :=
+	fix mem (<) (¬).
 	assume irrefl: mem x ⟹ ¬ (x < x).
 end
 
-theory Binder mem ξ :=
+theory Binder :=
+	fix mem ξ.
 	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x])).
 end
 
-theory TypedBinder mem ξ :=
+theory TypedBinder :=
+	fix mem ξ.
 	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x])).
 end
 
-theory Magma mem (+) :=
+theory Magma :=
+	fix mem (+).
 	import Binary (+) mem mem mem.
 end
 
-theory Commutative mem (+) (=) :=
+theory Commutative :=
+	fix mem (+) (=).
 	assume commute: mem x ⟹ mem y ⟹ x + y = y + x.
 end
 
-theory Associative mem (+) (=) :=
+theory Associative :=
+	fix mem (+) (=).
 	assume assoc: mem x ⟹ mem y ⟹ mem z ⟹ x + y + z = x + (y + z).
 end
 
-theory LeftNeutral mem (+) (0) (=) :=
+theory LeftNeutral :=
+	fix mem (+) (0) (=).
 	assume left_neutral: mem x ⟹ 0 + x = x.
 end
 
-theory RightNeutral mem (+) (0) (=) :=
+theory RightNeutral :=
+	fix mem (+) (0) (=).
 	assume right_neutral: mem x ⟹ x + 0 = x.
 end
 
@@ -220,20 +245,24 @@ theory Monoid :=
 	import UnitalMagma.
 end
 
-theory LeftAbsorb mem (*) (0) (=) :=
+theory LeftAbsorb :=
+	fix mem (*) (0) (=).
 	assume left_absorb: mem x ⟹ 0 * x = 0.
 end
 
-theory RightAbsorb mem (*) (0) (=) :=
+theory RightAbsorb :=
+	fix mem (*) (0) (=).
 	assume right_absorb: mem x ⟹ x * 0 = 0.
 end
 
-theory If (if) (then) (else) (=) (¬) :=
+theory If :=
+	fix (if) (then) (else) (=) (¬).
 	assume if: P ⟹ (if P then t else e) = t.
 	assume if_not: ¬P ⟹ (if P then t else e) = e.
 end
 
-theory Collect Collect (∈) :=
+theory Collect :=
+	fix Collect (∈).
 	assume in_Collect_iff: x ∈ Collect P ⟺ P x.
 end
 

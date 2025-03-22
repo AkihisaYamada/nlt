@@ -1,19 +1,19 @@
 #ifndef _INFERENCE_HPP
 #define _INFERENCE_HPP
 
-#include "locale.hpp"
+#include "theory.hpp"
 
-/** @brief Add concluder theorem to locale */
-void add_forced( Locale&, Thm const& thm, bool allow_intro = false );
+/** @brief Add concluder theorem to theory */
+void add_forced( Thy&, Thm const& thm, bool allow_intro = false );
 
 /** Class for inference */
 class Inference {
-	Locale _loc;
+	Thy _thy;
 	Thm _thm;
 	CTerm _claim;
 	size_t _goals;
-	Inference( Locale const& loc, Thm const& thesis, CTerm const& claim, size_t goals ) :
-		_loc(loc), _thm(thesis), _claim(claim), _goals(goals) {}
+	Inference( Thy const& thy, Thm const& thesis, CTerm const& claim, size_t goals ) :
+		_thy(thy), _thm(thesis), _claim(claim), _goals(goals) {}
 public:
 	struct Ctrl {
 		size_t fuel = 255;
@@ -36,12 +36,12 @@ public:
 	static std::string const ELIM;
 	static Error const NoGoal;
 	static Error const Unapplicable;
-	static Inference claim_exact( Locale const& loc, CTerm const& claim ) {
+	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {
 		Ctxt ctxt = claim.ctxt().branch();
-		return Inference( loc, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
+		return Inference( thy, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
 	}
-	Locale const& locale() const& {
-		return _loc;
+	Thy const& thy() const& {
+		return _thy;
 	}
 	Thm thm() const {
 		return _thm;
@@ -108,17 +108,17 @@ public:
 	 * @return false if there will be no further subgoal */
 	bool push() & {
 		if( _goals < 2 ) return false;
-		_loc = _loc.branch();
-		auto assm = _loc.assume(goal().weaken(_loc));
-		add_forced(_loc,assm);
-		_thm = _thm.weaken(_loc).discharge(assm);
+		_thy = _thy.branch();
+		auto assm = _thy.assume(goal().weaken(_thy));
+		add_forced(_thy,assm);
+		_thm = _thm.weaken(_thy).discharge(assm);
 		_goals--;
 		return true;
 	}
 	void pop() & {
-		auto p = _loc.parent();
+		auto p = _thy.parent();
 		assert(p);
-		_loc = *p;
+		_thy = *p;
 		_thm = _thm.intro();
 		_goals++;
 	}
@@ -162,7 +162,7 @@ inline const Inference::Ctrl Inference::DEFAULT_CTRL;
 
 inline Opt<Thm> proves(
 	CTerm const& claim,
-	Locale const& loc,
+	Thy const& loc,
 	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
 	auto x = Inference::claim_exact(loc,claim);
@@ -173,38 +173,38 @@ inline Opt<Thm> proves(
 }
 inline Thm prove(
 	CTerm const& claim,
-	Locale const& loc,
+	Thy const& thy,
 	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
-	auto x = Inference::claim_exact(loc,claim);
+	auto x = Inference::claim_exact(thy,claim);
 	x.blast(ctrl);
 	return *x.concluding();
 }
 /**
  * @brief Blasts first assumption of implication.
  * 
- * @param loc the locale which tells blast the lemmas to use
+ * @param thy the theory which tells blast the lemmas to use
  * @return Thm the conclusion
  */
 inline Opt<Thm> blasts(
 	Thm const& thesis,
-	Locale const& loc,
+	Thy const& thy,
 	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
 	if( auto imp = thesis.cbinary(IMP) )
-	if( auto prem = proves(imp->first,loc,ctrl) ) {
+	if( auto prem = proves(imp->first,thy,ctrl) ) {
 		return thesis.discharge(*prem);
 	}
 	return {};
 }
 inline Thm blast(
 	Thm const& thesis,
-	Locale const& loc,
+	Thy const& thy,
 	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
 ) {
 	auto imp = thesis.cbinary(IMP);
 	if( !imp ) throw Error("nothing to blast");
-	return thesis.discharge(prove(imp->first,loc,ctrl));
+	return thesis.discharge(prove(imp->first,thy,ctrl));
 }
 
 

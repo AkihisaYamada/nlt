@@ -1,6 +1,6 @@
 #include<fstream>
 #include<ranges>
-#include"locale.hpp"
+#include"theory.hpp"
 #include"parser.hpp"
 #include"definer.hpp"
 
@@ -24,7 +24,7 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	return os << ": ";
 }
 
-fstream file_of_locale( string path, string_view name ) {
+fstream file_of_thy( string path, string_view name ) {
 	for(;;) {
 		auto p = name.find('.');
 		if( p == string::npos ) break;
@@ -73,7 +73,7 @@ static Error const ProofMismatch = Error("#proof-mismatch");
 class Prover {
 	OptRef<Prover> _parent;
 	unsigned int _depth;
-	Locale _loc;
+	Thy _loc;
 	struct Path {
 		string dir;
 		string name;
@@ -87,7 +87,7 @@ class Prover {
 	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
-	Prover( Prover& parent, Locale const& loc, Opt<Inference> thesis = {}, Opt<Path> const& path = {} ) :
+	Prover( Prover& parent, Thy const& loc, Opt<Inference> thesis = {}, Opt<Path> const& path = {} ) :
 		_parent(OptRef<Prover>::make(parent)),
 		_depth(parent._depth),
 		_loc(loc),
@@ -161,7 +161,7 @@ public:
 		}
 		throw Parser::Error("expects a theorem");
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Locale& loc, bool rev = false ) {
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev = false ) {
 		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_loc.rewriter().make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( _parser.skips("(") ) {
@@ -191,7 +191,7 @@ public:
 		return ret;
 	}
 
-	Opt<Thm> _gets_thm(Locale loc) {
+	Opt<Thm> _gets_thm(Thy loc) {
 		auto const& opt = _parser.gets_thm_name();
 		if( !opt ) {
 			return {};
@@ -321,7 +321,7 @@ public:
 	pair<ClaimStatus,Term> get_assm() {
 		return {get_claim_status(),get_term()};
 	}
-	void add_claim( Locale& loc, ClaimStatus cs, Thm const& thm ) {
+	void add_claim( Thy& loc, ClaimStatus cs, Thm const& thm ) {
 		if( cs.weak ) {
 			add_forced(loc,thm);
 		}
@@ -336,14 +336,14 @@ public:
 			loc.add_thm(*cs.name,thm);
 		}
 	}
-	Locale find_locale( string_view const& name ) {
-		auto loc = _loc.find_locale(name);
+	Thy find_thy( string_view const& name ) {
+		auto loc = _loc.find_thy(name);
 		if( !loc ) {
-			load_locale(name);
-			loc = _loc.find_locale(name);
+			load_thy(name);
+			loc = _loc.find_thy(name);
 		}
 		if( !loc ) {
-			throw Error((string("\"unknown locale ") += name) + "\"");
+			throw Error((string("\"unknown theory ") += name) + "\"");
 		}
 		return *loc;
 	}
@@ -380,8 +380,8 @@ public:
 			cout << ", ";
 		}
 	}
-	/** Creates a nested locale, where outer one fixes free variables, and 
-	 * inner locale collects assumptions.
+	/** Creates a nested theory, where outer one fixes free variables, and 
+	 * inner theory collects assumptions.
 	 */
 	pair<Prover,CTerm> get_statement() {
 		auto var_loc = _loc.branch();
@@ -430,7 +430,7 @@ public:
 			prefix = name;
 			name = _parser.get();
 		}
-		auto loc = find_locale(name);
+		auto loc = find_thy(name);
 		auto& intp = _loc.import(prefix,loc);
 		while( auto const& t = _parser.gets_term(1000) ) {
 			while( intp.discharges(mod) || intp.retains() );
@@ -461,7 +461,7 @@ public:
 	}
 	void _import_loop( Import& intp, bool mod ) {
 		auto org_loc = _loc;
-		_loc = Locale(org_loc,org_loc);// namescope
+		_loc = Thy(org_loc,org_loc);// namescope
 		for(;;) try {
 			if( auto x = intp.fixing() ) {
 				cout << "fix " << *x << endl;
@@ -541,7 +541,7 @@ public:
 						continue;
 					}
 					_parser.skip(":=");
-					Locale thesis_loc = _loc.branch();
+					Thy thesis_loc = _loc.branch();
 					auto term = thesis_loc.cterm(_parser.get_term());
 					_parser.skip(";");
 					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
@@ -642,7 +642,7 @@ public:
 			} else {
 				string name = _parser.get();
 				_parser.skip(".");
-				auto loc = find_locale(name);
+				auto loc = find_thy(name);
 				cout << loc.pretty(*_syntax) << endl;
 			}
 			return true;
@@ -795,7 +795,7 @@ public:
 	Opt<Thm> loop() {
 		for(;;) try {
 			if( _parser.skips("include") ) {
-				auto loc = load_locale(_parser.get_thm_name());
+				auto loc = load_thy(_parser.get_thm_name());
 				auto& intp = _loc.import("",loc);
 				while( intp.instantiates(!_final) || intp.discharges(!_final) || intp.retains() );
 				assert(intp.ready());
@@ -807,9 +807,9 @@ public:
 					loc.fix(*sym);
 				}
 				if( _parser.skips(":=") ) {
-					cout << "Creating locale " << name << endl;
+					cout << "Creating theory " << name << endl;
 					Prover(*this,loc,{},{}).deepen()._prompt().loop();
-					cout << "end locale " << name << endl;
+					cout << "end theory " << name << endl;
 				}
 			} else if( _parser.skips("context") ) {
 				auto name = _parser.gets(Parser::Word);
@@ -827,7 +827,7 @@ public:
 				string name = _parser.get();
 				_parser.skip(":=");
 				cout << "in " << name << endl;
-				auto loc = find_locale(name);
+				auto loc = find_thy(name);
 				auto sub = Prover(*this,loc).deepen().loop();
 				cout << "left " << name << endl;
 			} else if( _thm() ) {
@@ -1032,7 +1032,7 @@ public:
 					cout << '.' << endl;
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
-					Locale var_loc = _loc.branch();
+					Thy var_loc = _loc.branch();
 					for_variables([&]( auto& var ){ var_loc.fix(var); });
 					CTerm assm = var_loc.enclose(get_term()).lift(_loc.cterm(ALL));
 					Thm thm = cs.name ? _loc.add_assm(*cs.name,assm) : _loc.assume(assm);
@@ -1104,10 +1104,10 @@ public:
 		}
 		assert(intp.ready());
 	}
-	Locale load_locale( string_view const& name ) {
+	Thy load_thy( string_view const& name ) {
 		if( _path ) {
 			string dir = _path->dir + _path->name + "/";
-			auto fis = file_of_locale(dir,name);
+			auto fis = file_of_thy(dir,name);
 			if( !fis.fail() ) {
 				Lexer local_lexer(fis,dir+name,*_syntax);
 				local_lexer.skip("base");
@@ -1119,8 +1119,8 @@ public:
 						parent = *p;
 					}
 				} else {
-					auto pn = parent.find_locale(parent_name,true);
-					if( !pn ) throw Error("\"loading locale unreachable\"")(parent_name)(name);
+					auto pn = parent.find_thy(parent_name,true);
+					if( !pn ) throw Error("\"loading theory unreachable\"")(parent_name)(name);
 					parent = *pn;
 				}
 				cout << "Loading " << name << endl;
@@ -1132,9 +1132,9 @@ public:
 			}
 		}
 		if( _parent ) {
-			return _parent->load_locale(name);
+			return _parent->load_thy(name);
 		}
-		throw Error("\"locale not found\"")(name);
+		throw Error("\"theory not found\"")(name);
 	}
 private:
 	void _make_own_parser() {
@@ -1149,7 +1149,7 @@ Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool
 	if( lexer.skips("base") ) {
 		string const& base_name = lexer.get();
 		lexer.skip(".");
-		auto fis = file_of_locale("Root/",base_name);
+		auto fis = file_of_thy("Root/",base_name);
 		if( fis.fail() ) {
 			cerr << "could not find base " << base_name << endl;
 			exit(-1);

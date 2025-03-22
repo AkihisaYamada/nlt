@@ -47,14 +47,14 @@ Elim Elim::rule( Thm const& thm ) {
 	return Elim(premise,body);
 }
 
-void add_forced( Locale& loc, Thm const& thm, bool allow_intro ) {
+void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
 	auto intro = Intro::rule(thm);
 	if( intro.conds() > 0 ) {
-		loc.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm, {intro} );
+		thy.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm, {intro} );
 	} else if( intro.vars() > 0 ) {
-		loc.add_thm(Inference::CONCL,thm,{intro});
+		thy.add_thm(Inference::CONCL,thm,{intro});
 	} else {
-		loc.add_thm(Inference::EXACT,thm);
+		thy.add_thm(Inference::EXACT,thm);
 	}
 }
 void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
@@ -82,22 +82,22 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 bool Inference::_apply_blast(
 	size_t& fuel,
 	size_t trial,
-	CTerm const& goal,// belong to _loc
+	CTerm const& goal,// belong to _thy
 	Intro const& intro,
 	Ctrl const& ctrl
 ) & {
 	auto const& m = intro.matches(goal);
 	if( !m ) return false;
-	auto rule_intp = intro.intp(_loc);
+	auto rule_intp = intro.intp(_thy);
 	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
 			rule_intp.instantiate(*val);
 		} else {
-			rule_intp.instantiate(dummy(_loc));
+			rule_intp.instantiate(dummy(_thy));
 		}
 	}
 	while( auto const& assm = rule_intp.assuming() ) {// make assumptions
-		Inference thesis = claim_exact(_loc,*assm);
+		Inference thesis = claim_exact(_thy,*assm);
 		vector<Intro> elim_res;
 		if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
 		rule_intp.discharge(thesis._thm);
@@ -147,18 +147,18 @@ bool Inference::_blast(
 	}
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
-	auto subloc = _loc.branch();
-	auto goal = imp->first.weaken(subloc);
+	auto subthy = _thy.branch();
+	auto goal = imp->first.weaken(subthy);
 	size_t n_elim_res = 0;
 	for(;;) {
-		goal = strip_all(goal,subloc);
+		goal = strip_all(goal,subthy);
 		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
-			auto assm = subloc.assume(imp->first);
+			auto assm = subthy.assume(imp->first);
 			goal = imp->second;
 			for( auto elim = ctrl.elims.begin();; elim++ ) {// checks if an elimination rule matches
 				if( elim == ctrl.elims.end() ) {
 					// no elimination matches, so just declare the assumption as forced
-					add_forced(subloc,assm,ctrl.force_assms);
+					add_forced(subthy,assm,ctrl.force_assms);
 					break;
 				}
 				if( auto o = elim->matches(assm) ) {
@@ -173,22 +173,22 @@ bool Inference::_blast(
 		break;
 	}
 	// try exact conclusions
-	if( !subloc.find_thm( EXACT, [&]( auto& thm ){
+	if( !subthy.find_thm( EXACT, [&]( auto& thm ){
 		return thm == goal ? _thm = _thm.discharge(thm.intro()), true : false;
 	} ) ) {
 		fuel--;
-		auto thesis = claim_exact(subloc,goal);
+		auto thesis = claim_exact(subthy,goal);
 		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
-		if( !subloc.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) ) {
+		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) ) {
 			if( !ctrl.extra(thesis) &&
 				!thesis._apply(ctrl.intros,g) &&
-				!subloc.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } )
+				!subthy.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } )
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
 						if( trial == 0 ||
 							( trial--,
-							 !subloc.find_thm( WEAK, [&]( auto& thm ){
+							 !subthy.find_thm( WEAK, [&]( auto& thm ){
 								return thesis._apply_blast(fuel,trial,goal,Intro::rule(thm),ctrl);
 							} ) )
 						) {

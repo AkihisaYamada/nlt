@@ -84,7 +84,7 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	void add_rule( Locale const& loc, Rules& rules, Thm const& thm, bool rev = false ) const;
+	void add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev = false ) const;
 	Rewriter& register_imp( Thm const& thm, bool dir ) &;
 	Rewriter& register_refl(Thm const& thm) &;
 	Rewriter& register_trans(Thm const& thm) &;
@@ -96,8 +96,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind = 0 ) const {
-		return _step(rules,loc,source,ind);
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind = 0 ) const {
+		return _step(rules,thy,source,ind);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -105,32 +105,32 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, Locale const& loc, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
-		return _step(rules,loc,source,ind,pos.begin(),pos.end());
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
+		return _step(rules,thy,source,ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
 	bool apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
 	/** @brief Rewrites a theorem */
-	Thm rewrite( Rules const& rules, Locale const& loc, Thm const& source, Ctrl const& ctrl ) const;
+	Thm rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const;
 	/** @brief returns a rewriting theorem */
-	Thm steps( Rules const& rules, Locale const& loc, CTerm const& source, Ctrl const& ctrl ) const {
+	Thm steps( Rules const& rules, Thy const& thy, CTerm const& source, Ctrl const& ctrl ) const {
 		size_t ind = _get_ind(ctrl.rel);
-		if( auto ret = _steps(rules,loc,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
+		if( auto ret = _steps(rules,thy,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
 			return *ret;
 		}
-		return _make_refl(loc,source,ind);
+		return _make_refl(thy,source,ind);
 	}
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
-	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const;
-	Opt<Thm> _step( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Locale const& loc, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _steps( Rules const& rules, Locale const& loc, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
-	Thm _make_refl( Locale const& loc, CTerm const& source, size_t ind ) const {
+	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const;
+	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _steps( Rules const& rules, Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) const {
 		Thm refl = _refls[ind].weaken(source.ctxt()).instantiate(source);
 		while( auto imp = refl.cbinary(IMP) ) {
-			refl = refl.discharge(prove(imp->first,loc));
+			refl = refl.discharge(prove(imp->first,thy));
 		}
 		return refl;
 	}

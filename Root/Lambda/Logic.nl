@@ -146,7 +146,8 @@ interpret and: Magma defined (∧);
 			- if [x];
 				apply or_elim[OF y],
 				- by or_intro1 and_intro.
-				by or_intro2 nand_intro2.
+				- by or_intro2 nand_intro2.
+				.
 			- by or_intro2 nand_intro1.
 			.
 		.
@@ -283,8 +284,7 @@ note neq_elim: eq_prop1[OF neq_def].
 
 lemma neq_irrefl: ¬ x ≠ x;
 	unfold neq_def,
-	apply nnot_intro,
-	by eq.refl.
+	apply nnot_intro.
 
 lemma neq_imp_false: if neq: x ≠ y, eq: x = y then false;
 	by not_imp_false[OF neq[unfolded neq_def] eq].
