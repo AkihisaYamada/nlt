@@ -189,7 +189,11 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 			auto intp = Intp(rule_ctxt,source_ctxt);
 			// instantiate variables
 			while( auto v = intp.fixing() ) {
-				intp.instantiate(*m->get(*v));
+				if( auto t = m->get(*v) ) {
+					intp.instantiate(*t);
+				} else {
+					intp.instantiate(source_ctxt.cterm(DUMMY));
+				}
 			}
 			// discharge conditions
 			while( auto assm = intp.assuming() ) {
@@ -225,11 +229,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					ret = *o;
 					success = true;
 				} else {
-					Thm refl = _refls[cond.ind].weaken(source_ctxt).instantiate(*si);
-					while( auto imp = refl.cbinary(IMP) ) {
-						refl = refl.discharge(prove(imp->first,loc));
-					}
-					ret = ret << refl;
+					ret = ret << _make_refl(loc,*si,cond.ind);
 				}
 			}
 			if( success ) {
@@ -278,11 +278,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 					for(;;) {// remaining variables are instantiated as is
 						i++;
 						if( i == var_end ) break;
-						Thm refl = _refls[cong.conds[i].ind].weaken(source_ctxt).instantiate(*m->get(*pat_ctxt.fixed(i)));
-						while( auto o = blasts(refl,loc) ) {
-							refl = *o;
-						}
-						ret = ret << refl;
+						ret = ret << _make_refl(loc,*m->get(*pat_ctxt.fixed(i)),cong.conds[i].ind);
 					}
 					while( auto o = blasts(ret,loc) ) {// blast conditions
 						ret = *o;
@@ -293,11 +289,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Locale const& loc, CTerm const& so
 				if( i == var_end ) {
 					return {};
 				}
-				auto ref = _refls[cond.ind].weaken(source_ctxt).instantiate(*si);
-				while( auto o = blasts(ref,loc) ) {
-					ref = *o;
-				}
-				ret = ret << ref;
+				ret = ret << _make_refl(loc,*si,cond.ind);
 			}
 		}
 	}

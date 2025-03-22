@@ -22,14 +22,15 @@ int int_of_chars( char const* start );
 class Lex {
 public:
 	enum CharType {
-		Blank = 1 << 0,// space or nothing
-		Control = 1 << 1,
-		Dot = 1 << 2,// .
-		Digit = 1 << 3,
-		SingleOp = 1 << 4,
-		MultiOp = 1 << 5,
-		Other = 1 << 6,
-		End = 1 << 7,
+		Other = 1 << 0,
+		Digit = 1 << 1,
+		Blank = 1 << 2,// space or nothing
+		Control = 1 << 3,
+		End = 1 << 4,
+		SingleOp = 1 << 5,
+		MultiOp = 1 << 6,
+		Dot = 1 << 7,// .
+		DotBlank = 1 << 8,// special treatment of dot followed by blank
 	};
 private:
 	std::map<int,CharType> _char_map;
@@ -125,6 +126,7 @@ public:
 		peek_token();
 		reset();
 	}
+	Opt<size_t> gets_nat();
 	size_t get_nat();
 	int get_int();
 	float get_float();

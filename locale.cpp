@@ -179,11 +179,6 @@ Opt<Locale> Locale::find_locale(string_view const &name, bool ancestor) const {
 		if( !p ) throw LocaleNotFound(".");
 		return p->find_locale(name.substr(1));
 	}
-	if( sep != string::npos )
-	if( auto sub = _ref->locales.finds(name.substr(0,sep)) )
-	if( auto ret = sub->second.find_locale(name.substr(sep+1)) ) {
-		return ret;
-	}
 	if( auto ret = _ref->locales.finds(name) ) {
 		return ret->second;
 	}

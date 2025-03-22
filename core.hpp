@@ -368,6 +368,7 @@ inline Error const ConstantEscape = Error("#escape");
 /** @brief Context */
 class Ctxt {
 private:
+	friend Intp;
 	struct Body;
 	Ref<Body> _ref;
 	Ctxt(Ref<Body>&& ref) : _ref(ref) {}
@@ -485,7 +486,7 @@ private:
 
 struct Ctxt::Body {
 	/** Parent context. */
-	Opt<Ctxt> const ctxt;
+	Opt<Ctxt> const parent;
 	/** Vector of modifiers */
 	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
@@ -504,8 +505,8 @@ inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
 };
 
 inline Opt<Ctxt const&> Ctxt::find_parent() const & {
-	if( _ref->ctxt ) {
-		return *_ref->ctxt;
+	if( _ref->parent ) {
+		return *_ref->parent;
 	}
 	return {};
 }
@@ -686,13 +687,15 @@ inline bool operator!=(CTerm const& l, CTerm const& r) {
 /** @brief Substitution, whose range is closed with respect to a context. */
 class CSubst {
 private:
+	bool _empty;
 	StrMap<Opt<Term>> _map;
 	Ctxt _ctxt;
+	friend Term;
 public:
 	/** @brief Creates a closed substituion
 	 * @param ctxt the context the substitution is closed in
 	 */
-	CSubst(Ctxt const& ctxt) : _ctxt(ctxt) {}
+	CSubst(Ctxt const& ctxt) : _ctxt(ctxt), _empty(true) {}
 	/** @brief The context in which the range of the substitution is closed. */
 	Ctxt const& ctxt() const {
 		return _ctxt;
@@ -719,7 +722,7 @@ public:
 		_map.erase(var);
 	}
 	bool empty() const {
-		return _map.empty();
+		return _empty;
 	}
 	/** @brief (re)assigns a value to a variable */
 	CSubst& assign(std::string_view const& var, CTerm const& val) & {
@@ -819,6 +822,10 @@ public:
 	/** tests if there is no pending modification */
 	bool ready() const {
 		return _rev == _src.revision();
+	}
+	/** @brief tests if the substitution is identity */
+	bool identity() const {
+		return _subst.empty();
 	}
 	/** @brief next unprocessed fix. */
 	Opt<std::string const&> fixing() const & {

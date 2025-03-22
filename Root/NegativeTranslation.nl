@@ -19,26 +19,6 @@ assume image_nnot_iff_ex: prop P ⟹ image_nnot P ⟺ (∃P' : prop. P ⟺ ¬¬P
 assume image_nnot_imp_prop: image_nnot P ⟹ prop P;
 assume prop_image_nnot! prop P ⟹ prop (image_nnot P);
 
-ctxt TypedIntuitionisticLogic;
-
-lemma image_nnot_iff: if [prop P] then image_nnot P ⟺ (¬¬P ⟺ P) :=
-	apply iff_intro;
-	-  if tP: image_nnot P :=
-		apply ex_elim[OF tP[unfolded image_nnot_iff_ex]];
-		- for P', if iff: (P ⟺ ¬¬P'), [prop P'] :=
-			unfold+ iff nnnot_iff;
-			done;
-		done;
-	- if nn: ¬¬P ⟺ P :=
-		unfold image_nnot_iff_ex;
-		apply ex_intro;
-		- for P', if imp: ∀x. (P ⟺ ¬¬x) ⟹ prop x ⟹ P', [prop P'] :=
-			apply imp(P);
-			unfold nn;
-			done;
-		done;
-	done;
-
 --The negative translation of disjunction is specified as follows.
 
 assume nnot_or_iff: nnot_or P Q ⟺ ¬(¬P ∧ ¬Q);
@@ -59,17 +39,35 @@ begin
 
 note! nnot_or.type;
 note! nnot_ex.type;
+
+lemma image_nnot_imp: if Pt: image_nnot P then ¬¬P ⟺ P :=
+	note! image_nnot_imp_prop[OF Pt];
+	apply ex_elim[OF Pt[unfolded image_nnot_iff_ex]];
+	- for P', if iff: (P ⟺ ¬¬P'), [prop P'] :=
+		unfold+ iff nnnot_iff;
+		done;
+	done;
+
+lemma nnot_iff_imp_image_nnot: if nn: ¬¬P ⟺ P, [prop P] then image_nnot P :=
+	unfold image_nnot_iff_ex;
+	apply ex_intro;
+	- for P', if imp: ∀x. (P ⟺ ¬¬x) ⟹ prop x ⟹ P', [prop P'] :=
+		by imp(P) #unfold nn;
+	done;
+
+lemma image_nnot_iff: if [prop P] then image_nnot P ⟺ (¬¬P ⟺ P) :=
+	apply iff_intro;
+	by image_nnot_imp nnot_iff_imp_image_nnot;
+
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
 interpret image_nnot: ClassicalLogic :=
+	instantiate prop := image_nnot, (∨) := nnot_or, (∃:) := nnot_ex;
 	note? image_nnot_imp_prop;
-	instantiate image_nnot;
-	instantiate true;
 	- by #unfold image_nnot_iff not_true_iff not_false_iff;
 	- done;
-	instantiate false;
 	- by #unfold image_nnot_iff not_true_iff not_false_iff;
 	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟹ Q) :=
 		note! image_nnot_imp_prop[OF tP];
@@ -79,7 +77,6 @@ interpret image_nnot: ClassicalLogic :=
 		unfold image_nnot_iff;
 		fold nnQ;
 		by #unfold nnimp_not_iff;
-	instantiate (¬);
 	- for P, if tP: image_nnot P then image_nnot (¬P) :=
 		note! image_nnot_imp_prop[OF tP];
 		by #unfold image_nnot_iff tP[unfolded image_nnot_iff] nnnot_iff;
@@ -87,7 +84,6 @@ interpret image_nnot: ClassicalLogic :=
 		by not_intro[OF P0] image_nnot_imp_prop[OF tP];
 	- for P, if nP: ¬P, P: P, tP: image_nnot P then false :=
 		by not_imp_false[OF nP P] image_nnot_imp_prop[OF tP];
-	instantiate (∧);
 	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q) :=
 		note! image_nnot_imp_prop[OF tP];
 		note! image_nnot_imp_prop[OF tQ];
@@ -96,7 +92,6 @@ interpret image_nnot: ClassicalLogic :=
 	- by and_intro image_nnot_imp_prop;
 	- by image_nnot_imp_prop #elim and_elim;
 	- by image_nnot_imp_prop #elim and_elim;
-	instantiate (⟺);
 	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟺ Q) :=
 		note! image_nnot_imp_prop[OF tP];
 		note! image_nnot_imp_prop[OF tQ];
@@ -107,7 +102,6 @@ interpret image_nnot: ClassicalLogic :=
 	- by iff_intro image_nnot_imp_prop;
 	- by image_nnot_imp_prop #elim iff_elim1;
 	- by image_nnot_imp_prop #elim iff_elim2;
-	instantiate nnot_or;
 	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (nnot_or P Q) :=
 		by #unfold image_nnot_iff nnot_or_iff nnnot_iff;
 	- for P Q, if P: P :=
@@ -127,7 +121,6 @@ interpret image_nnot: ClassicalLogic :=
 				by imp_not_imp[OF PR nR] imp_not_imp[OF QR nR];
 			done;
 		done;
-	instantiate (∀:);
 	- for ι α, if ta! ∀x. ι x ⟹ image_nnot α.[x] then image_nnot (∀x:ι. α.[x]) :=
 		unfold image_nnot_iff;
 		have nna: for x, if xt! ι x then α.[x] ⟺ (¬¬α.[x]) :=
@@ -138,7 +131,6 @@ interpret image_nnot: ClassicalLogic :=
 	- for x ι α, if all: ∀y:ι. α.[y], [∀y. ι y ⟹ image_nnot α.[y], ι x] then α.[x] :=
 		apply all_elim[OF all];
 		done;
-	instantiate nnot_ex;
 	- for ι α, if ta! ∀x. ι x ⟹ image_nnot α.[x] then image_nnot (nnot_ex ι (x. α.[x])) :=
 		unfold image_nnot_iff;
 		by #unfold nnot_ex_iff nnnot_iff;
@@ -166,9 +158,8 @@ interpret image_nnot: ClassicalLogic :=
 				done;
 			done;
 		done;
-	- for P, if f: false, tP! image_nnot P :=
-		apply false_elim[OF f];
-		done;
+	show: false ⟹ ∀P. image_nnot P ⟹ P :=
+		by #elim false_elim;
 	- for P, if tP! image_nnot P then nnot_or P (¬ P) :=
 		unfold nnot_or_iff;
 		by non_contradiction;

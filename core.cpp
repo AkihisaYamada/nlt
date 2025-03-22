@@ -32,10 +32,10 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 			return _eq(lapp->first,rapp->first,lmap,rmap,depth) &&
 				_eq(lapp->second,rapp->second,lmap,rmap,depth);
 		}
-	} else if( auto labs = l.bind() ) {
-		if( auto rabs = r.bind() ) {
+	} else if( auto lbind = l.bind() ) {
+		if( auto rbind = r.bind() ) {
 			depth++;
-			auto const& linfo = lmap.emplace(labs->first,depth);
+			auto const& linfo = lmap.emplace(lbind->first,depth);
 			unsigned int lprev;
 			if( linfo.second ) {
 				lprev = 0;
@@ -43,7 +43,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				lprev = linfo.first->second;
 				linfo.first->second = depth;
 			}
-			auto const& rinfo = rmap.emplace(rabs->first,depth);
+			auto const& rinfo = rmap.emplace(rbind->first,depth);
 			unsigned int rprev;
 			if( rinfo.second ) {
 				rprev = 0;
@@ -51,7 +51,7 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				rprev = rinfo.first->second;
 				rinfo.first->second = depth;
 			}
-			if( _eq(labs->second,rabs->second,lmap,rmap,depth) ) {
+			if( _eq(lbind->second,rbind->second,lmap,rmap,depth) ) {
 				if( lprev == 0 ) {
 					lmap.erase(linfo.first);
 				} else {
@@ -65,10 +65,10 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 				return true;
 			}
 		}
-	} else if( auto lfix = l.unbind() ) {
-		if( auto rfix = r.unbind() ) {
-			return _eq_var(lfix->first,rfix->first,lmap,rmap) &&
-				_eq(lfix->second,rfix->second,lmap,rmap,depth);
+	} else if( auto lunbind = l.unbind() ) {
+		if( auto runbind = r.unbind() ) {
+			return _eq_var(lunbind->first,runbind->first,lmap,rmap) &&
+				_eq(lunbind->second,runbind->second,lmap,rmap,depth);
 		}
 	} else {
 		assert(false);
@@ -109,6 +109,7 @@ void Term::_iter_syms(
 CSubst& CSubst::_assign(string_view const& var, Term const& val) & {
 	Opt<Term> r;
 	if( var != val ) {
+		_empty = false;
 		r = val;
 	}
 	auto const& info = _map.emplace(var,r);
@@ -424,11 +425,11 @@ CTerm Term::csubst(CSubst const& subst) const {
 		// only check that the term is closed.
 		return ctxt.cterm(*this);
 	}
-	auto f = [&](string_view const& sym)->Term {
-		if( auto const& opt = subst.get(sym) ) {
-			return *opt;
+	auto f = [&](string_view const& sym)->Opt<Term> {
+		if( auto it = subst._map.find(sym); it != subst._map.end() ) {
+			return it->second;
 		} else if( ctxt.has_constant(sym) ) {
-			return sym;
+			return {};
 		} else {
 			throw UnboundVariable(sym);
 		}
@@ -474,6 +475,11 @@ Ctxt Intp::subst(Ctxt const& ctxt) const {
 	if( !ready() ) {
 		throw Error("#intp")("\"not ready\"");
 	}
+	if( !_subst.empty() ) {
+		throw Error("#intp")("\"unsupported context substitution\"");
+	}
+	auto body = *ctxt._ref;
+	return Ctxt(Ref<Ctxt::Body>::make(_subst.ctxt(),body.modifiers,body.fvars,body.constants));
 }
 
 void Intp::instantiate(CTerm const& term) {

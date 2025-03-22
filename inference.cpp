@@ -14,12 +14,15 @@ Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	Ctxt ctxt = thm.ctxt().branch();
-	auto [rule,vars] = strip_all(thm,ctxt);
+	Thm rule = thm;
+	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
 		if( i == n ) return Intro(rule,vars,i);
-		auto imp = rule.cbinary(IMP);
+		auto const& [rule2,vars2] = strip_all(rule,ctxt);
+		vars += vars2;
+		auto imp = rule2.cbinary(IMP);
 		assert(imp);
-		rule = rule.discharge(ctxt.assume(imp->first));
+		rule = rule2.discharge(ctxt.assume(imp->first));
 	}
 }
 
@@ -30,7 +33,7 @@ Intro Intro::rule( Thm const& thm ) {
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.discharge(ctxt.assume(imp->first));
 		conds++;
-//		rule = strip_all(rule,ctxt).first;
+		rule = strip_all(rule,ctxt).first;
 	}
 	return Intro(rule,vars,conds);
 }

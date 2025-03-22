@@ -165,8 +165,16 @@ string_view Lexer::peek_token() {
 		}
 		switch( fetched_char_type ) {
 		case Lex::Digit:
-			read_continue( Lex::Digit | Lex::Dot );
+			read_continue( Lex::Digit );
+			while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
+				read_continue( Lex::Digit );
+			}
 			token_type = Number;
+			break;
+		case Lex::DotBlank:// dot-blank is just dot.
+			rp = wp;
+			token_type = Dots;
+			fetched_char_type = Lex::Blank;
 			break;
 		case Lex::Dot:
 			fetch_char();
@@ -194,7 +202,7 @@ string_view Lexer::peek_token() {
 			}
 			break;
 		case Lex::MultiOp:
-			read_continue( Lex::MultiOp | Lex::Dot );
+			read_continue( Lex::MultiOp );
 			token_type = Operator;
 			break;
 		case Lex::SingleOp:
@@ -206,8 +214,22 @@ string_view Lexer::peek_token() {
 			fetched_char_type = Lex::Blank;
 			break;
 		default:
-			read_continue( Lex::Other | Lex::Digit );
 			token_type = Word;
+			read_continue( Lex::Other | Lex::Digit );
+			for(;;) {
+				if( fetched_char_type != Lex::Dot ) break;
+				auto old_wp = wp;// TODO
+				fetch_char();
+				switch(fetched_char_type) {
+				case Lex::Other: case Lex::Digit:
+					read_continue( Lex::Other | Lex::Digit );
+					continue;
+				case Lex::Blank:// forget that blank is read
+					fetched_char_type = Lex::DotBlank;
+					wp = old_wp;
+				}
+				break;
+			}
 			break;
 		}
 		peeked_token = string_view(buf,rp);
@@ -215,12 +237,19 @@ string_view Lexer::peek_token() {
 	return peeked_token;
 }
 
-size_t Tokenizer::get_nat() {
+Opt<size_t> Tokenizer::gets_nat() {
 	auto const& t = peek_token();
 	int ret;
-	from_chars(t.data(),t.data()+t.size(),ret);
+	auto last = t.data()+t.size();
+	auto [ptr,ec] = from_chars(t.data(),last,ret);
+	if( ptr != last ) return {};
 	reset();
 	return ret;
+}
+size_t Tokenizer::get_nat() {
+	auto ret = gets_nat();
+	if( !ret ) throw SyntaxError("\"expected number\"");
+	return *ret;
 }
 int Tokenizer::get_int() {
 	if( skips("-") ) {

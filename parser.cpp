@@ -5,30 +5,7 @@ using namespace std;
 const Error Parser::Error = ::Error("#parser");
 
 Opt<string> Parser::gets_thm_name() {
-	string ret;
-	switch( _lexer->next_token_type() ) {
-		case Lexer::Dots:
-			ret = _lexer->get();
-			if( _lexer->next_token_type() == Lexer::Word ) {
-				ret += _lexer->get();
-			}
-			break;
-		case Lexer::Word:
-			ret = _lexer->get();
-			break;
-		case Lexer::Number: return _lexer->get();
-		default: return {};
-	}
-	for(;;) {
-		if( !_lexer->skips(".") ) {
-			return ret;
-		}
-		ret += '.';
-		if( _lexer->next_token_type() != Lexer::Word ) {
-			return ret;
-		}
-		ret += _lexer->get();
-	}
+	return _lexer->gets(Lexer::Word|Lexer::Number);
 }
 string Parser::get_thm_name() {
 	if( auto const& opt = gets_thm_name() ) {

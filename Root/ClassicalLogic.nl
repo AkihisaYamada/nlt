@@ -2,12 +2,12 @@
 # Typed Classical Logic
 ------
 
-base Root;
+base Root.
 
-import TypedIntuitionisticLogic;
+import TypedIntuitionisticLogic.
 
-import PropositionalClassical;
+import PropositionalClassical.
 
 begin
 
-ctxt;
+ctxt.
