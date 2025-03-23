@@ -6,7 +6,6 @@
 
 class Rewriter;
 
-
 struct ThmInfo {
 	Opt<Intro> intro;
 	Opt<Elim> elim;
@@ -62,8 +61,14 @@ public:
 	Thy branch() const;
 	/** Creates a named branch. */
 	Thy branch(std::string_view const& name);
+	std::string const& name() const &;
+	auto name() && = delete;
 	/** Obtains the parent theory. */
-	Opt<Thy const> parent() const;
+	Opt<Thy const&> parent() const &;
+	Opt<Thy&> parent() &;
+	/** The directory name for the theory. */
+	std::string const& dir() const&;
+	auto dir() && = delete;
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<AThm> find_thm(
 		std::string_view const& name,
@@ -99,6 +104,8 @@ public:
 	Rewriter& rewriter() &;
 	Rewriter const& rewriter() const &;
 	Rewriter rewriter() && = delete;
+	void setup_definer( Thm const& beta ) &;
+	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for context */
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;

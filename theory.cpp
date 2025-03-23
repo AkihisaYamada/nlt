@@ -1,21 +1,26 @@
-#include"rewriter.hpp"
+#include"definer.hpp"
 
 using namespace std;
 
 struct Thy::_Body {
-	Opt<Thy const> parent;
-	std::string name;
-	StrMMap<std::pair<Thm,ThmInfo>> thms;
-	StrMap<Thy const> thys;
-	Map<size_t,std::string> assm_names;
-	std::multimap<std::string,Import,std::less<>> imports;
+	Opt<Thy> parent;
+	string name;
+	string dir;
+	StrMMap<pair<Thm,ThmInfo>> thms;
+	StrMap<Thy> thys;
+	Map<size_t,string> assm_names;
+	multimap<string,Import,less<>> imports;
 	Mem<Rewriter> rewriter;
-	_Body( std::string_view const& name ) : name(name), rewriter(Mem<Rewriter>::make()) {}
-	_Body( Thy const& parent, std::string_view const& name ) : parent(parent), name(name), rewriter(parent._ref->rewriter) {
+	OptMem<Definer> definer;
+	_Body( string_view const& name ) : name(name), dir(name), rewriter(Mem<Rewriter>::make()) {
+		dir += '/';
+	}
+	_Body( Thy const& parent, string_view const& name ) : parent(parent), name(name), dir(parent._ref->dir), rewriter(parent._ref->rewriter), definer(parent._ref->definer) {
+		(dir += name) += '/';
 	}
 };
 
-Thy::Thy( std::string_view const& name ) : _ref(Ref<_Body>::make(name)) {};
+Thy::Thy( string_view const& name ) : _ref(Ref<_Body>::make(name)) {};
 
 Thy::Thy( Thy const& parent, Ctxt const& ctxt ) :
 	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,"")) {}
@@ -23,17 +28,26 @@ Thy::Thy( Thy const& parent, Ctxt const& ctxt ) :
 Thy Thy::branch() const {
 	return Thy(Ref<_Body>::make(*this,""), Ctxt::branch());
 }
-Thy Thy::branch( std::string_view const& name ) {
+Thy Thy::branch( string_view const& name ) {
 	auto const& loc = Thy(Ref<_Body>::make(*this,name), Ctxt::branch());
 	_ref->thys.emplace(name,loc);
 	return loc;
 }
-Opt<Thy const> Thy::parent() const {
+string const& Thy::name() const & {
+	return _ref->name;
+}
+Opt<Thy const&> Thy::parent() const & {
 	return _ref->parent;
 }
+Opt<Thy&> Thy::parent() & {
+	return _ref->parent;
+}
+string const& Thy::dir() const & {
+	return _ref->dir;
+}
 Opt<AThm> Thy::find_thm(
-	std::string_view const& name,
-	std::function<bool(AThm const&)> const& test,
+	string_view const& name,
+	function<bool(AThm const&)> const& test,
 	bool ancestor,
 	bool noprefix
 ) const {
@@ -45,13 +59,22 @@ Rewriter const& Thy::rewriter() const& {
 Rewriter& Thy::rewriter() & {
 	return *_ref->rewriter;
 }
-AThm Thy::thm(std::string_view const& name) const {
+void Thy::setup_definer( Thm const& beta ) & {
+	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
+	_ref->definer = OptMem<Definer>::make(*this,beta);
+}
+pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&> name ) & {
+	if( !_ref->definer ) throw Error("\"definer not setup\"");
+	return _ref->definer->define(*this,fxs,r,name);
+}
+
+AThm Thy::thm(string_view const& name) const {
 	if( auto opt = find_thm(name) ) {
 		return *opt;
 	}
 	throw TheoremNotFound(name);
 }
-Opt<std::string> Thy::find_assm_name( size_t rev ) const {
+Opt<string> Thy::find_assm_name( size_t rev ) const {
 	if( auto x = _ref->assm_names.finds(rev) ) {
 		return x->second;
 	}
@@ -60,10 +83,10 @@ Opt<std::string> Thy::find_assm_name( size_t rev ) const {
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
 }
-Import& Thy::import(std::string_view const& name, Thy const& loc) & {
-	auto it = _ref->imports.emplace(std::piecewise_construct,
-		std::make_tuple(name),
-		std::forward_as_tuple(*this,loc)
+Import& Thy::import(string_view const& name, Thy const& loc) & {
+	auto it = _ref->imports.emplace(piecewise_construct,
+		make_tuple(name),
+		forward_as_tuple(*this,loc)
 	);
 	return it->second;
 };

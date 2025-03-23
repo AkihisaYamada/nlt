@@ -53,35 +53,17 @@ lemma Collect_is_const: is_const Collect;
 lemma const_arg_Collect: const_arg (Collect P) = P;
 	by const_arg[OF Collect_is_const].
 
+define[in_def] x ∈ X := (λ) (const_arg X) x.
+
 interpret Collection;
-	instantiate (∈) := λX x. (λ) (const_arg X) x.
 	show: x ∈ Collect P ⟺ P.[x];
 		unfold in_def,
 		unfold const_arg_Collect.
+	.
 
-define[in_def] x ∈ X := const_arg X x.
+thm in_un_iff.
 
-lemma in_Collect: (x ∈ Collect P) = P x;
-	unfold in_def,
-	unfold const_arg_Collect.
-
-define[notin_def] x ∉ X := ¬ x ∈ X.
-
-define[has_eq_in] X ∋ x := x ∈ X.
-
-define[Empty_def] ∅ := Collect (λx. false).
-
-define Singleton x := Collect (λy. y = x).
-
-define[un_def] X ∪ Y := Collect (λx. x ∈ X ∨ x ∈ Y).
-
-setup set_comprehension ∅ Singleton Collect (λ) (∪).
-
-lemma in_un: (x ∈ X ∪ Y) = (x ∈ X ∨ x ∈ Y);
-	unfold+ un_def in_Collect beta.
-
-lemma in_Singleton: (x ∈ {y}) = (x = y);
-	unfold+ Singleton_def in_Collect beta.
+setup set_comprehension ∅ Singleton Collect (∪).
 
 define UNIV := {x. true}.
 

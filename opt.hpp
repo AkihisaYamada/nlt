@@ -55,8 +55,11 @@ public:
 		return _opt.operator->();
 	}
 	operator Opt<T const&>() && = delete;
-	operator Opt<T const&>() & {
+	operator Opt<T const&>() const & {
 		return Opt<T const&>( _opt ? &*_opt : nullptr );
+	}
+	operator Opt<T&>() & {
+		return Opt<T&>( _opt ? &*_opt : nullptr );
 	}
 	template<class... Args>
 	T& emplace( Args&&... args ) & {

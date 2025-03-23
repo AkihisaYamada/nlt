@@ -24,18 +24,21 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	return os << ": ";
 }
 
-fstream file_of_thy( string path, string_view name ) {
+tuple<fstream,string,string,string,string> file_of_thy( string dir, string_view name ) {
+	string parent_dir = dir;
 	for(;;) {
 		auto p = name.find('.');
 		if( p == string::npos ) break;
-		path += name.substr(0,p);
-		path += '/';
+		parent_dir = dir;
+		dir += name.substr(0,p);
+		dir += '/';
 		name = name.substr(p+1);
 	}
-	path += name;
-	path += ".nl";
+	string path = dir;
+	path+=name;
+	path+=".nl";
 DEB(path);
-	return fstream(path);
+	return {fstream(path),parent_dir,dir,string(name),path};
 }
 
 Ref<Syntax> make_syntax() {
@@ -75,29 +78,20 @@ class Prover {
 	OptRef<Prover> _parent;
 	unsigned int _depth;
 	Thy _thy;
-	struct Path {
-		string dir;
-		string name;
-		Path( string_view const& dir, string_view const& name ) : dir(dir), name(name) {}
-	};
-	Opt<Path> _path;
 	bool _own_parser;
 	Ref<Syntax> _syntax;
 	Parser _parser;
 	Opt<Inference> _thesis;
-	OptRef<Definer> _definer;
 	bool _exit_on_error;
 	bool _final = false;
-	Prover( Prover& parent, Thy const& loc, Opt<Inference> thesis = {}, Opt<Path> const& path = {} ) :
+	Prover( Prover& parent, Thy const& loc, Opt<Inference> thesis = {} ) :
 		_parent(OptRef<Prover>::make(parent)),
 		_depth(parent._depth),
 		_thy(loc),
-		_path(path),
 		_syntax(parent._syntax),
 		_parser(parent._parser.get_lexer(),*parent._syntax),
 		_own_parser(false),
 		_thesis(thesis),
-		_definer(parent._definer),
 		_exit_on_error(parent._exit_on_error) {
 	}
 	void _error() {
@@ -116,7 +110,6 @@ public:
 	}
 	Prover( Lexer& lexer, Ref<Syntax> syntax, bool exit_on_error ) :
 		_depth(0),
-		_path({"","Root"}),
 		_thy("Root"),
 		_syntax(syntax),
 		_parser(lexer,*_syntax),
@@ -137,11 +130,7 @@ public:
 	}
 	Prover branch( string_view const& name ) {
 		auto loc = _thy.branch(name);
-		if( _path ) {
-			return Prover( *this, loc, {}, {{_path->dir+"/"+_path->name,name}});
-		} else {
-			return Prover( *this, loc, {}, {} );
-		}
+		return Prover( *this, loc, {} );
 	}
 	Lexer& get_lexer() & {
 		return _parser.get_lexer();
@@ -340,7 +329,7 @@ public:
 	Thy find_thy( string_view const& name ) {
 		auto loc = _thy.find_thy(name);
 		if( !loc ) {
-			load_thy(name);
+			load_thy(_thy,name);
 			loc = _thy.find_thy(name);
 		}
 		if( !loc ) {
@@ -716,10 +705,7 @@ public:
 		_parser.skip(":=");
 		Term r = get_term();
 		_parser.skip(".");
-		if( !_definer ) {
-			throw Error("definer not setup");
-		}
-		auto [f,spec] = _definer->define(_thy,l,r,name_op);
+		auto [f,spec] = _thy.define(l,r,name_op);
 		Thm def = spec << _thy.thm("imp.refl");
 		string name = name_op ? *name_op : f + "_def";
 		_thy.add_thm(name,def);
@@ -800,7 +786,7 @@ public:
 				}
 				if( _parser.skips(":") ) {
 					cout << "Creating theory " << name << endl;
-					Prover(*this,loc,{},{}).deepen()._prompt().loop();
+					Prover(*this,loc).deepen()._prompt().loop();
 					cout << "end theory " << name << endl;
 				}
 			} else if( _parser.skips("namespace") ) {
@@ -872,7 +858,7 @@ public:
 				} else if( _parser.skips("define") ) {
 					Thm const& beta = get_thm();
 					cout << " beta: " << _syntax->pretty_thm(beta) << endl;
-					_definer = OptRef<Definer>::make(_thy,beta);
+					_thy.setup_definer(beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& collect = _parser.get_term(1000);
 					Term const& empty = _parser.get_term(1000);
@@ -1102,37 +1088,30 @@ public:
 		}
 		assert(intp.ready());
 	}
-	Thy load_thy( string_view const& name ) {
-		if( _path ) {
-			string dir = _path->dir + _path->name + "/";
-			auto fis = file_of_thy(dir,name);
-			if( !fis.fail() ) {
-				Lexer local_lexer(fis,dir+name,*_syntax);
-				local_lexer.skip("base");
-				auto parent_name = local_lexer.get();
-				local_lexer.skip(".");
-				auto parent = _thy;
-				if( parent_name == "Root" ) {
-					while( auto const& p = parent.parent() ) {
-						parent = *p;
-					}
-				} else {
-					auto pn = parent.find_thy(parent_name,true);
-					if( !pn ) throw Error("\"loading theory unreachable\"")(parent_name)(name);
-					parent = *pn;
-				}
-				cout << "Loading " << name << endl;
-				Prover sub = Prover(*this,parent.branch(name),{},{{dir,name}}).deepen();
-				sub.set_lexer(local_lexer);
-				sub._indent();
-				sub.loop();
-				return sub._thy;
+	Thy load_thy( Thy& parent, string_view const& ref ) {
+		auto [fis,parent_dir,dir,thyname,path] = file_of_thy(parent.dir(),ref);
+		if( !fis.fail() ) {
+			Lexer local_lexer(fis,path,*_syntax);
+			local_lexer.skip("base");
+			auto parent_name = local_lexer.get();
+			local_lexer.skip(".");
+			if( parent_name != parent.name() ) {
+				throw Error("\"parent theory mismatch\"")(parent_name)(parent.name());
 			}
+			cout << "Loading " << ref << endl;
+			Prover sub = Prover(*this,parent.branch(ref)).deepen();
+			sub.set_lexer(local_lexer);
+			sub._indent();
+			sub.loop();
+			return sub._thy;
 		}
-		if( _parent ) {
-			return _parent->load_thy(name);
+		if( auto gp = parent.parent() ) {
+			return load_thy(*gp,ref);
 		}
-		throw Error("\"theory not found\"")(name);
+		throw Error("\"theory not found\"")(ref);
+	}
+	void move_to_thy( Thy const& thy ) {
+		_thy = thy;
 	}
 private:
 	void _make_own_parser() {
@@ -1143,25 +1122,31 @@ private:
 	}
 };
 
-Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_on_error ) {
+Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& dir, string_view const& name, bool exit_on_error ) try {
 	if( lexer.skips("base") ) {
-		string const& base_name = lexer.get();
+		string base_ref = lexer.get();
+		string_view view = base_ref;
 		lexer.skip(".");
-		auto fis = file_of_thy("Root/",base_name);
-		if( fis.fail() ) {
-			cerr << "could not find base " << base_name << endl;
-			exit(-1);
+		auto fis = fstream("Root/Root.nl");
+		auto base_lexer = Lexer(fis,"Root.nl",*syntax);
+		auto prover = Prover(base_lexer,syntax,true);
+		prover.loop();
+		prover.set_lexer(lexer);
+		for(;;) {
+			auto p = view.find('.');
+			if( p == string::npos ) break;
+			prover.move_to_thy(prover.find_thy(view.substr(0,p)));
+			view = view.substr(p+1);
 		}
-		auto local_lexer = Lexer(fis,base_name,*syntax);
-		Prover base = preload(local_lexer,syntax,base_name,true);
-		base.loop();
-		Prover sub = base.branch(name);
-		sub.set_lexer(lexer);
-		sub.set_exit_on_error(exit_on_error);
-		return sub;
+		prover.move_to_thy(prover.find_thy(view));
+		prover.set_exit_on_error(exit_on_error);
+		return prover;
 	} else {
 		return Prover(lexer,syntax,exit_on_error);
 	}
+} catch( Error const& e ) {
+	cerr << lexer.location() << ": ERROR: " << syntax->pretty_term(e) << endl;
+	exit(-1);
 }
 
 int main(int argc, char* argv[]) {
@@ -1170,12 +1155,12 @@ int main(int argc, char* argv[]) {
 	bool exit_on_error = false;
 	if( argc == 1 ) {
 		Lexer lexer(cin,"stdin",*syntax);
-		preload(lexer,syntax,"stdin",false).loop();
+		preload(lexer,syntax,"stdin","Root/",false).loop();
 	} else {
 		string name = argv[1];
 		auto fin = fstream(name);
 		Lexer lexer(fin,name,*syntax);
-		preload(lexer,syntax,name,true).loop();
+		preload(lexer,syntax,"Root/",name,true).loop();
 	}
 	cout << "bye!" << endl;
 	return 0;
