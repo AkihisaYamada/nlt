@@ -12,14 +12,16 @@ begin
 
 define true := ∀P. P ⟹ P.
 define false := ∀P. P.
-define (not_def) ¬ P := P ⟹ false.
-define (and_def) P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
-define (iff_def) P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
-define (or_def) P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
-define (ex_def) (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
+define[not_def] ¬ P := P ⟹ false.
+define[and_def] P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
+define[iff_def] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
+define[or_def] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
+define[ex_def] (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
 
-define (tall_def) (∀:) ι α := ∀x. ι x ⟹ α.[x].
-define (tex_def) (∃:) ι α := ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ P.
+define[tall_def] (∀:) ι α := ∀x. ι x ⟹ α.[x].
+define[tex_def] (∃:) ι α := ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ P.
+
+define[neq_def] x ≠ y := ¬ x = y.
 
 interpret TypeFreeIntuitionistic;
 	retain true := true;
@@ -119,7 +121,7 @@ theorem russel_paradox: ¬(∀P. P ∨ ¬P);
 
 define defined x := x ∨ ¬x.
 
-context defined :=
+namespace defined begin
 
 interpret imp: Magma defined (⟹);
 	show: for x y, if x: defined x, y: defined y then defined (x ⟹ y);
@@ -182,10 +184,8 @@ interpret or: Magma defined (∨);
 interpret PropositionalClassical defined;
 	show: defined true;
 		by or_intro #unfold defined_def.
-	- .
 	show: defined false;
 		by or_intro not_false #unfold defined_def.
-	- know.
 	show: for x, defined x ⟹ defined (¬ x);
 		unfold+ defined_def,
 		by or_intro nnot_intro #elim or_elim.
@@ -193,21 +193,18 @@ interpret PropositionalClassical defined;
 		by not_intro.
 	show: for P, ¬ P ⟹ P ⟹ defined P ⟹ false;
 		by not_imp_false(P).
-	- know.
 	show: ∀P Q. P ⟹ Q ⟹ defined P ⟹ defined Q ⟹ P ∧ Q;
 		by and_intro.
 	show: ∀P Q. P ∧ Q ⟹ defined P ⟹ defined Q ⟹ P;
 		by #elim and_elim.
 	show: ∀P Q. P ∧ Q ⟹ defined P ⟹ defined Q ⟹ Q;
 		by #elim and_elim.
-	- know.
 	show: ∀P Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ defined P ⟹ defined Q ⟹ P ⟺ Q;
 		by iff_intro.
 	show: ∀P Q. (P ⟺ Q) ⟹ P ⟹ defined P ⟹ defined Q ⟹ Q;
 		by #elim iff_elim.
 	show: ∀P Q. (P ⟺ Q) ⟹ Q ⟹ defined P ⟹ defined Q ⟹ P;
 		by #elim iff_elim.
-	- know.
 	show: ∀P Q. P ⟹ defined P ⟹ defined Q ⟹ P ∨ Q;
 		by or_intro.
 	show: ∀P Q. Q ⟹ defined P ⟹ defined Q ⟹ P ∨ Q;
@@ -233,12 +230,7 @@ lemma taut! taut x;
 	unfold taut_def.
 
 interpret intuitionistic: TypedIntuitionisticLogic taut;
-	- .
-	- .
-	- .
-	- .
-	- .
-	show: ∀ P. (P ⟹ false) ⟹ taut P ⟹ ¬ P;
+	show: ∀P. (P ⟹ false) ⟹ taut P ⟹ ¬ P;
 		by not_intro.
 	show: for P, ¬ P ⟹ P ⟹ taut P ⟹ false;
 		by not_imp_false(P).
@@ -272,9 +264,6 @@ interpret intuitionistic: TypedIntuitionisticLogic taut;
 	- by #elim false_elim.
 	.
 
-
-define (neq_def) x ≠ y := ¬ x = y.
-
 lemma neq_intro: if xyf: x = y ⟹ false then x ≠ y;
 	unfold neq_def,
 	apply not_intro,
@@ -304,7 +293,7 @@ lemma true_neq_false: true ≠ false;
 
 binder ∃! 0 0.
 
-define (ex1_def) (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
+define[ex1_def] (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
 
 lemma ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x];
 	unfold ex1_def,
@@ -325,25 +314,26 @@ lemma ex1_elim:
 		by and_elim2[OF and].
 	by body[OF ax 1].
 
-binder THE 0 0.
-
-theory The :=
+theory UniqueChoice:
 	fix THE.
-	assume ex1_imp_THE: (∃!x. α.[x]) ⟹ α.[THE x. α.[x]].
+	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
 begin
-	lemma ex1_imp_THE_eq: if ex1: ∃!y. α.[y], x: α.[x] then (THE y. α.[y]) = x;
+	lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], x: P.[x] then (THE y. P.[y]) = x;
 		apply ex1_elim[OF ex1],
-		- for z, if az: α.[z], 1: ∀y. α.[y] ⟹ z = y;
+		- for z, if az: P.[z], 1: ∀y. P.[y] ⟹ z = y;
 			have zx: z = x;
 				by 1[OF x].
-			have zT: z = (THE x. α.[x]);
+			have zT: z = (THE x. P.[x]);
 				by 1[OF ex1_imp_THE[OF ex1]].
 			by zx[unfolded zT].
 		.
 end
 
-theory If :=
-	fix if then else.
-	assume if_true: (if true then x else y) = x.
-	assume if_false: (if false then x else y) = y.
+theory Choice:
+	fix SOME.
+	assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
 end
+
+end
+
+

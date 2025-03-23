@@ -497,4 +497,3 @@ lemma nnand_iff: if [prop P, prop Q] then ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 lemma nniff_iff: if [prop P, prop Q] then ¬¬(¬P ⟺ ¬Q) ⟺ ¬P ⟺ ¬Q;
 	unfold[0]+ iff_iff_and nnand_iff nnimp_not_iff,
 	fold[0] iff_iff_and.
-

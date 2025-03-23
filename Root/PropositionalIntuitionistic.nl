@@ -33,17 +33,17 @@ lemma not_elim: if nP: ¬P, P: P, [prop P, prop Q] then Q;
 		by not_imp_false[OF nP P].
 	apply false_elim[OF f].
 
-theory Relation mem (≤) :=
+theory Relation mem (≤):
 	import Binary (≤) mem mem prop.
 end
 
-theory Preorder :=
+theory Preorder:
 	import Relation.
 	import Reflexive.
 	import Transitive.
 end
 
-theory StrictOrder mem (<) :=
+theory StrictOrder mem (<):
 	import Relation mem (<).
 	import Irreflexive.
 	import Transitive mem (<).
