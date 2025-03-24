@@ -67,9 +67,9 @@ void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev 
 	throw MalformedRule(thm);
 }
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
-	Thm rule = strip_all(thm).first;// x = y ⟹ x ⟹ conds... ⟹ y
-	if( auto const& imp = rule.cbinary(IMP) )// x ⟹ conds... ⟹ y
-	if( auto const& imp2 = imp->second.cbinary(IMP) )// conds ... ⟹ y
+	Thm rule = strip_all(thm).first;// x = y ⟹ conds... ⟹ x ⟹ y
+	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
+	if( auto const& imp2 = imp->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
 		if( !ind ) throw UnregisteredRel(*rel);
@@ -361,17 +361,18 @@ bool Rewriter::apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) 
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
 	size_t ind = _get_ind(ctrl.rel);
-	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conditions ⟹ y ⟹ x
+	auto const& o = _revimps.finds(ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
 	auto steps = _steps(rules,thy,*goal,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
 	if( !steps ) return false;
-	auto imp = o->second.thm.weaken(thy);// x = y ⟹ conditions... ⟹ y ⟹ x
+	auto imp = o->second.thm.weaken(thy);// x = y ⟹ conds... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s
-	for( size_t i = 0; i < o->second.conds; i++ ) {
-		imp = blast(imp,thy);
+	auto conds = o->second.conds;
+	thesis.apply(Intro::imp(imp,conds+1));// conditions... ⟹ t ⟹ rest
+	for( size_t i = 0; i < conds; i++ ) {
+		thesis.blast();
 	}// t ⟹ s
-	thesis.apply(Intro::imp(imp));// t ⟹ rest
 	return true;
 }
 Thm Rewriter::rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const {
@@ -382,8 +383,8 @@ Thm Rewriter::rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ct
 	if( !steps ) {
 		return source;
 	}
-	auto tmp = o->second.thm.weaken(thy);
-	tmp = tmp << *steps;
+	auto tmp = o->second.thm.weaken(thy);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
+	tmp = tmp << *steps;// conds... ⟹ s ⟹ t
 	for( int i = 0; i < o->second.conds; i++ ) {
 		tmp = blast(tmp,thy);
 	}// s ⟹ t

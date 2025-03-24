@@ -147,6 +147,23 @@ void Lexer::read_continue( Lex::CharType t ) {
 	}
 }
 
+void Lexer::_dot_follower() {
+	for(;;) {
+		if( fetched_char_type != Lex::Dot ) break;
+		auto old_wp = wp;// TODO
+		fetch_char();
+		switch(fetched_char_type) {
+			case Lex::Other: case Lex::Digit:
+			read_continue( Lex::Other | Lex::Digit );
+			continue;
+			case Lex::Blank:// forget that blank is read
+			fetched_char_type = Lex::DotBlank;
+			wp = old_wp;
+		}
+		break;
+	}
+}
+
 string_view Lexer::peek_token() {
 	if( token_type == Unset ) {// no token is set
 		if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
@@ -184,7 +201,7 @@ string_view Lexer::peek_token() {
 				token_type = Dots;
 				break;
 			case Lex::Digit: // dot followed by digits
-				read_continue( Lex::Digit | Lex::Dot );
+				read_continue( Lex::Digit );
 				token_type = Number;
 				break;
 			case Lex::MultiOp:
@@ -195,6 +212,11 @@ string_view Lexer::peek_token() {
 				rp = wp;
 				fetched_char_type = Lex::Blank;// no character is prefetched
 				token_type = Operator;
+				break;
+			case Lex::Other:
+				read_continue(Lex::Other|Lex::Digit);
+				_dot_follower();
+				token_type = Word;
 				break;
 			default:
 				token_type = Dots; // single dot
@@ -216,20 +238,7 @@ string_view Lexer::peek_token() {
 		default:
 			token_type = Word;
 			read_continue( Lex::Other | Lex::Digit );
-			for(;;) {
-				if( fetched_char_type != Lex::Dot ) break;
-				auto old_wp = wp;// TODO
-				fetch_char();
-				switch(fetched_char_type) {
-				case Lex::Other: case Lex::Digit:
-					read_continue( Lex::Other | Lex::Digit );
-					continue;
-				case Lex::Blank:// forget that blank is read
-					fetched_char_type = Lex::DotBlank;
-					wp = old_wp;
-				}
-				break;
-			}
+			_dot_follower();
 			break;
 		}
 		peeked_token = string_view(buf,rp);

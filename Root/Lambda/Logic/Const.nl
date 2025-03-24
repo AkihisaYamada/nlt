@@ -53,62 +53,18 @@ lemma Collect_is_const: is_const Collect;
 lemma const_arg_Collect: const_arg (Collect P) = P;
 	by const_arg[OF Collect_is_const].
 
-define[in_def] x ∈ X := (λ) (const_arg X) x.
+define[in_def] x ∈ X := const_arg X x.
 
 interpret Collection;
-	show: x ∈ Collect P ⟺ P.[x];
+	show: x ∈ Collect P ⟺ P x;
 		unfold in_def,
 		unfold const_arg_Collect.
 	.
 
-thm in_un_iff.
+thm in_cup_iff.
 
-setup set_comprehension ∅ Singleton Collect (∪).
+setup set_comprehension (λ) ∅ Singleton Collect (∪).
 
-define UNIV := {x. true}.
-
-define[meet_def] ⋂ XX := {x. ∀X. X ∈ XX ⟹ x ∈ X}.
-
-----
-### The Set of Propositions
-----
-
-define Prop := {true, false}.
-
-define[subset_def] X ⊆ Y := ∀x. x ∈ X ⟹ x ∈ Y.
-
-infix ` 100 100 100.
-define[image_def] f ` X := {y. ∃x. x ∈ X ∧ y = f x}.
-
-infix → 61 60 60.
-define[map_def] X → Y := {f. f ` X ⊆ Y}.
-
-lemma in_image: (y ∈ f ` X) = (∃x. x ∈ X ∧ y = f x);
-	unfold+ image_def in_Collect beta.
-
-define Class := Collect ` (UNIV → Prop).
-
-lemma in_Class: (X ∈ Class) = (∃p. p ∈ UNIV → Prop ∧ X = Collect p);
-	unfold+ Class_def in_image.
-
-
-
-
-define Russel := {X. X ∉ X}.
-
---- Needs two-valued
-lemma MEET_in_Class: if XX: XX ⊆ Class then ⋂ XX ∈ Class;
-	have 1: ⋂ XX = {x. ∀X. X ∈ XX ⟹ x ∈ X};
-		by MEET_def.
-	have prop: for x, (∀X. X ∈ XX ⟹ x ∈ X) ∈ Prop;
-		
-	show prop: ∀x. prop ((λx. ∀X. X ∈ XX ⟹ x ∈ X) x).
-	show pred: pred (λx. ∀X. X ∈ XX ⟹ x ∈ X).
-		by pred.intro[OF prop].
-	show 1: ∃p. pred p ∧ ⋂ XX = Collect p.
-		sorry.
-	sorry.
----
 
 define 0 := Const false.
 define Suc := Const 0.

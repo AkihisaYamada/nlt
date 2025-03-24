@@ -21,6 +21,7 @@
 #define IMP_char '⟹'
 
 class Term;
+class Error;
 class Ctxt;
 class Thm;
 class CTerm;
@@ -312,7 +313,7 @@ public:
 		}
 		return *this;
 	};
-	/** @brief instantiates the bound variable. This must be an abstraction.
+	/** @brief instantiates the bound variable. This must be a binding.
 	 * 
 	 * @param arg should be a closed term, for efficiency
 	 * @return Term 
@@ -349,25 +350,12 @@ struct Error : public std::exception, Term {
 		return Term::operator()(arg);
 	}
 };
-inline Error const UnexpectedTerm = Error("#unexpected_term");
-inline Error const MalformedObtain = Error("#malformed_obtain");
-inline Error const MalformedInstantiation = Error("#malformed_instantiation");
-inline Error const MalformedDischarge = Error("#malformed_discharge");
-inline Error const MalformedRetain = Error("#malformed_retain");
-inline Error const MissingProof = Error("#missing_proof");
-inline Error const WrongContext = Error("#wrong_context");
-inline Error const DoubleFix = Error("#double_fix");
 struct UnboundVariable : public Error {
-	static Term const RT;
-	UnboundVariable(std::string_view const& var) : Error(RT(var)) {}
+	UnboundVariable( std::string_view const& name ) : Error(Term("#ctxt")("\"unbound variable\"")(name)) {}
 };
-inline Term const UnboundVariable::RT = Term("#unbound_variable");
-
-inline Error const ConstantEscape = Error("#escape");
 
 /** @brief Context */
 class Ctxt {
-private:
 	friend Intp;
 	struct Body;
 	Ref<Body> _ref;
@@ -392,13 +380,11 @@ public:
 	/** Optionally returns the parent context. */
 	Opt<Ctxt const&> find_parent() const &;
 	/** @brief Obtains the parent context.
-	 * @exception WrongContext is thrown if no such context is found.
+	 * @exception is thrown if no such context is found.
 	 */
 	Ctxt const& parent() const & {
 		auto opt = find_parent();
-		if( !opt ) {
-			throw WrongContext("parent of root context");
-		}
+		if( !opt ) throw Error("#ctxt")("\"parent of root\"");
 		return *opt;
 	}
 	/** @brief Tests if this has the given context as an ancestor.
@@ -438,10 +424,10 @@ public:
 	bool has_constant(std::string_view const& sym) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	Opt<CTerm> constant(std::string_view const& sym) const;
-	/** Tests if a term is closed in this context. */
-	Opt<CTerm> closed(Term const& t) const;
 	/** Ensures that a term is closed in this context. */
 	CTerm cterm(Term const& t) const;
+	/** Tests if a term is closed in this context. */
+	Opt<CTerm> closed(Term const& t) const;
 	/** Make the term closed by fixing free variables. */
 	CTerm enclose(Term const& t);
 	/** @brief Fixes a local variable.
@@ -478,10 +464,9 @@ public:
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
-	friend bool operator==(Ctxt::Body const& l, Ctxt::Body const& r);
 private:
-	Ctxt(Opt<Ctxt> const& parent);
 	Thm _assume(Term const& t) &;
+	Ctxt(Opt<Ctxt> const& parent);
 };
 
 struct Ctxt::Body {
@@ -493,17 +478,16 @@ struct Ctxt::Body {
 	StrSet fvars;
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
+	/** @brief dummy: Contexts are equal only if they have the same reference to the body.
+	 * Therefore, two context bodies are always considered unequal.
+	 */
+	inline bool operator==(Body const& r) {
+		return false;
+	};
 };
 inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
 }
-/** @brief dummy: Contexts are equal only if they have the same reference to the body.
- * Therefore, two context bodies are always considered unequal.
- */
-inline bool operator==(Ctxt::Body const& l, Ctxt::Body const& r) {
-	return false;
-};
-
 inline Opt<Ctxt const&> Ctxt::find_parent() const & {
 	if( _ref->parent ) {
 		return *_ref->parent;
@@ -619,9 +603,7 @@ public:
 	/** @brief Application of closed terms. Both terms should belong to the same context.
 	 */
 	CTerm operator()(CTerm const& arg) const {
-		if( _ctxt != arg._ctxt ) {
-			throw WrongContext("applying terms of different contexts");
-		}
+		if( _ctxt != arg._ctxt ) throw Error("#cterm")("\"wrong context application\"");
 		return CTerm(_ctxt,Term::operator()(arg));
 	}
 	/** @brief instantiates the bound variable. This must be an abstraction.
@@ -638,9 +620,7 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm weaken(Ctxt const& ctxt) const {
-		if( !ctxt.has_ancestor(_ctxt) ) {
-			throw WrongContext("weaken");
-		}
+		if( !ctxt.has_ancestor(_ctxt) ) throw Error("#cterm")("\"wrong context weakening\"");
 		return CTerm(ctxt,*this);
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.
@@ -663,9 +643,7 @@ public:
 	}
 	/** closed implication */
 	friend CTerm operator>>=(CTerm const& l, CTerm const& r) {
-		if( l._ctxt != r.ctxt() ) {
-			throw WrongContext("⟹");
-		}
+		if( l._ctxt != r._ctxt ) throw Error("#cterm")("\"wrong context implication\"");
 		return CTerm( l._ctxt, (Term)l >>= r );
 	}
 	/** closed abstraction */
@@ -674,15 +652,24 @@ public:
 	}
 	/** closed binding */
 	friend CTerm operator/(std::string_view const& v, CTerm const& arg) {
-		if( !arg._ctxt.constant(v) ) {
-			throw UnboundVariable(v);
-		}
+		if( !arg._ctxt.constant(v) ) throw Error("#cterm")("\"wrong context binding\"")(v);
 		return CTerm( arg._ctxt, v %= (Term)arg );
 	}
 };
 inline bool operator!=(CTerm const& l, CTerm const& r) {
 	return !(l == r);
 };
+inline CTerm Ctxt::cterm(Term const& t) const {
+	t.iter_syms( [&](auto sym){
+		if( !has_constant(sym) ) throw UnboundVariable(sym);
+	} );
+	return CTerm(*this,t);
+}
+inline Opt<CTerm> Ctxt::closed(Term const& t) const try {
+	return cterm(t);
+} catch( UnboundVariable const& e ) {
+	return {};
+}
 
 /** @brief Substitution, whose range is closed with respect to a context. */
 class CSubst {
@@ -726,9 +713,7 @@ public:
 	}
 	/** @brief (re)assigns a value to a variable */
 	CSubst& assign(std::string_view const& var, CTerm const& val) & {
-		if( val.ctxt() != _ctxt ) {
-			throw WrongContext("CSubst::assign");
-		}
+		if( val.ctxt() != _ctxt ) throw Error("#subst")("\"wrong context assign\"");
 		return _assign(var,val);
 	}
 	CSubst& assign(std::string_view const& var, Term const& val) & {
@@ -745,29 +730,25 @@ private:
 };
 
 class Thm : public CTerm {
-private:
 	/** @brief Trusted construction of Thm. This being private is crucial. */
 	Thm(CTerm const& t) : CTerm(t) {}
 	Thm() = delete;
-	Thm _allE(CTerm const& t) const;
 public:
 	Thm( Thm const& t ) = default;
-	Thm& operator=(Thm const& other) {
+	Thm& operator=(Thm const& other) & {
 		CTerm::operator=(other);
 		return *this;
 	}
 	/** @brief forall elimination. This theorem must be of form ∀x. P(x).
 	 * @return Thm P(t)
-	 * @exception MalformedIntpantiation
+	 * @exception _MalformedInst
 	 */
 	Thm instantiate(Term const& t) const {
-		return _allE(_ctxt.cterm(t));
+		return _instantiate(_ctxt.cterm(t));
 	}
 	Thm instantiate(CTerm const& t) const {
-		if( t._ctxt != _ctxt ) {
-			throw WrongContext("allE");
-		}
-		return _allE(t);
+		if( t._ctxt != _ctxt ) throw Error("#thm")("\"wrong context instantiate\"");
+		return _instantiate(t);
 	}
 	/** @brief implication elimination.
 	 * 
@@ -778,10 +759,9 @@ public:
 	 */
 	Opt<Thm> discharges(Thm const& t) const;
 	Thm discharge(Thm const& t) const {
-		if( auto o = discharges(t) ) {
-			return *o;
-		}
-		throw MalformedDischarge(*this)(t);
+		auto o = discharges(t);
+		if( !o ) throw Error("#thm")("\"malformed discharge\"")(*this)(t);
+		return *o;
 	}
 	/** @brief Moves the theorem to the parent context.
 	 * Context-bound symbols will be universally quantified,
@@ -798,9 +778,27 @@ public:
 	Thm weaken(Ctxt const& ctxt) const {
 		return CTerm::weaken(ctxt);
 	}
+private:
+	Thm _instantiate(CTerm const& t) const {
+		auto const& a = cunary(ALL);
+		if(!a) throw Error("#thm")("\"malformed instantiate\"")(*this)(t);
+		return a->inst(t);
+	}
 	friend Ctxt;
 	friend Intp;
 };
+inline Thm Ctxt::_assume(Term const& t) & {
+	_ref->modifiers.push_back(_Assume(t));
+	return CTerm(*this,t);
+}
+inline Thm Ctxt::assume(CTerm const& t) {
+	if( t.ctxt() != *this ) throw Error("#ctxt")("wrong context assume");
+	return _assume(t);
+}
+inline Thm Ctxt::assume(Term const& t) {
+	return _assume(enclose(t));
+}
+
 /** @brief Interpreter, translates facts of a context into the context it belongs. */
 class Intp {
 	/** @brief Instantiation of the symbols of the source context, closed in the target context. */
@@ -812,7 +810,12 @@ public:
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
-	Intp(Ctxt const& src, Ctxt const& tgt);
+	 Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
+		if( auto srcParent = src.find_parent() ) {
+			if( !tgt.has_ancestor(*srcParent) ) throw Error("#intp")("unreachable");
+		}
+		if( tgt.has_ancestor(src) ) throw Error("#intp")("cyclic");
+	}
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
@@ -853,20 +856,39 @@ public:
 	 * then this method should be used to instantiate the variable.
 	 * @param term 
 	 */
-	void instantiate(CTerm const& term);
+	void instantiate(CTerm const& term) {
+		auto fix = _src.fixed(_rev);
+		if( !fix ) throw Error("#intp")("\"unexpected instantiate\"");
+		_subst.assign(*fix,term);
+		_rev++;
+	}
 	/** @brief Interprets an assumption.
 	 * If the interpreted context is modified by an assumption,
 	 * this method should be used to discharge the instantiated assumption.
 	 * @param thm Proof of the instantiated assumption.
 	 */
-	void discharge(Thm const& thm);
+	void discharge(Thm const& thm) {
+		auto assume = _src.assumed(_rev);
+		if( !assume ) throw Error("#intp")("\"unexpected discharge\"");
+		Term const& exp = assume->subst(_subst);
+		if( exp != thm ) throw Error("#intp")("\"malformed discharge\"")(exp)(thm);
+		_rev++;
+	}
 	/** @brief If the interpreted context is modified by obtaining a constant,
 	 * then this method should be used to instantiate the constant.
 	 * @param term that should play the role of the constant.
-	 * @param spec of form ∀thesis. (props[sym:=term]... ⟹ thesis) ⟹ thesis,
+	 * @param thm of form ∀thesis. (props[sym:=term]... ⟹ thesis) ⟹ thesis,
 	 * where the obtained constant is replaced by the term.
 	 */
-	void retain(CTerm const& term, Thm const& spec);
+	void retain(CTerm const& term, Thm const& thm) {
+		if( thm.ctxt() != _subst.ctxt() ) throw Error("#intp")("\"wrong context retain\"");
+		auto obtain = obtaining();
+		if( !obtain ) throw Error("#intp")("\"unexpected retain\"");
+		auto const& [sym,ex,spec] = *obtain;
+		if( spec.inst(term) != thm ) throw Error("#intp")("\"malformed retain\"")(thm);
+		_subst.assign(sym,term);
+		_rev++;
+	}
 	friend Ctxt;
 };
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {

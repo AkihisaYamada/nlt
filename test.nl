@@ -1,4 +1,4 @@
-base Lambda.Logic.Const.
+base TypedIntuitionisticLogic.Nat.
 
 -----
 ## Classes

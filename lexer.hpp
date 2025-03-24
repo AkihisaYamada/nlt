@@ -186,6 +186,8 @@ public:
 	std::string location() const {
 		return filename + ':' + std::to_string(line_count);
 	}
+private:
+	void _dot_follower();
 };
 
 #endif

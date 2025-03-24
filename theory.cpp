@@ -266,7 +266,7 @@ bool Import::retains() {
 			Intp::retain(*csym,*thm);
 			return true;
 		}
-		throw MalformedRetain(sym)(name)(stmt);
+		throw Error("#util")("\"failed retain\"")(sym)(name)(stmt);
 	} else {
 		auto [sym_term,spec] = _tgt.obtain(sym,ex,name);
 		retain(sym_term,spec);

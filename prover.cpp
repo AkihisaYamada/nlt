@@ -861,6 +861,7 @@ public:
 					_thy.setup_definer(beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& collect = _parser.get_term(1000);
+					Term const& lambda = _parser.get_term(1000);
 					Term const& empty = _parser.get_term(1000);
 					Term const& singleton = _parser.get_term(1000);
 					Term const& un = _parser.get_term(1000);
@@ -872,7 +873,7 @@ public:
 						}
 						if( inner->bind() ) {
 							parser.skip("}");
-							return collect(*inner);
+							return collect(lambda(*inner));
 						}
 						Term ret = singleton(*inner);
 						while( parser.skips(",") ) {

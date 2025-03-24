@@ -120,29 +120,15 @@ lemma iff_cong_iff#cong: for P Q,
 	.
 
 lemma imp_imp_iff: if [P, prop P, prop Q] then (P ⟹ Q) ⟺ Q;
-	apply iff_intro,
-	- if PQ: P ⟹ Q;
-		by PQ.
-	.
+	by iff_intro.
 
 lemma imp_iff_iff: if [P, prop P, prop Q] then (P ⟺ Q) ⟺ Q;
-	apply iff_intro,
-	- if PQ: P ⟺ Q;
-		by iff_elim1[OF PQ].
-	by iff_intro.
+	by iff_intro #elim iff_elim1.
 
 lemma imp3_iff: if [prop P, prop Q] then (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
 	apply iff_intro[OF imp2_imp_imp],
 	- if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q;
 		by PQQ[OF PQ].
-	.
-
-lemma imp_iff_iff1: if [P, prop P, prop Q] then (P ⟺ Q) ⟺ Q;
-	apply iff_intro,
-	- if PQ: P ⟺ Q;
-		by iff_elim1[OF PQ].
-	- if [Q];
-		by iff_intro.
 	.
 
 ----
@@ -183,10 +169,7 @@ lemma not_false: ¬false;
 	apply not_intro.
 
 lemma not_true_iff: ¬true ⟺ false;
-	apply iff_intro,
-	- if nt: ¬true;
-		by not_imp_false[OF nt].
-	by not_intro.
+	by iff_intro not_intro #elim not_imp_false.
 
 lemma not_false_iff: ¬false ⟺ true;
 	by iff_true[OF not_false].

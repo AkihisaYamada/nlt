@@ -39,10 +39,10 @@ begin
 
 note! nnot_or.type.
 note! nnot_ex.type.
+note? image_nnot_imp_prop.
 
-lemma image_nnot_imp: if Pt: image_nnot P then ¬¬P ⟺ P;
-	note! image_nnot_imp_prop[OF Pt].
-	apply ex_elim[OF Pt[unfolded image_nnot_iff_ex]],
+lemma image_nnot_imp: if tP! image_nnot P then ¬¬P ⟺ P;
+	apply ex_elim[OF tP[unfolded image_nnot_iff_ex]],
 	- for P', if iff: (P ⟺ ¬¬P'), [prop P'];
 		unfold+ iff nnnot_iff.
 	.
@@ -64,13 +64,10 @@ lemma image_nnot_iff: if [prop P] then image_nnot P ⟺ (¬¬P ⟺ P);
 
 interpret image_nnot: ClassicalLogic;
 	instantiate prop := image_nnot, (∨) := nnot_or, (∃:) := nnot_ex.
-	note? image_nnot_imp_prop.
 	- unfold image_nnot_iff not_true_iff not_false_iff.
 	- .
 	- unfold image_nnot_iff not_true_iff not_false_iff.
-	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟹ Q);
-		note! image_nnot_imp_prop[OF tP].
-		note! image_nnot_imp_prop[OF tQ].
+	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (P ⟹ Q);
 		have nnQ: ¬¬Q ⟺ Q;
 			by tQ[unfolded image_nnot_iff].
 		unfold image_nnot_iff,
@@ -91,9 +88,7 @@ interpret image_nnot: ClassicalLogic;
 	- by and_intro image_nnot_imp_prop.
 	- by image_nnot_imp_prop #elim and_elim.
 	- by image_nnot_imp_prop #elim and_elim.
-	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ⟺ Q);
-		note! image_nnot_imp_prop[OF tP].
-		note! image_nnot_imp_prop[OF tQ].
+	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (P ⟺ Q);
 		unfold image_nnot_iff,
 		fold tP[unfolded image_nnot_iff],
 		fold tQ[unfolded image_nnot_iff],

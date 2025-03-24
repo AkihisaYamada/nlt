@@ -3,6 +3,9 @@
 
 using namespace std;
 
+string const IMP = "⟹";
+string const ALL = "∀";
+
 string avoid(string_view const& var, function<bool(string const&)> const& test) {
 	string ret(var);
 	if( !test(ret) ) {
@@ -217,7 +220,7 @@ Opt<Term> Term::_Mapper::map( Term const& t ) {
 				};
 				return t.map(unit_map(x,s2),newfixed);
 			} else {
-				throw UnexpectedTerm(*mapC);
+				throw Error("#term")("\"bad unbind\"")(*mapC);
 			}
 		}
 		if( maps ) {
@@ -231,14 +234,9 @@ Opt<Term> Term::_Mapper::map( Term const& t ) {
 
 Term Term::inst(CTerm const& arg) const {
 	auto a = bind();
-	if( !a ) {
-		throw MalformedInstantiation(*this)(arg);
-	}
+	if( !a ) throw Error("#term")("\"bind expected\"")(*this)(arg);
 	return a->second.subst(a->first,arg);
 }
-
-string const IMP = "⟹";
-string const ALL = "∀";
 
 Ctxt::Ctxt() : Ctxt(Ref<Body>::make()) {
 	_ref->fvars.insert(IMP);
@@ -254,21 +252,6 @@ bool Ctxt::has_constant(string_view const& sym) const {
 	}
 	return false;
 }
-CTerm Ctxt::cterm(Term const& t) const {
-	t.iter_syms( [&](auto sym){
-		if( !has_constant(sym) ) {
-			throw UnboundVariable(sym);
-		}
-	} );
-	return CTerm(*this,t);
-}
-Opt<CTerm> Ctxt::closed(Term const& t) const {
-	try {
-		return cterm(t);
-	} catch( UnboundVariable const& e ) {
-		return {};
-	}
-}
 CTerm Ctxt::enclose(Term const& t) {
 	t.iter_syms( [&](auto sym){
 		if( !has_constant(sym) ) {
@@ -279,83 +262,50 @@ CTerm Ctxt::enclose(Term const& t) {
 }
 
 CTerm Ctxt::fix(string_view const& s) {
-	if( fixes(s)) {
-		throw DoubleFix(s);
-	}
+	if( fixes(s)) throw Error("#ctxt")("\"double fix\"")(s);
 	_ref->modifiers.push_back(_Fix(s));
 	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
 }
 
-Thm Ctxt::_assume(Term const& t) & {
-	_ref->modifiers.push_back(_Assume(t));
-	return CTerm(*this,t);
-}
-
-Thm Ctxt::assume(CTerm const& t) {
-	if( t.ctxt() != *this ) {
-		throw WrongContext("assume");
-	}
-	return _assume(t);
-}
-Thm Ctxt::assume(Term const& t) {
-	return _assume(enclose(t));
-}
-
 pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
-	if( has_constant(sym) ) {
-		throw DoubleFix(sym);
-	}
+	if( has_constant(sym) ) throw Error("#ctxt")("\"double fix\"")(sym);
 	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
-	auto all1 = thm.binder(ALL);
-	if( !all1 ) {
-		throw MalformedObtain(thm);
+	try {
+		auto all1 = thm.binder(ALL);
+		if( !all1 ) throw 0;
+		auto thesis = all1->first;
+		auto imp = all1->second.binary(IMP);
+		if( !imp || imp->second != thesis ) throw 1;
+		auto all2 = imp->first.unary(ALL);
+		if( !all2 ) throw 2;
+		auto abs = all2->bind();
+		if( !abs ) throw 3;
+		auto sym2 = abs->first;
+		Term t = abs->second;// props... ⟹ thesis
+		// check that props do not contain thesis
+		Term const* in = &t;
+		while( auto imp2 = in->binary(IMP) ) {
+			auto& prop = imp2->first;
+			prop.iter_syms(
+				[&](auto str){ if( str == thesis ) throw 4; }
+			);
+			in = &imp2->second;
+		}
+		if( *in != thesis ) throw 5;
+		// (props[var:=sym]... ⟹ thesis) ⟹ thesis
+		auto sym_term = CTerm(*this,sym);
+		Thm spec = CTerm( *this, thesis &= all2->inst(sym_term) >>= thesis );
+		_ref->constants.emplace(sym);
+		_ref->modifiers.push_back( _Obtain(string(sym), thm, sym/=spec ));
+		return {sym_term,spec};
+	} catch ( int x ) {
+		throw Error("#ctxt")("\"malformed obtain\"");
 	}
-	auto thesis = all1->first;
-	auto imp = all1->second.binary(IMP);
-	if( !imp || imp->second != thesis ) {
-		throw MalformedObtain(thm);
-	}
-	auto all2 = imp->first.unary(ALL);
-	if( !all2 ) {
-		throw MalformedObtain(thm);
-	}
-	auto abs = all2->bind();
-	if( !abs ) {
-		throw MalformedObtain(thm);
-	}
-	auto sym2 = abs->first;
-	Term t = abs->second;// props... ⟹ thesis
-	// check that props do not contain thesis
-	Term const* in = &t;
-	while( auto imp2 = in->binary(IMP) ) {
-		auto& prop = imp2->first;
-		prop.iter_syms(
-			[&](auto str){ if( str == thesis ) throw MalformedObtain(prop); }
-		);
-		in = &imp2->second;
-	}
-	if( *in != thesis ) {
-		throw MalformedObtain(thm);
-	}
-	// (props[var:=sym]... ⟹ thesis) ⟹ thesis
-	auto sym_term = CTerm(*this,sym);
-	Thm spec = CTerm( *this, thesis &= all2->inst(sym_term) >>= thesis );
-	_ref->constants.emplace(sym);
-	_ref->modifiers.push_back( _Obtain(string(sym), thm, sym/=spec ));
-	return {sym_term,spec};
-}
-Thm Thm::_allE(CTerm const& t) const {
-	if( auto const& a = cunary(ALL) ) {
-		return a->inst(t);
-	}
-	throw MalformedInstantiation(*this)(t);
 }
 
 Opt<Thm> Thm::discharges(Thm const& t) const {
-	if( t.ctxt() != ctxt() ) {
-		throw WrongContext("impE");
-	}
+	if( t.ctxt() != ctxt() ) throw Error("#thm")("\"wrong context discharge\"");
 	if( auto const& imp = cbinary(IMP) ) {
 		if( imp->first == t ) {
 			return Thm(imp->second);
@@ -367,7 +317,7 @@ Opt<Thm> Thm::discharges(Thm const& t) const {
 CTerm CTerm::intro() const {
 	if( !_ctxt.consts().empty() ) {// checks if obtained constants don't escape
 		auto check = [&](auto v){
-			if( _ctxt.consts().contains(v) ) { throw ConstantEscape(v); }
+			if( _ctxt.consts().contains(v) ) { throw Error("#cterm")("\"constant escape\"")(v); }
 		};
 		iter_fsyms(check);
 	}
@@ -400,9 +350,7 @@ Opt<CTerm::StrTerm> CTerm::cabs() const {
 }
 CTerm CTerm::lift( CTerm const& quantifier ) const {
 	auto const& parent = _ctxt.parent();
-	if( quantifier.ctxt() != parent ) {
-		throw WrongContext("lift");
-	}
+	if( quantifier.ctxt() != parent ) throw Error("#cterm")("\"wrong context lift\"");
 	Term ret = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
@@ -436,17 +384,9 @@ CTerm Term::csubst(CSubst const& subst) const {
 	};
 	return CTerm(ctxt,map(f,fixed));
 }
-Intp::Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
-	if( auto srcParent = src.find_parent() ) {
-		if( !tgt.has_ancestor(*srcParent) ) {
-			throw WrongContext("making interpretation");
-		}
-	}
-}
+
 Thm Intp::subst(Thm const& thm) const {
-	if( thm.ctxt() != _src ) {
-		throw WrongContext("interpretation");
-	}
+	if( thm.ctxt() != _src ) throw Error("#intp")("\"wrong context subst\"");
 	Term ret = thm;
 	StrSet obtained;
 	for( int i = _src.revision(); i < _rev; i++ ) {
@@ -462,58 +402,17 @@ Thm Intp::subst(Thm const& thm) const {
 	}
 	if( !obtained.empty() ) {// obtained constant cannot escape
 		auto check = [&](auto v){
-			if( obtained.contains(v) ) { throw ConstantEscape(v); }
+			if( obtained.contains(v) ) { throw Error("#intp")("\"constant escape\"")(v); }
 		};
 		ret.iter_fsyms(check);
 	}
 	return CTerm(_subst.ctxt(),ret.subst(_subst));
 }
 Ctxt Intp::subst(Ctxt const& ctxt) const {
-	if( ctxt.parent() != _src ) {
-		throw WrongContext("\"subst context\"");
-	}
-	if( !ready() ) {
-		throw Error("#intp")("\"not ready\"");
-	}
-	if( !_subst.empty() ) {
-		throw Error("#intp")("\"unsupported context substitution\"");
-	}
+	if( ctxt.parent() != _src ) throw Error("#intp")("\"wrong context\"");
+	if( !ready() ) throw Error("#intp")("\"not ready\"");
+	if( !_subst.empty() ) throw Error("#intp")("\"unsupported\"");
 	auto body = *ctxt._ref;
 	return Ctxt(Ref<Ctxt::Body>::make(_subst.ctxt(),body.modifiers,body.fvars,body.constants));
-}
-
-void Intp::instantiate(CTerm const& term) {
-	auto fix = _src.fixed(_rev);
-	if( !fix ) {
-		throw WrongContext("unexpected instantiate");
-	}
-	_subst.assign(*fix,term);
-	_rev++;
-}
-void Intp::discharge(Thm const& thm) {
-	auto assume = _src.assumed(_rev);
-	if( !assume ) {
-		throw UnexpectedTerm("discharge");
-	}
-	Term const& exp = assume->subst(_subst);
-	if( exp != thm ) {
-		throw MalformedDischarge(exp)(thm);
-	}
-	_rev++;
-}
-void Intp::retain(CTerm const& term, Thm const& thm) {
-	if( thm.ctxt() != _subst.ctxt() ) {
-		throw WrongContext("retain");
-	}
-	auto obtain = obtaining();
-	if( !obtain ) {
-		throw MalformedRetain;
-	}
-	auto const& [sym,ex,spec] = *obtain;
-	if( spec.inst(term) != thm ) {
-		throw MalformedRetain(thm);
-	}
-	_subst.assign(sym,term);
-	_rev++;
 }
 

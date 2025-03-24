@@ -308,7 +308,7 @@ public:
 
 Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
-		throw WrongContext("unify");
+		throw Error("#unify")("\"wrong context\"");
 	}
 	Unifier u = Unifier(l.ctxt(),fvar);
 	try {
@@ -325,7 +325,7 @@ Thm discharge(Thm thm, Thm arg) {
 	Ctxt thm_ctxt = ctxt.branch();
 	Thm thm_strip = strip_all(thm,thm_ctxt).first;
 	auto imp = thm_strip.cbinary(IMP);
-	if( !imp ) throw MalformedDischarge(thm_strip)(arg);
+	if( !imp ) throw Error("#util")("\"discharge\"")(thm_strip)(arg);
 	// expand cond
 	CTerm cond = imp->first;
 	Ctxt cond_ctxt = thm_ctxt.branch();
@@ -338,7 +338,7 @@ Thm discharge(Thm thm, Thm arg) {
 	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
-	if( !unifier ) throw MalformedDischarge(thm)(cond_strip)(arg)(arg_strip);
+	if( !unifier ) throw Error("#util")("\"discharge\"")(thm)(cond_strip)(arg)(arg_strip);
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
 	iter_local_vars(arg_ctxt,[&](string const& x){

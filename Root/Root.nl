@@ -17,6 +17,9 @@ infix ⟺ 1 1 0.
 binder ∃ 0 0.
 binder_middle ∀ : ∀:.
 binder_middle ∃ : ∃:.
+binder_middle ∀ ∈ ∀∈.
+binder_middle ∃ ∈ ∃∈.
+
 
 binder THE 0 0.
 binder SOME 0 0.
@@ -32,6 +35,8 @@ infix ⊂ 51 51 50.
 infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
 infix ∪ 61 60 61.
+infix ` 100 100 100.
+infix → 61 60 60.
 
 infix < 51 51 50.
 infix > 51 51 50.
