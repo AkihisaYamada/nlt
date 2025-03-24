@@ -198,7 +198,13 @@ string_view Lexer::peek_token() {
 			switch( fetched_char_type ) {
 			case Lex::Dot:
 				read_continue( Lex::Dot );
-				token_type = Dots;
+				if( fetched_char_type & ( Lex::Digit | Lex::Other ) ) {
+					read_continue( Lex::Other | Lex::Digit );
+					_dot_follower();
+					token_type = Word;
+				} else {
+					token_type = Dots;
+				}
 				break;
 			case Lex::Digit: // dot followed by digits
 				read_continue( Lex::Digit );

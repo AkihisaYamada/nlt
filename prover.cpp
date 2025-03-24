@@ -326,11 +326,18 @@ public:
 			loc.add_thm(*cs.name,thm);
 		}
 	}
-	Thy find_thy( string_view const& name ) {
+	Thy find_thy( string_view name ) {
 		auto loc = _thy.find_thy(name);
 		if( !loc ) {
-			load_thy(_thy,name);
-			loc = _thy.find_thy(name);
+			auto thy = _thy;
+			while( name[0] == '.' ) {
+				name = name.substr(1);
+				auto p = thy.parent();
+				if( !p ) throw Error("no more ancestor");
+				thy = *p;
+			}
+			load_thy(thy,name);
+			loc = thy.find_thy(name);
 		}
 		if( !loc ) {
 			throw Error((string("\"unknown theory ") += name) + "\"");
