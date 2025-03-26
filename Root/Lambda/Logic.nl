@@ -119,17 +119,17 @@ theorem russel_paradox: ¬(∀P. P ∨ ¬P);
 		.
 	.
 
-define defined x := x ∨ ¬x.
+define decided x := x ∨ ¬x.
 
-namespace defined begin
+namespace decided begin
 
-interpret imp: Magma defined (⟹);
-	show: for x y, if x: defined x, y: defined y then defined (x ⟹ y);
-		unfold defined_def,
-		apply or_elim[OF y[unfolded defined_def]],
+interpret imp: Magma decided (⟹);
+	show: for x y, if x: decided x, y: decided y then decided (x ⟹ y);
+		unfold decided_def,
+		apply or_elim[OF y[unfolded decided_def]],
 		- by or_intro1.
 		- if ny: ¬y;
-			apply or_elim[OF x[unfolded defined_def]],
+			apply or_elim[OF x[unfolded decided_def]],
 			- if [x];
 				apply+ or_intro2 not_intro,
 				- by not_imp_false[OF ny].
@@ -140,9 +140,9 @@ interpret imp: Magma defined (⟹);
 		.
 	.
 
-interpret and: Magma defined (∧);
-	show: for x y, defined x ⟹ defined y ⟹ defined (x ∧ y);
-		unfold+ defined_def,
+interpret and: Magma decided (∧);
+	show: for x y, decided x ⟹ decided y ⟹ decided (x ∧ y);
+		unfold+ decided_def,
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x],
 			- if [x];
@@ -155,15 +155,15 @@ interpret and: Magma defined (∧);
 		.
 	.
 
-interpret iff: Magma defined (⟺);
-	show: for x y, defined x ⟹ defined y ⟹ defined (x ⟺ y);
+interpret iff: Magma decided (⟺);
+	show: for x y, decided x ⟹ decided y ⟹ decided (x ⟺ y);
 		unfold iff_def,
 		by and.type imp.type.
 	.
 
-interpret or: Magma defined (∨);
-	show: for x y, defined x ⟹ defined y ⟹ defined (x ∨ y);
-		unfold defined_def,
+interpret or: Magma decided (∨);
+	show: for x y, decided x ⟹ decided y ⟹ decided (x ∨ y);
+		unfold decided_def,
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x],
 			- by or_intro1.
@@ -181,47 +181,47 @@ interpret or: Magma defined (∨);
 		.
 	.
 
-interpret PropositionalClassical defined;
-	show: defined true;
-		by or_intro #unfold defined_def.
-	show: defined false;
-		by or_intro not_false #unfold defined_def.
-	show: for x, defined x ⟹ defined (¬ x);
-		unfold+ defined_def,
+interpret PropositionalClassical decided;
+	show: decided true;
+		by or_intro #unfold decided_def.
+	show: decided false;
+		by or_intro not_false #unfold decided_def.
+	show: for x, decided x ⟹ decided (¬ x);
+		unfold+ decided_def,
 		by or_intro nnot_intro #elim or_elim.
-	show: ∀P. (P ⟹ false) ⟹ defined P ⟹ ¬ P;
+	show: ∀P. (P ⟹ false) ⟹ decided P ⟹ ¬ P;
 		by not_intro.
-	show: for P, ¬ P ⟹ P ⟹ defined P ⟹ false;
+	show: for P, ¬ P ⟹ P ⟹ decided P ⟹ false;
 		by not_imp_false(P).
-	show: ∀P Q. P ⟹ Q ⟹ defined P ⟹ defined Q ⟹ P ∧ Q;
+	show: ∀P Q. P ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P ∧ Q;
 		by and_intro.
-	show: ∀P Q. P ∧ Q ⟹ defined P ⟹ defined Q ⟹ P;
+	show: ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ P;
 		by #elim and_elim.
-	show: ∀P Q. P ∧ Q ⟹ defined P ⟹ defined Q ⟹ Q;
+	show: ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ Q;
 		by #elim and_elim.
-	show: ∀P Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ defined P ⟹ defined Q ⟹ P ⟺ Q;
+	show: ∀P Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ decided P ⟹ decided Q ⟹ P ⟺ Q;
 		by iff_intro.
-	show: ∀P Q. (P ⟺ Q) ⟹ P ⟹ defined P ⟹ defined Q ⟹ Q;
+	show: ∀P Q. (P ⟺ Q) ⟹ P ⟹ decided P ⟹ decided Q ⟹ Q;
 		by #elim iff_elim.
-	show: ∀P Q. (P ⟺ Q) ⟹ Q ⟹ defined P ⟹ defined Q ⟹ P;
+	show: ∀P Q. (P ⟺ Q) ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P;
 		by #elim iff_elim.
-	show: ∀P Q. P ⟹ defined P ⟹ defined Q ⟹ P ∨ Q;
+	show: ∀P Q. P ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
 		by or_intro.
-	show: ∀P Q. Q ⟹ defined P ⟹ defined Q ⟹ P ∨ Q;
+	show: ∀P Q. Q ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
 		by or_intro.
-	show: ∀P Q. P ∨ Q ⟹ ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ defined P ⟹ defined Q ⟹ defined R ⟹ R;
+	show: ∀P Q. P ∨ Q ⟹ ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ decided P ⟹ decided Q ⟹ decided R ⟹ R;
 		by #elim or_elim.
-	show: false ⟹ ∀P. defined P ⟹ P;
+	show: false ⟹ ∀P. decided P ⟹ P;
 		by #elim false_elim.
-	show: for P, defined P ⟹ P ∨ ¬ P;
-		unfold defined_def.
+	show: for P, decided P ⟹ P ∨ ¬ P;
+		unfold decided_def.
 	.
 end
 
-thm defined.pierce_law.
+thm decided.pierce_law.
 
-lemma nnot_defined: ¬ ¬ defined x;
-	unfold defined_def,
+lemma nnot_decided: ¬ ¬ decided x;
+	unfold decided_def,
 	by nnot_excluded_middle.
 
 define taut x := true.

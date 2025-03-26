@@ -41,7 +41,7 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 		r_cabs_app = r_cabs_app(lthy.fix(*x));
 	}
 	// proving the existence
-	string thesis = avoid("thesis",[&](string const& x){ return thy.constant(x); });
+	string thesis = avoid("thesis",[&](string_view const& x){ return thy.constant(x); });
 	Ctxt thesis_ctxt = thy.Ctxt::branch();
 	thesis_ctxt.fix(thesis);
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis

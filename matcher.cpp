@@ -6,7 +6,7 @@ Term const DUMMY = "_" /= Term("_");
 
 Renamer avoider(Ctxt& ctxt) {
 	return [&](string_view const& v)->Opt<string>{
-		return avoid(v,[&](string const& x){ return ctxt.constant(x); });
+		return avoid(v,[&](string_view const& x){ return ctxt.constant(x); });
 	};
 }
 class FreshMaker {

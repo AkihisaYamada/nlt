@@ -17,9 +17,6 @@
 #define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << std::endl; } while(0)
 #define DEBval(expr) [&]{ auto ret = (expr); DEB(ret); return ret; }()
 
-#define ALL_char '∀'
-#define IMP_char '⟹'
-
 class Term;
 class Error;
 class Ctxt;
@@ -33,7 +30,7 @@ class Intp;
  * @param var variable to be made fresh
  * @param test avoided names
  */
-std::string avoid(std::string_view const& var, std::function<bool(std::string const&)> const& test);
+std::string avoid(std::string_view const& var, std::function<bool(std::string_view const&)> const& test);
 
 extern std::string const VOID_var;
 extern std::string const IMP;
@@ -79,22 +76,6 @@ class Term {
 	Term(Unbind const& bind) : _un(bind) {}
 public:
 	Term() {}
-	~Term() {
-/*		bool fl = false;
-		if( auto s = std::get_if<std::string>(&_un) ) {
-			fl = s->last();
-		} else if( auto s = std::get_if<App>(&_un) ) {
-			fl = s->last();
-		} else if(  auto s = std::get_if<Abs>(&_un) ) {
-			fl = s->last();
-		} else if(  auto s = std::get_if<Bind>(&_un) ) {
-			fl = s->last();
-		} else {
-		}
-		if( fl ) {
-			std::cerr << "Deleting " << *this << std::endl;
-		}
-*/	}
 	/** @brief Construct a symbol term */
 	Term(std::string_view const& sym) : _un(std::string(sym)) {}
 	/** @brief Construct a symbol term */
@@ -107,7 +88,7 @@ public:
 	Term operator()(Term const& arg) const {
 		return Term(App{*this,arg});
 	}
-	/** @brief abstraction */
+	/** @brief binding */
 	friend Term operator/=(std::string_view const& var, Term const& body) {
 		return Term(Abs{var,body});
 	}
@@ -120,7 +101,7 @@ public:
 	friend Term operator%=(std::string_view const& binder, Term const& val) {
 		return Term(Unbind{binder,val});
 	}
-	/** @brief Copy the string if the term is a symbol. */
+	/** @brief Move the string if the temporary term is a symbol. */
 	Opt<std::string> sym() && {
 		return std::move(_un).ref<std::string>();
 	}
@@ -128,7 +109,7 @@ public:
 	Opt<std::string const&> sym() const & {
 		return _un.ref<std::string>();
 	}
-	/** @brief Copy the function and argument if the term is an application. */
+	/** @brief Move the function and argument if the term is an application. */
 	Opt<Pair> app() && {
 		if( auto const& opt = std::move(_un).ref<App>() ) {
 			return **opt;
@@ -142,7 +123,7 @@ public:
 		}
 		return {};
 	}
-	/** @brief Copy of the variable and body if the term is an abstraction. */
+	/** @brief Move of the variable and body if the term is an abstraction. */
 	Opt<StrTerm> bind() && {
 		if( auto const& opt = std::move(_un).ref<Abs>() ) {
 			return **opt;
@@ -156,7 +137,7 @@ public:
 		}
 		return {};
 	}
-	/** @brief Copy the variable and body if the term is a binding. */
+	/** @brief Move the variable and body if the term is a binding. */
 	Opt<StrTerm> unbind() && {
 		if( auto const& opt = std::move(_un).ref<Unbind>() ) {
 			return **opt;
@@ -174,10 +155,9 @@ public:
 	 * @param b expected binder (quantifier)
 	 */
 	Opt<StrTerm const&> binder( std::string_view const& b ) const & {
-		if( auto opt1 = app() ) {
-			if( opt1->first == b ) {
-				return opt1->second.bind();
-			}
+		if( auto opt1 = app() )
+		if( opt1->first == b ) {
+			return opt1->second.bind();
 		}
 		return {};
 	}
@@ -196,10 +176,9 @@ public:
 	 * @return the argument, if matches
 	 */
 	Opt<Term const&> unary( std::string_view const& f ) const & {
-		if( auto opt = app() ) {
-			if( opt->first == f ) {
-				return opt->second;
-			}
+		if( auto opt = app() )
+		if( opt->first == f ) {
+			return opt->second;
 		}
 		return {};
 	}
@@ -220,10 +199,9 @@ public:
 	 * @return the pair of arguments, in case of match
 	 */
 	Opt<std::pair<Term const&,Term const&>> binary( std::string_view const& f ) const & {
-		if( auto x = app() ) {
-			if( auto a = x->first.unary(f) ) {
-				return {{*a,x->second}};
-			}
+		if( auto x = app() )
+		if( auto a = x->first.unary(f) ) {
+			return {{*a,x->second}};
 		}
 		return {};
 	}
@@ -233,10 +211,9 @@ public:
 	 * @return the pair of arguments, in case of match
 	 */
 	Opt<Pair> binary( std::string_view const& f ) && {
-		if( auto x = app() ) {
-			if( auto a = x->first.unary(f) ) {
-				return {{std::move(*a),std::move(x->second)}};
-			}
+		if( auto x = app() )
+		if( auto a = x->first.unary(f) ) {
+			return {{std::move(*a),std::move(x->second)}};
 		}
 		return {};
 	}
@@ -252,28 +229,17 @@ public:
 		StrMSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
 	}
-	/** @brief Iterates over free symbols
-	 * 
-	 * @param fsym operation applied on free symbols
-	 */
-	void iter_fsyms(
-		std::function<void(std::string_view const&)> const& fsym
-	) const {
-		iter_syms(fsym,[](std::string_view const&){});
-	}
 	/** @brief The set of free symbols */
 	StrSet fsyms() const {
 		StrSet ret;
 		iter_syms([&ret](std::string_view const& fsym){ret.emplace(fsym);});
 		return ret;
 	}
-	bool exists_fsym(std::function<bool(std::string_view const&)> const& test) const {
-		try {
-			iter_syms([&](std::string_view const& v){ if( test(v) ) throw 0; });
-			return false;
-		} catch (int x) {
-			return true;
-		}
+	bool exists_fsym(std::function<bool(std::string_view const&)> const& test) const try {
+		iter_syms([&](std::string_view const& v){ if( test(v) ) throw 0; });
+		return false;
+	} catch (int x) {
+		return true;
 	}
 	bool contains_fsym(std::string_view const& name) const {
 		return exists_fsym([&](auto v){ return v == name; });
@@ -498,10 +464,9 @@ inline size_t Ctxt::revision() const {
 	return _ref->modifiers.size();
 }
 inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
-	if( i < revision() ) {
-		if( auto a = _ref->modifiers[i].ref<_Fix>() ) {
-			return *a;
-		}
+	if( i < revision() )
+	if( auto a = _ref->modifiers[i].ref<_Fix>() ) {
+		return *a;
 	}
 	return {};
 }
@@ -570,10 +535,9 @@ public:
 	 * @return If this is binding, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
 	Opt<StrTerm> cbinder( std::string_view const& b ) const {
-		if( auto app = capp() ) {
-			if( app->first == b ) {
-				return app->second.cabs();
-			}
+		if( auto app = capp() )
+		if( app->first == b ) {
+			return app->second.cabs();
 		}
 		return {};
 	}
@@ -811,9 +775,9 @@ public:
 	 @param tgt the context that interprets src
 	 */
 	 Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
-		if( auto srcParent = src.find_parent() ) {
-			if( !tgt.has_ancestor(*srcParent) ) throw Error("#intp")("unreachable");
-		}
+		if( auto srcParent = src.find_parent() )
+		if( !tgt.has_ancestor(*srcParent) )
+			throw Error("#intp")("unreachable");
 		if( tgt.has_ancestor(src) ) throw Error("#intp")("cyclic");
 	}
 	Ctxt ctxt() {
@@ -904,19 +868,17 @@ inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const {
 	return {};
 }
 inline Opt<Thm> Ctxt::assumed(size_t i) const & {
-	if( i < revision() ) {
-		if( auto a = _ref->modifiers[i].ref<_Assume>() ) {
-			return Thm(CTerm(*this,*a));
-		}
+	if( i < revision() )
+	if( auto a = _ref->modifiers[i].ref<_Assume>() ) {
+		return Thm(CTerm(*this,*a));
 	}
 	return {};
 }
 inline Opt<std::tuple<std::string,Thm,Thm>> Ctxt::obtained(size_t i) const & {
-	if( i < revision() ) {
-		if( auto o = _ref->modifiers[i].ref<_Obtain>() ) {
-			auto const& [sym,thm,spec] = *o;
-			return {{sym,CTerm(*this,thm),CTerm(*this,spec)}};
-		}
+	if( i < revision() )
+	if( auto o = _ref->modifiers[i].ref<_Obtain>() ) {
+		auto const& [sym,thm,spec] = *o;
+		return {{sym,CTerm(*this,thm),CTerm(*this,spec)}};
 	}
 	return {};
 }

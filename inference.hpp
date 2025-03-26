@@ -104,6 +104,12 @@ public:
 		size_t fuel = ctrl.fuel;
 		_blast(fuel,1,ctrl,false,elim_res,0);
 	}
+	Thm blast_all( Ctrl const& ctrl = DEFAULT_CTRL ) & {
+		while( _goals > 0 ) {
+			blast(ctrl);
+		}
+		return _thm;
+	}
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {

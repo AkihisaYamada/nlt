@@ -1,5 +1,3 @@
-base Root.
-
 import PropositionalMinimal.
 
 assume false_elim: false ⟹ ∀P. prop P ⟹ P.

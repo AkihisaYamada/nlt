@@ -2,8 +2,6 @@
 # Type-Free Intuitionistic Logic
 -------
 
-base Root.
-
 import True.
 import False.
 import TypeFreeMinimal.

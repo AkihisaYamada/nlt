@@ -1,5 +1,3 @@
-base Root.
-
 import PropositionalIntuitionistic.
 
 assume excluded_middle: prop P ⟹ P ∨ ¬P.

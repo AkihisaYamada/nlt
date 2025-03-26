@@ -283,6 +283,15 @@ static ostream& mk_indent(ostream& os, size_t n) {
 }
 function<ostream&(ostream&)> const Thy::print_name( Syntax const& syntax ) const& {
 	return [&](ostream& os)->ostream& {
+		list<string> pres;
+		auto p = parent();
+		while(p) {
+			pres.push_front(p->name());
+			p = p->parent();
+		}
+		for( auto& pre : pres ) {
+			os << pre << '.';
+		}
 		os << _ref->name;
 		if( syntax.prints_ctxt() ) {
 			os << '@' << id() << ' ';
@@ -293,11 +302,7 @@ function<ostream&(ostream&)> const Thy::print_name( Syntax const& syntax ) const
 
 function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) const & {
 	return [&](ostream& os)->ostream& {
-		os << "theory " << print_name(syntax);
-		if( parent() ) {
-			os << " <- " << parent()->print_name(syntax);
-		}
-		os << " {" << endl;
+		os << "theory " << print_name(syntax) << " {" << endl;
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {

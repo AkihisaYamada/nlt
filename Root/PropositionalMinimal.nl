@@ -2,8 +2,6 @@
 # Minimal Propositional Logic
 ---
 
-base Root.
-
 ---
 ## Axiomatization
 ---

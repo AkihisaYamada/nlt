@@ -6,14 +6,11 @@ using namespace std;
 string const IMP = "⟹";
 string const ALL = "∀";
 
-string avoid(string_view const& var, function<bool(string const&)> const& test) {
-	string ret(var);
-	if( !test(ret) ) {
-		return ret;
-	}
-	do {
+string avoid(string_view const& var, function<bool(string_view const&)> const& test) {
+	auto ret = string(var);
+	while( test(ret) ) {
 		ret.push_back('\'');
-	} while( test(ret) );
+	}
 	return ret;
 }
 
@@ -262,14 +259,14 @@ CTerm Ctxt::enclose(Term const& t) {
 }
 
 CTerm Ctxt::fix(string_view const& s) {
-	if( fixes(s)) throw Error("#ctxt")("\"double fix\"")(s);
+	if( fixes(s)) throw Error("#ctxt")("\"fixing fixed\"")(s);
 	_ref->modifiers.push_back(_Fix(s));
 	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
 }
 
 pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
-	if( has_constant(sym) ) throw Error("#ctxt")("\"double fix\"")(sym);
+	if( has_constant(sym) ) throw Error("#ctxt")("\"obtaining fixed\"")(sym);
 	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
 	try {
 		auto all1 = thm.binder(ALL);
@@ -306,10 +303,9 @@ pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 
 Opt<Thm> Thm::discharges(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) throw Error("#thm")("\"wrong context discharge\"");
-	if( auto const& imp = cbinary(IMP) ) {
-		if( imp->first == t ) {
-			return Thm(imp->second);
-		}
+	if( auto const& imp = cbinary(IMP) )
+	if( imp->first == t ) {
+		return Thm(imp->second);
 	}
 	return {};
 }
@@ -319,7 +315,7 @@ CTerm CTerm::intro() const {
 		auto check = [&](auto v){
 			if( _ctxt.consts().contains(v) ) { throw Error("#cterm")("\"constant escape\"")(v); }
 		};
-		iter_fsyms(check);
+		iter_syms(check);
 	}
 	auto const& parent = _ctxt.parent();
 	Term stmt = *this;
@@ -402,9 +398,9 @@ Thm Intp::subst(Thm const& thm) const {
 	}
 	if( !obtained.empty() ) {// obtained constant cannot escape
 		auto check = [&](auto v){
-			if( obtained.contains(v) ) { throw Error("#intp")("\"constant escape\"")(v); }
+			if( obtained.contains(v) ) throw Error("#intp")("\"constant escape\"")(v);
 		};
-		ret.iter_fsyms(check);
+		ret.iter_syms(check);
 	}
 	return CTerm(_subst.ctxt(),ret.subst(_subst));
 }

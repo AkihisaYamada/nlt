@@ -2,8 +2,6 @@
 # Type-Free Minimal Logic
 -------
 
-base Root.
-
 import True.
 
 fix false (¬) (∧) (⟺) (∨) (∃).

@@ -19,6 +19,9 @@ DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
 
 .PHONY: core_test util_test
 
+nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
+	${CPP} $^ -o $@
+
 test_core.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DCPP} $^ -o $@
 
@@ -31,11 +34,8 @@ test_util.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 test_util: test_util.exe
 	./$^
 
-nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
-	${CPP} $^ -o $@
-
 test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
-	${CPP} $^ -o $@
+	${DCPP} $^ -o $@
 
 test: test.exe test.nl
 	./test.exe test.nl

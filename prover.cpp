@@ -4,6 +4,8 @@
 #include"parser.hpp"
 #include"definer.hpp"
 
+#define _cout if(_out) cout
+
 using namespace std;
 
 struct ClaimStatus {
@@ -37,7 +39,6 @@ tuple<fstream,string,string,string,string> file_of_thy( string dir, string_view 
 	string path = dir;
 	path+=name;
 	path+=".nl";
-DEB(path);
 	return {fstream(path),parent_dir,dir,string(name),path};
 }
 
@@ -84,6 +85,7 @@ class Prover {
 	Opt<Inference> _thesis;
 	bool _exit_on_error;
 	bool _final = false;
+	bool _out = true;
 	Prover( Prover& parent, Thy const& loc, Opt<Inference> thesis = {} ) :
 		_parent(OptRef<Prover>::make(parent)),
 		_depth(parent._depth),
@@ -92,12 +94,8 @@ class Prover {
 		_parser(parent._parser.get_lexer(),*parent._syntax),
 		_own_parser(false),
 		_thesis(thesis),
-		_exit_on_error(parent._exit_on_error) {
-	}
-	void _error() {
-		if( _exit_on_error ) {
-			exit(-1);
-		}
+		_exit_on_error(parent._exit_on_error),
+		_out(parent._out) {
 	}
 public:
 	struct Error : ::Error {
@@ -119,18 +117,23 @@ public:
 	}
 	Prover& deepen() & {
 		_depth++;
+		_prompt();
 		return *this;
 	}
 	Prover&& deepen() && {
 		_depth++;
+		_prompt();
 		return std::move(*this);
+	}
+	void enter_branch( string_view const& name ) {
+		_thy = _thy.branch(name);
+		_final = false;
 	}
 	void set_exit_on_error( bool b ) {
 		_exit_on_error = b;
 	}
-	Prover branch( string_view const& name ) {
-		auto loc = _thy.branch(name);
-		return Prover( *this, loc, {} );
+	void set_out( bool b ) {
+		_out = b;
 	}
 	Lexer& get_lexer() & {
 		return _parser.get_lexer();
@@ -262,22 +265,13 @@ public:
 		if( ret ) return *ret;
 		throw Error("\"expected symbol\"");
 	}
-	void _flush() {
-		cout << flush;
-	}
-	ostream& _indent() {
-		for( int i = 0; i <= _depth; i++ ) {
-			cout << '>';
+	void _prompt() & {
+		if( _out ) {
+			for( int i = 0; i <= _depth; i++ ) {
+				cout << '>';
+			}
+			cout << ' ' << flush;
 		}
-		return cout << ' ';
-	}
-	Prover& _prompt() & {
-		_indent() << flush;
-		return *this;
-	}
-	Prover&& _prompt() && {
-		_indent() << flush;
-		return std::move(*this);
 	}
 	Opt<CTerm> has_goal() {
 		if( _thesis ) {
@@ -345,18 +339,20 @@ public:
 		return *loc;
 	}
 	void print_goal( string pre = "goal " ) {
-		assert( _thesis );
-		Term acc = _thesis->thm();
-		size_t i = 0;
-		while( i < _thesis->goal_count() ) {
-			auto const& imp = acc.binary(IMP);
-			i++;
-			cout << pre << i << ": " << _syntax->pretty_term(imp->first) << endl;
-			acc = imp->second;
-			pre = "\t";
-		}
-		if( i == 0 ) {
-			cout << "no goal" << endl;
+		if( _out ) {
+			assert( _thesis );
+			Term acc = _thesis->thm();
+			size_t i = 0;
+			while( i < _thesis->goal_count() ) {
+				auto const& imp = acc.binary(IMP);
+				i++;
+				cout << pre << i << ": " << _syntax->pretty_term(imp->first) << endl;
+				acc = imp->second;
+				pre = "\t";
+			}
+			if( i == 0 ) {
+				cout << "no goal" << endl;
+			}
 		}
 	}
 	Thm proof_loop() {
@@ -368,13 +364,13 @@ public:
 	}
 	void for_variables( function<void( string const& v )> act ) {
 		if( _parser.skips("for") ) {
-			cout << "for" << flush;
+			_cout << "for" << flush;
 			while( auto const& sym = gets_sym() ) {
-				cout << ' ' << *sym << flush;
+				_cout << ' ' << *sym << flush;
 				act(*sym);
 			}
 			_parser.skip(",");
-			cout << ", ";
+			_cout << ", ";
 		}
 	}
 	/** Creates a nested theory, where outer one fixes free variables, and 
@@ -386,38 +382,38 @@ public:
 		auto ret = Prover(*this,assm_loc);
 		for_variables([&](auto const& v){ var_loc.fix(v); });
 		if( _parser.skips("if") ) {
-			cout << "if " << flush;
+			_cout << "if " << flush;
 			auto add_assm = [&]( Term const& t ) {
 				return assm_loc.assume(var_loc.enclose(t).weaken(assm_loc));
 			};
 			for(;;) {
 				if( _parser.skips("[") ) {
-					cout << "[ ";
+					_cout << "[ ";
 					for(;;) {
 						auto t = get_term();
-						cout << t;
+						_cout << t;
 						add_forced(assm_loc,add_assm(t),true);
 						if( !_parser.skips(",") ) break;
-						cout << ", ";
+						_cout << ", ";
 					}
 					_parser.skip("]");
-					cout << " ] ";
+					_cout << " ] ";
 				} else {
 					auto [cs,t] = get_assm();
 					add_claim(assm_loc,cs,add_assm(t));
-					cout << cs << _syntax->pretty_term(t) << ", " << flush;
+					_cout << cs << _syntax->pretty_term(t) << ", " << flush;
 				}
 				if( !_parser.skips(",") ) break;
 			};
 			_parser.skip("then");
-			cout << "then ";
+			_cout << "then ";
 		}
 		Term conc = _parser.get_term(0);
 		_parser.skip(";");
 		CTerm goal = var_loc.enclose(conc).weaken(assm_loc);
-		cout << _syntax->pretty_cterm(goal) << endl;
+		_cout << _syntax->pretty_cterm(goal) << endl;
 		ret._thesis = Inference::claim_exact(assm_loc,goal);
-		ret.deepen()._prompt();
+		ret.deepen();
 		return {ret,goal};
 	}
 	void import( bool mod ) {
@@ -446,7 +442,9 @@ public:
 			}
 		}
 		if( _parser.skips(";") ) {
+			_cout << (mod ? "importing " : "interpreting ") << name << endl;
 			_depth++;
+			_prompt();
 			_import_loop(intp,mod);
 			_depth--;
 		} else {
@@ -454,23 +452,25 @@ public:
 			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
 		}
 		if( !intp.ready() ) throw Error("\"failed to interpret\"");
-		cout << (mod ? "imported " : "interpreted ") << name << endl;
+		_cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
 	void _import_loop( Import& intp, bool mod ) {
 		auto org_loc = _thy;
 		_thy = Thy(org_loc,org_loc);// namescope
 		for(;;) try {
-			if( auto x = intp.fixing() ) {
-				cout << "fix " << *x << endl;
-			} else if( auto x = intp.assuming() ) {
-				auto [name,axiom] = *x;
-				cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
-			} else if( auto x = intp.obtaining() ) {
-				cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
-			} else {
-				cout << "Completed" << endl;
+			if( _out ) {
+				if( auto x = intp.fixing() ) {
+					cout << "fix " << *x << endl;
+				} else if( auto x = intp.assuming() ) {
+					auto [name,axiom] = *x;
+					cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
+				} else if( auto x = intp.obtaining() ) {
+					cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
+				} else {
+					cout << "completed" << endl;
+				}
+				_prompt();
 			}
-			_prompt();
 			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
 			} else if( _parser.skips("have") ) {
 				_state();
@@ -502,7 +502,7 @@ public:
 					}
 					auto t = _parser.get_term();
 					intp.instantiate( mod ? org_loc.cterm(t) : org_loc.enclose(t) );
-					cout << "instantiating " << x << " := " << _syntax->pretty_term(t) << endl;
+					_cout << "instantiating " << x << " := " << _syntax->pretty_term(t) << endl;
 					if( !_parser.skips(",") ) break;
 				}
 				_parser.skip(".");
@@ -518,7 +518,7 @@ public:
 					_parser.skip(".");
 					Thm thm = org_loc.add_assm(name,axiom);
 					intp.discharge(thm);
-					cout << "Assumed " << _syntax->pretty_thm(thm) << endl;
+					_cout << "assumed " << _syntax->pretty_thm(thm) << endl;
 				} else {
 					intp.discharge(_subgoal(axiom));
 				}
@@ -563,7 +563,8 @@ public:
 			}
 		} catch( ::Error const& e ) {
 			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e) << endl;
-			_error();
+			if( _exit_on_error ) exit(-1);
+			_prompt();
 		}
 		Inference::Ctrl ctrl;
 		if( _parser.skips("by") ) {
@@ -632,12 +633,12 @@ public:
 	bool _ctxt() {
 		if( _parser.skips("ctxt") ) {
 			if( _parser.skips(".") ) {
-				cout << _thy.pretty(*_syntax) << endl;
+				_cout << _thy.pretty(*_syntax) << endl;
 			} else {
 				string name = _parser.get();
 				_parser.skip(".");
 				auto loc = find_thy(name);
-				cout << loc.pretty(*_syntax) << endl;
+				_cout << loc.pretty(*_syntax) << endl;
 			}
 			return true;
 		}
@@ -648,7 +649,7 @@ public:
 			string pref = "thm ";
 			do {
 				Thm thm = get_thm();
-				cout << pref << _syntax->pretty_thm(thm) << ';' << endl;
+				_cout << pref << _syntax->pretty_thm(thm) << ';' << endl;
 				pref = "\t";
 			} while( !_parser.skips(".") );
 			return true;
@@ -680,10 +681,10 @@ public:
 			auto cs = get_claim_status();
 			auto thm = get_thm();
 			add_claim(_thy,cs,thm);
-			cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
+			_cout << "note " << cs << _syntax->pretty_thm(thm) << endl;
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,cs,*o);
-				cout << "\t" << cs << _syntax->pretty_thm(*o) << endl;
+				_cout << "\t" << cs << _syntax->pretty_thm(*o) << endl;
 			}
 			_parser.skip(".");
 			return true;
@@ -692,7 +693,7 @@ public:
 	}
 	pair<ClaimStatus,Thm> _state() {
 		auto cs = get_claim_status();
-		cout << "Showing " << cs << flush;
+		_cout << "showing " << cs << flush;
 		auto [prover,goal] = get_statement();
 		auto thm = prover.proof_loop().intro().intro();
 		add_claim(_thy,cs,thm);
@@ -716,7 +717,7 @@ public:
 		Thm def = spec << _thy.thm("imp.refl");
 		string name = name_op ? *name_op : f + "_def";
 		_thy.add_thm(name,def);
-		cout << "Defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
+		_cout << "defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 	}
 	Thm _subgoal( CTerm const& goal ) {
 		auto subloc = _thy.branch();
@@ -724,20 +725,25 @@ public:
 		bool needsep = false;
 		if( _parser.skips("for") ) {// instantiate variables as long as names are given
 			needsep = true;
-			cout << "for";
-			subgoal = strip_all(subgoal,subloc,[&](string_view const& v)->Opt<string>{
-				auto o = gets_sym();
-				if( o ) {
-					cout << ' ' << *o;
-				}
-				return o;
-			});
-			_parser.skips(",");
-			cout << ", ";
+			if( _out ) {
+				cout << "for";
+				subgoal = strip_all(subgoal,subloc,[&](string_view const& v){
+					auto o = gets_sym();
+					if( o ) {
+						cout << ' ' << *o;
+					}
+					return o;
+				});
+				_parser.skips(",");
+				cout << ", ";
+			} else {
+				subgoal = strip_all(subgoal,subloc,[&](string_view const& v){ return gets_sym(); });
+				_parser.skips(",");
+			}
 		}
 		if( _parser.skips("if") ) {
 			needsep = true;
-			cout << "if ";
+			_cout << "if ";
 			auto eat_assm = [&]( Opt<Term> const& t ){
 				auto imp = subgoal.cbinary(IMP);
 				if( !imp ) throw Error("\"unexpected assumption\"")(subgoal);
@@ -748,21 +754,21 @@ public:
 			};
 			for(;;) {
 				if( _parser.skips("[") ) {
-					cout << "[ ";
+					_cout << "[ ";
 					for(;;) {
 						auto assm = eat_assm(get_term());
 						add_forced(subloc,assm,true);
-						cout << _syntax->pretty_term(assm);
+						_cout << _syntax->pretty_term(assm);
 						if( !_parser.skips(",") ) break;
-						cout << ", ";
+						_cout << ", ";
 					}
 					_parser.skip("]");
-					cout << " ] ";
+					_cout << " ] ";
 				} else {
 					auto cs = get_claim_status();
 					auto assm = eat_assm(gets_term());
 					add_claim(subloc,cs,assm);
-					cout << cs << _syntax->pretty_term(assm) << ", " << flush;
+					_cout << cs << _syntax->pretty_term(assm) << ", " << flush;
 				}
 				if( !_parser.skips(",") ) break;
 			};
@@ -772,16 +778,14 @@ public:
 				throw Error("\"conclusion mismatch\"")(subgoal);
 			}
 		}
+		auto prover = Prover(*this,subloc,Inference::claim_exact(subloc,subgoal));
+		prover._depth++;
 		if( needsep ) {
 			_parser.skip(";");
-			cout << "show " << _syntax->pretty_cterm(subgoal) << endl;
+			_cout << "show " << _syntax->pretty_cterm(subgoal) << endl;
+			prover._prompt();
 		}
-		auto prover = Prover(*this,subloc,Inference::claim_exact(subloc,subgoal)).deepen();
-		auto ret = prover.proof_loop().intro();
-		if( needsep ) {
-			_prompt();
-		}
-		return ret;
+		return prover.proof_loop().intro();
 	}
 	Opt<Thm> loop() {
 		for(;;) try {
@@ -792,17 +796,18 @@ public:
 					loc.fix(*sym);
 				}
 				if( _parser.skips(":") ) {
-					cout << "Creating theory " << name << endl;
-					Prover(*this,loc).deepen()._prompt().loop();
-					cout << "end theory " << name << endl;
+					_cout << "creating theory " << name << endl;
+					Prover(*this,loc).deepen().loop();
+					_cout << "end theory " << name << endl;
 				}
 			} else if( _parser.skips("namespace") ) {
 				auto name = _parser.get(Parser::Word);
 				_parser.skip("begin");
+				_cout << "creating namespace " << name << endl;
 				auto loc = _thy.branch();
-				Prover(*this,loc).deepen()._prompt().loop();
+				Prover(*this,loc).deepen().loop();
 				_thy.import( name, loc );
-				cout << "end namespace " << name << endl;
+				_cout << "end namespace " << name << endl;
 			} else if( _parser.skips("interpret") ) {
 				import(false);
 			} else if( _ctxt() ) {
@@ -810,9 +815,9 @@ public:
 				string name = _parser.get();
 				_parser.skip("begin");
 				auto loc = find_thy(name);
-				cout << "in context " << name << endl;
+				_cout << "in context " << name << endl;
 				auto sub = Prover(*this,loc).deepen().loop();
-				cout << "left " << name << endl;
+				_cout << "left " << name << endl;
 			} else if( _thm() ) {
 			} else if( _thms() ) {
 			} else if( _term() ) {
@@ -827,44 +832,44 @@ public:
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
 					Thm trans = get_thm();
-					cout << "Registering rewriter:\n\timp: " << _syntax->pretty_thm(imp) <<
+					_cout << "registering rewriter:\n\timp: " << _syntax->pretty_thm(imp) <<
 						"\n\trev: " <<  _syntax->pretty_thm(revimp) <<
 						"\n\trefl: " << _syntax->pretty_thm(refl) <<
-						"\n\ttrans: " << _syntax->pretty_thm(trans) << endl;
+						"\n\ttrans: " << _syntax->pretty_thm(trans);
 					_thy.rewriter().register_refl(refl).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
 					_thy.find_thm( Rewriter::CONG, [&](AThm const& thm ){
 						_thy.rewriter().register_cong(thm);
-						cout << "\n\tcong: " << _syntax->pretty_thm(thm);
+						_cout << "\n\tcong: " << _syntax->pretty_thm(thm);
 						return false;
 					} );
-					cout << endl;
+					_cout << endl;
 				} else if( _parser.skips("refl") ) {
-					cout << "Registering reflexivity: ";
+					_cout << "registering reflexivity: ";
 					while( auto const& thm = gets_thm() ) {
 						_thy.rewriter().register_refl(*thm);
-						cout << _syntax->pretty_thm(*thm);
+						_cout << _syntax->pretty_thm(*thm);
 					}
-					cout << endl;
+					_cout << endl;
 				} else if( _parser.skips("trans") ) {
-					cout << "Registering transitivity: ";
+					_cout << "registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
 						_thy.rewriter().register_trans(*thm);
-						cout << _syntax->pretty_thm(*thm);
+						_cout << _syntax->pretty_thm(*thm);
 					}
-					cout << endl;
+					_cout << endl;
 				} else if( _parser.skips("dual") ) {
-					cout << "Registering dual: ";
+					_cout << "registering dual: ";
 					while( auto const& thm = gets_thm() ) {
 						_thy.rewriter().register_dual(*thm);
-						cout << _syntax->pretty_thm(*thm);
+						_cout << _syntax->pretty_thm(*thm);
 					};
-					cout << endl;
+					_cout << endl;
 				} else if( _parser.skips("define") ) {
 					Thm const& beta = get_thm();
-					cout << " beta: " << _syntax->pretty_thm(beta) << endl;
+					_cout << " beta: " << _syntax->pretty_thm(beta) << endl;
 					_thy.setup_definer(beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& collect = _parser.get_term(1000);
@@ -892,6 +897,7 @@ public:
 					};
 					_syntax->opener("{",-1000,handler);
 					_syntax->closer("}");
+					_cout << "set up set comprehension" << endl;
 				} else if( _parser.skips("print") ) {
 					if( _parser.skips("ctxt_id") ) {
 						_syntax->print_ctxt(true);
@@ -904,7 +910,6 @@ public:
 					print_goal();
 				} else if( _parser.skips("have") ) {
 					_state();
-					print_goal();
 				} else if( _parser.skips("show") ) {
 					auto [cs,thm] = _state();
 					while( _thesis->goal() != thm ) {
@@ -923,12 +928,18 @@ public:
 					auto rules = set<Intro>();
 					get_rules(rules);
 					_thesis->apply(rules,min,max,safe,wide);
+					if( _parser.skips(".") ) {
+						return _thesis->blast_all();
+					}
 					if( _parser.skips(",") ) {
 						print_goal("applied goals:\n\t");
 					}
 				} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
 					auto [rules,ctrl] = _get_rewrite(_thy,dir);
 					_thy.rewriter().apply(rules,*_thesis,ctrl);
+					if( _parser.skips(".") ) {
+						return _thesis->blast_all();
+					}
 					if( _parser.skips(",") ) {
 						print_goal( dir ? "folded goal " : "unfolded goal " );
 					}
@@ -943,15 +954,10 @@ public:
 					Inference::Ctrl ctrl;
 					get_ctrl(ctrl);
 					_parser.skip(".");
-					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast(ctrl);
-					}
-					return _thesis->concluding();
+					return _thesis->blast_all(ctrl);
 				} else if( _parser.skips(".") ) {
-					while( _thesis->goal_count() > 0 ) {
-						_thesis->blast();
-					}
-					return _thesis->concluding();
+					auto thm = _thesis->blast_all();
+					return thm;
 				} else {
 					throw Error("unexpected")(_parser.get());
 				}
@@ -960,10 +966,10 @@ public:
 				_parser.skips("proposition")
 			) {
 				auto [cs,thm] = _state();
-				cout << "proved " << cs << _syntax->pretty_thm(thm) << endl;
+				_cout << "proved " << cs << _syntax->pretty_thm(thm) << endl;
 			} else if( _parser.skips("symbol") ) {
 				bool solo = _parser.skips("solo");
-				cout << "registering symbols";
+				_cout << "registering symbols";
 				while( !_parser.skips(".") ) {
 					string const& sym = _parser.get();
 					int ch = int_of_chars(sym.data());
@@ -972,9 +978,9 @@ public:
 					} else {
 						_syntax->register_multi_op(ch);
 					}
-					cout << ' ' << sym;
+					_cout << ' ' << sym;
 				}
-				cout << endl;
+				_cout << endl;
 			} else if( _parser.skips("prefix") ) {
 				string sym = _parser.get();
 				int rlevel = _parser.get_int();
@@ -982,7 +988,7 @@ public:
 				_parser.skip(".");
 				_make_own_parser();
 				_syntax->prefix(sym,level,rlevel);
-				cout << "New prefix operator " << sym << endl;
+				_cout << "new prefix operator " << sym << endl;
 			} else if( _parser.skips("infix") ) {
 				string sym = _parser.get();
 				int llevel = _parser.get_int();
@@ -991,7 +997,7 @@ public:
 				_parser.skip(".");
 				_make_own_parser();
 				_syntax->infix(sym,level,llevel,rlevel);
-				cout << "New infix operator " << sym << endl;
+				_cout << "new infix operator " << sym << endl;
 			} else if( _parser.skips("binder") ) {
 				string sym = _parser.get();
 				int llevel = _parser.get_int();
@@ -999,7 +1005,7 @@ public:
 				_parser.skip(".");
 				_make_own_parser();
 				_syntax->binder(sym,llevel,rlevel);
-				cout << "New binder " << sym << endl;
+				_cout << "new binder " << sym << endl;
 			} else if( _parser.skips("binder_middle") ) {
 				string prefix = _parser.get();
 				string mid = _parser.get();
@@ -1007,21 +1013,22 @@ public:
 				_parser.skip(".");
 				_make_own_parser();
 				_syntax->binder_mid(prefix,mid,sym);
-				cout << "New binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
+				_cout << "new binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
 			} else if( _parser.skips("end") || _parser.skips("") ) {
 				return {};
 			} else if( !_final ) {
 				if( _parser.skips("fix") ) {
-					cout << "Fixing";
+					_cout << "fixing";
 					for(;;) {
 						if ( auto sym = gets_sym() ) {
-							cout << ' ' << _thy.fix(*sym) << flush;
+							_thy.fix(*sym);
+							_cout << ' ' << *sym << flush;
 						} else {
 							break;
 						}
 					}
 					_parser.skip(".");
-					cout << '.' << endl;
+					_cout << '.' << endl;
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
 					Thy var_loc = _thy.branch();
@@ -1030,13 +1037,13 @@ public:
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
 					_parser.skip(".");
-					cout << "Assumed " << cs << _syntax->pretty_term(assm) << ". " << endl;
+					_cout << "assumed " << cs << _syntax->pretty_term(assm) << ". " << endl;
 				} else if( _parser.skips("import") ) {
 					import(true);
 				} else if( _parser.skips("begin") ) {
 					_parser.skips(".");
 					_final = true;
-					cout << "Finalized" << endl;
+					_cout << "finalized" << endl;
 				} else {
 					throw Error("unexpected")(_parser.get());
 				}
@@ -1046,16 +1053,14 @@ public:
 			_prompt();
 		} catch ( ::Error const& e ) {
 			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e) << endl;
-			_error();
-		} catch ( exception const& e ) {
-			cerr << _parser.location() << ": Other exception: " << e.what() << endl;
-			_error();
+			if( _exit_on_error ) exit(-1);
+			_prompt();
 		}
 	}
 	void _obtain() {
 		string sym = get_sym();
 		_parser.skip("where");
-		cout << "Obtaining " << sym << " where" << endl;
+		_cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<Thm> prop_thms;
 		auto thesis_loc = _thy.branch();
@@ -1070,7 +1075,7 @@ public:
 			add_claim(props_loc,cs,thm);
 			prop_thms.push_back(thm);
 			props.push_back(goal_ctxt.branch().enclose(t).intro());
-			cout << '\t' << cs << _syntax->pretty_term(thm) << endl;
+			_cout << '\t' << cs << _syntax->pretty_term(thm) << endl;
 			if( !_parser.skips(",") ) break;
 		}
 		_parser.skip(";");
@@ -1080,13 +1085,13 @@ public:
 		}
 		goal = goal.lift(thesis_loc.cterm(ALL)) >>= var;
 		goal = goal.lift(_thy.cterm(ALL));
-		_indent();
-		cout << "Prove " << _syntax->pretty_cterm(goal) << endl;
+		_prompt();
+		_cout << "prove " << _syntax->pretty_cterm(goal) << endl;
 		Opt<Inference> bak = _thesis;
-		auto const& thm = Prover(*this,_thy,Inference::claim_exact(_thy,goal)).deepen()._prompt().proof_loop();
+		auto const& thm = Prover(*this,_thy,Inference::claim_exact(_thy,goal)).deepen().proof_loop();
 		auto [sym_term,deriver] = _thy.obtain(sym,thm,make_spec_name(string(sym)));
 		// der: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
-		cout << "Obtained " << sym << endl;
+		_cout << "obtained " << sym << endl;
 		auto& intp = _thy.import("",props_loc);
 		intp.instantiate(sym_term);
 		for( auto const& prop_thm : prop_thms ) {
@@ -1100,16 +1105,14 @@ public:
 		auto [fis,parent_dir,dir,thyname,path] = file_of_thy(parent.dir(),ref);
 		if( !fis.fail() ) {
 			Lexer local_lexer(fis,path,*_syntax);
-			local_lexer.skip("base");
-			auto parent_name = local_lexer.get();
-			local_lexer.skip(".");
-			if( parent_name != parent.name() ) {
-				throw Error("\"parent theory mismatch\"")(parent_name)(parent.name());
+			if( local_lexer.skips("base") ) {
+				local_lexer.get();
+				local_lexer.skip(".");
 			}
-			cout << "Loading " << ref << endl;
-			Prover sub = Prover(*this,parent.branch(ref)).deepen();
+			_cout << "loading " << ref << endl;
+			Prover sub = Prover(*this,parent.branch(ref));
+			sub.set_out(false);
 			sub.set_lexer(local_lexer);
-			sub._indent();
 			sub.loop();
 			return sub._thy;
 		}
@@ -1130,16 +1133,24 @@ private:
 	}
 };
 
-Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& dir, string_view const& name, bool exit_on_error ) try {
+void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_on_error ) {
+	auto fis = fstream("Root.nl");
+	if( !fis ) {
+		cerr << "root theory not found" << endl;
+		exit(-1);
+	}
+	auto base_lexer = Lexer(fis,"Root.nl",*syntax);
+	auto prover = Prover(base_lexer,syntax,true);
+	prover.set_out(false);
+	prover.loop();
+	prover.set_lexer(lexer);
+	cout << "loaded root theory." << endl;
+	prover.set_out(true);
+	prover._prompt();
 	if( lexer.skips("base") ) {
 		string base_ref = lexer.get();
 		string_view view = base_ref;
 		lexer.skip(".");
-		auto fis = fstream("Root/Root.nl");
-		auto base_lexer = Lexer(fis,"Root.nl",*syntax);
-		auto prover = Prover(base_lexer,syntax,true);
-		prover.loop();
-		prover.set_lexer(lexer);
 		for(;;) {
 			auto p = view.find('.');
 			if( p == string::npos ) break;
@@ -1147,14 +1158,12 @@ Prover preload( Lexer& lexer, Ref<Syntax>& syntax, string_view const& dir, strin
 			view = view.substr(p+1);
 		}
 		prover.move_to_thy(prover.find_thy(view));
-		prover.set_exit_on_error(exit_on_error);
-		return prover;
-	} else {
-		return Prover(lexer,syntax,exit_on_error);
+		cout << "moving to " << name << endl;
+		prover._prompt();
 	}
-} catch( Error const& e ) {
-	cerr << lexer.location() << ": ERROR: " << syntax->pretty_term(e) << endl;
-	exit(-1);
+	prover.enter_branch(name);
+	prover.set_exit_on_error(exit_on_error);
+	prover.loop();
 }
 
 int main(int argc, char* argv[]) {
@@ -1163,12 +1172,12 @@ int main(int argc, char* argv[]) {
 	bool exit_on_error = false;
 	if( argc == 1 ) {
 		Lexer lexer(cin,"stdin",*syntax);
-		preload(lexer,syntax,"stdin","Root/",false).loop();
+		run(lexer,syntax,"#stdin",false);
 	} else {
 		string name = argv[1];
 		auto fin = fstream(name);
 		Lexer lexer(fin,name,*syntax);
-		preload(lexer,syntax,"Root/",name,true).loop();
+		run(lexer,syntax,name,true);
 	}
 	cout << "bye!" << endl;
 	return 0;

@@ -136,7 +136,7 @@ function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const 
 }
 
 function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
-	return [this,ctxt](ostream& os) -> ostream& {
+	return [this,ctxt](ostream& os)->ostream& {
 		function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
 			os << pretty_term(t);
 		};
