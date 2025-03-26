@@ -321,22 +321,32 @@ public:
 		}
 	}
 	Thy find_thy( string_view name ) {
-		auto loc = _thy.find_thy(name);
-		if( !loc ) {
-			auto thy = _thy;
-			while( name[0] == '.' ) {
-				name = name.substr(1);
-				auto p = thy.parent();
-				if( !p ) throw Error("no more ancestor");
-				thy = *p;
+		if( auto o = _thy.find_thy(name) ) {
+			return *o;
+		}
+		auto thy = _thy;
+		while( name[0] == '.' ) {
+			name = name.substr(1);
+			auto p = thy.parent();
+			if( !p ) throw Error("no more ancestor");
+			thy = *p;
+		}
+		for(;;) {
+			auto i = name.find('.');
+			if( i == string::npos ) break;
+			auto cur = name.substr(0,i);
+			if( auto o = thy.find_thy(cur,false) ) {
+				thy = *o;
+			} else {
+				thy = load_thy(thy,cur);
 			}
-			load_thy(thy,name);
-			loc = thy.find_thy(name);
+			name = name.substr(i+1);
 		}
-		if( !loc ) {
-			throw Error((string("\"unknown theory ") += name) + "\"");
+		if( auto o = thy.find_thy(name,false) ) {
+			return *o;
+		} else {
+			return load_thy(thy,name);
 		}
-		return *loc;
 	}
 	void print_goal( string pre = "goal " ) {
 		if( _out ) {
@@ -958,6 +968,9 @@ public:
 				} else if( _parser.skips(".") ) {
 					auto thm = _thesis->blast_all();
 					return thm;
+				} else if( _parser.skips("") ) {
+					cerr << _parser.location() << ": Unexpected EOF" << endl;
+					exit(0);
 				} else {
 					throw Error("unexpected")(_parser.get());
 				}

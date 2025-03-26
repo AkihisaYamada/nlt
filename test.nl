@@ -1,4 +1,4 @@
-base Lambda.Logic.Const.
+base Lambda.Logic.Collection.
 
 -----
 ## Classes
@@ -10,11 +10,11 @@ base Lambda.Logic.Const.
 
 define prop P := P ∨ ¬P.
 
-show prop.intro1: P ⟹ prop P.
+lemma prop.intro1: P ⟹ prop P.
 	assume P: P.
 	by eq_prop2[OF prop.def or_intro1[OF P]].
 
-show prop.intro2: P = false ⟹ prop P.
+lemma prop.intro2: P = false ⟹ prop P.
 	assume nP: ¬P.
 	by eq_prop2[OF prop.def or_intro2[OF nP]].
 

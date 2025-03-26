@@ -302,16 +302,20 @@ function<ostream&(ostream&)> const Thy::print_name( Syntax const& syntax ) const
 
 function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) const & {
 	return [&](ostream& os)->ostream& {
-		os << "theory " << print_name(syntax) << " {" << endl;
+		os << "theory " << print_name(syntax) << ":" << endl;
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {
-				mk_indent(os,n) << "fixes " << *str << endl;
+				mk_indent(os,n) << "fixes " << *str << '.' << endl;
 			} else if( auto assm = assumed(i) ) {
-				mk_indent(os,n) << "assumes " << syntax.pretty_thm(*assm) << endl;
+				mk_indent(os,n) << "assumes ";
+				if( auto name = find_assm_name(i) ) {
+					cout << *name << ": ";
+				}
+				cout << syntax.pretty_thm(*assm) << '.' << endl;
 			} else if( auto obt = obtained(i) ) {
 				auto [sym,ex,spec] = *obt;
-				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(spec) << endl;
+				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(spec) << '.' << endl;
 			} else {
 				assert(false);
 			}
@@ -320,13 +324,13 @@ function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) c
 			mk_indent(os,n) << "interprets" << ( imp.ready() ? " " : "[not ready]" ) << name << ": " << imp.source().print_name(syntax) << "..." << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
-			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << ';' << endl;
+			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << '.' << endl;
 		}
-		for( auto& [name,loc] : _ref->thys ) {
-			mk_indent(os,n) << loc.pretty(syntax,n) << endl;
+		for( auto& [name,thy] : _ref->thys ) {
+			mk_indent(os,n) << thy.pretty(syntax,n) << endl;
 		}
 		n--;
-		return mk_indent(os,n) << "}";
+		return mk_indent(os,n) << "end";
 	};
 }
 function<ostream&(ostream&)> Thy::print_thms( string_view const& name, Syntax const& syntax, string_view const& prefix ) const& {
