@@ -128,7 +128,7 @@ lemma imp_true_iff: (P ⟹ true) ⟺ true;
 lemma true_iff_iff: (true ⟺ P) ⟺ P;
 	apply iff_intro,
 	- if P1: true ⟺ P;
-		by #fold P1.
+		fold P1.
 	- if P: P;
 		by #unfold iff_true[OF P].
 	.

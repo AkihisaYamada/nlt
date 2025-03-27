@@ -54,13 +54,13 @@ public:
 		TheoremNotFound(std::string_view const& name) :
 			Error(Term("#theorem_not_found")(name)) {}
 	};
-	Thy( std::string_view const& name );
+	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** make context as theory */
-	Thy( Thy const& loc, Ctxt const& ctxt );
+	Thy( Thy const& parent, Ctxt const& ctxt, std::string_view const& name, std::string_view const& dirname );
 	/** Creates an anonymous branch theory. */
 	Thy branch() const;
 	/** Creates a named branch. */
-	Thy branch(std::string_view const& name);
+	Thy branch( std::string_view const& name, std::string_view const& dirname );
 	std::string const& name() const &;
 	auto name() && = delete;
 	/** Obtains the parent theory. */
@@ -153,6 +153,9 @@ public:
 	Thy& target() & {
 		return _tgt;
 	}
+	Thy const& target() const & {
+		return _tgt;
+	}
 	/** automatic instantiation */
 	bool instantiates( bool mod = false ) {
 		if( auto v = fixing() ) {
@@ -214,6 +217,9 @@ public:
 	AThm subst( AThm const& thm ) const {
 		return AThm(_tgt,Intp::subst(thm));
 	}
+	/** Pretty printer for import */
+	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
+	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {

@@ -811,6 +811,10 @@ public:
 		}
 		return {};
 	}
+	auto subst() && = delete;
+	CSubst const& subst() const& {
+		return _subst;
+	}
 	/** @brief instantiates a theorem. */
 	Thm subst(Thm const& thm) const;
 	/** @brief (limited) instantiates a context. */

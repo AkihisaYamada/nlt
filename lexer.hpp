@@ -102,10 +102,9 @@ public:
 			return false;
 		}
 	}
-	void skip( std::string_view token ) {
-		if( !skips(token) ) {
-			throw SyntaxError(peek_token())(token);
-		}
+	void skip( std::string_view exp ) {
+		auto real = get();
+		if( real != exp ) throw SyntaxError(exp)(real);
 	}
 	template<typename T, typename... U>
 	T cases(

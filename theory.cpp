@@ -12,24 +12,20 @@ struct Thy::_Body {
 	multimap<string,Import,less<>> imports;
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
-	_Body( string_view const& name ) : name(name), dir(name), rewriter(Mem<Rewriter>::make()) {
-		dir += '/';
-	}
-	_Body( Thy const& parent, string_view const& name ) : parent(parent), name(name), dir(parent._ref->dir), rewriter(parent._ref->rewriter), definer(parent._ref->definer) {
-		(dir += name) += '/';
-	}
+	_Body( string_view const& name, string_view const& dirname ) : name(name), dir(dirname), rewriter(Mem<Rewriter>::make()) {}
+	_Body( Thy const& parent, string_view const& name, string_view const& dir_name ) : parent(parent), name(name), dir(parent._ref->dir+dir_name), rewriter(parent._ref->rewriter), definer(parent._ref->definer) {}
 };
 
-Thy::Thy( string_view const& name ) : _ref(Ref<_Body>::make(name)) {};
+Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname)) {};
 
-Thy::Thy( Thy const& parent, Ctxt const& ctxt ) :
-	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,"")) {}
+Thy::Thy( Thy const& parent, Ctxt const& ctxt, string_view const& name, string_view const& dirname ) :
+	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,name,dirname)) {}
 
 Thy Thy::branch() const {
-	return Thy(Ref<_Body>::make(*this,""), Ctxt::branch());
+	return Thy(Ref<_Body>::make(*this,"",""), Ctxt::branch());
 }
-Thy Thy::branch( string_view const& name ) {
-	auto const& loc = Thy(Ref<_Body>::make(*this,name), Ctxt::branch());
+Thy Thy::branch( string_view const& name, string_view const& dirname ) {
+	auto const& loc = Thy(Ref<_Body>::make(*this,name,dirname), Ctxt::branch());
 	_ref->thys.emplace(name,loc);
 	return loc;
 }
@@ -202,6 +198,9 @@ Opt<Thy> Thy::find_thy(string_view const &name, bool ancestor) const {
 		if( !p ) throw ThyNotFound(".");
 		return p->find_thy(name.substr(1));
 	}
+	if( name == _ref->name ) {
+		return *this;
+	}
 	if( auto ret = _ref->thys.finds(name) ) {
 		return ret->second;
 	}
@@ -302,7 +301,11 @@ function<ostream&(ostream&)> const Thy::print_name( Syntax const& syntax ) const
 
 function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) const & {
 	return [&](ostream& os)->ostream& {
-		os << "theory " << print_name(syntax) << ":" << endl;
+		if( name() == "" ) {
+			os << endl;
+		} else {
+			os << "theory " << print_name(syntax) << ":" << endl;
+		}
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {
@@ -321,7 +324,7 @@ function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) c
 			}
 		}
 		for( auto& [name,imp] : _ref->imports ) {
-			mk_indent(os,n) << "interprets" << ( imp.ready() ? " " : "[not ready]" ) << name << ": " << imp.source().print_name(syntax) << "..." << endl;
+			mk_indent(os,n) << "interprets " << name << ": " << imp.pretty(syntax) << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
 			mk_indent(os,n) << "thm " << name << ": " << syntax.pretty_thm(thm.first) << '.' << endl;
@@ -341,5 +344,24 @@ function<ostream&(ostream&)> Thy::print_thms( string_view const& name, Syntax co
 		};
 		find_thm(name,fun);
 		return os;
+	};
+}
+function<ostream&(ostream&)> const Import::pretty(Syntax const& syntax, size_t indent) const & {
+	return [&]( ostream& os )->ostream& {
+		if( _src.name() == "" ) {
+			return os << _src.pretty(syntax,indent+1);
+		}
+		os << _src.name();
+		if( !ready() ) {
+			os << "[not ready]";
+		}
+		string punc = "; ";
+		for( auto [sym,term] : Intp::subst().map() ) {
+			if( term ) {
+				os << punc << sym << " := " << syntax.pretty_term(*term);
+				punc = ", ";
+			}
+		}
+		return os << '.';
 	};
 }
