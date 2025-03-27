@@ -1,0 +1,111 @@
+---
+# Equality
+---
+
+fix (=).
+
+import eq: MetaReflexive (=).
+
+assume eq_imp_meta: for X, y = z ⟹ X.[y] ⟹ X.[z].
+
+begin -- Above are the all axioms.
+
+note! eq.refl.
+
+interpret eq: MetaSymmetric (=);
+	- for x y, if xy: x = y then y = x;
+		by eq_imp_meta(z. z = x)[OF xy eq.refl].
+	.
+
+interpret eq: MetaTransitive (=);
+	- for x y z, if xy: x = y, yz: y = z then x = z;
+		by eq_imp_meta(w. x = w)[OF yz xy].
+	.
+
+interpret eq: MetaEquivalence (=).
+
+lemma eq_prop1: if PQ: P = Q, P: P then Q;
+	by eq_imp_meta(x. x)[OF PQ P].
+
+lemma eq_prop2: if PQ: P = Q, Q: Q then P;
+	by eq_prop1[OF eq.sym[OF PQ] Q].
+
+setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
+setup dual eq.sym.
+
+lemma eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y];
+	by eq_imp_meta(z. α.[x] = α.[z])[OF xy eq.refl].
+
+lemma arg_cong: if xy: x = y then f x = f y;
+	by eq_cong_meta(z. f z)[OF xy].
+
+lemma fun_cong: if fg: f = g then f x = g x;
+	by eq_cong_meta(h. h x)[OF fg].
+
+lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
+	have 1: f x = f y;
+		by arg_cong[OF xy].
+	have 2: f y = g y;
+		by fun_cong[OF fg].
+	by eq.trans[OF 1 2].
+
+theory TwoValued:
+	assume imp_imp_eq: P ⟹ Q ⟹ P = Q.
+	assume imp_eq: P ⟹ (P ⟹ Q) = Q.
+end
+
+theory TwoValuedTrue:
+	import True.
+	import TwoValued.
+begin
+	lemma eq_true: if P: P then P = true;
+		by imp_imp_eq[OF P true_intro].
+	lemma true_eq: if P: P then true = P;
+		unfold eq_true[OF P].
+	lemma eq_refl_eq_true: (x = x) = true;
+		by eq_true[OF eq.refl].
+	lemma weaken_eq: (P ⟹ Q ⟹ P) = true;
+		by eq_true[OF weaken].
+	lemma imp_true_eq: (P ⟹ true) = true;
+		by eq_true[OF weaken[OF true_intro]].
+	lemma true_imp_eq: (true ⟹ P) = P;
+		by imp_eq[OF true_intro].
+	interpret imp: MetaLeftNeutral (⟹) true (=);
+		- for P;
+			apply+ imp_eq true_intro.
+		.
+	interpret imp: MetaRightAbsorb (⟹) true (=);
+		- for P;
+			by eq_true true_intro.
+		.
+end
+
+theory MetaInjective:
+	fix f.
+	assume inj: f x = f x' ⟹ x = x'.
+end
+
+theory MetaInverse:
+	fix f f⁻.
+	assume inverse: f⁻ (f x) = x.
+begin
+	interpret MetaInjective;
+		- for x x', if eq: f x = f x';
+			have 1: f⁻ (f x) = f⁻ (f x');
+				unfold eq.
+			by 1[unfolded inverse].
+		.
+end
+
+theory Pair:
+	fix Pair fst snd.
+	assume fst: fst (Pair x y) = x.
+	assume snd: snd (Pair x y) = y.
+begin
+	interpret Pair: MetaInjective Pair;
+		- for x x', if eq: Pair x = Pair x' then x = x';
+			have 1: fst (Pair x x) = fst (Pair x' x);
+				unfold eq.
+			by 1[unfolded fst].
+		.
+end
