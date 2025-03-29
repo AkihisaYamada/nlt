@@ -1,4 +1,4 @@
-base Lambda.Logic.Collection.
+base QuantifiedIntuitionistic.NegativeTranslation.
 
 -----
 ## Classes

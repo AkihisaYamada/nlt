@@ -1,7 +1,7 @@
 ------
 # Gödel―Gentzen Negative Translation
 ------
-base TypedIntuitionisticLogic.
+base QuantifiedIntuitionistic.
 
 ----
 The intuitionistic logic can prove theorems of the classical logic after a double-negation translation.
@@ -134,23 +134,25 @@ interpret image_nnot: ClassicalLogic;
 			apply all_elim[OF an],
 			by not_imp_false(α.[x]).
 		.
-	- for ι α P,
-	  if 1: nnot_ex ι (x. α.[x]),
-		all: (∀x. α.[x] ⟹ ι x ⟹ P), ta! ∀x. ι x ⟹ image_nnot α.[x], tP! image_nnot P
-	  then P;
-		fold tP[unfolded image_nnot_iff],
-		apply not_intro,
-		- if nP: ¬P;
-			have 2: ¬(∀x:ι. ¬α.[x]);
-				by 1[unfolded nnot_ex_iff].
-			apply not_elim[OF 2],
-			apply all_intro,
-			- for x, if [ι x] then ¬ α.[x];
-				apply not_intro,
-				- if ax: α.[x];
-					have P: P;
-						by all[OF ax].
-					by not_imp_false[OF nP P].
+	- for ι α, if 1: nnot_ex ι (x. α.[x]);
+		- for P, if all: (∀x. α.[x] ⟹ ι x ⟹ P),
+			ta! ∀x. ι x ⟹ image_nnot α.[x],
+			tP! image_nnot P
+		  then P;
+			fold tP[unfolded image_nnot_iff],
+			apply not_intro,
+			- if nP: ¬P;
+				have 2: ¬(∀x:ι. ¬α.[x]);
+					by 1[unfolded nnot_ex_iff].
+				apply not_elim[OF 2],
+				apply all_intro,
+				- for x, if [ι x] then ¬ α.[x];
+					apply not_intro,
+					- if ax: α.[x];
+						have P: P;
+							by all[OF ax].
+						by not_imp_false[OF nP P].
+					.
 				.
 			.
 		.

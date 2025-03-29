@@ -216,20 +216,6 @@ theory TypedBinder:
 	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x])).
 end
 
-theory TypedForAll:
-	fix prop (∀:).
-	import all: TypedBinder prop (∀:).
-	assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
-	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ α.[x].
-end
-
-theory TypedExists:
-	fix prop (∃:).
-	import ex: TypedBinder prop (∃:).
-	assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
-	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ P.
-end
-
 theory Magma:
 	fix mem (+).
 	import Binary (+) mem mem mem.

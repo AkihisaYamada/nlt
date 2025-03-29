@@ -1,9 +1,6 @@
 ------
 # Typed Intuitionistic Logic
 ------
-
-base Root.
-
 import QuantifiedMinimal.
 import PropositionalIntuitionistic.
 

@@ -1,8 +1,15 @@
+fix prop true false (¬) (∧) (∨) (⟺) (∀:) (∃:).
+
 import PropositionalMinimal.
 
-import TypedForAll.
+import all: TypedBinder prop (∀:).
+assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
+assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ι x ⟹ α.[x].
 
-import TypedExists.
+import ex: TypedBinder prop (∃:).
+assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
+assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹
+	(∀x. ι x ⟹ prop α.[x]) ⟹ prop P ⟹ P.
 
 begin
 
@@ -86,17 +93,19 @@ lemma all_imp_iff_ex: if ! prop P, ! ∀x. ι x ⟹ prop α.[x] then
 	(∀x:ι. α.[x] ⟹ P) ⟺ (∃x:ι. α.[x]) ⟹ P;
 	apply iff_intro,
 	- if imp: ∀x:ι. α.[x] ⟹ P, ex: ∃x:ι. α.[x];
-		obtain x where ax: α.[x], ! ι x;
-			- for thesis, if assm:;
-				by ex_elim[OF ex assm].
-			.
-		by all_elim1[OF imp](x) ax.
+		apply ex_elim[OF ex],
+		- for x, if ax: α.[x], ! ι x;
+			by all_elim1[OF imp](x) ax.
+		.
 	- if imp: (∃x:ι. α.[x]) ⟹ P;
 		apply all_intro,
 		- for x, if !, ax: α.[x];
 			by imp ex_intro1[OF ax].
 		.
 	.
+
+lemma nex_false: ¬(∃x:ι. false);
+	by not_intro #elim ex_elim.
 
 
 ---
