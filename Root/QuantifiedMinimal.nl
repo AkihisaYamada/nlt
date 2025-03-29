@@ -81,6 +81,13 @@ lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 		.
 	.
 
+lemma ex_cong#cong: for α,
+	if aa': ∀x. ι x ⟹ (α.[x] ⟺ α'.[x]),
+		! ∀x. ι x ⟹ prop α.[x],
+		! ∀x. ι x ⟹ prop α'.[x]
+	then (∃x:ι. α.[x]) ⟺ (∃x:ι. α'.[x]);
+	unfold ex_iff aa'.
+
 lemma ex_imp_all_imp:
 	if ex: ∃x:ι. α.[x] ⟹ P, all: ∀x:ι. α.[x], ! prop P, ! ∀x. ι x ⟹ prop α.[x]
 	then P;

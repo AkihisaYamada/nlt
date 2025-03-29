@@ -1,4 +1,4 @@
-base TypedIntuitionisticLogic.
+base QuantifiedIntuitionistic.
 
 import ..Nat.
 

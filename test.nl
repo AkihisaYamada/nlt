@@ -1,4 +1,4 @@
-base QuantifiedIntuitionistic.NegativeTranslation.
+base QuantifiedIntuitionistic.Nat.
 
 -----
 ## Classes
