@@ -199,7 +199,7 @@ bool Inference::_blast(
 					}
 // apply elimination result
 					bool suc = thesis._apply(elim_res[elim_res_ind],g);
-					assert(suc);
+					if( !suc ) throw Error("\"malformed elim result\"")(elim_res[elim_res_ind].thm());
 					elim_res_ind++;
 					if( suc ) break;
 				}
