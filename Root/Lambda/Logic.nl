@@ -9,7 +9,6 @@ begin
 ----
 ## Defining Logical Constructs
 ----
-
 define true := ∀P. P ⟹ P.
 define false := ∀P. P.
 define[not_def] ¬ P := P ⟹ false.

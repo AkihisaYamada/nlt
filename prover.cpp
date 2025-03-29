@@ -76,6 +76,7 @@ class Prover {
 	bool _exit_on_error;
 	bool _final = false;
 	bool _out = true;
+	bool _out_load = false;
 	Prover( Prover& parent, Thy const& loc ) :
 		_depth(parent._depth),
 		_thy(loc),
@@ -83,7 +84,8 @@ class Prover {
 		_parser(parent._parser.get_lexer(),*parent._syntax),
 		_own_parser(false),
 		_exit_on_error(parent._exit_on_error),
-		_out(parent._out) {
+		_out(parent._out),
+		_out_load(parent._out_load) {
 	}
 public:
 	struct Error : ::Error {
@@ -120,8 +122,9 @@ public:
 	void set_exit_on_error( bool b ) {
 		_exit_on_error = b;
 	}
-	void set_out( bool b ) {
-		_out = b;
+	void set_out( bool out, bool out_load ) {
+		_out = out;
+		_out_load = out_load;
 	}
 	Lexer& get_lexer() & {
 		return _parser.get_lexer();
@@ -1169,7 +1172,7 @@ DEB(path);
 			}
 			cout << endl;
 			auto sub = Prover(*this,base.branch(name,dir));
-			sub.set_out(false);
+			sub.set_out(_out_load,_out_load);
 			sub.set_lexer(local_lexer);
 			sub.loop();
 			return sub._thy;
@@ -1191,17 +1194,17 @@ private:
 	}
 };
 
-void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_on_error ) try {
+void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_on_error, bool out, bool load_out ) try {
 	auto fis = fstream("Root.nl");
 	if( !fis ) throw Error("\"Root not found\"");
 	auto base_lexer = Lexer(fis,"Root.nl",*syntax);
 	auto prover = Prover(base_lexer,syntax,true);
-	prover.set_out(false);
+	prover.set_out(load_out,load_out);
 	prover.loop();
 	prover.set_lexer(lexer);
 	cout << "loaded root theory." << endl;
 	auto base = prover.thy();
-	prover.set_out(true);
+	prover.set_out(out,load_out);
 	prover._prompt();
 	if( lexer.skips("base") ) {
 		string base_ref = lexer.get();
@@ -1232,12 +1235,12 @@ int main(int argc, char* argv[]) {
 	bool exit_on_error = false;
 	if( argc == 1 ) {
 		Lexer lexer(cin,"stdin",*syntax);
-		run(lexer,syntax,"#stdin",false);
+		run(lexer,syntax,"#stdin",false,true,false);
 	} else {
 		string name = argv[1];
 		auto fin = fstream(name);
 		Lexer lexer(fin,name,*syntax);
-		run(lexer,syntax,name,true);
+		run(lexer,syntax,name,true,true,true);
 	}
 	cout << "bye!" << endl;
 	return 0;

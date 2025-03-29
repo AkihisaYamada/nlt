@@ -259,7 +259,7 @@ CTerm Ctxt::enclose(Term const& t) {
 }
 
 CTerm Ctxt::fix(string_view const& s) {
-	if( fixes(s)) throw Error("#ctxt")("\"fixing fixed\"")(s);
+	if( has_constant(s) ) throw Error("#ctxt")("\"fixing fixed\"")(s);
 	_ref->modifiers.push_back(_Fix(s));
 	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
@@ -333,13 +333,18 @@ CTerm CTerm::intro() const {
 	}
 	return CTerm(parent,stmt);
 }
-Opt<CTerm::StrTerm> CTerm::cabs() const {
+Opt<CTerm::StrTerm> CTerm::cbind() const {
 	if( auto tabs = Term::bind() ) {
 		string const& var = tabs->first;
 		Term const& body = tabs->second;
 		Ctxt loc = _ctxt.branch();
-		loc.fix(var);
-		return StrTerm(var,CTerm(loc,body));
+		if( _ctxt.has_constant(var) ) {
+			auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
+			return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
+		} else {
+			loc.fix(var);
+			return {{var,CTerm(loc,body)}};
+		}
 	} else {
 		return {};
 	}

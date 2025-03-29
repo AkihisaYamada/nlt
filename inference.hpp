@@ -100,7 +100,8 @@ public:
 	/** @brief Discharge goal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw NoGoal;
-		if( !_discharges(thm) ) throw Error("\"not exact\"")(goal())(thm);
+		_thm = _thm.discharge(thm);
+		_goals--;
 	}
 	void elim( std::set<Elim> const& elims ) &;
 	bool blasts( Ctrl const& ctrl = DEFAULT_CTRL ) & {

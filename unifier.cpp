@@ -137,7 +137,7 @@ private:
 				unify_rfix(l,*vsym,rarg);
 				avoids[0].erase(y);
 				return;
-			} else if( auto vabs = val->cabs() ) {
+			} else if( auto vabs = val->cbind() ) {
 				avoids[0].insert(y);// this ths cannot be unified with lhs containing y
 				unify2(l,val->inst(rarg));
 				avoids[0].erase(y);
@@ -163,9 +163,9 @@ private:
 				return;
 			}
 			throw Mismatch();
-		} else if( auto labs = l.cabs() ) {
+		} else if( auto labs = l.cbind() ) {
 			auto const& [x,lbody] = *labs;
-			if( auto rabs = r.cabs() ) {
+			if( auto rabs = r.cbind() ) {
 				// both are abstraction.
 				auto const& [y,rbody] = *rabs;
 				bvars[0].push_back(x);
@@ -203,7 +203,7 @@ private:
 			avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
 			if( auto vsym = xval->sym() ) {
 				unify_lfix(*vsym,larg,r);
-			} else if( auto vabs = xval->cabs() ) {
+			} else if( auto vabs = xval->cbind() ) {
 				unify(xval->inst(larg),r);
 			} else {
 				throw Mismatch();
@@ -245,7 +245,7 @@ private:
 			avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
 			if( auto vsym = val->sym() ) {
 				unify_fixes(x,larg,*vsym,rarg);
-			} else if( auto vabs = val->cabs() ) {
+			} else if( auto vabs = val->cbind() ) {
 				unify_lfix2(x,larg,val->inst(rarg));
 			} else {
 				throw Mismatch();

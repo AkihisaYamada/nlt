@@ -6,7 +6,7 @@
 ## Axiomatization
 ---
 
-fix prop true false (¬) (∧) (⟺) (∨).
+fix prop true false (¬) (∧) (∨) (⟺).
 
 import true: Member prop true.
 assume true_intro! true.

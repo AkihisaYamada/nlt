@@ -165,7 +165,7 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 }
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const {
-	auto const& abs = source.cabs();
+	auto const& abs = source.cbind();
 	assert(abs);
 	CTerm body = abs->second;
 	auto subthy = Thy(thy,body.ctxt(),"","");
@@ -241,7 +241,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 }
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) const {
-	auto const& abs = source.cabs();
+	auto const& abs = source.cbind();
 	assert(abs);
 	CTerm const& body = abs->second;
 	if( auto const& eq = _step(rules,thy,body,ind,pos_it,pos_end) ) {

@@ -556,7 +556,7 @@ lemma all_imp_iff_ex: (∀x. α.[x] ⟹ P) ⟺ (∃x. α.[x]) ⟹ P;
 	apply iff_intro,
 	- if imp: ∀x. α.[x] ⟹ P, ex: ∃x. α.[x];
 		obtain x where ax: α.[x];
-			- for P; apply ex[unfolded ex_iff](P)=.
+			- for thesis; apply ex[unfolded ex_iff](thesis)=.
 			.
 		by imp[OF ax].
 	- if imp: (∃x. α.[x]) ⟹ P;

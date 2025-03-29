@@ -518,7 +518,7 @@ public:
 	 * 
 	 * @return If this is an abstraction, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
-	Opt<StrTerm> cabs() const;
+	Opt<StrTerm> cbind() const;
 	/** @brief Decompose closed fix
 	 * returns tuple of string, closed term of the variable, and the argument
 	 */
@@ -537,7 +537,7 @@ public:
 	Opt<StrTerm> cbinder( std::string_view const& b ) const {
 		if( auto app = capp() )
 		if( app->first == b ) {
-			return app->second.cabs();
+			return app->second.cbind();
 		}
 		return {};
 	}

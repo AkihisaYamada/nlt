@@ -4,7 +4,7 @@
 
 base Root.
 
-import TypedMinimalLogic.
+import QuantifiedMinimal.
 import PropositionalIntuitionistic.
 
 begin

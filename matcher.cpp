@@ -41,7 +41,7 @@ Opt<std::string> virtual_var( CTerm const& t ) {
 	if( auto sym = t.sym() ) {
 		return *sym;
 	}
-	if( auto abs = t.cabs() )
+	if( auto abs = t.cbind() )
 	if( auto fix = abs->second.cfix() ) {
 		auto [v,_,arg] = *fix;
 		return v;
@@ -102,8 +102,8 @@ struct Matcher {
 					match(app->second,app2->second);
 			}
 			return false;
-		} else if( auto const& abs = pat.cabs() ) {
-			if( auto const& abs2 = val.cabs() ) {
+		} else if( auto const& abs = pat.cbind() ) {
+			if( auto const& abs2 = val.cbind() ) {
 				string const& x = abs->first;
 				string const& y = abs2->first;
 				auto const& lind_info = linds.insert({x,depth});
