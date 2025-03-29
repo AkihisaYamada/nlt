@@ -90,7 +90,7 @@ void subst_intp( Intp& intp, Subst& subst );
  * @param arg φθ
  * @return ∀y... ψθ
  */
-Opt<Thm> match_discharge( Thm const& imp, Thm const& arg );
+Thm match_discharge( Thm const& imp, Thm const& arg );
 
 /**
  * @brief Uncurrying

@@ -40,6 +40,15 @@ public:
 		Ctxt ctxt = claim.ctxt().branch();
 		return Inference( thy, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
 	}
+	static Inference make( Thy const& thy, Thm const& thesis ) {
+		CTerm claim = thesis;
+		size_t goals = 0;
+		while( auto imp = claim.cbinary(IMP) ) {
+			claim = imp->second;
+			goals++;
+		}
+		return Inference(thy,thesis,claim,goals);
+	}
 	Thy const& thy() const& {
 		return _thy;
 	}

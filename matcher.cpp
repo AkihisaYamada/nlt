@@ -245,19 +245,15 @@ void subst_intp( Intp& intp, Subst& subst ) {
 	}
 }
 
-Opt<Thm> match_discharge( Thm const& thm, Thm const& arg ) {
+Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	Ctxt ctxt = thm.ctxt().branch();
 	Ctxt rule_ctxt = ctxt.branch();
 	Thm rule = strip_all(thm,rule_ctxt,fresh_maker()).first;
 	auto const& imp = rule.cbinary(IMP);
-	if( !imp ) {
-		throw Error("#match_discharge")(thm);
-	}
+	if( !imp ) throw Error("#match_discharge")(thm);
 	auto const& arg_weaken = arg.weaken(ctxt);
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
-	if( !m ) {
-		return {};
-	}
+	if( !m ) throw Error("#match_discharge")(thm)(arg);
 	rule = rule.discharge(rule_ctxt.assume(imp->first));
 	auto intp = Intp(rule_ctxt,ctxt);
 	subst_intp(intp,*m);

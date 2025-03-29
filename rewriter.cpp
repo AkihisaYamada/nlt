@@ -216,17 +216,13 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 				auto cond = cong.conds[i];
 				if( cond.abs ) {
 					if( auto eq = _step_abs(rules,thy,*si,cond.ind,cond.assm,*m) ) {
-						auto o = match_discharge(ret,*eq);
-						assert(o);
-						ret = *o;
+						ret = match_discharge(ret,*eq);
 						success = true;
 					} else {
 						return {};
 					}
 				} else if( auto eq = _step(rules,thy,*si,cond.ind) ) {
-					auto o = match_discharge(ret,*eq);
-					assert(o);
-					ret = *o;
+					ret = match_discharge(ret,*eq);
 					success = true;
 				} else {
 					ret = ret << _make_refl(thy,*si,cond.ind);
