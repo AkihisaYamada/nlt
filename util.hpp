@@ -83,7 +83,7 @@ inline std::pair<Thm,size_t> strip_all( Thm const& thm ) {
  * @param intp 
  * @param subst 
  */
-void subst_intp( Intp& intp, CSubst& subst );
+void subst_intp( Intp& intp, Subst& subst );
 
 /** @brief 
  * @param imp ∀x... φ ⟹ ψ
@@ -114,7 +114,7 @@ Opt<std::tuple<std::string,CTerm,CTerm>> strips_binary(CTerm const& t);
  * @param val 
  * @param fvar signifies free variables.
  */
-Opt<CSubst> match( CTerm const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
+Opt<Subst> match( CTerm const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
 
 /**
  * @brief Unification.
@@ -124,7 +124,7 @@ Opt<CSubst> match( CTerm const& pat, CTerm const& val, std::function<bool(std::s
  * @param fvar signifies free variables.
  * @return an idempotent, most general unifier iff `l` and `r` are unifiable.
  */
-Opt<CSubst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
+Opt<Subst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
@@ -177,7 +177,7 @@ public:
 	Thm thm() const& {
 		return _conclusion.intro();
 	}
-	Opt<CSubst> matches( CTerm const& goal ) const {
+	Opt<Subst> matches( CTerm const& goal ) const {
 		return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
 	}
 	Ctxt ctxt() && = delete;

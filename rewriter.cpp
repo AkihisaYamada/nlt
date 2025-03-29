@@ -164,7 +164,7 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 	throw Error("\"malformed dual rule\"")(thm);
 }
 
-Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const {
+Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const {
 	auto const& abs = source.cabs();
 	assert(abs);
 	CTerm body = abs->second;

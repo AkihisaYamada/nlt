@@ -22,7 +22,7 @@ class Error;
 class Ctxt;
 class Thm;
 class CTerm;
-class CSubst;
+class Subst;
 class Intp;
 
 /** @brief renames a variable so that it is not in the set of symbols.
@@ -256,13 +256,13 @@ public:
 	 * @param subst
 	 * @return result of substitution
 	 */
-	Term subst(CSubst const& subst) const;
+	Term subst(Subst const& subst) const;
 	/** @brief Applies a closed substitution and get a closed term.
 	 * 
 	 * @param subst a substitution closed in a context.
 	 * @return the instance, closed in the same context.
 	 */
-	CTerm csubst(CSubst const& subst) const;
+	CTerm csubst(Subst const& subst) const;
 	/** @brief homomorphic extension.
 	 * 
 	 * @param f the mapping applied on free variables.
@@ -601,7 +601,7 @@ public:
 	friend Thm;
 	friend Ctxt;
 	friend Intp;
-	friend CSubst;
+	friend Subst;
 	friend bool operator==(CTerm const& l, CTerm const& r) {
 		return l._ctxt == r._ctxt && (Term)l == (Term)r;
 	}
@@ -636,9 +636,9 @@ inline Opt<CTerm> Ctxt::closed(Term const& t) const try {
 }
 
 /** @brief Substitution, whose range is closed with respect to a context. */
-class CSubst {
+class Subst {
 private:
-	bool _empty;
+	bool _identity;
 	StrMap<Opt<Term>> _map;
 	Ctxt _ctxt;
 	friend Term;
@@ -646,7 +646,7 @@ public:
 	/** @brief Creates a closed substituion
 	 * @param ctxt the context the substitution is closed in
 	 */
-	CSubst(Ctxt const& ctxt) : _ctxt(ctxt), _empty(true) {}
+	Subst(Ctxt const& ctxt) : _ctxt(ctxt), _identity(true) {}
 	/** @brief The context in which the range of the substitution is closed. */
 	Ctxt const& ctxt() const {
 		return _ctxt;
@@ -672,15 +672,15 @@ public:
 	void erase(std::string_view const& var) {
 		_map.erase(var);
 	}
-	bool empty() const {
-		return _empty;
+	bool identity() const {
+		return _identity;
 	}
 	/** @brief (re)assigns a value to a variable */
-	CSubst& assign(std::string_view const& var, CTerm const& val) & {
+	Subst& assign(std::string_view const& var, CTerm const& val) & {
 		if( val.ctxt() != _ctxt ) throw Error("#subst")("\"wrong context assign\"");
 		return _assign(var,val);
 	}
-	CSubst& assign(std::string_view const& var, Term const& val) & {
+	Subst& assign(std::string_view const& var, Term const& val) & {
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
 	Opt<CTerm> get(std::string_view const& var) const {
@@ -690,7 +690,7 @@ public:
 		return {};
 	}
 private:
-	CSubst& _assign(std::string_view const& var, Term const& val) &;
+	Subst& _assign(std::string_view const& var, Term const& val) &;
 };
 
 class Thm : public CTerm {
@@ -766,7 +766,7 @@ inline Thm Ctxt::assume(Term const& t) {
 /** @brief Interpreter, translates facts of a context into the context it belongs. */
 class Intp {
 	/** @brief Instantiation of the symbols of the source context, closed in the target context. */
-	CSubst _subst;
+	Subst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
 public:
@@ -792,7 +792,7 @@ public:
 	}
 	/** @brief tests if the substitution is identity */
 	bool identity() const {
-		return _subst.empty();
+		return _subst.identity();
 	}
 	/** @brief next unprocessed fix. */
 	Opt<std::string const&> fixing() const & {
@@ -812,7 +812,7 @@ public:
 		return {};
 	}
 	auto subst() && = delete;
-	CSubst const& subst() const& {
+	Subst const& subst() const& {
 		return _subst;
 	}
 	/** @brief instantiates a theorem. */

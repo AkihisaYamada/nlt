@@ -106,10 +106,10 @@ void Term::_iter_syms(
 	}
 }
 
-CSubst& CSubst::_assign(string_view const& var, Term const& val) & {
+Subst& Subst::_assign(string_view const& var, Term const& val) & {
 	Opt<Term> r;
 	if( var != val ) {
-		_empty = false;
+		_identity = false;
 		r = val;
 	}
 	auto const& info = _map.emplace(var,r);
@@ -119,8 +119,8 @@ CSubst& CSubst::_assign(string_view const& var, Term const& val) & {
 	return *this;
 }
 
-Term Term::subst(CSubst const& subst) const {
-	if( subst.empty() ) {
+Term Term::subst(Subst const& subst) const {
+	if( subst.identity() ) {
 		return *this;
 	}
 	auto f = [&](string_view const& sym)->Opt<Term> {
@@ -357,7 +357,7 @@ CTerm CTerm::lift( CTerm const& quantifier ) const {
 	return CTerm(parent,ret);
 }
 
-CTerm Term::csubst(CSubst const& subst) const {
+CTerm Term::csubst(Subst const& subst) const {
 	auto const& ctxt = subst.ctxt();
 	auto fixed = [&](string_view const& sym)->Opt<Term> {
 		if( auto t = subst.ctxt().constant(sym) ) {
@@ -365,7 +365,7 @@ CTerm Term::csubst(CSubst const& subst) const {
 		}
 		return {};
 	};
-	if( subst.empty() ) {
+	if( subst.identity() ) {
 		// only check that the term is closed.
 		return ctxt.cterm(*this);
 	}
@@ -407,7 +407,7 @@ Thm Intp::subst(Thm const& thm) const {
 Ctxt Intp::subst(Ctxt const& ctxt) const {
 	if( ctxt.parent() != _src ) throw Error("#intp")("\"wrong context\"");
 	if( !ready() ) throw Error("#intp")("\"not ready\"");
-	if( !_subst.empty() ) throw Error("#intp")("\"unsupported\"");
+	if( !_subst.identity() ) throw Error("#intp")("\"unsupported\"");
 	auto body = *ctxt._ref;
 	return Ctxt(Ref<Ctxt::Body>::make(_subst.ctxt(),body.modifiers,body.fvars,body.constants));
 }

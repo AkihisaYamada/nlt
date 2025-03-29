@@ -123,7 +123,7 @@ public:
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, CSubst const& subst ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const;
 	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _steps( Rules const& rules, Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;

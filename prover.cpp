@@ -221,7 +221,7 @@ public:
 		if( auto const& term = _parser.gets_term() ) {
 			Term ret = *term;
 			if( _parser.skips("$") ) {
-				CSubst subst = _thy.branch();
+				Subst subst = _thy.branch();
 				do {
 					string sym = _parser.get();
 					_parser.skip(":=");

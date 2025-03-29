@@ -60,7 +60,7 @@ Opt<size_t> find_last( std::vector<T> const& haystack, T const& needle ) {
 }
 
 struct Matcher {
-	CSubst matcher;
+	Subst matcher;
 	StrSet escaped_var;// in α.[...α...], second α is escaping
 	function<bool(string_view const&)> const& fvar;
 	StrMap<unsigned int> linds;
@@ -68,7 +68,7 @@ struct Matcher {
 	StrMap<unsigned int> rinds;
 	unsigned int depth = 0;
 	Matcher( Ctxt const& ctxt, function<bool(string_view const&)> const& fvar ) : matcher(ctxt), fvar(fvar) {}
-	Opt<CSubst> matches( CTerm const& pat, CTerm const& val ) && {
+	Opt<Subst> matches( CTerm const& pat, CTerm const& val ) && {
 		if( match(pat,val) ) {
 			return std::move(matcher);
 		}
@@ -206,7 +206,7 @@ struct Matcher {
 	}
 };
 
-Opt<CSubst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
+Opt<Subst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
 pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer ) {
@@ -223,7 +223,7 @@ pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer )
 }
 CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	t = t.weaken(ctxt);
-	auto subst = CSubst(ctxt);
+	auto subst = Subst(ctxt);
 	for(;;) {
 		auto all = t.cbinder(ALL);
 		if( !all ) break;
@@ -237,7 +237,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	return t.csubst(subst);
 }
 
-void subst_intp( Intp& intp, CSubst& subst ) {
+void subst_intp( Intp& intp, Subst& subst ) {
 	while( auto const& sym = intp.fixing() ) {
 		auto const& val = subst.get(*sym);
 		auto ctxt = subst.ctxt();

@@ -4,7 +4,7 @@ using namespace std;
 
 class Unifier {
 	function<bool(string const&)> const& fvar;// free variables
-	CSubst subst;
+	Subst subst;
 public:
 	struct Mismatch : exception {};
 	struct Occurs : exception {};
@@ -297,7 +297,7 @@ public:
 		}
 		return unify_lnsym(l,r);
 	}
-	CSubst result() {
+	Subst result() {
 		StrSet done;
 		for( auto& x : subst.map() ) {
 			subst.assign(x.first,subst.get(x.first)->subst(subst));
@@ -306,7 +306,7 @@ public:
 	}
 };
 
-Opt<CSubst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
+Opt<Subst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> const& fvar) {
 	if( r.ctxt() != l.ctxt() ) {
 		throw Error("#unify")("\"wrong context\"");
 	}
@@ -335,7 +335,7 @@ Thm discharge(Thm thm, Thm arg) {
 	Thm arg_strip = strip_all(arg,arg_ctxt).first;
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
-	Opt<CSubst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
+	Opt<Subst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
 	if( !unifier ) throw Error("#util")("\"discharge\"")(thm)(cond_strip)(arg)(arg_strip);

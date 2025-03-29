@@ -115,7 +115,7 @@ public:
 	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const &;
-	std::function<std::ostream&(std::ostream&)> pretty_subst(CSubst const& subst) const &;
+	std::function<std::ostream&(std::ostream&)> pretty_subst(Subst const& subst) const &;
 };
 
 extern Syntax SYNTAX;
@@ -124,7 +124,7 @@ inline std::ostream& operator<<(std::ostream& os, Term const& t) {
 	return os << SYNTAX.pretty_term(t,0);
 }
 
-inline std::ostream& operator<<(std::ostream& os, CSubst const& subst) {
+inline std::ostream& operator<<(std::ostream& os, Subst const& subst) {
 	return os << SYNTAX.pretty_subst(subst);
 }
 
