@@ -1,5 +1,3 @@
-base Root.
-
 import Lambda.
 
 fix nat (0) suc rec.
@@ -43,7 +41,7 @@ lemma induction_rule:
 obtain (+) where
 	zero_add: nat x ⟹ 0 + x = x,
 	suc_add: nat x ⟹ nat y ⟹ suc x + y = suc (x + y);
-	- for thesis, if assm:;
+	- for thesis, if assm;
 		apply assm(λx y. rec y (λx' z. suc z) x),
 		by #unfold(=)+ beta rec_zero rec_suc.
 	.
@@ -99,7 +97,7 @@ infix ∸ 100 101 100.
 obtain (∸) where
 	diff_zero: nat x ⟹ x ∸ 0 = x,
 	diff_suc: nat x ⟹ nat y ⟹ x ∸ suc y = pred (x ∸ y);
-	- for thesis, if assm: ;
+	- for thesis, if assm;
 		apply assm(λx. rec x (λ _ r. pred r)),
 		by #unfold(=)+ beta rec_zero rec_suc.
 	.
@@ -107,7 +105,7 @@ obtain (∸) where
 lemma zero_diff: ∀x. nat x ⟹ 0 ∸ x = 0;
 	apply induction!2,
 	- by #unfold(=) diff_zero.
-	- for x, if IH:, !;
+	- for x, if IH, !;
 		by #unfold(=) diff_suc IH pred_zero.
 	.
 
@@ -115,7 +113,7 @@ lemma suc_diff_suc: ∀x y. nat x ⟹ nat y ⟹ suc x ∸ suc y = x ∸ y;
 	have 1: for x, if ! nat x then ∀y. nat y ⟹ suc x ∸ suc y = x ∸ y;
 		apply induction!2,
 		- by #unfold(=) diff_suc diff_zero pred_suc.
-		- for y, if IH:, !;
+		- for y, if IH, !;
 			unfold(=) diff_suc,
 			unfold(=) IH.
 		.

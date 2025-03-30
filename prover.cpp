@@ -11,7 +11,7 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, force = false, cong = false;
+	bool weak = false, force = false, cong = false, followable = true;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -264,7 +264,7 @@ public:
 			cout << ' ' << flush;
 		}
 	}
-	ClaimStatus get_claim_status() {
+	ClaimStatus get_claim_status( bool needsep = true ) {
 		ClaimStatus cs;
 		cs.name = _parser.gets_thm_name();
 		while( _parser.skips("#") ) {
@@ -282,8 +282,10 @@ public:
 			cs.force = true;
 		} else if( _parser.skips("?") ) {
 			cs.weak = true;
+		} else if( _parser.skips(":") ) {
 		} else {
-			_parser.skip(":");
+			if( needsep ) throw Error("\"expected ':'\"")(_parser.get());
+			cs.followable = false;
 		}
 		return cs;
 	}
@@ -768,8 +770,8 @@ public:
 					_parser.skip("]");
 					_cout << " ] ";
 				} else {
-					auto cs = get_claim_status();
-					auto assm = eat_assm(gets_term());
+					auto cs = get_claim_status(false);
+					auto assm = eat_assm( cs.followable ? gets_term() : Opt<Term>{} );
 					add_claim(subloc,cs,assm);
 					_cout << cs << _syntax->pretty_term(assm) << ", " << flush;
 				}

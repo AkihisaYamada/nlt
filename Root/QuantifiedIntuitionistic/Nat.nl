@@ -20,9 +20,11 @@ lemma suc_eq_suc_iff: if ! nat x, ! nat y then suc x = suc y ⟺ x = y;
 		by #unfold(=) xy.
 	.
 
-lemma induction_all:
-	if 0: α.[0], suc: ∀x. α.[x] ⟹ nat x ⟹ α.[suc x], [∀x. nat x ⟹ prop α.[x]]
-	then ∀x:nat. α.[x];
+lemma induction_all: if
+	0: α.[0],
+	suc: ∀x. α.[x] ⟹ nat x ⟹ α.[suc x],
+	! ∀x. nat x ⟹ prop α.[x]
+then ∀x:nat. α.[x];
 	apply all_intro,
 	by induction[OF 0 suc].
 
@@ -44,7 +46,7 @@ obtain (<) where
 	less_zero: nat x ⟹ (x < 0) = false,
 	zero_less_suc: nat x ⟹ (0 < suc x) = true,
 	suc_less_suc: nat x ⟹ nat y ⟹ (suc x < suc y) = (x < y);
-	- for thesis, if assm:;
+	- for thesis, if assm;
 		apply assm(λx y. case false (λz. true) (y ∸ x)),
 		- for x, if ! nat x;
 			unfold(=)+ beta zero_diff case_zero,
@@ -87,7 +89,7 @@ lemma zero_less_iff_ex: ∀x. nat x ⟹ 0 < x ⟺ (∃y:nat. x = suc y);
 	apply induction!2,
 	- unfold(=) less_zero,
 		by #unfold(⟺) zero_eq_suc_iff ex_false_iff.
-	- for x, if IH:, !;
+	- for x, if IH, !;
 		unfold(=) zero_less_suc,
 		by true_iff ex_intro1(x).
 	.
@@ -95,7 +97,7 @@ lemma zero_less_iff_ex: ∀x. nat x ⟹ 0 < x ⟺ (∃y:nat. x = suc y);
 lemma less_suc_infl: ∀x. nat x ⟹ x < suc x;
 	apply induction!2,
 	- by #unfold(=) zero_less_suc.
-	- for x, if IH:, !;
+	- for x, if IH, !;
 		by IH #unfold(=) suc_less_suc.
 	.
 
@@ -104,13 +106,13 @@ lemma suc_less_lemma:
 	apply induction_all,
 	- apply induction_all,
 		- by and_intro #unfold(=) less_zero zero_less_suc.
-		- for y, if IH:, !;
+		- for y, if IH, !;
 			by and_intro #unfold(=) zero_less_suc.
 		.
-	- for x, if IHx:, !;
+	- for x, if IHx, !;
 		apply induction_all,
 		- by and_intro #unfold(=)+ less_zero suc_less_suc.
-		- for y, if IHy:, !;
+		- for y, if IHy, !;
 			unfold(=) suc_less_suc,
 			by all_elim1[OF IHx](y).
 		.
@@ -135,13 +137,13 @@ lemma suc_less_iff_ex: ∀x y. nat x ⟹ nat y ⟹ suc x < y ⟺ (∃z:nat. y = 
 		apply induction!2,
 		- unfold(=) less_zero,
 			unfold(⟺)+ zero_eq_suc_iff false_and_iff ex_false_iff.
-		- for y, if IH:, !;
+		- for y, if IH, !;
 			unfold(=) suc_less_suc,
 			apply iff_intro,
 			- if xy: x < y;
 				apply ex_intro1(y),
 				by and_intro less_imp_less_suc xy #unfold(⟺) suc_eq_suc_iff.
-			- if ex:;
+			- if ex;
 				apply ex_elim[OF ex],
 				- for z, if assm: suc y = suc z ∧ x < z, ! nat z;
 					have sysz: suc y = suc z;
@@ -162,22 +164,22 @@ interpret less: Transitive nat (<);
 		- apply induction!2,
 			- apply induction!2,
 				unfold(=) less_zero.
-			- for y, if IHy:,!;
+			- for y, if IHy,!;
 				apply induction!2,
 				- unfold(=) less_zero suc_less_suc zero_less_suc.
 				- by #unfold(=) zero_less_suc.
 				.
 			.
-		- for x, if IHx:,!;
+		- for x, if IHx,!;
 			- apply induction!2,
 				- for z, if !;
 					unfold(=) less_zero,
 					by #elim false_elim.
-				- for y, if IHy:, yt!;
+				- for y, if IHy, yt!;
 					apply induction!2,
 					- unfold(=) less_zero,
 						by #elim false_elim.
-					- for z, if IHz:, zt!;
+					- for z, if IHz, zt!;
 						unfold(=) suc_less_suc,
 						apply IHx[OF yt zt]=.
 					.

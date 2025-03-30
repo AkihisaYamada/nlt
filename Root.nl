@@ -20,12 +20,13 @@ binder_middle ∃ : ∃:.
 binder_middle ∀ ∈ ∀∈.
 binder_middle ∃ ∈ ∃∈.
 
-
 binder THE 0 0.
 binder SOME 0 0.
 
 infix = 51 51 50.
 infix ≠ 51 51 50.
+
+binder λ 0 0.
 
 infix ∈ 50 50 50.
 infix ∋ 50 50 50.
