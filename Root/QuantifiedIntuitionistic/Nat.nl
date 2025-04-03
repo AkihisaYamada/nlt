@@ -1,10 +1,25 @@
 base QuantifiedIntuitionistic.
 
-import ..Nat.
+import Lambda.
 
+fix nat (0) suc rec.
+
+import zero: Member nat 0.
+import suc: Unary suc nat nat.
 import eq_nat: Binary (=) nat nat prop.
 
+assume suc_inj: ∀x:nat. ∀y:nat. suc x = suc y ⟹ x = y.
+
+assume induct: ∀P:nat→prop. P 0 ⟹ (∀x:nat. P x ⟹ P (suc x)) ⟹ ∀x:nat. P x.
+assume rec_zero: ∀z:ι. ∀s:nat→ι→ι. rec z s 0 = z.
+assume rec_suc: ∀x:nat. ∀z:ι. ∀s:nat→ι→ι. rec z s (suc x) = s x (rec z s x).
+
+
 begin
+
+note! zero.type.
+note! suc.type.
+note! eq_nat.type.
 
 setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
 setup dual eq.sym.
@@ -13,9 +28,15 @@ setup define beta.
 
 note! eq_nat.type.
 
-lemma suc_eq_suc_iff: if ! nat x, ! nat y then suc x = suc y ⟺ x = y;
+lemma induction:
+if	! P 0, ! (∀x. P x ⟹ nat x ⟹ P (suc x)), ! ∀x. nat x ⟹ prop (p x)
+then ∀x:nat. P x;
+	by all_elim1[OF induct].
+
+
+lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
 	apply iff_intro,
-	- by suc_inj.
+	- by all_elim1[OF all_elim1[OF suc_inj tx _] ty].
 	- if xy: x = y;
 		by #unfold(=) xy.
 	.
@@ -28,7 +49,7 @@ then ∀x:nat. α.[x];
 	apply all_intro,
 	by induction[OF 0 suc].
 
-lemma zero_neq_suc: if !nat x then ¬ 0 = suc x;
+lemma not_zero_eq_suc: if !nat x then ¬ 0 = suc x;
 	apply not_intro,
 	- if eq: 0 = suc x;
 		define test := case true (λx. false).
@@ -40,7 +61,7 @@ lemma zero_neq_suc: if !nat x then ¬ 0 = suc x;
 	.
 
 lemma zero_eq_suc_iff: if ! nat x then 0 = suc x ⟺ false;
-	by not_imp_iff_false zero_neq_suc.
+	by not_imp_iff_false not_zero_eq_suc.
 
 obtain (<) where
 	less_zero: nat x ⟹ (x < 0) = false,
@@ -133,7 +154,7 @@ lemma less_imp_less_suc: if xy: x < y, xt! nat x, yt! nat y then x < suc y;
 	by and_elim2[OF 2] xy.
 
 lemma suc_less_iff_ex: ∀x y. nat x ⟹ nat y ⟹ suc x < y ⟺ (∃z:nat. y = suc z ∧ x < z);
-	have 1: for x, if !nat x then ∀y. nat y ⟹ suc x < y ⟺ (∃z:nat. y = suc z ∧ x < z);
+	have! for x, if !nat x then ∀y. nat y ⟹ suc x < y ⟺ (∃z:nat. y = suc z ∧ x < z);
 		apply induction!2,
 		- unfold(=) less_zero,
 			unfold(⟺)+ zero_eq_suc_iff false_and_iff ex_false_iff.
@@ -156,7 +177,7 @@ lemma suc_less_iff_ex: ∀x y. nat x ⟹ nat y ⟹ suc x < y ⟺ (∃z:nat. y = 
 				.
 			.
 		.
-	by 1.
+	.
 
 interpret less: Transitive nat (<);
 	have 1: ∀x. nat x ⟹ ∀y. nat y ⟹ ∀z. nat z ⟹ x < y ⟹ y < z ⟹ x < z;
@@ -186,4 +207,6 @@ interpret less: Transitive nat (<);
 				.
 			.
 		.
-	by 1.
+	- for x y z;
+		by 1(x)[OF _](y)[OF _](z)[OF _].
+	.

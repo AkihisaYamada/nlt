@@ -14,7 +14,7 @@ Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	Ctxt ctxt = thm.ctxt().branch();
-	Thm rule = thm;
+	Thm rule = thm.weaken(ctxt);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
 		if( i == n ) return Intro(rule,vars,i);
@@ -111,18 +111,24 @@ bool Inference::_apply_blast(
 bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
+DEB(*m);
 	auto ctxt = goal.ctxt();// collects new assumptions
 	auto rule_intp = rule.intp(ctxt);
-	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
-		if( auto const& val = m->get(*v) ) {
-			rule_intp.instantiate(*val);
-		} else {
-			rule_intp.instantiate(dummy(ctxt));
+	for(;;) {
+		if( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
+			if( auto const& val = m->get(*v) ) {
+				rule_intp.instantiate(*val);
+			} else {
+				rule_intp.instantiate(dummy(ctxt));
+			}
+			continue;
 		}
-	}
-	while( auto const& assm = rule_intp.assuming() ) {// make assumptions
-		rule_intp.discharge(ctxt.assume(*assm));
-		_goals++;
+		if( auto const& assm = rule_intp.assuming() ) {// make assumptions
+			rule_intp.discharge(ctxt.assume(*assm));
+			_goals++;
+			continue;
+		}
+		break;
 	}
 	auto claim = rule.inst(rule_intp);
 	_thm = _thm.weaken(ctxt).discharge(claim).intro();

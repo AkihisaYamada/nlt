@@ -17,13 +17,13 @@ lemma false_imp_iff: if [prop P] then (false ⟹ P) ⟺ true;
 	by iff_true #elim false_elim.
 
 lemma false_and_iff: if [prop P] then false ∧ P ⟺ false;
-	apply iff_intro,
+	apply iff_intro;
 	- if and: false ∧ P;
 		by and_elim1[OF and].
 	by #elim false_elim.
 
 lemma and_false_iff: if [prop P] then P ∧ false ⟺ false;
-	unfold and_iff.commute,
+	unfold and_iff.commute;
 	by false_and_iff.
 
 lemma not_elim: if nP: ¬P, P: P, [prop P, prop Q] then Q;

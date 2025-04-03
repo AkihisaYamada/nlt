@@ -67,21 +67,27 @@ interpret add: Monoid nat (+);
 	.
 
 lemma add_suc: ∀x y. nat x ⟹ nat y ⟹ x + suc y = suc (x + y);
-	have 1: for y, if ! nat y then ∀x. nat x ⟹ x + suc y = suc (x + y);
+	have! for y, if ! nat y then ∀x. nat x ⟹ x + suc y = suc (x + y);
 		apply induction!2,
 		- by #unfold(=) zero_add.
-		- for x, if IH:, ! ;
+		- for x, if IH, !;
 			by #unfold(=) suc_add IH.
 		.
-	by 1.
+	.
 
 obtain case where
 	case_zero: case z s 0 = z,
 	case_suc: ∀z s x. nat x ⟹ case z s (suc x) = s x;
-	- for thesis, if assm:;
+	- for thesis, if assm;
 		apply assm(λz s. rec z (λx r. s x)),
 		by #unfold(=) rec_zero rec_suc beta.
 	.
+
+define 1 := suc 0.
+
+lemma zero_eq_one_elim: if eq: 0 = 1
+then 
+	
 
 define pred := case 0 (λp. p).
 

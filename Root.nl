@@ -4,7 +4,7 @@
 
 begin -- Root doesn't have any axiom
 
-symbol λ ∧ ∨ ∃ ≠ ≤ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃.
+symbol λ ∧ ∨ ∃ ≠ ≤ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ →.
 symbol solo ¬.
 
 infix ⟹ 1 0 0.
@@ -135,7 +135,7 @@ lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;
 	by PQ RP.
 
 lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
-	apply PQQR,
+	apply PQQR;
 	- if PQ: P ⟹ Q then Q;
 		by PQ.
 	.
@@ -274,8 +274,29 @@ theory If:
 	assume if_not: ¬P ⟹ (if P then t else e) = e.
 end
 
+lemma make_elim:
+if imp: ∀x. P.[x] ⟹ Q.[x]
+then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
+	- for x, if Px;
+		- for thesis, if assm;
+			by assm imp Px.
+		.
+	.
+
 theory Collect:
 	fix Collect (∈).
-	assume in_Collect_iff: x ∈ Collect P ⟺ P x.
+	assume Collect_elim1: x ∈ Collect P ⟹ P x.
+	assume Collect_intro: P x ⟹ x ∈ Collect P.
+begin
+	note Collect_elim: make_elim(x. x ∈ Collect P)(x. P x)[OF Collect_elim1].
 end
+
+theory FunType:
+	fix (→).
+	assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
+	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
+begin
+	note fun_type_elim: make_elim(f. (σ → τ) f)(f. ∀a. σ a ⟹ τ (f a))[OF fun_type_elim1].
+end
+
 

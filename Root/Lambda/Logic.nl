@@ -11,16 +11,16 @@ begin
 ----
 define true := ∀P. P ⟹ P.
 define false := ∀P. P.
-define[not_def] ¬ P := P ⟹ false.
-define[and_def] P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
-define[iff_def] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
-define[or_def] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
-define[ex_def] (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
+define[not] ¬ P := P ⟹ false.
+define[and] P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
+define[iff] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
+define[or] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
+define[ex] (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
 
-define[tall_def] (∀:) ι α := ∀x. ι x ⟹ α.[x].
-define[tex_def] (∃:) ι α := ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ P.
+define[tall] (∀:) ι α := ∀x. ι x ⟹ α.[x].
+define[tex] (∃:) ι α := ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ P.
 
-define[neq_def] x ≠ y := ¬ x = y.
+define[neq] x ≠ y := ¬ x = y.
 
 interpret TypeFreeIntuitionistic;
 	retain true := true;
@@ -292,7 +292,7 @@ lemma true_neq_false: true ≠ false;
 
 binder ∃! 0 0.
 
-define[ex1_def] (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
+define[ex1] (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
 
 lemma ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x];
 	unfold ex1_def,

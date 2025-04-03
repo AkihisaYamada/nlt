@@ -191,9 +191,11 @@ public:
 				if( _parser.skips("OF") ) {
 					for(;;) {
 						if( _parser.skips("!") ) {
-							auto opt = blasts(ret,loc);
-							if( !opt ) throw Error("\"blast failed\"")(ret);
-							ret = *opt;
+							ret = blast(ret,loc);
+						} else if( _parser.skips("_") ) {
+							auto imp = ret.cbinary(IMP);
+							if( !imp ) throw Error("\"no premise for _\"");
+							ret = discharge(ret,loc.assume(imp->first));
 						} else if( auto const& arg = _gets_thm(loc) ) {
 							ret = discharge(ret,*arg);
 						} else {
@@ -720,7 +722,7 @@ public:
 		_parser.skip(".");
 		auto [f,spec] = _thy.define(l,r,name_op);
 		Thm def = spec << _thy.thm("imp.refl");
-		string name = name_op ? *name_op : f + "_def";
+		string name = (name_op ? *name_op : f) + "_def";
 		_thy.add_thm(name,def);
 		_cout << "defined " << name << ": " << _syntax->pretty_term(l) << " := " << _syntax->pretty_term(r) << endl;
 	}
@@ -885,7 +887,7 @@ public:
 				if( _parser.skips(".") ) {
 					return thesis.blast_all();
 				}
-				if( _parser.skips(",") ) {
+				if( _parser.skips(";") ) {
 					print_goal(thesis,"applied goals:\n\t");
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
@@ -894,7 +896,7 @@ public:
 				if( _parser.skips(".") ) {
 					return thesis.blast_all();
 				}
-				if( _parser.skips(",") ) {
+				if( _parser.skips(";") ) {
 					print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 				}
 			} else if( _parser.skips("-") ) {
