@@ -155,7 +155,7 @@ lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β
 theory True:
 	obtain true where true_intro! true;
 		- for thesis, if assm: ∀true. true ⟹ thesis;
-			by assm(∀x. x ⟹ x).
+			by assm[of (∀x. x ⟹ x)].
 		.
 end
 
@@ -163,7 +163,7 @@ end
 theory False:
 	obtain false where false_elim: false ⟹ ∀P. P;
 		- for thesis, if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
-			by assm(∀P. P).
+			by assm[of (∀P. P)].
 		.
 end
 
@@ -275,8 +275,8 @@ theory If:
 end
 
 lemma make_elim:
-if imp: ∀x. P.[x] ⟹ Q.[x]
-then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
+	if imp: ∀x. P.[x] ⟹ Q.[x]
+	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
 	- for x, if Px;
 		- for thesis, if assm;
 			by assm imp Px.
@@ -288,7 +288,7 @@ theory Collect:
 	assume Collect_elim1: x ∈ Collect P ⟹ P x.
 	assume Collect_intro: P x ⟹ x ∈ Collect P.
 begin
-	note Collect_elim: make_elim(x. x ∈ Collect P)(x. P x)[OF Collect_elim1].
+	note Collect_elim: make_elim[of (x. x ∈ Collect P) (x. P x), OF Collect_elim1].
 end
 
 theory FunType:
@@ -296,7 +296,7 @@ theory FunType:
 	assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
 	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
 begin
-	note fun_type_elim: make_elim(f. (σ → τ) f)(f. ∀a. σ a ⟹ τ (f a))[OF fun_type_elim1].
+	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
 end
 
 

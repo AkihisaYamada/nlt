@@ -25,7 +25,7 @@ lemma all_elim:
 	- for P, if assm:, !;
 		apply assm;
 		- for x, if !;
-			apply all_elim1[OF all](x).
+			apply all_elim1[OF all, of x].
 		.
 	.
 
@@ -58,7 +58,7 @@ lemma ex_intro:
 	then ∃x:ι. α.[x];
 	apply assm;
 	- for x;
-		by ex_intro1(x).
+		by ex_intro1[of x].
 	.
 
 lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
@@ -69,7 +69,7 @@ lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 		- for x, if !α.[x], !;
 			apply all_intro;
 			- for P, if !, all: ∀x:ι. α.[x] ⟹ P;
-				by all_elim1(x)[OF all].
+				by all_elim1[of x, OF all].
 			.
 		.
 	- if all: ∀P:prop. (∀x:ι. (α.[x] ⟹ P)) ⟹ P;
@@ -77,7 +77,7 @@ lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 		- .
 		- .
 		apply all_intro;
-		- for x; by ex_intro1(x).
+		- for x; by ex_intro1[of x].
 		.
 	.
 
@@ -102,7 +102,7 @@ lemma all_imp_iff_ex: if ! prop P, ! ∀x. ι x ⟹ prop α.[x] then
 	- if imp: ∀x:ι. α.[x] ⟹ P, ex: ∃x:ι. α.[x];
 		apply ex_elim[OF ex];
 		- for x, if ax: α.[x], ! ι x;
-			by all_elim1[OF imp](x) ax.
+			by all_elim1[OF imp, of x] ax.
 		.
 	- if imp: (∃x:ι. α.[x]) ⟹ P;
 		apply all_intro;
@@ -122,7 +122,7 @@ The following direction is provable in general, but the opposite direction requi
 ---
 lemma nnall_imp:
 	if nnall: ¬¬(∀x:ι. α.[x]), ! ∀x. ι x ⟹ prop α.[x]
-	then (∀x:ι. ¬¬α.[x]);
+	then ∀x:ι. ¬¬α.[x];
 	apply all_intro;
 	- for x, if !;
 		apply not_intro;

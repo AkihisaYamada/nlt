@@ -14,18 +14,18 @@ note! eq.refl.
 
 interpret eq: MetaSymmetric (=);
 	- for x y, if xy: x = y then y = x;
-		by eq_imp_meta(z. z = x)[OF xy eq.refl].
+		by eq_imp_meta[of (z. z = x), OF xy eq.refl].
 	.
 
 interpret eq: MetaTransitive (=);
 	- for x y z, if xy: x = y, yz: y = z then x = z;
-		by eq_imp_meta(w. x = w)[OF yz xy].
+		by eq_imp_meta[of (w. x = w), OF yz xy].
 	.
 
 interpret eq: MetaEquivalence (=).
 
 lemma eq_prop1: if PQ: P = Q, P: P then Q;
-	by eq_imp_meta(x. x)[OF PQ P].
+	by eq_imp_meta[of (x. x), OF PQ P].
 
 lemma eq_prop2: if PQ: P = Q, Q: Q then P;
 	by eq_prop1[OF eq.sym[OF PQ] Q].
@@ -34,13 +34,13 @@ setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
 setup dual eq.sym.
 
 lemma eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y];
-	by eq_imp_meta(z. α.[x] = α.[z])[OF xy eq.refl].
+	by eq_imp_meta[of (z. α.[x] = α.[z]), OF xy eq.refl].
 
 lemma arg_cong: if xy: x = y then f x = f y;
-	by eq_cong_meta(z. f z)[OF xy].
+	by eq_cong_meta[of (z. f z), OF xy].
 
 lemma fun_cong: if fg: f = g then f x = g x;
-	by eq_cong_meta(h. h x)[OF fg].
+	by eq_cong_meta[of (h. h x), OF fg].
 
 lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;

@@ -454,8 +454,8 @@ lemma nnot_excluded_middle: if [prop P] then ¬¬(P ∨ ¬P);
 lemma or_imp_nand: if PQ: P ∨ Q, [prop P, prop Q] then ¬(¬P ∧ ¬Q);
 	apply not_intro;
 	apply or_elim[OF PQ];
-	- by not_imp_false(P) #elim and_elim.
-	- by not_imp_false(Q) #elim and_elim.
+	- by not_imp_false[of P] #elim and_elim.
+	- by not_imp_false[of Q] #elim and_elim.
 	.
 
 lemma false_or_false_iff: false ∨ false ⟺ false;

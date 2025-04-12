@@ -111,7 +111,6 @@ bool Inference::_apply_blast(
 bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
-DEB(*m);
 	auto ctxt = goal.ctxt();// collects new assumptions
 	auto rule_intp = rule.intp(ctxt);
 	for(;;) {

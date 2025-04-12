@@ -29,13 +29,15 @@ setup define beta.
 note! eq_nat.type.
 
 lemma induction:
-if	! P 0, ! (∀x. P x ⟹ nat x ⟹ P (suc x)), ! ∀x. nat x ⟹ prop (p x)
-then ∀x:nat. P x;
-	by all_elim1[OF induct].
+	if ! P 0, ! (∀x. P x ⟹ nat x ⟹ P (suc x)), ! ∀x. nat x ⟹ prop (P x)
+	then ∀x:nat. P x;
+	apply all_elim1[OF induct];
+	- .
+.
 
 
 lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
-	apply iff_intro,
+	apply iff_intro;
 	- by all_elim1[OF all_elim1[OF suc_inj tx _] ty].
 	- if xy: x = y;
 		by #unfold(=) xy.

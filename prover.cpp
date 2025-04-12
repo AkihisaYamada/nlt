@@ -181,14 +181,13 @@ public:
 			return {};
 		}
 		Thm ret = loc.thm(*opt);
-		for(;;) {
-			if( _parser.skips("(") ) {
-				do {
-					ret = ret.instantiate(loc.enclose(_parser.get_term(-1)));
-				} while( _parser.skips(",") );
-				_parser.skip(")");
-			} else if( _parser.skips("[") ) {
-				if( _parser.skips("OF") ) {
+		if( _parser.skips("[") ) {
+			for(;;) {
+				if( _parser.skips("of") ) {
+					while( auto t = _parser.gets_term(1000) ) {
+						ret = ret.instantiate(loc.enclose(*t));
+					}
+				} else if( _parser.skips("OF") ) {
 					for(;;) {
 						if( _parser.skips("!") ) {
 							ret = blast(ret,loc);
@@ -205,12 +204,12 @@ public:
 				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
 					ret = _thy.rewriter().rewrite(rules,loc,ret,ctrl);
-				}
-				_parser.skip("]");
-			} else {
-				return ret;
+				} else break;
+				if( !_parser.skips(",") ) break;
 			}
+			_parser.skip("]");
 		}
+		return ret;
 	}
 
 	StrMap<Thm> get_named_thms() {
