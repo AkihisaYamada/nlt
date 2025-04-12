@@ -126,9 +126,8 @@ Term Term::subst(Subst const& subst) const {
 	auto f = [&](string_view const& sym)->Opt<Term> {
 		if( auto opt = subst.get(sym) ) {
 			return *opt;
-		} else {
-			return {};
 		}
+		return {};
 	};
 	auto fixed = [&](string_view const& sym)->Opt<Term> {
 		if( auto t = subst.ctxt().constant(sym) ) {

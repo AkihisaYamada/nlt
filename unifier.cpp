@@ -101,13 +101,13 @@ private:
 		if( auto rsym = r.sym() ) {
 			return unify_rsym(l,*rsym);
 		}
-		if( auto lfix = l.cfix() ) {
+		if( auto lfix = l.cunbind() ) {
 			auto const& [x,_,larg] = *lfix;
-			return unify_lfix(x,larg,r);
+			return unify_lunbind(x,larg,r);
 		}
-		if( auto rfix = r.cfix() ) {
+		if( auto rfix = r.cunbind() ) {
 			auto const& [y,_,rarg] = *rfix;
-			return unify_rfix(l,y,rarg);
+			return unify_runbind(l,y,rarg);
 		}
 		return unify2(l,r);
 	}
@@ -129,12 +129,12 @@ private:
 		}
 		throw Mismatch();
 	}
-	// lhs is not symbol or context application, rhs is context
-	void unify_rfix( CTerm const& l, string const& y, CTerm const& rarg ) {
+	// lhs is not symbol or unbinding, rhs is unbinding
+	void unify_runbind( CTerm const& l, string const& y, CTerm const& rarg ) {
 		if( auto const& val = subst.get(y) ) {// substitution is necessary
 			if( auto vsym = val->sym() ) {
 				avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
-				unify_rfix(l,*vsym,rarg);
+				unify_runbind(l,*vsym,rarg);
 				avoids[0].erase(y);
 				return;
 			} else if( auto vabs = val->cbind() ) {
@@ -154,7 +154,7 @@ private:
 		}
 		throw Mismatch();
 	}
-	// both sides are application or abstraction
+	// both sides are application or binding
 	void unify2(CTerm const& l, CTerm const& r) {
 		if( auto lapp = l.capp() ) {
 			if( auto rapp = r.capp() ) {
@@ -163,11 +163,11 @@ private:
 				return;
 			}
 			throw Mismatch();
-		} else if( auto labs = l.cbind() ) {
-			auto const& [x,lbody] = *labs;
-			if( auto rabs = r.cbind() ) {
-				// both are abstraction.
-				auto const& [y,rbody] = *rabs;
+		} else if( auto lbind = l.cbind() ) {
+			auto const& [x,lbody] = *lbind;
+			if( auto rbind = r.cbind() ) {
+				// both are binding.
+				auto const& [y,rbody] = *rbind;
 				bvars[0].push_back(x);
 				bvars[1].push_back(y);
 				auto const& xinfo = inds[0].insert({x,index});
@@ -197,12 +197,12 @@ private:
 		}
 		return x == y;
 	}
-	// lhs is a fix and rhs is not a symbol
-	void unify_lfix( string const& x, CTerm const& larg, CTerm const& r ) {
+	// lhs is an unbinding and rhs is not a symbol
+	void unify_lunbind( string const& x, CTerm const& larg, CTerm const& r ) {
 		if( auto xval = subst.get(x) ) {// context must be substituted
 			avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
 			if( auto vsym = xval->sym() ) {
-				unify_lfix(*vsym,larg,r);
+				unify_lunbind(*vsym,larg,r);
 			} else if( auto vabs = xval->cbind() ) {
 				unify(xval->inst(larg),r);
 			} else {
@@ -212,8 +212,8 @@ private:
 			return;
 		}
 		// if rhs is has same context variable, then the arguments are unified
-		if( auto const& rfix = r.cfix() ) {
-			auto const& [y,_,rarg] = *rfix;
+		if( auto const& runbind = r.cunbind() ) {
+			auto const& [y,_,rarg] = *runbind;
 			if( eq_syms(x,y) ) {
 				return unify(larg,rarg);
 			}
@@ -233,7 +233,7 @@ private:
 	void unify_lfix2( string const& x, CTerm const& larg, CTerm const& r ) {
 		if( auto const& rsym = r.sym() ) {
 			return unify_rsym(x/larg,*rsym);
-		} if( auto const& rfix = r.cfix() ) {/// rhs is also a context application
+		} if( auto const& rfix = r.cunbind() ) {/// rhs is also a context application
 			auto const& [y,_,rarg] = *rfix;
 			return unify_fixes(x,larg,y,rarg);
 		}
@@ -338,7 +338,7 @@ Thm discharge(Thm thm, Thm arg) {
 	Opt<Subst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
 		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
 	} );
-	if( !unifier ) throw Error("#util")("\"discharge\"")(thm)(cond_strip)(arg)(arg_strip);
+	if( !unifier ) throw Error("#discharge")(thm)(cond_strip)(arg)(arg_strip);
 	// unassigned free variables will be universally quantified in the result
 	Ctxt ret_ctxt = ctxt.branch();
 	iter_local_vars(arg_ctxt,[&](string const& x){

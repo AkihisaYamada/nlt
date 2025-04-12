@@ -79,7 +79,7 @@ obtain case where
 	case_zero: case z s 0 = z,
 	case_suc: ∀z s x. nat x ⟹ case z s (suc x) = s x;
 	- for thesis, if assm;
-		apply assm(λz s. rec z (λx r. s x)),
+		apply assm(λz s. rec z (λx r. s x));
 		by #unfold(=) rec_zero rec_suc beta.
 	.
 

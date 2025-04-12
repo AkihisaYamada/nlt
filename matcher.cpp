@@ -42,7 +42,7 @@ Opt<std::string> virtual_var( CTerm const& t ) {
 		return *sym;
 	}
 	if( auto abs = t.cbind() )
-	if( auto fix = abs->second.cfix() ) {
+	if( auto fix = abs->second.cunbind() ) {
 		auto [v,_,arg] = *fix;
 		return v;
 	}
@@ -139,13 +139,13 @@ struct Matcher {
 			} else {
 				return false;
 			}
-		} else if( auto fix = pat.cfix() ) {// x.[s]
+		} else if( auto fix = pat.cunbind() ) {// x.[s]
 			auto [x,_,pat2] = *fix;
 			if( !escaped_var.contains(x) ) {// this x is from the pattern side.
 				auto const& opt = matcher.get(x);
 				if( opt ) {// the context is assigned
 					if( auto const& sym = opt->sym() ) {// x is assigned to a variable, then rhs must have the same shape
-						auto fix2 = val.cfix();
+						auto fix2 = val.cunbind();
 						if( !fix2 ) {
 							return false;
 						}
@@ -175,7 +175,7 @@ struct Matcher {
 						return false;
 					}
 					// otherwise, val must also be abstraction
-					auto vfix = val.cfix();
+					auto vfix = val.cunbind();
 					if( !vfix ) {
 						return false;
 					}
@@ -191,7 +191,7 @@ struct Matcher {
 				}
 			}
 			// otherwise, pat and val must have the same shape
-			auto vfix = val.cfix();
+			auto vfix = val.cunbind();
 			if( !vfix ) {
 				return false;
 			}

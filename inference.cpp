@@ -203,10 +203,11 @@ bool Inference::_blast(
 						break;
 					}
 // apply elimination result
-					bool suc = thesis._apply(elim_res[elim_res_ind],g);
-					if( !suc ) throw Error("\"malformed elim result\"")(elim_res[elim_res_ind].thm());
+					if( !thesis._apply(elim_res[elim_res_ind],g) ) {
+						add_forced(_thy,elim_res[elim_res_ind].thm(),true);
+					}
 					elim_res_ind++;
-					if( suc ) break;
+					break;
 				}
 			}
 			// blast all new subgoals:

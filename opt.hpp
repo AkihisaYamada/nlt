@@ -54,12 +54,19 @@ public:
 		assert(*this);
 		return _opt.operator->();
 	}
-	operator Opt<T const&>() && = delete;
-	operator Opt<T const&>() const & {
-		return Opt<T const&>( _opt ? &*_opt : nullptr );
+	T ref( T const& other ) const& {
+		if(*this) return *_opt;
+		return other;
 	}
-	operator Opt<T&>() & {
-		return Opt<T&>( _opt ? &*_opt : nullptr );
+	template<typename U>
+	operator Opt<U>() && = delete;
+	template<typename U> requires std::is_convertible_v<T,U>
+	operator Opt<U const&>() const& {
+		return Opt<U const&>( _opt ? &*_opt : nullptr );
+	}
+	template<typename U> requires std::is_convertible_v<T,U>
+	operator Opt<U&>() & {
+		return Opt<U&>( _opt ? &*_opt : nullptr );
 	}
 	template<class... Args>
 	T& emplace( Args&&... args ) & {

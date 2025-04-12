@@ -274,10 +274,7 @@ public:
 		std::function<bool(std::string_view const&)> const&
 			fixed = [](std::string_view const&){ return false; }
 	) const {
-		if( auto res = _Mapper{f,fixed}.map(*this) ) {
-			return *res;
-		}
-		return *this;
+		return _Mapper{f,fixed}.map(*this).ref(*this);
 	};
 	/** @brief instantiates the bound variable. This must be a binding.
 	 * 
@@ -455,10 +452,7 @@ inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
 }
 inline Opt<Ctxt const&> Ctxt::find_parent() const & {
-	if( _ref->parent ) {
-		return *_ref->parent;
-	}
-	return {};
+	return _ref->parent;
 }
 inline size_t Ctxt::revision() const {
 	return _ref->modifiers.size();
@@ -522,7 +516,7 @@ public:
 	/** @brief Decompose closed fix
 	 * returns tuple of string, closed term of the variable, and the argument
 	 */
-	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cfix() const {
+	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cunbind() const {
 		if( auto tfix = Term::unbind() ) {
 			auto [v,b] = *tfix;
 			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));

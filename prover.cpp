@@ -174,7 +174,6 @@ public:
 		}
 		return ret;
 	}
-
 	Opt<Thm> _gets_thm(Thy loc) {
 		auto const& opt = _parser.gets_thm_name();
 		if( !opt ) {
@@ -200,6 +199,42 @@ public:
 						} else {
 							break;
 						}
+					}
+				} else if( _parser.skips("THEN") ) {
+					auto thm = get_thm();
+					auto unifier_loc = loc.Ctxt::branch();
+					thm = strip_all(thm.weaken(unifier_loc),unifier_loc).first;
+					auto imp = thm.cbinary(IMP);
+					if( !imp ) throw Error("\"malformed THEN\"")(thm);
+					auto cond = imp->first;
+					auto arg = ret.weaken(unifier_loc);
+					for(;;){
+						arg = strip_all(arg,unifier_loc).first;
+						auto imp = arg.cbinary(IMP);
+						if( !imp ) break;
+						arg = arg.discharge(unifier_loc.assume(imp->first));
+					}
+					auto u = unify(arg,cond,[&](auto v){ return unifier_loc.fixes(v); });
+					if( !u ) throw Error("\"mismatching THEN\"")(arg)(thm);
+DEB(_syntax->pretty_subst(*u));
+					auto intp = Intp(unifier_loc,loc);
+					for(;;){
+						if( auto const& v = intp.fixing() ) {
+							intp.instantiate(loc.enclose( [&]()->Term{
+								if( auto t = u->get(*v) ) return *t;
+								return *v;
+							}()));
+						} else if( auto const& assm = intp.assuming() ) {
+							intp.discharge(loc.assume(loc.cterm(*assm)));
+						} else {
+							break;
+						}
+					}
+					thm = intp.subst(thm);
+					ret = thm.discharge(intp.subst(arg));
+				} else if( _parser.skips("for") ) {
+					while( auto x = _parser.gets(Lexer::Word) ) {
+						loc.fix(*x);
 					}
 				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
