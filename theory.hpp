@@ -226,4 +226,7 @@ inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
 	return os << loc.pretty(SYNTAX);
 }
 
+Opt<Thm> proves( CTerm const& claim, Thy const& thy );
+Thm prove( CTerm const& claim, Thy const& thy );
+
 #endif

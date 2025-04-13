@@ -1,17 +1,9 @@
 #include <iostream>
-#include "rewriter.hpp"
+#include "inference.hpp"
 
 using namespace std;
 
 string const Rewriter::CONG = "#cong";
-
-static Error const MalformedRefl = Rewriter::Error("\"malformed reflexivity rule\"");
-static Error const MalformedTrans = Rewriter::Error("\"malformed transitivity rule\"");
-static Error const MalformedRule = Rewriter::Error("\"malformed rewrite rule\"");
-static Error const MalformedCong = Rewriter::Error("\"malformed congruence rule\"");
-Rewriter::Error const Rewriter::UnregisteredRel = Error("\"unregistered rewrite relation\"");
-Rewriter::Error const Rewriter::MalformedImp = Error("\"malformed rewrite implication\"");
-static Error const UnregisteredTrans = Rewriter::Error("\"missing setup trans\"");
 
 Opt<tuple<string,Term,Term>> strips_binary( Term const& term ) {
 	if( auto const& app = term.app() )
@@ -64,7 +56,7 @@ void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev 
 		}
 		return;
 	}
-	throw MalformedRule(thm);
+	throw Error("\"malformed rule\"")(thm);
 }
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	Thm rule = strip_all(thm).first;// x = y ⟹ conds... ⟹ x ⟹ y
@@ -72,7 +64,7 @@ Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	if( auto const& imp2 = imp->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
-		if( !ind ) throw UnregisteredRel(*rel);
+		if( !ind ) throw Error("\"unregistered relation\"")(*rel);
 		Term t = imp2->second;
 		size_t conds = 0;
 		while( auto imp3 = t.binary(IMP) ) {
@@ -82,12 +74,12 @@ Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 		( dir ? _imps : _revimps ).emplace(*ind,Imp{thm,conds});
 		return *this;
 	}
-	throw MalformedImp(thm);
+	throw Error("\"malformed imp\"")(thm);
 }
 Rewriter& Rewriter::register_refl( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
-	if( !rel ) throw MalformedRefl(thm);
+	if( !rel ) throw Error("\"malformed refl\"")(thm);
 	size_t ind = _rels.size();
 	_rels.emplace(*rel,ind);
 	_refls.emplace_back(thm);
@@ -99,11 +91,11 @@ Rewriter& Rewriter::register_trans( Thm const& thm ) & {
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
-		if( !ind ) throw UnregisteredRel(*rel);
+		if( !ind ) throw Error("\"unregistered relation\"")(*rel);
 		_trans.emplace(*ind,thm);
 		return *this;
 	}
-	throw MalformedTrans(thm);
+	throw Error("\"malformed trans\"")(thm);
 }
 Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 	// parsing congruence rule
@@ -137,10 +129,10 @@ Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 		rev++;
 	}
 	auto const& bin = strips_binary(rule.conclusion());
-	if( !bin ) throw MalformedCong(thm);
+	if( !bin ) throw Error("\"malformed cong\"")(thm);
 	auto const& [rel,l,r] = *bin;
 	auto const& ind = gets_rel_ind(rel);
-	if( !ind ) throw UnregisteredRel(rel);
+	if( !ind ) throw Error("\"unregistered relation\"")(rel);
 	_congs[*ind].emplace_back(l,thm,std::move(conds));
 	return *this;
 }
@@ -295,7 +287,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 	if( rel ) {
 		auto const& o = gets_rel_ind(*rel);
-		if( !o ) throw UnregisteredRel(*rel);
+		if( !o ) throw Error("\"unregistered relation\"")(*rel);
 		return *o;
 	} else {
 		return 0;
@@ -325,7 +317,7 @@ Opt<Thm> Rewriter::_steps(
 		return eq;
 	}
 	auto const& tranp = _trans.finds(ind);
-	if( !tranp ) throw UnregisteredTrans;
+	if( !tranp ) throw Error("\"transitivity rule unregistered\"");
 	// ltrans: ∀y z. s = y ⟹ y = z ⟹ types... ⟹ s = z
 	Thm ltrans = tranp->second.weaken(s.ctxt()).instantiate(s);
 	assert(eq.app());
@@ -333,7 +325,7 @@ Opt<Thm> Rewriter::_steps(
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(rules,thy,t,ind,begin,end);
 		if( !step ) {
-			if( i < min ) throw TooFewSteps(i,min,t);
+			if( i < min ) throw Error("\"too few steps\"")(to_string(i))(to_string(min))(t);
 			return eq;
 		}// t = u
 		auto const& app = step->capp();
@@ -351,6 +343,23 @@ Opt<Thm> Rewriter::_steps(
 		}
 		t = app->second;
 	}
+}
+bool Rewriter::apply( Rules const& rules, Inference& thesis ) const {
+	// thesis: s ⟹ rest
+	auto const& goal = thesis.has_goal();
+	if( !goal ) return false;
+	auto const& o = _revimps.finds(0);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
+	auto const& thy = thesis.thy();
+	auto steps = _steps(rules,thy,*goal,1,255,false,{},0);// s = t
+	if( !steps ) return false;
+	auto imp = o->second.thm.weaken(thy);// x = y ⟹ conds... ⟹ y ⟹ x
+	imp = imp << *steps; // conditions... ⟹ t ⟹ s
+	auto conds = o->second.conds;
+	thesis.apply(Intro::imp(imp,conds+1));// conditions... ⟹ t ⟹ rest
+	for( size_t i = 0; i < conds; i++ ) {
+		thesis.blast();
+	}// t ⟹ s
+	return true;
 }
 bool Rewriter::apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const {
 	// thesis: s ⟹ rest

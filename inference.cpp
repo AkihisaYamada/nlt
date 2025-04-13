@@ -160,6 +160,9 @@ bool Inference::_blast(
 		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
 			auto assm = subthy.assume(imp->first);
 			goal = imp->second;
+			if( auto rew = ctrl.rewrite ) {
+				assm = subthy.rewriter().rewrite(rew->first,subthy,assm,rew->second);
+			}
 			for( auto elim = ctrl.elims.begin();; elim++ ) {// checks if an elimination rule matches
 				if( elim == ctrl.elims.end() ) {
 					// no elimination matches, so just declare the assumption as forced
@@ -185,7 +188,7 @@ bool Inference::_blast(
 		auto thesis = claim_exact(subthy,goal);
 		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
 		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) ) {
-			if( !ctrl.extra(thesis) &&
+			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter().apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g) &&
 				!subthy.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } )
 			) {
@@ -224,4 +227,12 @@ bool Inference::_blast(
 		elim_res.pop_back();
 	}
 	return true;
+}
+
+Opt<Thm> proves( CTerm const& claim, Thy const& thy ) {
+	return proves(claim,thy,Inference::DEFAULT_CTRL);
+}
+
+Thm prove( CTerm const& claim, Thy const& thy ) {
+	return prove(claim,thy,Inference::DEFAULT_CTRL);
 }

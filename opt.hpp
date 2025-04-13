@@ -35,28 +35,36 @@ public:
 		return *this;
 	}
 	T const& operator*() const & {
-		assert(*this);
+		assert(_opt);
 		return *_opt;
 	}
 	T& operator*() & {
-		assert(*this);
+		assert(_opt);
 		return *_opt;
 	}
 	T operator*() && {
-		assert(*this);
+		assert(_opt);
 		return *std::move(_opt);
 	}
 	T const* operator->() const & {
-		assert(*this);
+		assert(_opt);
 		return _opt.operator->();
 	}
 	T* operator->() & {
-		assert(*this);
+		assert(_opt);
 		return _opt.operator->();
 	}
 	T ref( T const& other ) const& {
-		if(*this) return *_opt;
+		if(_opt) return *_opt;
 		return other;
+	}
+	template<typename S>
+	Opt<S> operator&&( std::function<Opt<S>(T const&)> const& f ) const& {
+		if(_opt) return f(*_opt);
+		return {};
+	}
+	bool operator&&( std::function<bool(T const&)> const& f ) const& {
+		return *this && f(*_opt);
 	}
 	template<typename U>
 	operator Opt<U>() && = delete;

@@ -1,7 +1,7 @@
 #ifndef _INFERENCE_HPP
 #define _INFERENCE_HPP
 
-#include "theory.hpp"
+#include "rewriter.hpp"
 
 /** @brief Add concluder theorem to theory */
 void add_forced( Thy&, Thm const& thm, bool allow_intro = false );
@@ -21,7 +21,7 @@ public:
 		bool force_assms = false;
 		std::set<Intro> intros;
 		std::set<Elim> elims;
-		std::function<bool(Inference&)> extra = [](auto){ return false; };
+		Opt<std::pair<Rewriter::Rules,Rewriter::Ctrl>> rewrite;
 	};
 	static const Ctrl DEFAULT_CTRL;
 	/** name for exact concluder */
@@ -178,10 +178,10 @@ inline const Inference::Ctrl Inference::DEFAULT_CTRL;
 
 inline Opt<Thm> proves(
 	CTerm const& claim,
-	Thy const& loc,
-	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
+	Thy const& thy,
+	Inference::Ctrl const& ctrl
 ) {
-	auto x = Inference::claim_exact(loc,claim);
+	auto x = Inference::claim_exact(thy,claim);
 	if( x.blasts(ctrl) ) {
 		return *x.concluding();
 	}
@@ -190,7 +190,7 @@ inline Opt<Thm> proves(
 inline Thm prove(
 	CTerm const& claim,
 	Thy const& thy,
-	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
+	Inference::Ctrl const& ctrl
 ) {
 	auto x = Inference::claim_exact(thy,claim);
 	x.blast(ctrl);

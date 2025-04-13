@@ -29,12 +29,12 @@ setup define beta.
 note! eq_nat.type.
 
 lemma induction: for x,
-	if ! nat x, ! P 0, ! ∀x. P x ⟹ nat x ⟹ P (suc x), ! ∀x. nat x ⟹ prop (P x)
-	then P x;
-	have 1: ∀x:nat. P x;
+	if ! nat x, ! P.[0], ! ∀x. P.[x] ⟹ nat x ⟹ P.[suc x], ! ∀x. nat x ⟹ prop P.[x]
+	then P.[x];
+	have 1: ∀x:nat. (λx. P.[x]) x;
 		apply all_elim1[OF induct];
-		by all_intro #elim fun_type_elim1.
-	by all_elim1[OF 1].
+		by all_intro #elim fun_type_elim1 #unfold(=) beta.
+	by all_elim1[OF 1[unfolded(=) beta]].
 
 lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
 	apply iff_intro;
@@ -42,6 +42,9 @@ lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
 	- if xy: x = y;
 		by #unfold(=) xy.
 	.
+
+lemma rec_type: for z s, if ! ι z, ! (nat→ι→ι) s, x: nat x then ι (rec s z x);
+	apply induction[OF x];
 
 define case z s := rec z (λr x. s x).
 

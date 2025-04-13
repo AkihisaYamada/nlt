@@ -1,7 +1,7 @@
 #ifndef _REWRITER_HPP_
 #define _REWRITER_HPP_
 
-#include "inference.hpp"
+#include "theory.hpp"
 
 /**
  * @brief Congruence prover.
@@ -49,8 +49,6 @@ public:
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	static Error const UnregisteredRel;
-	static Error const MalformedImp;
 	class Rules : std::vector<std::vector<Rule>> {
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewriter;
@@ -60,16 +58,6 @@ public:
 		std::vector<char> pos;
 		size_t min, max;
 		bool safe;
-	};
-	struct TooFewSteps : Error {
-		static inline Term const RT = "\"too few steps\"";
-		TooFewSteps(size_t a, size_t e, Term const& term) :
-			Error(RT(std::to_string(a))(std::to_string(e))(term)) {}
-	};
-	struct TooManySteps : Error {
-		static inline Term const RT = "#too many steps";
-		TooManySteps(size_t max, Term const& term) :
-			Error(RT(std::to_string(max))(term)) {}
 	};
 	Rules make_rules() const {
 		return Rules(_rels.size());
@@ -109,6 +97,8 @@ public:
 		return _step(rules,thy,source,ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
+	bool apply( Rules const& rules, Inference& thesis) const;
+	/** @brief applies rewriting with control */
 	bool apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
 	/** @brief Rewrites a theorem */
 	Thm rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const;

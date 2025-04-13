@@ -1,7 +1,7 @@
 #include<fstream>
 #include<filesystem>
 #include<ranges>
-#include"theory.hpp"
+#include"inference.hpp"
 #include"parser.hpp"
 #include"definer.hpp"
 
@@ -654,9 +654,7 @@ DEB(_syntax->pretty_subst(*u));
 			} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
 				auto [rrules,rctrl] = _get_rewrite(_thy,dir);
 				rctrl.min = 0;// returns false when not applicable
-				ctrl.extra = [rrules,rctrl,this](Inference& thesis){
-					return _thy.rewriter().apply(rrules,thesis,rctrl);
-				};
+				ctrl.rewrite = {{rrules,rctrl}};
 			} else if( _parser.skips("force") ) {
 				ctrl.force_assms = true;
 			} else {
