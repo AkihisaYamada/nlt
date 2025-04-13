@@ -151,6 +151,15 @@ lemma all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x];
 lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x];
 	by imp.
 
+lemma make_elim:
+	if imp: ∀x. P.[x] ⟹ Q.[x]
+	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
+	- for x, if Px;
+		- for thesis, if assm;
+			by assm imp Px.
+		.
+	.
+
 -- Obtains true, which is provable.
 theory True:
 	obtain true where true_intro! true;
@@ -268,20 +277,90 @@ theory RightAbsorb:
 	assume right_absorb: mem x ⟹ x * 0 = 0.
 end
 
+theory AbsorbMagma:
+	fix mem (*) (0) (=).
+	import Magma mem (*).
+	import LeftAbsorb.
+	import RightAbsorb.
+end
+
+theory Prop:
+	fix prop.
+	import imp: Magma prop (⟹).
+begin
+	note! imp.type.
+end
+
+theory TypedTrue:
+	fix prop true.
+	import Prop.
+	import true: Member prop true.
+	assume true_intro! true.
+begin
+	note! true.type.
+end
+
+theory TypedFalse:
+	fix prop false.
+	import Prop.
+	import false: Member prop false.
+	assume false_elim: false ⟹ ∀P. prop P ⟹ P.
+begin
+	note! false.type.
+end
+
+theory TypedNot:
+	fix prop false (¬).
+	import false: Member prop false.
+	import not: Unary (¬) prop prop.
+	assume not_intro: (P ⟹ false) ⟹ prop P ⟹ ¬P.
+	assume not_imp_false: ¬P ⟹ P ⟹ prop P ⟹ false.
+begin
+	note! false.type.
+	note! not.type.
+end
+
+theory TypedAnd:
+	fix prop (∧).
+	import and: Magma prop (∧).
+	assume and_intro: P ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P ∧ Q.
+	assume and_elim1: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ P.
+	assume and_elim2: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q.
+begin
+	note! and.type.
+	lemma and_elim: if and: P ∧ Q then
+		∀R. (P ⟹ Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ R;
+		- for R, if PQR: P ⟹ Q ⟹ R;
+			by PQR and_elim1[OF and] and_elim2[OF and].
+		.
+	interpret and: Symmetric prop (∧);
+		by and_intro #elim and_elim.
+end
+
+theory TypedOr:
+	fix prop (∨).
+	import or: Magma prop (∨).
+	assume or_intro1: P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
+	assume or_intro2: for P Q, Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
+	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R.
+begin
+	note! or.type.
+	lemma or_intro:
+		if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R, [prop P, prop Q]
+		then P ∨ Q;
+		apply PQR;
+		- by or_intro1.
+		- by or_intro2.
+		.
+	interpret or: Symmetric prop (∨);
+		by or_intro #elim or_elim.
+end
+
 theory If:
 	fix (if) (then) (else) (=) (¬).
 	assume if: P ⟹ (if P then t else e) = t.
 	assume if_not: ¬P ⟹ (if P then t else e) = e.
 end
-
-lemma make_elim:
-	if imp: ∀x. P.[x] ⟹ Q.[x]
-	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
-	- for x, if Px;
-		- for thesis, if assm;
-			by assm imp Px.
-		.
-	.
 
 theory Collect:
 	fix Collect (∈).
@@ -297,13 +376,6 @@ theory FunType:
 	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
 begin
 	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
-end
-
-theory Prop:
-	fix prop.
-	import imp: Magma prop (⟹).
-begin
-	note! imp.type.
 end
 
 theory TypedTrue:
@@ -333,6 +405,15 @@ begin
 				by all_intro.
 			.
 		.
+	lemma all_elim:
+		if all: ∀x:ι. α.[x]
+		then ∀P. ((∀x. ι x ⟹ α.[x]) ⟹ P) ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ P;
+		- for P, if assm:, !;
+			apply assm;
+			- for x, if !;
+				apply all_elim1[OF all, of x].
+			.
+		.
 end
 
 theory TypedEx:
@@ -342,5 +423,16 @@ theory TypedEx:
 	assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
 	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹
 	(∀x. ι x ⟹ prop α.[x]) ⟹ prop P ⟹ P.
+begin
+	note! ex.type.
+	lemma ex_intro:
+		if assm: ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ prop P ⟹ P,
+			! ∀x. ι x ⟹ prop α.[x]
+		then ∃x:ι. α.[x];
+		apply assm;
+		- for x;
+			by ex_intro1[of x].
+		.
+
 end
 

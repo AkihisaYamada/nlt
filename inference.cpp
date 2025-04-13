@@ -207,7 +207,7 @@ bool Inference::_blast(
 					}
 // apply elimination result
 					if( !thesis._apply(elim_res[elim_res_ind],g) ) {
-						add_forced(_thy,elim_res[elim_res_ind].thm(),true);
+						add_forced(subthy,elim_res[elim_res_ind].thm(),true);
 					}
 					elim_res_ind++;
 					break;

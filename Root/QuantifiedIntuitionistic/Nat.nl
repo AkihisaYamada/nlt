@@ -1,6 +1,6 @@
 base QuantifiedIntuitionistic.
 
-import Lambda.
+import QuantifiedIntuitionisticLambda.
 
 fix nat (0) suc rec.
 
@@ -21,12 +21,16 @@ note! zero.type.
 note! suc.type.
 note! eq_nat.type.
 
-setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
+setup rewrite eq_imp eq_imp_rev eq.refl eq.trans.
 setup dual eq.sym.
 
 setup define beta.
 
 note! eq_nat.type.
+
+
+lemma iff_eq_cong#cong: for f x, if f: f = f', x: x = x' then f x ⟺ g x;
+	
 
 lemma induction: for x,
 	if ! nat x, ! P.[0], ! ∀x. P.[x] ⟹ nat x ⟹ P.[suc x], ! ∀x. nat x ⟹ prop P.[x]

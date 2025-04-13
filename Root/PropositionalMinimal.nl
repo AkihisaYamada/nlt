@@ -8,124 +8,22 @@
 
 fix prop true false (¬) (∧) (∨) (⟺).
 
-import true: Member prop true.
-assume true_intro! true.
-
-import false: Member prop false.
--- Minimal Logic only asserts that false is a proposition.
-
-import imp: Magma prop (⟹).
-
-import not: Unary (¬) prop prop.
-assume not_intro: (P ⟹ false) ⟹ prop P ⟹ ¬ P.
-assume not_imp_false: ¬ P ⟹ P ⟹ prop P ⟹ false.
-
-import and: Magma prop (∧).
-assume and_intro: P ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P ∧ Q.
-assume and_elim1: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ P.
-assume and_elim2: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q.
-
-import iff: Magma prop (⟺).
-assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ prop P ⟹ prop Q ⟹ (P ⟺ Q).
-assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ prop P ⟹ prop Q ⟹ Q.
-assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P.
-
-import or: Magma prop (∨).
-assume or_intro1: P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
-assume or_intro2: for P Q, Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
-assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R.
+import Prop.
+import TypedTrue.
+import TypedNot.
+import TypedAnd.
+import TypedIff.
+import TypedOr.
 
 begin
-
-note ! imp.type.
-note ! true.type.
-note ! false.type.
-note ! not.type.
-note ! iff.type.
-note ! and.type.
-note ! or.type.
 
 ---
 ## Theorems
 ---
 
-interpret iff: Reflexive prop (⟺);
-	by iff_intro.
-
-note ! iff.refl.
-
-interpret iff: Symmetric prop (⟺);
-	- for P Q, if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟺ P;
-		apply iff_intro;
-		- by iff_elim2[OF PQ].
-		by iff_elim1[OF PQ].
-	.
-
-interpret iff: Transitive prop (⟺);
-	- for P Q R, if PQ: P ⟺ Q, QR: Q ⟺ R, [prop P, prop Q, prop R] then P ⟺ R;
-		apply iff_intro;
-		- by iff_elim1[OF QR] iff_elim1[OF PQ].
-		by iff_elim2[OF PQ] iff_elim2[OF QR].
-	.
-
-lemma iff_imp: if PQ: P ⟺ Q, [prop P, prop Q] then P ⟹ Q;
-	by iff_elim1[OF PQ].
-
-lemma iff_imp_rev: if PQ: P ⟺ Q, [prop P, prop Q] then Q ⟹ P;
-	by iff_elim2[OF PQ].
-
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
 
-lemma iff_cong_imp: for P Q,
-	if PP': P ⟺ P', QQ': P' ⟹ Q ⟺ Q', [prop P, prop P', prop Q, prop Q']
-	then (P ⟹ Q) ⟺ (P' ⟹ Q');
-	apply iff_intro;
-	- if PQ: P ⟹ Q;
-		by PQ #fold QQ' PP'-.
-	- if P'Q': P' ⟹ Q', P: P;
-		have P': P';
-			by P[unfolded PP'].
-		by P'Q'[OF P'] #unfold QQ'[OF P'].
-	.
-
-lemma iff_cong_imp_weak#cong: for P Q,
-	if PP': P ⟺ P', QQ': Q ⟺ Q', [prop P, prop Q, prop P', prop Q']
-	then (P ⟹ Q) ⟺ (P' ⟹ Q');
-	apply iff_intro;
-	- if PQ: P ⟹ Q;
-		by PQ #fold QQ' PP'-.
-	- if P'Q': P' ⟹ Q';
-		by P'Q' #unfold QQ' PP'-.
-	.
-
-lemma iff_cong_iff#cong: for P Q,
-	if PP': P ⟺ P', QQ': Q ⟺ Q', [prop P, prop Q, prop P', prop Q']
-	then (P ⟺ Q) ⟺ (P' ⟺ Q');
-	apply iff_intro;
-	- if PQ: P ⟺ Q;
-		apply iff_intro;
-		- by #fold QQ' PQ PP'-.
-		- by #fold PP' PQ- QQ'-.
-		.
-	- if P'Q': P' ⟺ Q';
-		apply iff_intro;
-		- by #unfold QQ' P'Q'- PP'-.
-		- by #unfold PP' P'Q' QQ'-.
-		.
-	.
-
-lemma imp_imp_iff: if [P, prop P, prop Q] then (P ⟹ Q) ⟺ Q;
-	by iff_intro.
-
-lemma imp_iff_iff: if [P, prop P, prop Q] then (P ⟺ Q) ⟺ Q;
-	by iff_intro #elim iff_elim1.
-
-lemma imp3_iff: if [prop P, prop Q] then (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
-	apply iff_intro[OF imp2_imp_imp];
-	- if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q;
-		by PQQ[OF PQ].
-	.
 
 ----
 ### True, False, and Negation
@@ -246,12 +144,6 @@ lemma nnimp_not_iff: if [prop P, prop Q] then
 ### Conjunction
 ---
 
-lemma and_elim: if and: P ∧ Q then
-	∀R. (P ⟹ Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ R;
-	- for R, if PQR: P ⟹ Q ⟹ R;
-		by PQR and_elim1[OF and] and_elim2[OF and].
-	.
-
 lemma iff_cong_and#cong: for P Q,
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [prop P, prop Q, prop P', prop Q']
 	then P ∧ Q ⟺ P' ∧ Q';
@@ -259,11 +151,6 @@ lemma iff_cong_and#cong: for P Q,
 	- by and_intro #fold PP' QQ' #elim and_elim.
 	- by and_intro #unfold PP' QQ' #elim and_elim.
 	.
-
-interpret and: Magma prop (∧).
-
-interpret and: Symmetric prop (∧);
-	by and_intro #elim and_elim.
 
 interpret and_iff: Commutative prop (∧) (⟺);
 	- for P Q, if [prop P, prop Q] then P ∧ Q ⟺ Q ∧ P;
@@ -365,13 +252,6 @@ lemma nnot_nand_iff: if [prop P, prop Q] then ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
 ### Disjunction
 ---
 
-lemma or_intro:
-	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R, [prop P, prop Q]
-	then P ∨ Q;
-	apply PQR;
-	- by or_intro1.
-	- by or_intro2.
-	.
 
 lemma iff_cong_or#cong: for P Q,
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [prop P, prop Q, prop P', prop Q']
@@ -388,9 +268,6 @@ lemma iff_cong_or#cong: for P Q,
 		- by or_intro2 #unfold QQ'.
 		.
 	.
-
-interpret or: Symmetric prop (∨);
-	by or_intro #elim or_elim.
 
 interpret or_iff: Commutative prop (∨) (⟺);
 	by iff_intro or_intro #elim or_elim.

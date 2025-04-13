@@ -541,12 +541,15 @@ DEB(_syntax->pretty_subst(*u));
 				auto a = intp.assuming();
 				if( !a ) throw Error("\"unexpected discharge\"");
 				auto [name,axiom] = *a;
+				if( prefix != "" ) {
+					name = prefix + "." + name;
+				}
 				if( _parser.skips("know") ) {
 					_parser.skip(".");
 					intp.discharge(prefix);
 				} else if( mod && _parser.skips("assume") ) {
 					_parser.skip(".");
-					Thm thm = org_thy.add_assm( prefix == "" ? name : prefix+"."+name, axiom );
+					Thm thm = org_thy.add_assm(name,axiom);
 					intp.discharge(thm);
 					_cout << "assumed " << _syntax->pretty_thm(thm) << endl;
 				} else {
@@ -555,7 +558,7 @@ DEB(_syntax->pretty_subst(*u));
 					}
 				}
 			} else if( _parser.skips("obtain") ) {
-				_obtain();
+				_obtain(org_thy);
 			} else if( _parser.skips("retain") ) {
 				auto sym = get_sym();// the symbol to be instantiated
 				_parser.skip(":=");
@@ -610,6 +613,9 @@ DEB(_syntax->pretty_subst(*u));
 					if( intp.instantiates(mod) || intp.retains() ) continue;
 					if( auto a = intp.assuming() ) {
 						auto& [name,assm] = *a;
+						if( prefix != "" ) {
+							name = prefix + "." + name;
+						}
 						if( _thy.find_thm(name,[&](auto thm){
 							if( thm == assm ) {
 								intp.discharge(thm);
@@ -879,7 +885,7 @@ DEB(_syntax->pretty_subst(*u));
 	}
 	bool _shared_decl() {
 		if( _parser.skips("obtain") ) {
-			_obtain();
+			_obtain(_thy);
 		} else if( _parser.skips("define") ) {
 			_define();
 		} else if( _parser.skips("interpret") ) {
@@ -1140,17 +1146,17 @@ DEB(_syntax->pretty_subst(*u));
 			_prompt();
 		}
 	}
-	void _obtain() {
+	void _obtain( Thy& thy ) {
 		string sym = get_sym();
 		_parser.skip("where");
 		_cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<Thm> prop_thms;
-		auto thesis_loc = _thy.branch();
+		auto thesis_loc = thy.branch();
 		CTerm var = thesis_loc.fix("?thesis");
 		Ctxt goal_ctxt = thesis_loc.Ctxt::branch();
 		goal_ctxt.fix(sym);
-		auto props_loc = _thy.branch();
+		auto props_loc = thy.branch();
 		props_loc.fix(sym);
 		for(;;) {
 			auto [cs,t] = get_assm();
@@ -1167,16 +1173,16 @@ DEB(_syntax->pretty_subst(*u));
 			goal = prop >>= goal;
 		}
 		goal = goal.lift(thesis_loc.cterm(ALL)) >>= var;
-		goal = goal.lift(_thy.cterm(ALL));
+		goal = goal.lift(thy.cterm(ALL));
 		_prompt();
 		_cout << "prove " << _syntax->pretty_cterm(goal) << endl;
-		auto thesis = Inference::claim_exact(_thy,goal);
-		auto const& thm = Prover(*this,_thy).deepen().proof_loop(thesis);
+		auto thesis = Inference::claim_exact(thy,goal);
+		auto const& thm = Prover(*this,thy).deepen().proof_loop(thesis);
 		if( thm ) {
-			auto [sym_term,deriver] = _thy.obtain(sym,*thm,make_spec_name(string(sym)));
+			auto [sym_term,deriver] = thy.obtain(sym,*thm,make_spec_name(string(sym)));
 			// der: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
 			_cout << "obtained " << sym << endl;
-			auto& intp = _thy.import("",props_loc);
+			auto& intp = thy.import("",props_loc);
 			intp.instantiate(sym_term);
 			for( auto const& prop_thm : prop_thms ) {
 				auto const& arg = prop_thm.intro();// props... ⟹ prop_i

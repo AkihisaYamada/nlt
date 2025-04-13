@@ -1,26 +1,26 @@
-fix prop true false (¬) (∧) (∨) (⟺) (∀:) (∃:).
+---
+# Quantified Minimal Logic
 
-import PropositionalMinimal.
-import TypedAll.
+In addition to propositional minimal logic, this theory axiomatizes typed quantifiers.
+Now the true proposition can be obtained using the universal quantifier.
+---
+
+fix prop false (¬) (∧) (∨) (⟺) (∀:) (∃:).
+
+import Prop.
+import TypedNot.
+import TypedIff.
+import TypedAnd.
+import TypedOr.
 import TypedEx.
+import TypedAll.
 
 begin
 
+interpret PropositionalMinimal.
+
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
-
-note! all.type.
-note! ex.type.
-
-lemma all_elim:
-	if all: ∀x:ι. α.[x]
-	then ∀P. ((∀x. ι x ⟹ α.[x]) ⟹ P) ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ P;
-	- for P, if assm:, !;
-		apply assm;
-		- for x, if !;
-			apply all_elim1[OF all, of x].
-		.
-	.
 
 lemma not_imp_not_all: if nax: ¬α.[x], ! ι x, ! ∀y. ι y ⟹ prop α.[y] then
 	¬(∀y:ι. α.[y]);
@@ -44,15 +44,6 @@ lemma tall_cong#cong: for α,
 ---
 ### Existence
 ---
-
-lemma ex_intro:
-	if assm: ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ prop P ⟹ P,
-		! ∀x. ι x ⟹ prop α.[x]
-	then ∃x:ι. α.[x];
-	apply assm;
-	- for x;
-		by ex_intro1[of x].
-	.
 
 lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 	(∃x:ι. α.[x]) ⟺ (∀P:prop. (∀x:ι. α.[x] ⟹ P) ⟹ P);

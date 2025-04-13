@@ -101,19 +101,28 @@ private:
 		if( auto rsym = r.sym() ) {
 			return unify_rsym(l,*rsym);
 		}
-		if( auto lfix = l.cunbind() ) {
-			auto const& [x,_,larg] = *lfix;
+		if( auto lunbind = l.cunbind() ) {
+			auto const& [x,_,larg] = *lunbind;
 			return unify_lunbind(x,larg,r);
 		}
-		if( auto rfix = r.cunbind() ) {
-			auto const& [y,_,rarg] = *rfix;
+		if( auto runbind = r.cunbind() ) {
+			auto const& [y,_,rarg] = *runbind;
 			return unify_runbind(l,y,rarg);
 		}
 		return unify2(l,r);
 	}
 	// when lhs is not but rhs is a symbol
 	void unify_rsym(CTerm const& l, string const& y) {
-		if( inds[1].contains(y) ) { // bound variable cannot match other things
+		if( auto rind = inds[1].finds(y) ) { // bound variable cannot match other things
+			if( auto lunbind = l.unbind() )// lhs can be higher order pattern
+			if( fvar(lunbind->first) )
+			if( auto argsym = lunbind->second.sym() )
+			if( auto const& lind = inds[0].finds(*argsym) )
+			if( rind->second == lind->second ) {
+				StrSet bounds;
+				subst.assign(lunbind->first,"_"/=Term("_"));
+				return;
+			}
 			throw Mismatch();
 		}
 		if( auto const& yval = subst.get(y) ) {// recurse into the assignment
@@ -227,10 +236,10 @@ private:
 			subst.assign(x,sanitize(bvars[1][i]/=r,bounds,avoids[1],inds[1]));
 			return;
 		}
-		return unify_lfix2(x,larg,r);
+		return unify_lunbind2(x,larg,r);
 	}
-	// lhs is non-pattern context application
-	void unify_lfix2( string const& x, CTerm const& larg, CTerm const& r ) {
+	// lhs is non-pattern unbinding
+	void unify_lunbind2( string const& x, CTerm const& larg, CTerm const& r ) {
 		if( auto const& rsym = r.sym() ) {
 			return unify_rsym(x/larg,*rsym);
 		} if( auto const& rfix = r.cunbind() ) {/// rhs is also a context application
@@ -246,7 +255,7 @@ private:
 			if( auto vsym = val->sym() ) {
 				unify_fixes(x,larg,*vsym,rarg);
 			} else if( auto vabs = val->cbind() ) {
-				unify_lfix2(x,larg,val->inst(rarg));
+				unify_lunbind2(x,larg,val->inst(rarg));
 			} else {
 				throw Mismatch();
 			}

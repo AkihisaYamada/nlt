@@ -103,7 +103,7 @@ Thm Thy::add_assm(string_view const& name, CTerm const& assm) {
 
 AThm Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) {
 	if( thm.ctxt() != *this ) {
-		throw Error("\"add_thm\"")(thm);
+		throw Error("\"wrong context for add_thm\"")(thm);
 	}
 	_ref->thms.emplace(name,pair(thm,info));
 	return AThm(*this,thm,info);
@@ -226,7 +226,7 @@ bool Import::discharges( std::string_view const& prefix, bool mod ) {
 		( ( name = prefix ) += '.' ) += post;
 	}
 	// if this assumption is already discharged, then reuse it
-	if( auto opt = _tgt.find_thm(name,_test_term_eq(assm),true,true) ) {
+	if( auto opt = _tgt.find_thm(name,_test_term_eq(assm)) ) {
 		Intp::discharge(*opt);
 		return true;
 	}
