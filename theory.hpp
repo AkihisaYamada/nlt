@@ -183,9 +183,9 @@ public:
 		Intp::discharge(thm);
 	}
 	/** automatically discharge assumption */
-	bool discharges( bool mod = false );
-	void discharge() & {
-		if( !discharges() ) {
+	bool discharges( std::string_view const& prefix, bool mod = false );
+	void discharge( std::string_view const& prefix ) & {
+		if( !discharges(prefix) ) {
 			throw Error("\"unexpected know\"");
 		}
 	}

@@ -24,13 +24,13 @@ interpret eq: MetaTransitive (=);
 
 interpret eq: MetaEquivalence (=).
 
-lemma eq_prop1: if PQ: P = Q, P: P then Q;
+lemma eq_imp: if PQ: P = Q, P: P then Q;
 	by eq_imp_meta[of (x. x), OF PQ P].
 
-lemma eq_prop2: if PQ: P = Q, Q: Q then P;
-	by eq_prop1[OF eq.sym[OF PQ] Q].
+lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
+	by eq_imp[OF eq.sym[OF PQ] Q].
 
-setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
+setup rewrite eq_imp eq_imp_rev eq.refl eq.trans.
 setup dual eq.sym.
 
 lemma eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y];

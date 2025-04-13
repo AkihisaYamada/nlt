@@ -448,7 +448,7 @@ DEB(_syntax->pretty_subst(*u));
 		auto loc = find_thy(_thy,name);
 		auto& intp = _thy.import(prefix,loc);
 		while( auto const& t = _parser.gets_term(1000) ) {
-			while( intp.discharges(mod) || intp.retains() );
+			while( intp.discharges(prefix,mod) || intp.retains() );
 			auto const& fix = intp.fixing();
 			if( !fix ) {
 				throw Error("\"too many instantiation\"")(*t);
@@ -467,16 +467,16 @@ DEB(_syntax->pretty_subst(*u));
 			_cout << (mod ? "importing " : "interpreting ") << name << endl;
 			_depth++;
 			_prompt();
-			_import_loop(intp,mod);
+			_import_loop(prefix,intp,mod);
 			_depth--;
 		} else {
 			_parser.skip(".");
-			while( intp.instantiates(mod) || intp.discharges(mod) || intp.retains() );
+			while( intp.instantiates(mod) || intp.discharges(prefix,mod) || intp.retains() );
 		}
 		if( !intp.ready() ) throw Error("\"failed to interpret\"");
 		_cout << (mod ? "imported " : "interpreted ") << name << endl;
 	}
-	void _import_loop( Import& intp, bool mod ) {
+	void _import_loop( string const& prefix, Import& intp, bool mod ) {
 		auto org_thy = _thy;
 		_thy = Thy(org_thy,org_thy,"#import","");// namescope
 		for(;;) try {
@@ -485,7 +485,9 @@ DEB(_syntax->pretty_subst(*u));
 					cout << "fix " << *x << endl;
 				} else if( auto x = intp.assuming() ) {
 					auto [name,axiom] = *x;
-					cout << "show " << name << ": " << _syntax->pretty_cterm(axiom) << endl;
+					cout << "show ";
+					if( prefix != "" ) cout << prefix << '.';
+					cout << name << ": " << _syntax->pretty_cterm(axiom) << endl;
 				} else if( auto x = intp.obtaining() ) {
 					cout << "obtain " << x->sym << " in " << _syntax->pretty_cterm(x->spec) << endl;
 				} else {
@@ -507,7 +509,7 @@ DEB(_syntax->pretty_subst(*u));
 						auto a = intp.assuming();
 						if( !a ) throw Error("\"unexpected show\"")(thm);
 						if( a->second != thm ) {
-							intp.discharge();
+							intp.discharge(prefix);
 							continue;
 						}
 						intp.discharge(thm);
@@ -525,7 +527,7 @@ DEB(_syntax->pretty_subst(*u));
 				_parser.skip(".");
 				for( auto [x,t] : ass ) {
 					for(;;) {
-						if( intp.discharges(mod) || intp.retains() ) continue;
+						if( intp.discharges(prefix,mod) || intp.retains() ) continue;
 						auto y = intp.fixing();
 						if( !y ) throw Error("\"unexpected instantiate\"")(x);
 						if( *y == x ) break;
@@ -541,10 +543,10 @@ DEB(_syntax->pretty_subst(*u));
 				auto [name,axiom] = *a;
 				if( _parser.skips("know") ) {
 					_parser.skip(".");
-					intp.discharge();
+					intp.discharge(prefix);
 				} else if( mod && _parser.skips("assume") ) {
 					_parser.skip(".");
-					Thm thm = org_thy.add_assm(name,axiom);
+					Thm thm = org_thy.add_assm( prefix == "" ? name : prefix+"."+name, axiom );
 					intp.discharge(thm);
 					_cout << "assumed " << _syntax->pretty_thm(thm) << endl;
 				} else {
@@ -561,7 +563,7 @@ DEB(_syntax->pretty_subst(*u));
 				auto term = thesis_loc.cterm(_parser.get_term());
 				_parser.skip(";");
 				for(;;) {
-					if( intp.discharges(mod) || intp.instantiates(mod) ) continue;
+					if( intp.discharges(prefix,mod) || intp.instantiates(mod) ) continue;
 					auto x = intp.obtaining();
 					if( !x ) throw Error("\"unexpected retain\"")(sym);
 					if( x->sym != sym ) {

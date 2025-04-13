@@ -45,8 +45,6 @@ note ! iff.type.
 note ! and.type.
 note ! or.type.
 
-ctxt.
-
 ---
 ## Theorems
 ---

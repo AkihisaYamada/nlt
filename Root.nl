@@ -299,4 +299,48 @@ begin
 	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
 end
 
+theory Prop:
+	fix prop.
+	import imp: Magma prop (⟹).
+begin
+	note! imp.type.
+end
+
+theory TypedTrue:
+	fix prop true.
+	import true: Member prop true.
+	assume true_intro: true.
+end
+
+theory TypedFalse:
+	fix prop false.
+	import false: Member prop false.
+	assume false_elim: false ⟹ ∀P. prop P ⟹ P.
+end
+
+theory TypedAll:
+	fix prop (∀:).
+	import Prop.
+	import all: TypedBinder prop (∀:).
+	assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
+	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ α.[x].
+begin
+	note! all.type.
+	interpret TypedTrue;
+		obtain true where ! prop true, ! true;
+			- for thesis, if assm;
+				apply assm[of (∀P:prop. P ⟹ P)];
+				by all_intro.
+			.
+		.
+end
+
+theory TypedEx:
+	fix prop (∃:).
+	import Prop.
+	import ex: TypedBinder prop (∃:).
+	assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
+	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹
+	(∀x. ι x ⟹ prop α.[x]) ⟹ prop P ⟹ P.
+end
 

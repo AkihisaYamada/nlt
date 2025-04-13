@@ -1,15 +1,8 @@
 fix prop true false (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import PropositionalMinimal.
-
-import all: TypedBinder prop (∀:).
-assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
-assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ α.[x].
-
-import ex: TypedBinder prop (∃:).
-assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
-assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹
-	(∀x. ι x ⟹ prop α.[x]) ⟹ prop P ⟹ P.
+import TypedAll.
+import TypedEx.
 
 begin
 

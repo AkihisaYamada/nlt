@@ -215,12 +215,16 @@ Opt<Thy> Thy::find_thy(string_view const &name, bool ancestor) const {
 auto _test_term_eq( Term const& x ) {
 	return [&]( Term const& y ) { return x == y; };
 }
-bool Import::discharges( bool mod ) {
+bool Import::discharges( std::string_view const& prefix, bool mod ) {
 	auto x = assuming();
 	if( !x ) {
 		return false;
 	}
 	auto [name,assm] = *x;
+	if( prefix != "" ) {
+		auto post = move(name);
+		( ( name = prefix ) += '.' ) += post;
+	}
 	// if this assumption is already discharged, then reuse it
 	if( auto opt = _tgt.find_thm(name,_test_term_eq(assm),true,true) ) {
 		Intp::discharge(*opt);
