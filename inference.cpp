@@ -89,14 +89,14 @@ bool Inference::_apply_blast(
 	auto const& m = intro.matches(goal);
 	if( !m ) return false;
 	auto rule_intp = intro.intp(_thy);
-	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
+	while( auto const& v = rule_intp.modification().ref<Intp::Fix>() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
 			rule_intp.instantiate(*val);
 		} else {
 			rule_intp.instantiate(dummy(_thy));
 		}
 	}
-	while( auto const& assm = rule_intp.assuming() ) {// make assumptions
+	while( auto const& assm = rule_intp.modification().ref<Intp::Assume>() ) {// make assumptions
 		Inference thesis = claim_exact(_thy,*assm);
 		vector<Intro> elim_res;
 		if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
@@ -114,7 +114,8 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 	auto ctxt = goal.ctxt();// collects new assumptions
 	auto rule_intp = rule.intp(ctxt);
 	for(;;) {
-		if( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
+		auto mod = rule_intp.modification();
+		if( auto const& v = mod.ref<Intp::Fix>() ) {// instantiate rule variables
 			if( auto const& val = m->get(*v) ) {
 				rule_intp.instantiate(*val);
 			} else {
@@ -122,7 +123,7 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 			}
 			continue;
 		}
-		if( auto const& assm = rule_intp.assuming() ) {// make assumptions
+		if( auto const& assm = mod.ref<Intp::Assume>() ) {// make assumptions
 			rule_intp.discharge(ctxt.assume(*assm));
 			_goals++;
 			continue;

@@ -58,12 +58,7 @@ public:
 		if(_opt) return *_opt;
 		return other;
 	}
-	template<typename S>
-	Opt<S> operator&&( std::function<Opt<S>(T const&)> const& f ) const& {
-		if(_opt) return f(*_opt);
-		return {};
-	}
-	bool operator&&( std::function<bool(T const&)> const& f ) const& {
+	bool operator&&( std::function<bool(T const&)> f ) const& {
 		return *this && f(*_opt);
 	}
 	template<typename U>

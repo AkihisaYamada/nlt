@@ -156,55 +156,47 @@ public:
 	Thy const& target() const & {
 		return _tgt;
 	}
-	/** automatic instantiation */
-	bool instantiates( bool mod = false ) {
-		if( auto v = fixing() ) {
-			if( auto t = _tgt.constant(*v) ) {
-				instantiate(*t);
-			} else if( mod ) {
-				instantiate( _tgt.fix(*v) );
-			} else {
-				throw Error("\"instantiation must be specified\"")(*v);
-			}
-			return true;
+	struct Fix : std::string {};
+	struct Assume {
+		std::string name;
+		CTerm assm;
+	};
+	struct Obtain {
+		std::string spec_name;
+		std::string sym;
+		Thm ex;
+		CTerm spec;
+	};
+	Sum<Fix,Assume,Obtain,nullptr_t> modification( size_t i = 0 ) const& {
+		auto mod = Intp::modification(i);
+		if( auto const& fix = mod.ref<Intp::Fix>() ) {
+			return Fix(*fix);
 		}
-		return false;
-	}
-	Opt<std::pair<std::string, CTerm>> assuming() & {
-		if( auto const& assm = Intp::assuming() ) {
+		if( auto const& assm = mod.ref<Intp::Assume>() ) {
 			if( auto const& name = _src.find_assm_name(revision()) ) {
-				return std::pair{*name,*assm};
+				return Assume{*name,*assm};
 			}
 			throw Error("\"unnamed assumption\"")(*assm);
 		}
-		return {};
-	}
+		if( auto const& obtain = mod.ref<Intp::Obtain>() ) {
+			auto [sym,ex,spec] = *obtain;
+			auto name = _src.find_assm_name(revision()+i);
+			if( !name ) {
+				throw Error("\"unnamed obtain\"")(sym)(spec);
+			}
+			return Obtain{*name,sym,ex,spec};
+		}
+		return nullptr;
+	};
 	void discharge( Thm const& thm ) {
 		Intp::discharge(thm);
 	}
 	/** automatically discharge assumption */
-	bool discharges( std::string_view const& prefix, bool mod = false );
+	bool discharges( std::string_view const& prefix, bool change = false );
 	void discharge( std::string_view const& prefix ) & {
 		if( !discharges(prefix) ) {
 			throw Error("\"unexpected know\"");
 		}
-	}
-	struct ObtainInfo {
-		std::string spec_name;
-		std::string sym;
-		Thm ex;
-		Thm spec;
-	};
-	Opt<ObtainInfo> obtaining() & {
-		if( auto o = Intp::obtaining() ) {
-			auto [sym,ex,spec] = *o;
-			auto name = _src.find_assm_name(revision());
-			if( !name ) {
-				throw Error("\"unnamed obtain\"")(sym)(spec);
-			}
-			return ObtainInfo{*name,sym,ex,spec};
-		}
-		return {};
 	}
 	/** retain constant by specification */
 	void retain( CTerm c, Thm const& thm ) & {

@@ -179,17 +179,21 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 		if( auto const& m = match( rule.pat, source, [&](auto v){ return rule_ctxt.fixes(v); }) ) {
 			// source: l[m]
 			auto intp = Intp(rule_ctxt,source_ctxt);
-			// instantiate variables
-			while( auto v = intp.fixing() ) {
-				if( auto t = m->get(*v) ) {
-					intp.instantiate(*t);
+			for(;;) {
+				auto mod = intp.modification();
+				if( auto fix = mod.ref<Intp::Fix>() ) {
+					// instantiate variables
+					if( auto t = m->get(*fix) ) {
+						intp.instantiate(*t);
+					} else {
+						intp.instantiate(source_ctxt.cterm(DUMMY));
+					}
+				} else if( auto assume = mod.ref<Intp::Assume>() ) {
+					// discharge conditions
+					intp.discharge(prove(*assume,thy));
 				} else {
-					intp.instantiate(source_ctxt.cterm(DUMMY));
+					break;
 				}
-			}
-			// discharge conditions
-			while( auto assm = intp.assuming() ) {
-				intp.discharge(prove(*assm,thy));
 			}
 			return intp.subst(rule.thm); // l[m] = r[m]
 		}

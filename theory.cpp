@@ -216,7 +216,7 @@ auto _test_term_eq( Term const& x ) {
 	return [&]( Term const& y ) { return x == y; };
 }
 bool Import::discharges( std::string_view const& prefix, bool mod ) {
-	auto x = assuming();
+	auto x = modification().ref<Assume>();
 	if( !x ) {
 		return false;
 	}
@@ -244,21 +244,17 @@ bool Import::discharges( std::string_view const& prefix, bool mod ) {
 }
 
 void Import::retain( CTerm c ) {
-	auto o = obtaining();
-	if( !o ) {
-		throw Error(c);
-	}
+	auto o = modification().ref<Obtain>();
+	if( !o ) throw Error(c);
 	auto [name,sym,ex,spec] = *o;
 	Term const& stmt = spec.inst(c);
 	auto const& thm = _tgt.find_thm(name,_test_term_eq(stmt),true,true);
-	if(!thm) {
-		throw Error(sym)(c);
-	}
+	if(!thm) throw Error(sym)(c);
 	Intp::retain(c,*thm);
 }
 
 bool Import::retains() {
-	auto o = obtaining();
+	auto o = modification().ref<Obtain>();
 	if( !o ) {
 		return false;
 	}

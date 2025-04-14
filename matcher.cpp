@@ -238,7 +238,7 @@ CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 }
 
 void subst_intp( Intp& intp, Subst& subst ) {
-	while( auto const& sym = intp.fixing() ) {
+	while( auto const& sym = intp.modification().ref<Intp::Fix>() ) {
 		auto const& val = subst.get(*sym);
 		auto ctxt = subst.ctxt();
 		intp.instantiate( val ? *val : ctxt.fix(*avoider(ctxt)(*sym)));
@@ -257,7 +257,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	rule = rule.discharge(rule_ctxt.assume(imp->first));
 	auto intp = Intp(rule_ctxt,ctxt);
 	subst_intp(intp,*m);
-	auto const& assm = intp.assuming();
+	auto const& assm = intp.modification().ref<Intp::Assume>();
 	assert(assm);
 	intp.discharge(arg_weaken);
 	return intp.subst(rule).intro();

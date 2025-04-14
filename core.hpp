@@ -319,20 +319,20 @@ struct UnboundVariable : public Error {
 
 /** @brief Context */
 class Ctxt {
-	friend Intp;
+private:
 	struct Body;
 	Ref<Body> _ref;
 	Ctxt(Ref<Body>&& ref) : _ref(ref) {}
-	class _Fix : public std::string {
-		using std::string::string;
-	};
+	Ctxt(Opt<Ctxt> const& parent);
+	struct _Fix : public std::string {};
 	class _Assume : public Term {};
 	struct _Obtain {
 		std::string sym;
-		Term thm;// ∀thesis. (∀sym. prop... ⟹ thesis) ⟹ thesis
+		Term ex;// ∀thesis. (∀sym. prop... ⟹ thesis) ⟹ thesis
 		Term spec;// sym. ∀thesis. (prop... ⟹ thesis) ⟹ thesis
 	};
 	using _Modifier = Sum<_Fix,_Assume,_Obtain>;
+	Thm _assume(Term const& t) &;
 public:
 	Ctxt(Ctxt const& other) : _ref(other._ref) {}
 	Ctxt(Ctxt&& other) : _ref(std::move(other._ref)) {}
@@ -427,9 +427,7 @@ public:
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
-private:
-	Thm _assume(Term const& t) &;
-	Ctxt(Opt<Ctxt> const& parent);
+	friend Intp;
 };
 
 struct Ctxt::Body {
@@ -457,6 +455,7 @@ inline Opt<Ctxt const&> Ctxt::find_parent() const & {
 inline size_t Ctxt::revision() const {
 	return _ref->modifiers.size();
 }
+
 inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
 	if( i < revision() )
 	if( auto a = _ref->modifiers[i].ref<_Fix>() ) {
@@ -788,20 +787,29 @@ public:
 	bool identity() const {
 		return _subst.identity();
 	}
-	/** @brief next unprocessed fix. */
-	Opt<std::string const&> fixing() const & {
-		return _src.fixed(_rev);
-	}
-	Opt<CTerm> assuming() const {
-		if( auto a = _src.assumed(_rev) ) {
-			return a->csubst(_subst);
+	struct Fix : public std::string {};
+	struct Assume : public CTerm {};
+	struct Obtain {
+		std::string sym;
+		Thm ex;
+		CTerm spec;
+	};
+	/** unprocessed modification */
+	Sum<Fix,Assume,Obtain,nullptr_t> modification( size_t i = 0 ) const& {
+		auto ind = _rev + i;
+		if( _src.revision() <= ind ) {
+			return nullptr;
 		}
-		return {};
-	}
-	Opt<std::tuple<std::string,Thm,Thm>> obtaining() const {
-		if( auto o = _src.obtained(_rev) ) {
-			auto const& [sym,ex,spec] = *o;
-			return {{sym,Thm(ex.csubst(_subst)),Thm(spec.csubst(_subst))}};
+		auto const& m = _src._ref->modifiers[ind];
+		if( auto const& sym = m.ref<Ctxt::_Fix>() ) {
+			return Fix(*sym);
+		}
+		if( auto const& assm = m.ref<Ctxt::_Assume>() ) {
+			return Assume{CTerm(_src,*assm).csubst(_subst)};
+		}
+		if( auto const& obtain = m.ref<Ctxt::_Obtain>() ) {
+			auto const& [sym,ex,spec] = *obtain;
+			return Obtain{sym,Thm(ex.csubst(_subst)),spec.csubst(_subst)};
 		}
 		return {};
 	}
@@ -819,7 +827,7 @@ public:
 	 * @param term 
 	 */
 	void instantiate(CTerm const& term) {
-		auto fix = _src.fixed(_rev);
+		auto fix = modification().ref<Fix>();
 		if( !fix ) throw Error("#intp")("\"unexpected instantiate\"");
 		_subst.assign(*fix,term);
 		_rev++;
@@ -830,10 +838,9 @@ public:
 	 * @param thm Proof of the instantiated assumption.
 	 */
 	void discharge(Thm const& thm) {
-		auto assume = _src.assumed(_rev);
+		auto assume = modification().ref<Assume>();
 		if( !assume ) throw Error("#intp")("\"unexpected discharge\"");
-		Term const& exp = assume->subst(_subst);
-		if( exp != thm ) throw Error("#intp")("\"malformed discharge\"")(exp)(thm);
+		if( *assume != thm ) throw Error("#intp")("\"malformed discharge\"")(*assume)(thm);
 		_rev++;
 	}
 	/** @brief If the interpreted context is modified by obtaining a constant,
@@ -844,7 +851,7 @@ public:
 	 */
 	void retain(CTerm const& term, Thm const& thm) {
 		if( thm.ctxt() != _subst.ctxt() ) throw Error("#intp")("\"wrong context retain\"");
-		auto obtain = obtaining();
+		auto obtain = modification().ref<Obtain>();
 		if( !obtain ) throw Error("#intp")("\"unexpected retain\"");
 		auto const& [sym,ex,spec] = *obtain;
 		if( spec.inst(term) != thm ) throw Error("#intp")("\"malformed retain\"")(thm);
