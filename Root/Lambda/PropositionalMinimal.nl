@@ -1,5 +1,6 @@
+base Lambda.
+
 fix true false (∧) (∨).
-import Lambda.
 import Prop.
 import TypedTrue.
 import false: Member prop false.
@@ -7,11 +8,6 @@ import TypedAnd.
 import TypedOr.
 
 begin
-
-setup rewrite eq_imp eq_imp_rev eq.refl eq.trans.
-setup dual eq.sym.
-
-setup define beta.
 
 note! false.type.
 
@@ -22,7 +18,7 @@ interpret TypedNot;
 
 define[iff] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
 
-interpret PropositionalMinimal;
+interpret ..PropositionalMinimal;
 	by and_intro #unfold iff_def #elim and_elim.
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.

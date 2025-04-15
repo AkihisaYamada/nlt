@@ -1,12 +1,11 @@
-import Lambda.
+base Lambda.
+
 import TypedAll.
+
 fix false.
 import false: Member prop false.
 
 begin
-
-setup rewrite eq_imp eq_imp_rev eq.refl eq.trans.
-setup define beta.
 
 note! false.type.
 
@@ -40,7 +39,7 @@ interpret TypedOr;
 		.
 	.
 
-interpret PropositionalMinimalLambda.
+interpret PropositionalMinimal.
 
 interpret TypedEx;
 	-.
