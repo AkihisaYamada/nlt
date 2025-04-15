@@ -216,16 +216,14 @@ public:
 					}
 					auto u = unify(arg,cond,[&](auto v){ return unifier_loc.fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(thm);
-DEB(_syntax->pretty_subst(*u));
 					auto intp = Intp(unifier_loc,loc);
 					for(;;){
-						auto mod = intp.modification();
-						if( auto const& v = mod.ref<Intp::Fix>() ) {
+						if( auto const& v = intp.fixing() ) {
 							intp.instantiate(loc.enclose( [&]()->Term{
 								if( auto t = u->get(*v) ) return *t;
 								return *v;
 							}()));
-						} else if( auto const& assm = mod.ref<Intp::Assume>() ) {
+						} else if( auto const& assm = intp.assuming() ) {
 							intp.discharge(loc.assume(loc.cterm(*assm)));
 						} else {
 							break;
@@ -439,16 +437,16 @@ DEB(_syntax->pretty_subst(*u));
 		_cout << _syntax->pretty_cterm(goal) << endl;
 		return Inference::claim_exact(assm_thy,goal);
 	}
-	void _auto_instantiate( Import& intp, Import::Fix const& fix, bool change ) {
+	void _auto_instantiate( Import& intp, string const& fix, bool change ) {
 			intp.instantiate( change ? _thy.enclose(fix) : _thy.cterm(fix) );
 	}
-	void _auto_discharge( string const& prefix, Import& intp, Import::Assume const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
+	void _auto_discharge( string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
 		}
-		assm_name += assume.name;
-		auto const& assm = assume.assm;
+		assm_name += assume.second;
+		auto const& assm = assume.first;
 		if( auto opt = _thy.find_thm(assm_name,[&]( Term const& y ) { return assm == y; }) ) {
 			intp.discharge(*opt);
 		} else if( change ) {
@@ -457,14 +455,13 @@ DEB(_syntax->pretty_subst(*u));
 			intp.discharge(prove(assm,_thy,ctrl));
 		}
 	}
-	void _auto_retain( string const& prefix, Import& intp, Import::Obtain const& obtain ) {
-		auto [name,sym,ex,spec] = obtain;
+	void _auto_retain( string const& prefix, Import& intp, auto const& obtain ) {
+		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			Term const& stmt = spec.inst(*csym);
-			if( auto const& thm = _thy.find_thm(name,[&]( Term const& y ){ return stmt == y; },true,true) ) {
-				intp.retain(*csym,*thm);
-			}
-			throw Error("\"failed retain\"")(sym)(name)(stmt);
+			auto const& thm = _thy.find_thm(name,[&]( Term const& y ){ return stmt == y; },true,true);
+			if( !thm ) throw Error("\"failed retain\"")(sym)(name)(stmt);
+			intp.retain(*csym,*thm);
 		} else {
 			auto [sym_term,spec] = _thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
@@ -481,13 +478,12 @@ DEB(_syntax->pretty_subst(*u));
 		auto& intp = _thy.import(prefix,src);
 		while( auto const& t = _parser.gets_term(1000) ) {
 			for(;;) {
-				auto const& mod = intp.modification();
-				if( auto const& fix = mod.ref<Import::Fix>() ) {
+				if( auto const& fix = intp.fixing() ) {
 					intp.instantiate(_thy.cterm(*t));
 					break;
-				} else if( auto const& assume = mod.ref<Import::Assume>() ) {
+				} else if( auto const& assume = intp.assuming() ) {
 					_auto_discharge(prefix,intp,*assume,change);
-				} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+				} else if( auto const& obtain = intp.obtaining() ) {
 					_auto_retain(prefix,intp,*obtain);
 				} else {
 					throw Error("\"unexpected instantiation\"")(*t);
@@ -503,12 +499,11 @@ DEB(_syntax->pretty_subst(*u));
 		} else {
 			_parser.skip(".");
 			for(;;) {
-				auto mod = intp.modification();
-				if( auto const& fix = mod.ref<Import::Fix>() ) {
+				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(intp,*fix,change);
-				} else if( auto const& assume = mod.ref<Import::Assume>() ) {
+				} else if( auto const& assume = intp.assuming() ) {
 					_auto_discharge(prefix,intp,*assume,change);
-				} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+				} else if( auto const& obtain = intp.obtaining() ) {
 					_auto_retain(prefix,intp,*obtain);
 				} else {
 					break;
@@ -517,31 +512,49 @@ DEB(_syntax->pretty_subst(*u));
 		}
 		_cout << (change ? "imported " : "interpreted ") << name << endl;
 	}
-	void _print_import_goal( string_view const& prefix,
-		Sum<Import::Fix,Import::Assume,Import::Obtain,nullptr_t> const& mod ) {
+	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
+		auto mod = intp.modification(i);
 		if( auto const& fix = mod.ref<Import::Fix>() ) {
-			cout << "fix " << *fix << endl;
+			cout << pre << "instantiate " << *fix;
+			size_t n = 1;
+			while( auto const& fix = intp.modification(n).ref<Import::Fix>() ) {
+				cout << ", " << *fix;
+				n++;
+			}
+			cout << endl;
+			return n;
 		} else if( auto const& assume = mod.ref<Import::Assume>() ) {
-			auto [name,axiom] = *assume;
-			cout << "show ";
-			if( prefix != "" ) cout << prefix << '.';
-			cout << name << ": " << _syntax->pretty_cterm(axiom) << endl;
+			cout << pre << "show " << assume->name << ": " << _syntax->pretty_term(assume->assm) << endl;
+			return 1;
 		} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-			cout << "obtain " << obtain->sym << " in " << _syntax->pretty_cterm(obtain->spec) << endl;
+			cout << pre << "retain " << obtain->spec_name << ": " << _syntax->pretty_term(obtain->spec) << endl;
+			return 1;
 		} else {
-			cout << "completed" << endl;
+			return 0;
+		}
+	}
+	void _print_import_goals( Import const& intp ) {
+		size_t i = 0;
+		size_t n = _print_import_goal(intp,i,"goals: ");
+		if( n == 0 ) {
+			cout << "no instantiation goals" << endl;
+			return;
+		}
+		for(;;) {
+			i += n;
+			n = _print_import_goal(intp,i,"\t");
+			if( n == 0 ) return;
 		}
 	}
 	void _import_loop( string const& prefix, Import& intp, bool change ) {
 		auto org_thy = _thy;
-		_thy = Thy(org_thy,org_thy,"#import","");// namescope
+		_thy = org_thy.scope("#import");// namespace
+		_print_import_goals(intp);
 		for(;;) try {
-			auto mod = intp.modification();
-			if( _out ) {
-				_print_import_goal(prefix,mod);
-				_prompt();
-			}
+			_prompt();
 			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
+			} else if( _parser.skips("goals") ) {
+				_print_import_goals(intp);
 			} else if( _parser.skips("have") ) {
 				_state();
 			} else if( _parser.skips("interpret") ) {
@@ -551,18 +564,17 @@ DEB(_syntax->pretty_subst(*u));
 				if( o ) {
 					auto const& [cs,thm] = *o;
 					for(;;) {
-						if( auto const& fix = mod.ref<Import::Fix>() ) {
+						if( auto const& fix = intp.fixing() ) {
 							_auto_instantiate(intp,*fix,change);
-						} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+						} else if( auto const& obtain = intp.obtaining() ) {
 							_auto_retain(prefix,intp,*obtain);
 							continue;
-						} else if( auto assume = mod.ref<Import::Assume>() ) {
-							if( assume->assm == thm ) break;
+						} else if( auto assume = intp.assuming() ) {
+							if( assume->first == thm ) break;
 							_auto_discharge(prefix,intp,*assume,change);
 						} else {
 							throw Error("\"unexpected show\"")(thm);
 						}
-						mod = intp.modification();
 					}
 					intp.discharge(thm);
 				}
@@ -577,35 +589,33 @@ DEB(_syntax->pretty_subst(*u));
 				_parser.skip(".");
 				for( auto [x,t] : ass ) {
 					for(;;) {
-						if( auto const& assume = mod.ref<Import::Assume>() ) {
+						if( auto const& assume = intp.assuming() ) {
 							_auto_discharge(prefix,intp,*assume,change);
-						} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+						} else if( auto const& obtain = intp.obtaining() ) {
 							_auto_retain(prefix,intp,*obtain);
-						} else if( auto const& fix = mod.ref<Import::Fix>() ) {
+						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(intp,*fix,change);
 						} else {
 							throw Error("\"unexpected instantiate\"")(x);
 						}
-						mod = intp.modification();
 					}
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
 					_cout << "instantiating " << x << " := " << _syntax->pretty_term(t) << endl;
 				}
 			} else if( _parser.skips("-") ) {
 				for(;;) {
-					if( auto const& fix = mod.ref<Import::Fix>() ) {
+					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+					} else if( auto const& obtain = intp.obtaining() ) {
 						_auto_retain(prefix,intp,*obtain);
 					} else {
 						break;
 					}
-					mod = intp.modification();
 				}
-				auto const& assume = mod.ref<Import::Assume>();
+				auto const& assume = intp.assuming();
 				if( !assume ) throw Error("\"unexpected subgoal\"");
-				auto [assm_name,axiom] = *assume;
+				auto [axiom,assm_name] = *assume;
 				if( prefix != "" ) {
 					assm_name = prefix + "." + assm_name;
 				}
@@ -630,16 +640,17 @@ DEB(_syntax->pretty_subst(*u));
 				auto term = thesis_loc.cterm(_parser.get_term());
 				_parser.skip(";");
 				for(;;) {
-					if( auto const& fix = mod.ref<Import::Fix>() ) {
+					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& assume = mod.ref<Import::Assume>() ) {
+					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(prefix,intp,*assume,change);
-					} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-						if( obtain->sym == sym ) {
+					} else if( auto const& obtain = intp.obtaining() ) {
+						auto const& [osym,ex,spec,spec_name] = *obtain;
+						if( osym == sym ) {
 							CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 								return _thy.constant(x);
 							}));
-							CTerm t = obtain->ex.capp()->second;
+							CTerm t = ex.capp()->second;
 							// var'. (∀sym. props... ⟹ var') ⟹ var'
 							t = t.weaken(thesis_loc).inst(var);
 							// (∀sym. props... ⟹ var) ⟹ var
@@ -651,6 +662,7 @@ DEB(_syntax->pretty_subst(*u));
 							// assume this and prove var, i.e., prove props[sym:=term]...
 							auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
 							thesis.apply(rule);// prop[sym:=term]... ⟹ var
+							print_goal(thesis);
 							auto prf = Prover(*this,thesis_loc).deepen().proof_loop(thesis);
 							if( prf ) {
 								auto const& spec = prf->intro();
@@ -663,7 +675,6 @@ DEB(_syntax->pretty_subst(*u));
 					} else {
 						throw Error("\"unexpected retain\"")(sym);
 					}
-					mod = intp.modification();
 				}
 			} else if( _parser.skips("oops") ) {
 				_cout << "oops" << endl;
@@ -679,18 +690,20 @@ DEB(_syntax->pretty_subst(*u));
 				}
 				_parser.skip(".");
 				for(;;) {
-					if( auto const& fix = mod.ref<Import::Fix>() ) {
+					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& assume = mod.ref<Import::Assume>() ) {
+					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(prefix,intp,*assume,change,ctrl);
-					} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
+					} else if( auto const& obtain = intp.obtaining() ) {
 						_auto_retain(prefix,intp,*obtain);
 					} else {
 						break;
 					}
-					mod = intp.modification();
 				}
 				break;
+			}
+			if( _out ) {
+				_print_import_goal(intp,0,"next ");
 			}
 		} catch( ::Error const& e ) {
 			cerr << _parser.location() << ": ERROR: " << _syntax->pretty_term(e) << endl;
@@ -887,6 +900,9 @@ DEB(_syntax->pretty_subst(*u));
 		}
 		auto prover = Prover(*this,subloc);
 		prover._depth++;
+		if( _parser.skips(".") ) {
+			return {prove(subgoal,subloc).intro()};
+		}
 		if( needsep ) {
 			_parser.skip(";");
 			_cout << "show " << _syntax->pretty_cterm(subgoal) << endl;
@@ -1254,7 +1270,6 @@ DEB(_syntax->pretty_subst(*u));
 	}
 	Thy load_thy( Thy const& thy, string_view const& name ) {
 		auto [fis,path] = file_of_thy(thy.dir(),name);
-DEB(path);
 		if( !fis.fail() ) {
 			Lexer local_lexer(fis,path,*_syntax);
 			auto base = thy;

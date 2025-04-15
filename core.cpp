@@ -142,6 +142,7 @@ static function<Term(string_view const&)> unit_map(string_view const& var, Term 
 	return [&](auto sym){ return sym == var ? val : Term(sym); };
 }
 Term Term::subst(string_view const& var, CTerm const& val) const {
+	if( val == var ) return *this;
 	return map(
 		unit_map(var,val),
 		[&](auto sym)->Opt<Term>{
@@ -259,7 +260,7 @@ CTerm Ctxt::enclose(Term const& t) {
 
 CTerm Ctxt::fix(string_view const& s) {
 	if( has_constant(s) ) throw Error("#ctxt")("\"fixing fixed\"")(s);
-	_ref->modifiers.push_back(_Fix(string(s)));
+	_ref->modifiers.push_back(Fix(string(s)));
 	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
 }
@@ -293,7 +294,7 @@ pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 		auto sym_term = CTerm(*this,sym);
 		Thm spec = CTerm( *this, thesis &= all2->inst(sym_term) >>= thesis );
 		_ref->constants.emplace(sym);
-		_ref->modifiers.push_back( _Obtain(string(sym), thm, sym/=spec ));
+		_ref->modifiers.push_back( Obtain(string(sym),thm,sym/=spec) );
 		return {sym_term,spec};
 	} catch ( int x ) {
 		throw Error("#ctxt")("\"malformed obtain\"");
@@ -310,9 +311,9 @@ Opt<Thm> Thm::discharges(Thm const& t) const {
 }
 
 CTerm CTerm::intro() const {
-	if( !_ctxt.consts().empty() ) {// checks if obtained constants don't escape
+	if( !_ctxt._ref->constants.empty() ) {// checks if obtained constants don't escape
 		auto check = [&](auto v){
-			if( _ctxt.consts().contains(v) ) { throw Error("#cterm")("\"constant escape\"")(v); }
+			if( _ctxt.obtains(v) ) { throw Error("#cterm")("\"constant escape\"")(v); }
 		};
 		iter_syms(check);
 	}
@@ -333,20 +334,13 @@ CTerm CTerm::intro() const {
 	return CTerm(parent,stmt);
 }
 Opt<CTerm::StrTerm> CTerm::cbind() const {
-	if( auto tabs = Term::bind() ) {
-		string const& var = tabs->first;
-		Term const& body = tabs->second;
+	if( auto bind = Term::bind() ) {
+		auto const& [var,body] = *bind;
 		Ctxt loc = _ctxt.branch();
-		if( _ctxt.has_constant(var) ) {
-			auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
-			return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
-		} else {
-			loc.fix(var);
-			return {{var,CTerm(loc,body)}};
-		}
-	} else {
-		return {};
+		auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
+		return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
 	}
+	return {};
 }
 CTerm CTerm::lift( CTerm const& quantifier ) const {
 	auto const& parent = _ctxt.parent();

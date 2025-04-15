@@ -23,9 +23,7 @@ class Thy : public Ctxt {
 	using Thms = std::multimap<std::string,std::pair<Thm,ThmInfo>,std::less<>>;
 	struct _Body;
 	Ref<_Body> _ref;
-	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {
-		assert( !parent() || *parent() == ctxt.parent() );
-	}
+	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
 	static std::function<Thm(Thm const&)> const _triv_proc;
 	static std::function<bool(AThm const&)> const _triv_test;
 	Opt<AThm> _find_thm(
@@ -54,13 +52,14 @@ public:
 		TheoremNotFound(std::string_view const& name) :
 			Error(Term("#theorem_not_found")(name)) {}
 	};
+	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
-	/** make context as theory */
-	Thy( Thy const& parent, Ctxt const& ctxt, std::string_view const& name, std::string_view const& dirname );
 	/** Creates an anonymous branch theory. */
 	Thy branch() const;
 	/** Creates a named branch. */
 	Thy branch( std::string_view const& name, std::string_view const& dirname );
+	/** Creates a namespace. */
+	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
 	auto name() && = delete;
 	/** Obtains the parent theory. */
@@ -85,7 +84,7 @@ public:
 	 */
 	AThm add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
 	/** finds the name of assumption made in the revision */
-	Opt<std::string> find_assm_name( size_t rev ) const;
+	std::string find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
@@ -156,56 +155,51 @@ public:
 	Thy const& target() const & {
 		return _tgt;
 	}
+	Opt<std::pair<CTerm,std::string>> assuming() const & {
+		if( auto assm = Intp::assuming() ) {
+			return {{*assm,_src.find_assm_name(revision())}};
+		}
+		return {};
+	}
+	Opt<std::tuple<std::string,Thm,CTerm,std::string>> obtaining() const& {
+		if( auto obtain = Intp::obtaining() ) {
+			auto const& [sym,ex,spec] = *obtain;
+			return {{sym,ex,spec,_src.find_assm_name(revision())}};
+		}
+		return {};
+	}
 	struct Fix : std::string {};
 	struct Assume {
 		std::string name;
-		CTerm assm;
+		Term assm;
 	};
 	struct Obtain {
 		std::string spec_name;
 		std::string sym;
-		Thm ex;
-		CTerm spec;
+		Term ex;
+		Term spec;
 	};
-	Sum<Fix,Assume,Obtain,nullptr_t> modification( size_t i = 0 ) const& {
+	Sum<Fix,Assume,Obtain,nullptr_t> modification( size_t i ) const& {
 		auto mod = Intp::modification(i);
-		if( auto const& fix = mod.ref<Intp::Fix>() ) {
+		if( auto const& fix = mod.ref<Ctxt::Fix>() ) {
 			return Fix(*fix);
 		}
-		if( auto const& assm = mod.ref<Intp::Assume>() ) {
-			if( auto const& name = _src.find_assm_name(revision()) ) {
-				return Assume{*name,*assm};
-			}
-			throw Error("\"unnamed assumption\"")(*assm);
+		if( auto const& assm = mod.ref<Ctxt::Assume>() ) {
+			return Assume{_src.find_assm_name(revision()+i),*assm};
 		}
-		if( auto const& obtain = mod.ref<Intp::Obtain>() ) {
+		if( auto const& obtain = mod.ref<Ctxt::Obtain>() ) {
 			auto [sym,ex,spec] = *obtain;
-			auto name = _src.find_assm_name(revision()+i);
-			if( !name ) {
-				throw Error("\"unnamed obtain\"")(sym)(spec);
-			}
-			return Obtain{*name,sym,ex,spec};
+			return Obtain{_src.find_assm_name(revision()+i),sym,ex,spec};
 		}
 		return nullptr;
 	};
 	void discharge( Thm const& thm ) {
 		Intp::discharge(thm);
 	}
-	/** automatically discharge assumption */
-	bool discharges( std::string_view const& prefix, bool change = false );
-	void discharge( std::string_view const& prefix ) & {
-		if( !discharges(prefix) ) {
-			throw Error("\"unexpected know\"");
-		}
-	}
 	/** retain constant by specification */
 	void retain( CTerm c, Thm const& thm ) & {
 		Intp::retain(c,thm);
 	}
-	/** retain constant by knowledge */
-	void retain( CTerm c );
-	/** automatic retain */
-	bool retains();
 	AThm subst( AThm const& thm ) const {
 		return AThm(_tgt,Intp::subst(thm));
 	}

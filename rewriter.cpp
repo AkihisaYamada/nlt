@@ -157,10 +157,11 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 }
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const {
-	auto const& abs = source.cbind();
+	auto const& abs = source.bind();
 	assert(abs);
-	CTerm body = abs->second;
-	auto subthy = Thy(thy,body.ctxt(),"","");
+	auto subthy = thy.branch();
+	CTerm v = subthy.fix(avoid(abs->first,[&](auto const& v){ return thy.has_constant(v); }));
+	CTerm body = source.inst(v);
 	Term prem = assm.Term::inst(subthy.cterm(abs->first)).subst(subst);
 	while( auto imp = prem.binary(IMP) ) {
 		add_forced(subthy,subthy.assume(imp->first));
@@ -180,15 +181,14 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 			// source: l[m]
 			auto intp = Intp(rule_ctxt,source_ctxt);
 			for(;;) {
-				auto mod = intp.modification();
-				if( auto fix = mod.ref<Intp::Fix>() ) {
+				if( auto fix = intp.fixing() ) {
 					// instantiate variables
 					if( auto t = m->get(*fix) ) {
 						intp.instantiate(*t);
 					} else {
 						intp.instantiate(source_ctxt.cterm(DUMMY));
 					}
-				} else if( auto assume = mod.ref<Intp::Assume>() ) {
+				} else if( auto assume = intp.assuming() ) {
 					// discharge conditions
 					intp.discharge(prove(*assume,thy));
 				} else {

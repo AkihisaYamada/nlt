@@ -1,8 +1,16 @@
-import PropositionalMinimal.
+fix prop true false (¬) (∧) (∨) (⟺).
 
-assume false_elim: false ⟹ ∀P. prop P ⟹ P.
+import Prop.
+import TypedTrue.
+import TypedFalse.
+import TypedNot.
+import TypedAnd.
+import TypedIff.
+import TypedOr.
 
 begin
+
+interpret PropositionalMinimal.
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.

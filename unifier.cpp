@@ -345,7 +345,7 @@ Thm discharge(Thm thm, Thm arg) {
 	cond_strip = cond_strip.weaken(arg_ctxt);
 	cond = cond.weaken(arg_ctxt);
 	Opt<Subst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
-		return thm_ctxt.fvars().contains(x) || arg_ctxt.fvars().contains(x);
+		return thm_ctxt.fixes(x) || arg_ctxt.fixes(x);
 	} );
 	if( !unifier ) throw Error("#discharge")(thm)(cond_strip)(arg)(arg_strip);
 	// unassigned free variables will be universally quantified in the result

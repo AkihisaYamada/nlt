@@ -18,16 +18,16 @@ struct Thy::_Body {
 
 Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname)) {};
 
-Thy::Thy( Thy const& parent, Ctxt const& ctxt, string_view const& name, string_view const& dirname ) :
-	Ctxt(ctxt), _ref(Ref<_Body>::make(parent,name,dirname)) {}
-
 Thy Thy::branch() const {
-	return Thy(Ref<_Body>::make(*this,"",""), Ctxt::branch());
+	return Thy( Ref<_Body>::make(*this,"",""), Ctxt::branch() );
 }
 Thy Thy::branch( string_view const& name, string_view const& dirname ) {
-	auto const& loc = Thy(Ref<_Body>::make(*this,name,dirname), Ctxt::branch());
+	auto const& loc = Thy( Ref<_Body>::make(*this,name,dirname), Ctxt::branch() );
 	_ref->thys.emplace(name,loc);
 	return loc;
+}
+Thy Thy::scope( string_view const& name ) const {
+	return Thy( Ref<_Body>::make(*this,name,""), *this );
 }
 string const& Thy::name() const & {
 	return _ref->name;
@@ -65,16 +65,14 @@ pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&>
 }
 
 AThm Thy::thm(string_view const& name) const {
-	if( auto opt = find_thm(name) ) {
-		return *opt;
-	}
-	throw TheoremNotFound(name);
+	auto opt = find_thm(name);
+	if( !opt ) throw TheoremNotFound(name);
+	return *opt;
 }
-Opt<string> Thy::find_assm_name( size_t rev ) const {
-	if( auto x = _ref->assm_names.finds(rev) ) {
-		return x->second;
-	}
-	return {};
+string Thy::find_assm_name( size_t rev ) const {
+	auto x = _ref->assm_names.finds(rev);
+	assert(x);
+	return x->second;
 }
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
@@ -215,64 +213,6 @@ Opt<Thy> Thy::find_thy(string_view const &name, bool ancestor) const {
 auto _test_term_eq( Term const& x ) {
 	return [&]( Term const& y ) { return x == y; };
 }
-bool Import::discharges( std::string_view const& prefix, bool mod ) {
-	auto x = modification().ref<Assume>();
-	if( !x ) {
-		return false;
-	}
-	auto [name,assm] = *x;
-	if( prefix != "" ) {
-		auto post = move(name);
-		( ( name = prefix ) += '.' ) += post;
-	}
-	// if this assumption is already discharged, then reuse it
-	if( auto opt = _tgt.find_thm(name,_test_term_eq(assm)) ) {
-		Intp::discharge(*opt);
-		return true;
-	}
-	// if the target theory can prove the goal, then use it
-	if( auto opt = proves(assm,_tgt) ) {
-		Intp::discharge(*opt);
-		return true;
-	}
-	if( mod ) { // if modification is allowed, then make new assumption
-		auto thm = _tgt.add_assm(name,assm);
-		Intp::discharge(thm);
-		return true;
-	}
-	throw Error("\"failed to discharge\"")(name)(assm);
-}
-
-void Import::retain( CTerm c ) {
-	auto o = modification().ref<Obtain>();
-	if( !o ) throw Error(c);
-	auto [name,sym,ex,spec] = *o;
-	Term const& stmt = spec.inst(c);
-	auto const& thm = _tgt.find_thm(name,_test_term_eq(stmt),true,true);
-	if(!thm) throw Error(sym)(c);
-	Intp::retain(c,*thm);
-}
-
-bool Import::retains() {
-	auto o = modification().ref<Obtain>();
-	if( !o ) {
-		return false;
-	}
-	auto [name,sym,ex,spec] = *o;
-	if( auto csym = _tgt.constant(sym) ) {
-		Term const& stmt = spec.inst(*csym);
-		if( auto const& thm = _tgt.find_thm(name,_test_term_eq(stmt),true,true) ) {
-			Intp::retain(*csym,*thm);
-			return true;
-		}
-		throw Error("#util")("\"failed retain\"")(sym)(name)(stmt);
-	} else {
-		auto [sym_term,spec] = _tgt.obtain(sym,ex,name);
-		retain(sym_term,spec);
-		return true;
-	}
-}
-
 
 static ostream& mk_indent(ostream& os, size_t n) {
 	for( size_t i = 0; i < n; i++ ) {
@@ -311,14 +251,11 @@ function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) c
 			if( auto str = fixed(i) ) {
 				mk_indent(os,n) << "fixes " << *str << '.' << endl;
 			} else if( auto assm = assumed(i) ) {
-				mk_indent(os,n) << "assumes ";
-				if( auto name = find_assm_name(i) ) {
-					cout << *name << ": ";
-				}
-				cout << syntax.pretty_thm(*assm) << '.' << endl;
+				mk_indent(os,n) << "assumes " << find_assm_name(i) << ": " << syntax.pretty_thm(*assm) << '.' << endl;
 			} else if( auto obt = obtained(i) ) {
 				auto [sym,ex,spec] = *obt;
-				mk_indent(os,n) << "obtains " << sym << " in " << syntax.pretty_thm(spec) << '.' << endl;
+				mk_indent(os,n) << "obtains " << find_assm_name(i) << ": ";
+				cout << syntax.pretty_term(spec) << '.' << endl;
 			} else {
 				assert(false);
 			}
