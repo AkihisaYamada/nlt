@@ -43,6 +43,7 @@ class Rewriter {
 	Map<size_t,Imp> _imps;
 	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
 	Map<size_t,Imp> _revimps;
+	size_t _default_ind;
 public:
 	static std::string const CONG;
 	struct Error : ::Error {
@@ -59,6 +60,9 @@ public:
 		size_t min, max;
 		bool safe;
 	};
+	bool empty() const {
+		return _rels.empty();
+	}
 	Rules make_rules() const {
 		return Rules(_rels.size());
 	}
@@ -74,7 +78,7 @@ public:
 	}
 	void add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev = false ) const;
 	Rewriter& register_imp( Thm const& thm, bool dir ) &;
-	Rewriter& register_refl(Thm const& thm) &;
+	Rewriter& register_refl( Thm const& thm, bool def ) &;
 	Rewriter& register_trans(Thm const& thm) &;
 	Rewriter& register_cong(Thm const& thm) &;
 	Rewriter& register_dual(Thm const& thm) &;
@@ -84,8 +88,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind = 0 ) const {
-		return _step(rules,thy,source,ind);
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source ) const {
+		return _step(rules,thy,source,_default_ind);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -93,8 +97,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, std::vector<char> const& pos, size_t ind = 0 ) const {
-		return _step(rules,thy,source,ind,pos.begin(),pos.end());
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, std::vector<char> const& pos ) const {
+		return _step(rules,thy,source,_default_ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
 	bool apply( Rules const& rules, Inference& thesis) const;

@@ -184,12 +184,6 @@ public:
 	Ctxt const& ctxt() const& {
 		return _conclusion.ctxt();
 	}
-	/** @brief interpretation of the rule into given context.
-	 * 
-	 */
-	Intp intp( Ctxt const& tgt ) const {
-		return Intp(ctxt(),tgt);
-	}
 	/** @brief instantiates the rule. */
 	Thm inst( Intp const& intp ) const {
 		return intp.subst(_conclusion);
@@ -209,7 +203,7 @@ public:
 		auto pat_ctxt = _premise.ctxt();
 		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
 		if( !m ) return {};
-		auto intp = Intp( pat_ctxt, assm.ctxt() );
+		auto intp = assm.ctxt().interpret(pat_ctxt);
 		subst_intp(intp,*m);
 		intp.discharge(assm);
 		auto thm = intp.subst(_thm);// ∀thesis. ψθ... ⟹ thesis
@@ -226,7 +220,7 @@ public:
 	 * 
 	 */
 	Intp intp( Ctxt const& tgt ) const {
-		return Intp(ctxt(),tgt);
+		return tgt.interpret(ctxt());
 	}
 	bool operator<( Elim const& y ) const {
 		return _premise < y._premise;

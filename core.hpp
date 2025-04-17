@@ -425,6 +425,8 @@ public:
 	}
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
+	/** @brief interprets other context. */
+	Intp interpret(Ctxt const& other) const;
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
@@ -763,17 +765,12 @@ class Intp {
 	Subst _subst;
 	Ctxt _src;// the source context
 	int _rev;// supported revision of the source
-public:
 	/** @brief makes initial interpretation.
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
-	 Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {
-		if( auto srcParent = src.find_parent() )
-		if( !tgt.has_ancestor(*srcParent) )
-			throw Error("#intp")("unreachable");
-		if( tgt.has_ancestor(src) ) throw Error("#intp")("cyclic");
-	}
+	 Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {}
+public:
 	Ctxt ctxt() {
 		return _subst.ctxt();
 	};
@@ -882,6 +879,13 @@ inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 		return CTerm(*this,*it);
 	}
 	return {};
+}
+inline Intp Ctxt::interpret(Ctxt const& other) const {
+		if( auto srcParent = other.find_parent() )
+		if( !has_ancestor(*srcParent) )
+			throw Error("#intp")("unreachable");
+		if( has_ancestor(other) ) throw Error("#intp")("cyclic");
+		return Intp(other,*this);
 }
 inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const {
 	if( has_constant(sym) ) {

@@ -1,4 +1,4 @@
-base Lambda.QuantifiedIntuitionistic.Nat.
+base Lambda.IntuitionisticFOL.Nat.
 
 -----
 ## Classes

@@ -9,7 +9,7 @@ import Prop.
 import TypedAll.
 
 interpret TypedFalse;
-	obtain false where false_type: prop false, false_elim: false ⟹ ∀P. prop P ⟹ P;
+	obtain false where ! prop false, false_elim: false ⟹ ∀P. prop P ⟹ P;
 		- for thesis, if assm;
 			apply assm[of (∀P:prop. P)];
 			- .
@@ -17,7 +17,7 @@ interpret TypedFalse;
 				by all_elim1[of P prop, OF all].
 			.
 		.
-	by false_type #elim false_elim.
+	by #elim false_elim.
 
 import TypedNot.
 import TypedIff.
@@ -27,9 +27,11 @@ import TypedEx.
 
 begin
 
-interpret QuantifiedMinimal.
+interpret MinimalFOL;
+	retain false; .
+	.
 
-interpret PropositionalIntuitionistic.
+interpret IntuitionisticPL.
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.

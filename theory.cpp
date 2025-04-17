@@ -69,10 +69,11 @@ AThm Thy::thm(string_view const& name) const {
 	if( !opt ) throw TheoremNotFound(name);
 	return *opt;
 }
-string Thy::find_assm_name( size_t rev ) const {
-	auto x = _ref->assm_names.finds(rev);
-	assert(x);
-	return x->second;
+Opt<string> Thy::find_assm_name( size_t rev ) const {
+	if( auto x = _ref->assm_names.finds(rev) ) {
+		return {x->second};
+	}
+	return {};
 }
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
@@ -251,11 +252,14 @@ function<ostream&(ostream&)> const Thy::pretty(Syntax const& syntax, size_t n) c
 			if( auto str = fixed(i) ) {
 				mk_indent(os,n) << "fixes " << *str << '.' << endl;
 			} else if( auto assm = assumed(i) ) {
-				mk_indent(os,n) << "assumes " << find_assm_name(i) << ": " << syntax.pretty_thm(*assm) << '.' << endl;
+				mk_indent(os,n) << "assumes " << *find_assm_name(i) << ": " << syntax.pretty_thm(*assm) << '.' << endl;
 			} else if( auto obt = obtained(i) ) {
 				auto [sym,ex,spec] = *obt;
-				mk_indent(os,n) << "obtains " << find_assm_name(i) << ": ";
-				cout << syntax.pretty_term(spec) << '.' << endl;
+				mk_indent(os,n) << "obtains ";
+				if( auto name = find_assm_name(i) ) {
+					os << *name;
+				}
+				os << ": " << syntax.pretty_term(spec) << '.' << endl;
 			} else {
 				assert(false);
 			}

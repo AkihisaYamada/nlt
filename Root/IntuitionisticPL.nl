@@ -10,7 +10,10 @@ import TypedOr.
 
 begin
 
-interpret PropositionalMinimal.
+interpret MinimalPL;
+	retain false;
+		.
+	.
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.

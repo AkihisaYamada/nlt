@@ -216,7 +216,7 @@ public:
 					}
 					auto u = unify(arg,cond,[&](auto v){ return unifier_loc.fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(thm);
-					auto intp = Intp(unifier_loc,loc);
+					auto intp = loc.interpret(unifier_loc);
 					for(;;){
 						if( auto const& v = intp.fixing() ) {
 							intp.instantiate(loc.enclose( [&]()->Term{
@@ -440,7 +440,7 @@ public:
 	void _auto_instantiate( Import& intp, string const& fix, bool change ) {
 			intp.instantiate( change ? _thy.enclose(fix) : _thy.cterm(fix) );
 	}
-	void _auto_discharge( string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
+	void _auto_discharge( Thy& thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
@@ -450,12 +450,12 @@ public:
 		if( auto opt = _thy.find_thm(assm_name,[&]( Term const& y ) { return assm == y; }) ) {
 			intp.discharge(*opt);
 		} else if( change ) {
-			intp.discharge(_thy.add_assm(assm_name,assm));
+			intp.discharge(thy.add_assm(assm_name,assm));
 		} else {
 			intp.discharge(prove(assm,_thy,ctrl));
 		}
 	}
-	void _auto_retain( string const& prefix, Import& intp, auto const& obtain ) {
+	void _auto_retain( Thy& thy, string const& prefix, Import& intp, auto const& obtain ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			Term const& stmt = spec.inst(*csym);
@@ -463,7 +463,7 @@ public:
 			if( !thm ) throw Error("\"failed retain\"")(sym)(name)(stmt);
 			intp.retain(*csym,*thm);
 		} else {
-			auto [sym_term,spec] = _thy.obtain(sym,ex,name);
+			auto [sym_term,spec] = thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
 		}
 	}
@@ -482,9 +482,9 @@ public:
 					intp.instantiate(_thy.cterm(*t));
 					break;
 				} else if( auto const& assume = intp.assuming() ) {
-					_auto_discharge(prefix,intp,*assume,change);
+					_auto_discharge(_thy,prefix,intp,*assume,change);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					_auto_retain(prefix,intp,*obtain);
+					_auto_retain(_thy,prefix,intp,*obtain);
 				} else {
 					throw Error("\"unexpected instantiation\"")(*t);
 				}
@@ -497,20 +497,20 @@ public:
 			_import_loop(prefix,intp,change);
 			_depth--;
 		} else {
-			_parser.skip(".");
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					_auto_discharge(prefix,intp,*assume,change);
+					_auto_discharge(_thy,prefix,intp,*assume,change);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					_auto_retain(prefix,intp,*obtain);
+					_auto_retain(_thy,prefix,intp,*obtain);
 				} else {
 					break;
 				}
 			}
 		}
 		_cout << (change ? "imported " : "interpreted ") << name << endl;
+		_parser.skip(".");
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
 		auto mod = intp.modification(i);
@@ -567,11 +567,11 @@ public:
 						if( auto const& fix = intp.fixing() ) {
 							_auto_instantiate(intp,*fix,change);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							_auto_retain(prefix,intp,*obtain);
+							_auto_retain(org_thy,prefix,intp,*obtain);
 							continue;
 						} else if( auto assume = intp.assuming() ) {
 							if( assume->first == thm ) break;
-							_auto_discharge(prefix,intp,*assume,change);
+							_auto_discharge(org_thy,prefix,intp,*assume,change);
 						} else {
 							throw Error("\"unexpected show\"")(thm);
 						}
@@ -590,9 +590,9 @@ public:
 				for( auto [x,t] : ass ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							_auto_discharge(prefix,intp,*assume,change);
+							_auto_discharge(org_thy,prefix,intp,*assume,change);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							_auto_retain(prefix,intp,*obtain);
+							_auto_retain(org_thy,prefix,intp,*obtain);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(intp,*fix,change);
@@ -608,7 +608,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(prefix,intp,*obtain);
+						_auto_retain(org_thy,prefix,intp,*obtain);
 					} else {
 						break;
 					}
@@ -620,7 +620,7 @@ public:
 					assm_name = prefix + "." + assm_name;
 				}
 				if( _parser.skips(".") ) {
-					_auto_discharge(prefix,intp,*assume,false);
+					_auto_discharge(org_thy,prefix,intp,*assume,false);
 				} else if( change && _parser.skips("assume") ) {
 					_parser.skip(".");
 					Thm thm = org_thy.add_assm(assm_name,axiom);
@@ -633,49 +633,10 @@ public:
 				}
 			} else if( _parser.skips("obtain") ) {
 				_obtain(org_thy);
+			} else if( _parser.skips("define") ) {
+				_define(org_thy);
 			} else if( _parser.skips("retain") ) {
-				auto sym = get_sym();// the symbol to be instantiated
-				_parser.skip(":=");
-				Thy thesis_loc = _thy.branch();
-				auto term = thesis_loc.cterm(_parser.get_term());
-				_parser.skip(";");
-				for(;;) {
-					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(prefix,intp,*assume,change);
-					} else if( auto const& obtain = intp.obtaining() ) {
-						auto const& [osym,ex,spec,spec_name] = *obtain;
-						if( osym == sym ) {
-							CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
-								return _thy.constant(x);
-							}));
-							CTerm t = ex.capp()->second;
-							// var'. (∀sym. props... ⟹ var') ⟹ var'
-							t = t.weaken(thesis_loc).inst(var);
-							// (∀sym. props... ⟹ var) ⟹ var
-							t = t.cbinary(IMP)->first;
-							// ∀sym. props... ⟹ var
-							t = t.capp()->second.inst(term);
-							// props[sym:=term]... ⟹ var
-							auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
-							// assume this and prove var, i.e., prove props[sym:=term]...
-							auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
-							thesis.apply(rule);// prop[sym:=term]... ⟹ var
-							print_goal(thesis);
-							auto prf = Prover(*this,thesis_loc).deepen().proof_loop(thesis);
-							if( prf ) {
-								auto const& spec = prf->intro();
-								// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
-								intp.retain(org_thy.cterm(term),spec);
-							}
-							break;
-						}
-						_auto_retain(prefix,intp,*obtain);
-					} else {
-						throw Error("\"unexpected retain\"")(sym);
-					}
-				}
+				_retain(prefix,intp,change,org_thy);
 			} else if( _parser.skips("oops") ) {
 				_cout << "oops" << endl;
 				_prompt();
@@ -688,14 +649,13 @@ public:
 				if( _parser.skips("by") ) {
 					get_ctrl(ctrl);
 				}
-				_parser.skip(".");
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(prefix,intp,*assume,change,ctrl);
+						_auto_discharge(org_thy,prefix,intp,*assume,change,ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(prefix,intp,*obtain);
+						_auto_retain(org_thy,prefix,intp,*obtain);
 					} else {
 						break;
 					}
@@ -712,7 +672,54 @@ public:
 		}
 		_thy = org_thy;
 	}
-
+	void _retain( string const& prefix, Import& intp, bool change, Thy& org_thy ) {
+		auto sym = get_sym();// the symbol to be instantiated
+		Thy thesis_loc = _thy.branch();
+		auto term = org_thy.cterm( _parser.skips(":=") ? _parser.get_term() : sym );
+		for(;;) {
+			if( auto const& fix = intp.fixing() ) {
+				_auto_instantiate(intp,*fix,change);
+			} else if( auto const& assume = intp.assuming() ) {
+				_auto_discharge(org_thy,prefix,intp,*assume,change);
+			} else if( auto const& obtain = intp.obtaining() ) {
+				auto const& [osym,ex,spec,spec_name] = *obtain;
+				if( osym == sym ) {
+					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
+						return _thy.constant(x);
+					}));
+					CTerm t = ex.capp()->second;
+					// var'. (∀sym. props... ⟹ var') ⟹ var'
+					t = t.weaken(thesis_loc).inst(var);
+					// (∀sym. props... ⟹ var) ⟹ var
+					t = t.cbinary(IMP)->first;
+					// ∀sym. props... ⟹ var
+					t = t.capp()->second.inst(term.weaken(thesis_loc));
+					// props[sym:=term]... ⟹ var
+					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
+					// assume this and prove var, i.e., prove props[sym:=term]...
+					auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
+					thesis.apply(rule);// prop[sym:=term]... ⟹ var
+					if( _parser.skips(";") ) {
+						print_goal(thesis);
+						auto prf = Prover(*this,thesis_loc).deepen().proof_loop(thesis);
+						_parser.skips(".");
+						if( prf ) {
+							auto const& spec = prf->intro();
+							// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
+							intp.retain(term,spec);
+						}
+					} else {
+						_parser.skips(".");
+						intp.retain(term,thesis.blast_all().intro());
+					}
+					break;
+				}
+				_auto_retain(org_thy,prefix,intp,*obtain);
+			} else {
+				throw Error("\"unexpected retain\"")(sym);
+			}
+		}
+	}
 	void get_rules( set<Intro>& rules ) {
 		while( auto thm = gets_thm() ) {
 			if( _parser.skips("!") ) {
@@ -819,11 +826,12 @@ public:
 		if( o ) {
 			auto thm = o->intro().intro();
 			add_claim(_thy,cs,thm);
+			_parser.skip(".");
 			return {{cs,thm}};
 		}
 		return {};
 	}
-	void _define() {
+	void _define( Thy& thy ) {
 		Opt<string> name_op;
 		if( _parser.skips("[") ) {
 			name_op = _parser.get();
@@ -833,7 +841,7 @@ public:
 		_parser.skip(":=");
 		Term r = get_term();
 		_parser.skip(".");
-		auto [f,spec] = _thy.define(l,r,name_op);
+		auto [f,spec] = thy.define(l,r,name_op);
 		Thm def = spec << _thy.thm("imp.refl");
 		string name = (name_op ? *name_op : f) + "_def";
 		_thy.add_thm(name,def);
@@ -911,6 +919,7 @@ public:
 		auto thesis = Inference::claim_exact(subloc,subgoal);
 		auto thm = prover.proof_loop(thesis);
 		if( thm ) {
+			_parser.skip(".");
 			return thm->intro();
 		}
 		return {};
@@ -963,7 +972,7 @@ public:
 		if( _parser.skips("obtain") ) {
 			_obtain(_thy);
 		} else if( _parser.skips("define") ) {
-			_define();
+			_define(_thy);
 		} else if( _parser.skips("interpret") ) {
 			import(false);
 		} else {
@@ -1000,20 +1009,18 @@ public:
 				auto rules = set<Intro>();
 				get_rules(rules);
 				thesis.apply(rules,min,max,safe,wide);
-				if( _parser.skips(".") ) {
-					return thesis.blast_all();
-				}
 				if( _parser.skips(";") ) {
 					print_goal(thesis,"applied goals:\n\t");
+				} else {
+					return thesis.blast_all();
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
 				auto [rules,ctrl] = _get_rewrite(_thy,dir);
 				_thy.rewriter().apply(rules,thesis,ctrl);
-				if( _parser.skips(".") ) {
-					return thesis.blast_all();
-				}
 				if( _parser.skips(";") ) {
 					print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
+				} else {
+					return thesis.blast_all();
 				}
 			} else if( _parser.skips("-") ) {
 				auto goal = thesis.has_goal();
@@ -1030,19 +1037,16 @@ public:
 			} else if( _parser.skips("by") ) {
 				Inference::Ctrl ctrl;
 				get_ctrl(ctrl);
-				_parser.skip(".");
 				return thesis.blast_all(ctrl);
-			} else if( _parser.skips(".") ) {
-				auto thm = thesis.blast_all();
-				return thm;
-			} else if( _parser.skips("") ) {
-				cerr << _parser.location() << ": Unexpected EOF" << endl;
-				exit(0);
 			} else if( _parser.skips("oops") ) {
 				_cout << "oops" << endl;
 				return {};
+			} else if( _parser.skips("") ) {
+				cerr << _parser.location() << ": Unexpected EOF" << endl;
+				exit(0);
 			} else {
-				throw Error("unexpected")(_parser.get());
+				auto thm = thesis.blast_all();
+				return thm;
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
@@ -1056,6 +1060,7 @@ public:
 			if( _stat() || _thy_decl() || _shared_decl() ) {
 			} else if( _parser.skips("setup") ) {
 				if( _parser.skips("rewrite") ) {
+					bool def = _parser.skips("!") || _thy.rewriter().empty();
 					Thm imp = get_thm();
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
@@ -1064,7 +1069,7 @@ public:
 						"\n\trev: " <<  _syntax->pretty_thm(revimp) <<
 						"\n\trefl: " << _syntax->pretty_thm(refl) <<
 						"\n\ttrans: " << _syntax->pretty_thm(trans);
-					_thy.rewriter().register_refl(refl).
+					_thy.rewriter().register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
@@ -1073,13 +1078,6 @@ public:
 						_cout << "\n\tcong: " << _syntax->pretty_thm(thm);
 						return false;
 					} );
-					_cout << endl;
-				} else if( _parser.skips("refl") ) {
-					_cout << "registering reflexivity: ";
-					while( auto const& thm = gets_thm() ) {
-						_thy.rewriter().register_refl(*thm);
-						_cout << _syntax->pretty_thm(*thm);
-					}
 					_cout << endl;
 				} else if( _parser.skips("trans") ) {
 					_cout << "registering transitivity: ";
@@ -1150,35 +1148,35 @@ public:
 				string sym = _parser.get();
 				int rlevel = _parser.get_int();
 				int level = _parser.get_int();
-				_parser.skip(".");
 				_make_own_parser();
 				_syntax->prefix(sym,level,rlevel);
 				_cout << "new prefix operator " << sym << endl;
+				_parser.skip(".");
 			} else if( _parser.skips("infix") ) {
 				string sym = _parser.get();
 				int llevel = _parser.get_int();
 				int rlevel = _parser.get_int();
 				int level = _parser.get_int();
-				_parser.skip(".");
 				_make_own_parser();
 				_syntax->infix(sym,level,llevel,rlevel);
 				_cout << "new infix operator " << sym << endl;
+				_parser.skip(".");
 			} else if( _parser.skips("binder") ) {
 				string sym = _parser.get();
 				int llevel = _parser.get_int();
 				int rlevel = _parser.get_int();
-				_parser.skip(".");
 				_make_own_parser();
 				_syntax->binder(sym,llevel,rlevel);
 				_cout << "new binder " << sym << endl;
+				_parser.skip(".");
 			} else if( _parser.skips("binder_middle") ) {
 				string prefix = _parser.get();
 				string mid = _parser.get();
 				string sym = _parser.get();
-				_parser.skip(".");
 				_make_own_parser();
 				_syntax->binder_mid(prefix,mid,sym);
 				_cout << "new binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
+				_parser.skip(".");
 			} else if( _parser.skips("end") || _parser.skips("") ) {
 				return;
 			} else if( !_final ) {
@@ -1192,8 +1190,8 @@ public:
 							break;
 						}
 					}
-					_parser.skip(".");
 					_cout << '.' << endl;
+					_parser.skip(".");
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
 					Thy var_loc = _thy.branch();
@@ -1201,12 +1199,11 @@ public:
 					CTerm assm = var_loc.enclose(get_term()).lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
-					_parser.skip(".");
 					_cout << "assumed " << cs << _syntax->pretty_term(assm) << ". " << endl;
+					_parser.skip(".");
 				} else if( _parser.skips("import") ) {
 					import(true);
 				} else if( _parser.skips("begin") ) {
-					_parser.skips(".");
 					_final = true;
 					_cout << "finalized" << endl;
 				} else {
@@ -1222,23 +1219,23 @@ public:
 			_prompt();
 		}
 	}
-	void _obtain( Thy& thy ) {
+	void _obtain( Thy& org_thy ) {
 		string sym = get_sym();
 		_parser.skip("where");
 		_cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
-		vector<Thm> prop_thms;
-		auto thesis_loc = thy.branch();
+		vector<pair<ClaimStatus,Thm>> prop_thms;
+		auto thesis_loc = org_thy.branch();
 		CTerm var = thesis_loc.fix("?thesis");
 		Ctxt goal_ctxt = thesis_loc.Ctxt::branch();
 		goal_ctxt.fix(sym);
-		auto props_loc = thy.branch();
+		auto props_loc = org_thy.branch();
 		props_loc.fix(sym);
 		for(;;) {
 			auto [cs,t] = get_assm();
 			Thm thm = props_loc.assume(props_loc.branch().enclose(t).intro());
 			add_claim(props_loc,cs,thm);
-			prop_thms.push_back(thm);
+			prop_thms.emplace_back(cs,thm);
 			props.push_back(goal_ctxt.branch().enclose(t).intro());
 			_cout << '\t' << cs << _syntax->pretty_term(thm) << endl;
 			if( !_parser.skips(",") ) break;
@@ -1249,23 +1246,21 @@ public:
 			goal = prop >>= goal;
 		}
 		goal = goal.lift(thesis_loc.cterm(ALL)) >>= var;
-		goal = goal.lift(thy.cterm(ALL));
+		goal = goal.lift(org_thy.cterm(ALL));
 		_prompt();
 		_cout << "prove " << _syntax->pretty_cterm(goal) << endl;
-		auto thesis = Inference::claim_exact(thy,goal);
-		auto const& thm = Prover(*this,thy).deepen().proof_loop(thesis);
+		auto thesis = Inference::claim_exact(org_thy,goal);
+		auto const& thm = Prover(*this,org_thy).deepen().proof_loop(thesis);
 		if( thm ) {
-			auto [sym_term,deriver] = thy.obtain(sym,*thm,make_spec_name(string(sym)));
-			// der: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
-			_cout << "obtained " << sym << endl;
-			auto& intp = thy.import("",props_loc);
-			intp.instantiate(sym_term);
-			for( auto const& prop_thm : prop_thms ) {
+			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)));
+			// deriver: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
+			for( auto const& [cs,prop_thm] : prop_thms ) {
 				auto const& arg = prop_thm.intro();// props... ⟹ prop_i
 				Thm prop = deriver << arg;// prop_i
-				intp.discharge(prop);
+				add_claim(_thy,cs,prop);
 			}
-			assert(intp.ready());
+			_cout << "obtained " << sym << endl;
+			_parser.skip(".");
 		}
 	}
 	Thy load_thy( Thy const& thy, string_view const& name ) {
@@ -1275,8 +1270,8 @@ public:
 			auto base = thy;
 			if( local_lexer.skips("base") ) {
 				auto base_name = local_lexer.get();
-				local_lexer.skip(".");
 				base = find_thy(thy,base_name);
+				local_lexer.skip(".");
 			} else {// Belong to the Root
 				while( auto p = base.parent() ) {
 					base = *p;
@@ -1328,7 +1323,6 @@ void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_
 	if( lexer.skips("base") ) {
 		string base_ref = lexer.get();
 		string_view view = base_ref;
-		lexer.skip(".");
 		for(;;) {
 			auto p = view.find('.');
 			if( p == string::npos ) break;
@@ -1339,12 +1333,13 @@ void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_
 		prover.move_to_thy(prover.find_thy(base,view));
 		cout << "moving to " << name << endl;
 		prover._prompt();
+		lexer.skip(".");
 	}
 	prover.enter_branch(name,"");
 	prover.set_exit_on_error(exit_on_error);
 	prover.loop();
 } catch( Error const& e ) {
-	cerr << e << endl;
+	cerr << lexer.location() << ": ERROR: " << e << endl;
 	exit(-1);
 }
 

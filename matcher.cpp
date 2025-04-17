@@ -255,7 +255,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) throw Error("#match_discharge")(thm)(arg);
 	rule = rule.discharge(rule_ctxt.assume(imp->first));
-	auto intp = Intp(rule_ctxt,ctxt);
+	auto intp = ctxt.interpret(rule_ctxt);
 	subst_intp(intp,*m);
 	auto const& assm = intp.assuming();
 	assert(assm);

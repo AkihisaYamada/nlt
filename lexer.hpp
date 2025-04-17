@@ -137,7 +137,8 @@ private:
 	/** file name */
 	std::string const filename;
 	/** line counter */
-	size_t line_count = 1;
+	size_t peeked_lines = 1;
+	size_t read_lines = 1;
 	// input stream
 	std::istream* pis;
 	/** Lexical grammar */
@@ -154,7 +155,7 @@ private:
 	size_t rp;
 	// writes one character into the buffer
 	int fetch_char();
-	void read_continue( Lex::CharType t );
+	void fetch_continue( Lex::CharType t );
 	void skip_spaces();
 	// to ensure pointer life
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
@@ -163,6 +164,7 @@ private:
 public:
 	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
 	void reset() {
+		read_lines = peeked_lines;
 		token_type = Unset;
 	}
 	TokenType peeked_token_type() {
@@ -183,7 +185,7 @@ public:
 		return token_type;
 	}
 	std::string location() const {
-		return filename + ':' + std::to_string(line_count);
+		return filename + ':' + std::to_string(read_lines);
 	}
 private:
 	void _dot_follower();

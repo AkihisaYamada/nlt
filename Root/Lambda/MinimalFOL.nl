@@ -1,13 +1,17 @@
 base Lambda.
 
+import Prop.
 import TypedAll.
-
-fix false.
-import false: Member prop false.
 
 begin
 
-note! false.type.
+interpret TypedTrue;
+	obtain true where ! prop true, ! true;
+		- for thesis, if assm;
+			apply assm[of (∀P:prop. P ⟹ P)];
+			by all_intro.
+		.
+	.
 
 define[and] P ∧ Q := ∀R:prop. (P ⟹ Q ⟹ R) ⟹ R.
 define[or] P ∨ Q := ∀R:prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
@@ -39,7 +43,10 @@ interpret TypedOr;
 		.
 	.
 
-interpret PropositionalMinimal.
+interpret MinimalPL.
+
+setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
+setup dual iff.sym.
 
 interpret TypedEx;
 	-.
@@ -61,3 +68,6 @@ interpret TypedEx;
 			.
 		.
 	.
+
+interpret ..MinimalFOL.
+

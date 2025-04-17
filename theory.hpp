@@ -84,7 +84,7 @@ public:
 	 */
 	AThm add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
 	/** finds the name of assumption made in the revision */
-	std::string find_assm_name( size_t rev ) const;
+	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
@@ -127,6 +127,7 @@ public:
 };
 
 class Import : public Intp {
+	friend Thy;
 	Thy const _src;
 	Thy _tgt;
 	/** @brief Obtains a theorem in the interpretation. */
@@ -137,14 +138,13 @@ class Import : public Intp {
 		bool noprefix,
 		Thy const& orig
 	) const;
-	friend Thy;
 public:
 	/** creates import
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
 	 */
 	Import( Thy const& tgt, Thy const& src ) :
-		Intp(src,tgt), _src(src), _tgt(tgt) {
+		Intp(tgt.interpret(src)), _src(src), _tgt(tgt) {
 	}
 	Thy const& source() const& {
 		return _src;
@@ -157,14 +157,17 @@ public:
 	}
 	Opt<std::pair<CTerm,std::string>> assuming() const & {
 		if( auto assm = Intp::assuming() ) {
-			return {{*assm,_src.find_assm_name(revision())}};
+			auto const& name = _src.find_assm_name(revision());
+			assert(name);
+			return {{*assm,*name}};
 		}
 		return {};
 	}
 	Opt<std::tuple<std::string,Thm,CTerm,std::string>> obtaining() const& {
 		if( auto obtain = Intp::obtaining() ) {
 			auto const& [sym,ex,spec] = *obtain;
-			return {{sym,ex,spec,_src.find_assm_name(revision())}};
+			auto name = _src.find_assm_name(revision());
+			return {{ sym, ex, spec, name ? *name : "???" }};
 		}
 		return {};
 	}
@@ -174,7 +177,7 @@ public:
 		Term assm;
 	};
 	struct Obtain {
-		std::string spec_name;
+		Opt<std::string> spec_name;
 		std::string sym;
 		Term ex;
 		Term spec;
@@ -185,7 +188,9 @@ public:
 			return Fix(*fix);
 		}
 		if( auto const& assm = mod.ref<Ctxt::Assume>() ) {
-			return Assume{_src.find_assm_name(revision()+i),*assm};
+			auto name = _src.find_assm_name(revision()+i);
+			assert(name);
+			return Assume{*name,*assm};
 		}
 		if( auto const& obtain = mod.ref<Ctxt::Obtain>() ) {
 			auto [sym,ex,spec] = *obtain;
@@ -205,7 +210,7 @@ public:
 	}
 	/** Pretty printer for import */
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
-	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
+	auto pretty(Syntax&&,size_t) = delete;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {

@@ -124,13 +124,13 @@ namespace decided begin
 
 interpret imp: Magma decided (⟹);
 	show: for x y, if x: decided x, y: decided y then decided (x ⟹ y);
-		unfold decided_def,
-		apply or_elim[OF y[unfolded decided_def]],
+		unfold decided_def;
+		apply or_elim[OF y[unfolded decided_def]];
 		- by or_intro1.
 		- if ny: ¬y;
-			apply or_elim[OF x[unfolded decided_def]],
+			apply or_elim[OF x[unfolded decided_def]];
 			- if [x];
-				apply+ or_intro2 not_intro,
+				apply+ or_intro2 not_intro;
 				- by not_imp_false[OF ny].
 				.
 			- if nx: ¬x;
@@ -141,11 +141,11 @@ interpret imp: Magma decided (⟹);
 
 interpret and: Magma decided (∧);
 	show: for x y, decided x ⟹ decided y ⟹ decided (x ∧ y);
-		unfold+ decided_def,
+		unfold+ decided_def;
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
-			apply or_elim[OF x],
+			apply or_elim[OF x];
 			- if [x];
-				apply or_elim[OF y],
+				apply or_elim[OF y];
 				- by or_intro1 and_intro.
 				- by or_intro2 nand_intro2.
 				.
@@ -156,24 +156,24 @@ interpret and: Magma decided (∧);
 
 interpret iff: Magma decided (⟺);
 	show: for x y, decided x ⟹ decided y ⟹ decided (x ⟺ y);
-		unfold iff_def,
+		unfold iff_def;
 		by and.type imp.type.
 	.
 
 interpret or: Magma decided (∨);
 	show: for x y, decided x ⟹ decided y ⟹ decided (x ∨ y);
-		unfold decided_def,
+		unfold decided_def;
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
-			apply or_elim[OF x],
+			apply or_elim[OF x];
 			- by or_intro1.
 			- if [¬x];
-				apply or_elim[OF y],
+				apply or_elim[OF y];
 				- if [y];
-					apply or_intro1,
+					apply or_intro1;
 					by or_intro2.
 				- if [¬y];
-					apply or_intro2,
-					unfold(⟺) nor_iff,
+					apply or_intro2;
+					unfold(⟺) nor_iff;
 					by and_intro.
 				.
 			.
@@ -186,7 +186,7 @@ interpret PropositionalClassical decided;
 	show: decided false;
 		by or_intro not_false #unfold decided_def.
 	show: for x, decided x ⟹ decided (¬ x);
-		unfold+ decided_def,
+		unfold+ decided_def;
 		by or_intro nnot_intro #elim or_elim.
 	show: ∀P. (P ⟹ false) ⟹ decided P ⟹ ¬ P;
 		by not_intro.
@@ -220,7 +220,7 @@ end
 thm decided.pierce_law.
 
 lemma nnot_decided: ¬ ¬ decided x;
-	unfold decided_def,
+	unfold decided_def;
 	by nnot_excluded_middle.
 
 define taut x := true.
@@ -251,12 +251,12 @@ interpret intuitionistic: TypedIntuitionisticLogic taut;
 		by tall[unfolded tall_def].
 	- .
 	- for x α ι, if [α.[x], ι x, ∀y. ι y ⟹ taut α.[y]];
-		unfold tex_def,
+		unfold tex_def;
 		- for P, if all: ∀z. α.[z] ⟹ ι z ⟹ P;
 			by all(x).
 		.
 	- for ι α P, if ex: ∃x:ι. α.[x], imp: ∀x. α.[x] ⟹ ι x ⟹ P, [∀x. ι x ⟹ taut α.[x], taut P];
-		apply ex[unfolded tex_def],
+		apply ex[unfolded tex_def];
 		- for x;
 			by imp(x).
 		.
@@ -264,14 +264,14 @@ interpret intuitionistic: TypedIntuitionisticLogic taut;
 	.
 
 lemma neq_intro: if xyf: x = y ⟹ false then x ≠ y;
-	unfold neq_def,
-	apply not_intro,
+	unfold neq_def;
+	apply not_intro;
 	by xyf.
 
 note neq_elim: eq_prop1[OF neq_def].
 
 lemma neq_irrefl: ¬ x ≠ x;
-	unfold neq_def,
+	unfold neq_def;
 	apply nnot_intro.
 
 lemma neq_imp_false: if neq: x ≠ y, eq: x = y then false;
@@ -281,7 +281,7 @@ lemma neq_refl_imp_false: if xx: x ≠ x then false;
 	by neq_imp_false[OF xx eq.refl].
 
 lemma true_neq_false: true ≠ false;
-	apply neq_intro,
+	apply neq_intro;
 	- if tf: true = false then false;
 		fold tf.
 	.
@@ -295,9 +295,9 @@ binder ∃! 0 0.
 define[ex1] (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
 
 lemma ex1_intro: for x, if x: α.[x], 1: (∀y. α.[y] ⟹ x = y) then ∃!x. α.[x];
-	unfold ex1_def,
-	apply ex_intro1(x),
-	apply and_intro,
+	unfold ex1_def;
+	apply ex_intro1(x);
+	apply and_intro;
 	by x 1.
 
 lemma ex1_elim:
@@ -313,12 +313,18 @@ lemma ex1_elim:
 		by and_elim2[OF and].
 	by body[OF ax 1].
 
+theory If:
+	fix (if) (then) (else).
+	assume if: P ⟹ (if P then t else e) = t.
+	assume if_not: ¬P ⟹ (if P then t else e) = e.
+end
+
 theory UniqueChoice:
 	fix THE.
 	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
 begin
 	lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], x: P.[x] then (THE y. P.[y]) = x;
-		apply ex1_elim[OF ex1],
+		apply ex1_elim[OF ex1];
 		- for z, if az: P.[z], 1: ∀y. P.[y] ⟹ z = y;
 			have zx: z = x;
 				by 1[OF x].
@@ -329,6 +335,10 @@ begin
 end
 
 theory Choice:
+	assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
+end
+
+theory ChoiceOperator:
 	fix SOME.
 	assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
 end

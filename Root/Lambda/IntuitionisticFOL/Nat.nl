@@ -1,4 +1,4 @@
-base QuantifiedIntuitionistic.
+base IntuitionisticFOL.
 
 fix nat (0) suc rec.
 
@@ -12,6 +12,9 @@ assume induct: ∀P:nat→prop. P 0 ⟹ (∀x:nat. P x ⟹ P (suc x)) ⟹ ∀x:n
 assume rec_zero: ∀z:ι. ∀s:nat→ι→ι. rec z s 0 = z.
 assume rec_suc: ∀x:nat. ∀z:ι. ∀s:nat→ι→ι. rec z s (suc x) = s x (rec z s x).
 
+--- The type of recursor is not derivable by the above typed induction axiom,
+as type judgements are not assumed to be propositions. ---
+assume rec_type: (ι → (nat → ι → ι) → nat → ι) rec.
 
 begin
 
@@ -21,13 +24,18 @@ note! eq_nat.type.
 
 thm iff_eq_cong.
 
-lemma induction: for x,
-	if ! nat x, ! P.[0], ! ∀x. P.[x] ⟹ nat x ⟹ P.[suc x], ! ∀x. nat x ⟹ prop P.[x]
-	then P.[x];
+lemma induction:
+	if ! P.[0], ! ∀x. P.[x] ⟹ nat x ⟹ P.[suc x], ! ∀x. nat x ⟹ prop P.[x]
+	then ∀x. nat x ⟹ P.[x];
 	have 1: ∀x:nat. (λx. P.[x]) x;
 		apply all_elim1[OF induct];
 		by all_intro #elim fun_type_elim1 #unfold(=) beta.
-	by all_elim1[OF 1[unfolded(=) beta]].
+	- for x, if !nat x;
+		have 2: (λx. P.[x]) x;
+			apply all_elim1[OF 1];
+			by #unfold(=) beta.
+		by 2[unfolded(=) beta].
+	.
 
 lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
 	apply iff_intro;
@@ -35,9 +43,6 @@ lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
 	- if xy: x = y;
 		by #unfold(=) xy.
 	.
-
-lemma rec_type: for z s, if ! ι z, ! (nat→ι→ι) s, x: nat x then ι (rec s z x);
-	apply induction[OF x];
 
 define case z s := rec z (λr x. s x).
 

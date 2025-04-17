@@ -1,7 +1,7 @@
 base Lambda.
 
-import PropositionalMinimal.
-import .PropositionalIntuitionistic.
+import MinimalPL.
+import ..IntuitionisticPL.
 
 begin
 

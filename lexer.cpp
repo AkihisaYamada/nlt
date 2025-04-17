@@ -74,7 +74,7 @@ int Lexer::fetch_char() {
 		}
 		if( n == 0 ) {// line comment
 			while( pis->get() != '\n' );
-			line_count++;
+			peeked_lines++;
 		} else {// block comment
 			unsigned int m;
 			for(;;) {
@@ -82,7 +82,7 @@ int Lexer::fetch_char() {
 				if( c == pis->eof() ) {
 					break;
 				} else if( c == '\n' ) {
-					line_count++;
+					peeked_lines++;
 				} else if( c == '-' ) {
 					m = 0;
 					while( pis->peek() == '-' ) {
@@ -102,7 +102,7 @@ int Lexer::fetch_char() {
 		return c;
 	}
 	if( c == '\n' ) {
-		line_count++;
+		peeked_lines++;
 	}
 	char* start = &buf[wp];
 	int len = char_size(c);
@@ -137,7 +137,7 @@ void Lexer::skip_spaces() {
 		}
 	}
 }
-void Lexer::read_continue( Lex::CharType t ) {
+void Lexer::fetch_continue( Lex::CharType t ) {
 	for(;;) {
 		fetch_char();
 		if( ( fetched_char_type & t ) == 0 ) {
@@ -154,7 +154,7 @@ void Lexer::_dot_follower() {
 		fetch_char();
 		switch(fetched_char_type) {
 			case Lex::Other: case Lex::Digit:
-			read_continue( Lex::Other | Lex::Digit );
+			fetch_continue( Lex::Other | Lex::Digit );
 			continue;
 			case Lex::Blank:// forget that blank is read
 			fetched_char_type = Lex::DotBlank;
@@ -182,9 +182,9 @@ string_view Lexer::peek_token() {
 		}
 		switch( fetched_char_type ) {
 		case Lex::Digit:
-			read_continue( Lex::Digit );
+			fetch_continue( Lex::Digit );
 			while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
-				read_continue( Lex::Digit );
+				fetch_continue( Lex::Digit );
 			}
 			token_type = Number;
 			break;
@@ -197,9 +197,9 @@ string_view Lexer::peek_token() {
 			fetch_char();
 			switch( fetched_char_type ) {
 			case Lex::Dot:
-				read_continue( Lex::Dot );
+				fetch_continue( Lex::Dot );
 				if( fetched_char_type & ( Lex::Digit | Lex::Other ) ) {
-					read_continue( Lex::Other | Lex::Digit );
+					fetch_continue( Lex::Other | Lex::Digit );
 					_dot_follower();
 					token_type = Word;
 				} else {
@@ -207,11 +207,11 @@ string_view Lexer::peek_token() {
 				}
 				break;
 			case Lex::Digit: // dot followed by digits
-				read_continue( Lex::Digit );
+				fetch_continue( Lex::Digit );
 				token_type = Number;
 				break;
 			case Lex::MultiOp:
-				read_continue( Lex::MultiOp | Lex::Dot );
+				fetch_continue( Lex::MultiOp | Lex::Dot );
 				token_type = Operator;
 				break;
 			case Lex::SingleOp:// dot followed by a single operator is another operator
@@ -220,7 +220,7 @@ string_view Lexer::peek_token() {
 				token_type = Operator;
 				break;
 			case Lex::Other:
-				read_continue(Lex::Other|Lex::Digit);
+				fetch_continue(Lex::Other|Lex::Digit);
 				_dot_follower();
 				token_type = Word;
 				break;
@@ -230,7 +230,7 @@ string_view Lexer::peek_token() {
 			}
 			break;
 		case Lex::MultiOp:
-			read_continue( Lex::MultiOp );
+			fetch_continue( Lex::MultiOp );
 			token_type = Operator;
 			break;
 		case Lex::SingleOp:
@@ -243,7 +243,7 @@ string_view Lexer::peek_token() {
 			break;
 		default:
 			token_type = Word;
-			read_continue( Lex::Other | Lex::Digit );
+			fetch_continue( Lex::Other | Lex::Digit );
 			_dot_follower();
 			break;
 		}

@@ -196,6 +196,11 @@ theory Binary:
 	assume type: dom1 x ⟹ dom2 y ⟹ cod (f x y).
 end
 
+theory Relation:
+	fix mem (≤) prop.
+	import Binary (≤) mem mem prop.
+end
+
 theory Reflexive:
 	fix mem (≤).
 	assume refl: mem x ⟹ x ≤ x.
@@ -214,11 +219,6 @@ end
 theory Irreflexive:
 	fix mem (<) (¬).
 	assume irrefl: mem x ⟹ ¬ (x < x).
-end
-
-theory Binder:
-	fix mem ξ.
-	assume type: (∀x. mem α.[x]) ⟹ mem (ξ (x. α.[x])).
 end
 
 theory TypedBinder:
@@ -356,26 +356,12 @@ begin
 		by or_intro #elim or_elim.
 end
 
-theory If:
-	fix (if) (then) (else) (=) (¬).
-	assume if: P ⟹ (if P then t else e) = t.
-	assume if_not: ¬P ⟹ (if P then t else e) = e.
-end
-
 theory Collect:
 	fix Collect (∈).
 	assume Collect_elim1: x ∈ Collect P ⟹ P x.
 	assume Collect_intro: P x ⟹ x ∈ Collect P.
 begin
 	note Collect_elim: make_elim[of (x. x ∈ Collect P) (x. P x), OF Collect_elim1].
-end
-
-theory FunType:
-	fix (→).
-	assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
-	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
-begin
-	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
 end
 
 theory TypedTrue:
@@ -392,19 +378,11 @@ end
 
 theory TypedAll:
 	fix prop (∀:).
-	import Prop.
 	import all: TypedBinder prop (∀:).
 	assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
 	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ α.[x].
 begin
 	note! all.type.
-	interpret TypedTrue;
-		obtain true where ! prop true, ! true;
-			- for thesis, if assm;
-				apply assm[of (∀P:prop. P ⟹ P)];
-				by all_intro.
-			.
-		.
 	lemma all_elim:
 		if all: ∀x:ι. α.[x]
 		then ∀P. ((∀x. ι x ⟹ α.[x]) ⟹ P) ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ P;
@@ -433,6 +411,13 @@ begin
 		- for x;
 			by ex_intro1[of x].
 		.
+end
 
+theory FunType:
+	fix (→).
+	assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
+	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
+begin
+	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
 end
 

@@ -5,19 +5,33 @@ In addition to propositional minimal logic, this theory axiomatizes typed quanti
 Now the true proposition can be obtained using the universal quantifier.
 ---
 
-fix prop false (¬) (∧) (∨) (⟺) (∀:) (∃:).
+fix prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
+import TypedAll.
+
+interpret TypedTrue;
+	obtain true where !prop true, !true;
+		- for thesis, if assm;
+			apply assm[of (∀P:prop. P ⟹ P)];
+			by all_intro.
+		.
+	.
+
+obtain false where !prop false;
+	- for thesis, if assm;
+		apply assm[of (∀P:prop. P)].
+	.
+
 import TypedNot.
 import TypedIff.
 import TypedAnd.
 import TypedOr.
 import TypedEx.
-import TypedAll.
 
 begin
 
-interpret PropositionalMinimal.
+interpret MinimalPL.
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
@@ -128,4 +142,3 @@ lemma nnall_not_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 	¬¬(∀x:ι. ¬α.[x]) ⟺ (∀x:ι. ¬α.[x]);
 	fold+ nex_iff_all_not;
 	by nnnot_iff.
-

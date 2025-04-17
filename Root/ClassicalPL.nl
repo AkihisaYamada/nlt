@@ -1,4 +1,4 @@
-import PropositionalIntuitionistic.
+import IntuitionisticPL.
 
 assume excluded_middle: prop P ⟹ P ∨ ¬P.
 

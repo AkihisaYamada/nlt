@@ -88,7 +88,7 @@ bool Inference::_apply_blast(
 ) & {
 	auto const& m = intro.matches(goal);
 	if( !m ) return false;
-	auto rule_intp = intro.intp(_thy);
+	auto rule_intp = _thy.interpret(intro.ctxt());
 	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
 			rule_intp.instantiate(*val);
@@ -112,7 +112,7 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	auto ctxt = goal.ctxt();// collects new assumptions
-	auto rule_intp = rule.intp(ctxt);
+	auto rule_intp = ctxt.interpret(rule.ctxt());
 	for(;;) {
 		if( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
 			if( auto const& val = m->get(*v) ) {

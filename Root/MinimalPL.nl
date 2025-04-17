@@ -6,10 +6,15 @@
 ## Axiomatization
 ---
 
-fix prop true false (¬) (∧) (∨) (⟺).
+fix prop true (¬) (∧) (∨) (⟺).
 
 import Prop.
 import TypedTrue.
+
+obtain false where ! prop false;
+	- for thesis, if assm;
+		apply assm[of true].
+	.
 import TypedNot.
 import TypedAnd.
 import TypedIff.

@@ -49,6 +49,15 @@ lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
 		by fun_cong[OF fg].
 	by eq.trans[OF 1 2].
 
+theory Prop:
+	import ..Prop.
+begin
+	theory EqType:
+		fix ι.
+		import eq: Relation ι (=).
+	end
+end
+
 theory TwoValued:
 	assume imp_imp_eq: P ⟹ Q ⟹ P = Q.
 	assume imp_eq: P ⟹ (P ⟹ Q) = Q.

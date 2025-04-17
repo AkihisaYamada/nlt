@@ -76,7 +76,7 @@ Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	}
 	throw Error("\"malformed imp\"")(thm);
 }
-Rewriter& Rewriter::register_refl( Thm const& thm ) & {
+Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw Error("\"malformed refl\"")(thm);
@@ -84,6 +84,9 @@ Rewriter& Rewriter::register_refl( Thm const& thm ) & {
 	_rels.emplace(*rel,ind);
 	_refls.emplace_back(thm);
 	_congs.emplace_back();
+	if( def ) {
+		_default_ind = ind;
+	}
 	return *this;
 }
 Rewriter& Rewriter::register_trans( Thm const& thm ) & {
@@ -179,7 +182,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 		Ctxt const& rule_ctxt = rule.pat.ctxt();
 		if( auto const& m = match( rule.pat, source, [&](auto v){ return rule_ctxt.fixes(v); }) ) {
 			// source: l[m]
-			auto intp = Intp(rule_ctxt,source_ctxt);
+			auto intp = source_ctxt.interpret(rule_ctxt);
 			for(;;) {
 				if( auto fix = intp.fixing() ) {
 					// instantiate variables
@@ -294,7 +297,7 @@ size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 		if( !o ) throw Error("\"unregistered relation\"")(*rel);
 		return *o;
 	} else {
-		return 0;
+		return _default_ind;
 	}
 }
 
@@ -352,9 +355,9 @@ bool Rewriter::apply( Rules const& rules, Inference& thesis ) const {
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
-	auto const& o = _revimps.finds(0);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
+	auto const& o = _revimps.finds(_default_ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
 	auto const& thy = thesis.thy();
-	auto steps = _steps(rules,thy,*goal,1,255,false,{},0);// s = t
+	auto steps = _steps(rules,thy,*goal,1,255,false,{},_default_ind);// s = t
 	if( !steps ) return false;
 	auto imp = o->second.thm.weaken(thy);// x = y ⟹ conds... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s
