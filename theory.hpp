@@ -28,19 +28,15 @@ class Thy : public Ctxt {
 	static std::function<bool(AThm const&)> const _triv_test;
 	Opt<AThm> _find_thm(
 		std::string_view const& name,
-		std::function<Thm(Thm const&)> const& proc/* modifies the found theorem, weakening or instantiation */,
 		std::function<bool(AThm const&)> const& test,
-		bool ancestor,
-		bool noprefix,
-		Thy const& orig
+		Import const& import
 	) const;
 	/** @brief Finds a named theorem with prefix from the theory or an ancestor. */
 	Opt<AThm> _find_thm(
 		std::string_view const& pre,
 		std::string_view const& name,
-		std::function<Thm(Thm const&)> const& preproc,
 		std::function<bool(AThm const&)> const& test,
-		Thy const& orig
+		Import const& import
 	) const;
 	friend Import;
 public:
@@ -62,7 +58,7 @@ public:
 	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
 	auto name() && = delete;
-	/** Obtains the parent theory. */
+	/** Obtains the parent import. */
 	Opt<Thy const&> parent() const &;
 	Opt<Thy&> parent() &;
 	/** The directory name for the theory. */
@@ -71,9 +67,7 @@ public:
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<AThm> find_thm(
 		std::string_view const& name,
-		std::function<bool(AThm const&)> const& test = _triv_test,
-		bool ancestor = true,
-		bool noprefix = false
+		std::function<bool(AThm const&)> const& test = _triv_test
 	) const;
 	/** @brief Obtains a named theorem from the theory.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
@@ -88,12 +82,15 @@ public:
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
+	/** Self import */
+	Import self() const &;
+	Opt<Import&> import_parent() const &;
 	/** Declares import */
-	Import& import(std::string_view const& name, Thy const& loc) &;
+	Import& import(std::string_view const& name, Import const& prefix, Thy const& loc) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
 	/** Finds branch theory */
-	Opt<Thy> find_thy(std::string_view const& name, bool ancestor = true) const;
+	Opt<Thy> find_thy(std::string_view const& name) const;
 	Thy thy(std::string_view const& name) const {
 		if( auto x = find_thy(name) ) {
 			return *x;
@@ -113,47 +110,41 @@ public:
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, Syntax const& syntax = SYNTAX, std::string_view const& prefix = "\t" ) const&;
 };
 
-/** Annotated theorem */
-class AThm : public Thm {
-	Thy _thy;
-	AThm( Thy const& thy, Thm const& thm, ThmInfo const& info = {} ) : _thy(thy), Thm(thm), info(info) {}
-	friend Thy;
-	friend Import;
-public:
-	ThmInfo info;
-	AThm weaken( Thy const& thy ) const {
-		return AThm(thy,Thm::weaken(thy),info);
-	}
-};
-
 class Import : public Intp {
 	friend Thy;
-	Thy const _src;
+	Thy _src;
 	Thy _tgt;
 	/** @brief Obtains a theorem in the interpretation. */
 	Opt<AThm> _find_thm(
 		std::string_view const& name,
-		std::function<Thm(Thm const&)> const& preproc,
 		std::function<bool(AThm const&)> const& test,
-		bool noprefix,
-		Thy const& orig
+		Import const& import
 	) const;
-public:
 	/** creates import
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
 	 */
-	Import( Thy const& tgt, Thy const& src ) :
-		Intp(tgt.interpret(src)), _src(src), _tgt(tgt) {
+	Import( Intp const& intp, Thy const& tgt, Thy const& src ) :
+		Intp(intp), _src(src), _tgt(tgt) {
+	}
+public:
+	Thy& source() & {
+		return _src;
 	}
 	Thy const& source() const& {
 		return _src;
 	}
-	Thy& target() & {
+	Thy source() && = delete;
+	Thy& thy() & {
 		return _tgt;
 	}
-	Thy const& target() const & {
+	Thy const& thy() const & {
 		return _tgt;
+	}
+	Thy thy() && = delete;
+	Import compose( Import const& other ) const & {
+		if( _tgt != other._src ) throw Error("\"wrong compose\"");
+		return Import(Intp::compose(other),other._tgt,_src);
 	}
 	Opt<std::pair<CTerm,std::string>> assuming() const & {
 		if( auto assm = Intp::assuming() ) {
@@ -205,19 +196,30 @@ public:
 	void retain( CTerm c, Thm const& thm ) & {
 		Intp::retain(c,thm);
 	}
-	AThm subst( AThm const& thm ) const {
-		return AThm(_tgt,Intp::subst(thm));
-	}
 	/** Pretty printer for import */
 	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
 	auto pretty(Syntax&&,size_t) = delete;
 };
 
-inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
-	return os << loc.pretty(SYNTAX);
-}
+/** Annotated theorem */
+class AThm : public Thm {
+	Import _import;
+	AThm( Import const& import, Thm const& thm, ThmInfo const& info = {} ) : _import(import), Thm(thm), info(info) {}
+	friend Thy;
+	friend Import;
+public:
+	ThmInfo info;
+};
 
 Opt<Thm> proves( CTerm const& claim, Thy const& thy );
 Thm prove( CTerm const& claim, Thy const& thy );
+
+inline Import Thy::self() const& {
+	return Import(Ctxt::self(),*this,*this);
+}
+
+inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
+	return os << loc.pretty(SYNTAX);
+}
 
 #endif

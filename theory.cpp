@@ -3,9 +3,9 @@
 using namespace std;
 
 struct Thy::_Body {
-	Opt<Thy> parent;
 	string name;
 	string dir;
+	Opt<Import> parent;
 	StrMMap<pair<Thm,ThmInfo>> thms;
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
@@ -13,41 +13,51 @@ struct Thy::_Body {
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
 	_Body( string_view const& name, string_view const& dirname ) : name(name), dir(dirname), rewriter(Mem<Rewriter>::make()) {}
-	_Body( Thy const& parent, string_view const& name, string_view const& dir_name ) : parent(parent), name(name), dir(parent._ref->dir+dir_name), rewriter(parent._ref->rewriter), definer(parent._ref->definer) {}
 };
 
 Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname)) {};
 
 Thy Thy::branch() const {
-	return Thy( Ref<_Body>::make(*this,"",""), Ctxt::branch() );
+	auto intp = Ctxt::branch();
+	auto child = Thy( Ref<_Body>::make("",""), intp.ctxt() );
+	child._ref->parent = Import(intp,child,*this);
+	return child;
 }
 Thy Thy::branch( string_view const& name, string_view const& dirname ) {
-	auto const& loc = Thy( Ref<_Body>::make(*this,name,dirname), Ctxt::branch() );
-	_ref->thys.emplace(name,loc);
-	return loc;
+	auto intp = Ctxt::branch();
+	auto child = Thy( Ref<_Body>::make(name,dirname), intp.ctxt() );
+	child._ref->parent = Import(intp,child,*this);
+	_ref->thys.emplace(name,child);
+	return child;
 }
 Thy Thy::scope( string_view const& name ) const {
-	return Thy( Ref<_Body>::make(*this,name,""), *this );
+	auto child = Thy( Ref<_Body>::make(name,""), *this );
+	child._ref->parent = self();
+	return child;
 }
 string const& Thy::name() const & {
 	return _ref->name;
 }
 Opt<Thy const&> Thy::parent() const & {
-	return _ref->parent;
+	if( auto const& imp = _ref->parent ) {
+		return {imp->source()};
+	}
+	return {};
 }
 Opt<Thy&> Thy::parent() & {
-	return _ref->parent;
+	if( auto& imp = _ref->parent ) {
+		return {imp->source()};
+	}
+	return {};
 }
 string const& Thy::dir() const & {
 	return _ref->dir;
 }
 Opt<AThm> Thy::find_thm(
 	string_view const& name,
-	function<bool(AThm const&)> const& test,
-	bool ancestor,
-	bool noprefix
+	function<bool(AThm const&)> const& test
 ) const {
-	return _find_thm(name,_triv_proc,test,ancestor,noprefix,*this);
+	return _find_thm(name,test,self());
 }
 Rewriter const& Thy::rewriter() const& {
 	return *_ref->rewriter;
@@ -78,11 +88,13 @@ Opt<string> Thy::find_assm_name( size_t rev ) const {
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
 }
-Import& Thy::import(string_view const& name, Thy const& loc) & {
-	auto it = _ref->imports.emplace(piecewise_construct,
-		make_tuple(name),
-		forward_as_tuple(*this,loc)
-	);
+Opt<Import&> Thy::import_parent() const & {
+	return _ref->parent;
+}
+
+Import& Thy::import(string_view const& name, Import const& prefix, Thy const& loc) & {
+auto imp = Import(prefix.interpret(loc),*this,loc);
+	auto it = _ref->imports.emplace(name,imp);
 	return it->second;
 };
 
@@ -105,7 +117,7 @@ AThm Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) 
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
 	_ref->thms.emplace(name,pair(thm,info));
-	return AThm(*this,thm,info);
+	return AThm(self(),thm,info);
 }
 
 pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name ) {
@@ -117,96 +129,60 @@ pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view 
 }
 Opt<AThm> Thy::_find_thm(
 	string_view const& name,
-	function<Thm(Thm const&)> const& proc,
 	function<bool(AThm const&)> const& test,
-	bool ancestor,
-	bool noprefix,
-	Thy const& orig
+	Import const& import
 ) const {
 	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
-		auto const& ret = AThm(orig,proc(it->second.first),it->second.second);
+		auto const& ret = AThm(import,it->second.first,it->second.second);
 		if( test(ret) ) {// found in the current theory
 			return ret;
 		}
 	}
-	if( noprefix ) {
-		for( auto const& [pre,imp] : _ref->imports ) {
-			if( auto const& ret = imp._find_thm(name,proc,test,noprefix,orig) ) {
-				return ret;
-			}
-		}
-	} else {
-		auto sep = name.find('.');
-		if( sep == 0 ) {// explicit parent
-			auto opt = _ref->parent;
-			if( !opt ) throw Error("\"parent theory not found\"");
-			return opt->_find_thm(name.substr(1),proc,test,ancestor,noprefix,orig);
-		}
-		if( sep != string::npos ) {// named imports
-			if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),proc,test,orig) ) {
-				return ret;
-			}
-		}
-		if( auto ret = _find_thm("",name,proc,test,orig) ) {// unnamed import
+	auto sep = name.find('.');
+	if( sep == 0 ) {// explicit parent
+		auto parent = _ref->parent;
+		if( !parent ) throw Error("\"parent theory not found\"");
+		return parent->_find_thm(name.substr(1),test,import.compose(*parent));
+	}
+	if( sep != string::npos ) {// named imports
+		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),test,import) ) {
 			return ret;
 		}
 	}
-	if( ancestor )
-	if( auto p = _ref->parent ) {
-		auto const& proc2 = [&]( Thm const& thm ) {
-			return proc(thm.weaken(*this));
-		};
-		return p->_find_thm(name,proc2,test,ancestor,noprefix,orig);
+	if( auto ret = _find_thm("",name,test,import) ) {// unnamed import
+		return ret;
 	}
 	return {};
 }
 Opt<AThm> Thy::_find_thm(
 	string_view const& pre,
 	string_view const& name,
-	function<Thm(Thm const&)> const& proc,
 	function<bool(AThm const&)> const& test,
-	Thy const& orig
+	Import const& import
 ) const {
 	// pre as interpretations
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
-		if( auto opt = it->second._find_thm(name,proc,test,false,orig) ) {
+		auto const& suffix = it->second;
+		if( suffix.ready() )
+		if( auto opt = suffix._src._find_thm(name,test,import.compose(suffix)) ) {
 			return opt;
 		}
 	}
 	return {};
 }
-Opt<AThm> Import::_find_thm(
-	string_view const& name,
-	function<Thm(Thm const&)> const& proc,
-	function<bool(AThm const&)> const& test,
-	bool noprefix,
-	Thy const& orig
-) const {
-	if( ready() ) {// only find if the interpretation is ready
-		auto const& proc2 = [&]( Thm const& thm ){
-			return proc(Intp::subst(thm));
-		};
-		return _src._find_thm(name,proc2,test,false,noprefix,orig);
-	}
-	return {};
-}
-Opt<Thy> Thy::find_thy(string_view const &name, bool ancestor) const {
+
+Opt<Thy> Thy::find_thy(string_view const &name) const {
 	size_t sep = name.find('.');
 	if( sep == 0 ) {
 		auto const& p = _ref->parent;
 		if( !p ) throw ThyNotFound(".");
-		return p->find_thy(name.substr(1));
+		return p->_src.find_thy(name.substr(1));
 	}
 	if( name == _ref->name ) {
 		return *this;
 	}
 	if( auto ret = _ref->thys.finds(name) ) {
 		return ret->second;
-	}
-	if( ancestor ) {
-		if( auto& parent = _ref->parent ) {
-			return parent->find_thy(name,true);
-		}
 	}
 	return {};
 }

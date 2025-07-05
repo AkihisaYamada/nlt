@@ -129,11 +129,8 @@ Term Term::subst(Subst const& subst) const {
 		}
 		return {};
 	};
-	auto fixed = [&](string_view const& sym)->Opt<Term> {
-		if( auto t = subst.ctxt().constant(sym) ) {
-			return *t;
-		}
-		return {};
+	auto fixed = [&](string_view const& sym)->bool {
+		return subst.ctxt().has_constant(sym);
 	};
 	return map(f,fixed);
 }
@@ -336,7 +333,7 @@ CTerm CTerm::intro() const {
 Opt<CTerm::StrTerm> CTerm::cbind() const {
 	if( auto bind = Term::bind() ) {
 		auto const& [var,body] = *bind;
-		Ctxt loc = _ctxt.branch();
+		Ctxt loc = _ctxt.branch().source();
 		auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
 		return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
 	}
@@ -377,36 +374,5 @@ CTerm Term::csubst(Subst const& subst) const {
 		}
 	};
 	return CTerm(ctxt,map(f,fixed));
-}
-
-Thm Intp::subst(Thm const& thm) const {
-	if( thm.ctxt() != _src ) throw Error("#intp")("\"wrong context subst\"");
-	Term ret = thm;
-	StrSet obtained;
-	for( int i = _src.revision(); i < _rev; i++ ) {
-		if( auto const& fix = _src.fixed(i) ) {
-			ret = *fix &= ret;
-		} else if( auto const& assm = _src.assumed(i) ) {
-			ret = *assm >>= ret;
-		} else if( auto const& obtain = _src.obtained(i) ) {
-			obtained.insert(get<0>(*obtain));
-		} else {
-			assert(false);
-		}
-	}
-	if( !obtained.empty() ) {// obtained constant cannot escape
-		auto check = [&](auto v){
-			if( obtained.contains(v) ) throw Error("#intp")("\"constant escape\"")(v);
-		};
-		ret.iter_syms(check);
-	}
-	return CTerm(_subst.ctxt(),ret.subst(_subst));
-}
-Ctxt Intp::subst(Ctxt const& ctxt) const {
-	if( ctxt.parent() != _src ) throw Error("#intp")("\"wrong context\"");
-	if( !ready() ) throw Error("#intp")("\"not ready\"");
-	if( !_subst.identity() ) throw Error("#intp")("\"unsupported\"");
-	auto body = *ctxt._ref;
-	return Ctxt(Ref<Ctxt::Body>::make(_subst.ctxt(),body.modifiers,body.fvars,body.constants));
 }
 

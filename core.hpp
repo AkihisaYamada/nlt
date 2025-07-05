@@ -112,42 +112,42 @@ public:
 	/** @brief Move the function and argument if the term is an application. */
 	Opt<Pair> app() && {
 		if( auto const& opt = std::move(_un).ref<App>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Reference to the function and argument if the term is an application. */
 	Opt<Pair const&> app() const & {
 		if( auto opt = _un.ref<App>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Move of the variable and body if the term is an abstraction. */
 	Opt<StrTerm> bind() && {
 		if( auto const& opt = std::move(_un).ref<Abs>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Reference to the variable and body if the term is an abstraction. */
 	Opt<StrTerm const &> bind() const & {
 		if( auto opt = _un.ref<Abs>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Move the variable and body if the term is a binding. */
 	Opt<StrTerm> unbind() && {
 		if( auto const& opt = std::move(_un).ref<Unbind>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Reference to the variable and body if the term is a binding. */
 	Opt<StrTerm const &> unbind() const & {
 		if( auto opt = _un.ref<Unbind>() ) {
-			return **opt;
+			return {**opt};
 		}
 		return {};
 	}
@@ -157,7 +157,7 @@ public:
 	Opt<StrTerm const&> binder( std::string_view const& b ) const & {
 		if( auto opt1 = app() )
 		if( opt1->first == b ) {
-			return opt1->second.bind();
+			return {opt1->second.bind()};
 		}
 		return {};
 	}
@@ -166,7 +166,7 @@ public:
 	 */
 	Opt<StrTerm> binder( std::string_view const& b ) && {
 		if( auto opt = binder(b) ) {
-			return std::move(*opt);
+			return {std::move(*opt)};
 		}
 		return {};
 	}
@@ -178,7 +178,7 @@ public:
 	Opt<Term const&> unary( std::string_view const& f ) const & {
 		if( auto opt = app() )
 		if( opt->first == f ) {
-			return opt->second;
+			return {opt->second};
 		}
 		return {};
 	}
@@ -189,7 +189,7 @@ public:
 	 */
 	Opt<Term> unary( std::string_view const& f ) && {
 		if( auto opt = unary(f) ) {
-			return std::move(*opt);
+			return {std::move(*opt)};
 		}
 		return {};
 	}
@@ -211,9 +211,8 @@ public:
 	 * @return the pair of arguments, in case of match
 	 */
 	Opt<Pair> binary( std::string_view const& f ) && {
-		if( auto x = app() )
-		if( auto a = x->first.unary(f) ) {
-			return {{std::move(*a),std::move(x->second)}};
+		if( auto x = binary(f) ) {
+			return {{std::move(x->first),std::move(x->second)}};
 		}
 		return {};
 	}
@@ -228,24 +227,6 @@ public:
 	) const {
 		StrMSet bsyms;
 		_iter_syms(bsyms,bsym,fsym);
-	}
-	/** @brief The set of free symbols */
-	StrSet fsyms() const {
-		StrSet ret;
-		iter_syms([&ret](std::string_view const& fsym){ret.emplace(fsym);});
-		return ret;
-	}
-	bool exists_fsym(std::function<bool(std::string_view const&)> const& test) const try {
-		iter_syms([&](std::string_view const& v){ if( test(v) ) throw 0; });
-		return false;
-	} catch (int x) {
-		return true;
-	}
-	bool contains_fsym(std::string_view const& name) const {
-		return exists_fsym([&](auto v){ return v == name; });
-	}
-	bool forall_fsyms(std::function<bool(std::string_view const&)> const& test) const {
-		return !exists_fsym([&](auto v){ return !test(v); });
 	}
 	/** @brief Singleton substitution
 	 * @param val it must be closed term, so that variables can be avoided from bound variables.
@@ -322,7 +303,9 @@ struct Error : public std::exception, Term {
 struct UnboundVariable : public Error {
 	UnboundVariable( std::string_view const& name ) : Error(Term("#ctxt")("\"unbound variable\"")(name)) {}
 };
-
+struct ParentNameConflict : public Error {
+	ParentNameConflict( std::string_view const& name ) : Error(Term("#ctxt")("\"parent name conflict\"")(name)) {}
+};
 /** @brief Context */
 class Ctxt {
 private:
@@ -345,7 +328,9 @@ public:
 	Ctxt();
 	/** unique ID of the context */
 	void const* id() const &;
-	/** Optionally returns the parent context. */
+	/** @brief Optionally returns the parent context.
+	 * @exception ParentNameConflict if the same constant is fixed or obtained in both parent and child
+	 */
 	Opt<Ctxt const&> find_parent() const &;
 	/** @brief Obtains the parent context.
 	 * @exception is thrown if no such context is found.
@@ -370,8 +355,6 @@ public:
 			}
 		}
 	}
-	/** The set of locally fixed variables. */
-	StrSet const& fvars() const&;
 	/** The variable fixed at i-th modification. */
 	Opt<std::string const&> fixed(size_t i) const&;
 	/** The assumption made at the i-th modification. */
@@ -418,15 +401,14 @@ public:
 	 * @return the fixed sym and theorem stating ∀thesis. (props... ⟹ thesis) ⟹ thesis
 	 */
 	std::pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm);
-	
-	/** @brief Creates a child context. */
-	Ctxt branch() const {
-		return Ctxt(Ref<Body>::make(*this));
-	}
+	/** @brief Returns the self interpretation. */
+	Intp self() const;
+	/** @brief Creates a child context.
+	 * @return interpretation of the parent in the child.
+	 */
+	Intp branch() const;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
-	/** @brief interprets other context. */
-	Intp interpret(Ctxt const& other) const;
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
 		return l._ref == r._ref;
 	};
@@ -436,8 +418,10 @@ public:
 
 struct Ctxt::Body {
 	using _Modifier = Sum<Fix,Assume,Obtain>;
-	/** Parent context. */
-	Opt<Ctxt> const parent;
+	/** Parent context and its revision. */
+	Opt<Ctxt> parent;
+	/** Validated revision of the parent/ */
+	size_t parent_rev;
 	/** Vector of modifiers */
 	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
@@ -565,6 +549,8 @@ public:
 		if( _ctxt != arg._ctxt ) throw Error("#cterm")("\"wrong context application\"");
 		return CTerm(_ctxt,Term::operator()(arg));
 	}
+	/** @brief closed substitution */
+	CTerm subst(Intp const& subst) const;
 	/** @brief instantiates the bound variable. This must be an abstraction.
 	 * 
 	 * @param arg
@@ -573,15 +559,6 @@ public:
 	CTerm inst(CTerm const& arg) const {
 		assert(arg._ctxt.has_ancestor(_ctxt));
 		return CTerm(arg._ctxt,Term::inst(arg));
-	}
-	/** @brief Moves a closed term to a descendant context
-	 * 
-	 * @param ctxt the descendant context
-	 * @return CTerm 
-	 */
-	CTerm weaken(Ctxt const& ctxt) const {
-		if( !ctxt.has_ancestor(_ctxt) ) throw Error("#cterm")("\"wrong context weakening\"");
-		return CTerm(ctxt,*this);
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.
 	 *   Symbols fixed in the context will be quantified.
@@ -631,32 +608,32 @@ inline Opt<CTerm> Ctxt::closed(Term const& t) const try {
 	return {};
 }
 
-/** @brief Substitution, whose range is closed with respect to a context. */
+/** @brief Substitution.
+ * For efficiency, the range should be closed with respect to a common context.
+ */
 class Subst {
-private:
 	bool _identity;
 	StrMap<Opt<Term>> _map;
 	Ctxt _ctxt;
-	friend Term;
+	Subst& _assign(std::string_view const& var, Term const& val) &;
 public:
-	/** @brief Creates a closed substituion
+	/** @brief Creates an identity substituion
 	 * @param ctxt the context the substitution is closed in
 	 */
 	Subst(Ctxt const& ctxt) : _ctxt(ctxt), _identity(true) {}
 	/** @brief The context in which the range of the substitution is closed. */
-	Ctxt const& ctxt() const {
+	Ctxt const& ctxt() const& {
 		return _ctxt;
 	}
-	Ctxt ctxt() {
-		return _ctxt;
-	}
+	Ctxt ctxt() && = delete;
 	/** @brief The map from variable names to the substitutes.
 	 * 
 	 * @return StrMap<Term> const& 
 	 */
-	StrMap<Opt<Term>> const& map() const {
+	StrMap<Opt<Term>> const& map() const& {
 		return _map;
 	}
+	auto map() && = delete;
 	/** @brief Tests if the substitution domain contains a variable. */
 	bool contains(std::string_view const& var) const {
 		return _map.contains(var);
@@ -685,8 +662,7 @@ public:
 		}
 		return {};
 	}
-private:
-	Subst& _assign(std::string_view const& var, Term const& val) &;
+	friend Term;
 };
 
 class Thm : public CTerm {
@@ -730,14 +706,7 @@ public:
 	Thm intro() const {
 		return CTerm::intro();
 	}
-	/** @brief Moves the theorem to a descendant context.
-	 * 
-	 * @param ctxt the descendant context.
-	 * @return Thm 
-	 */
-	Thm weaken(Ctxt const& ctxt) const {
-		return CTerm::weaken(ctxt);
-	}
+	Thm subst(Intp const& intp) const;
 private:
 	Thm _instantiate(CTerm const& t) const {
 		auto const& a = cunary(ALL);
@@ -769,17 +738,33 @@ class Intp {
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
-	 Intp(Ctxt const& src, Ctxt const& tgt) : _subst(tgt), _src(src), _rev(0) {}
+	 Intp(Ctxt const& src, Subst const& tgt, int rev) : _subst(tgt), _src(src), _rev(rev) {}
 public:
-	Ctxt ctxt() {
+	static ::Error const Error;
+	operator Subst const&() const& {
+		return _subst;
+	}
+	Ctxt source() && {
+		return std::move(_src);
+	}
+	Ctxt const& source() const & {
+		return _src;
+	}
+	Ctxt& source() & {
+		return _src;
+	}
+	Ctxt ctxt() const {
 		return _subst.ctxt();
-	};
+	}
+	Subst const& subst() const {
+		return _subst;
+	}
 	size_t revision() const {
-		return _rev;
+		return _rev < 0 ? _src.revision() : _rev;
 	}
 	/** tests if there is no pending modification */
 	bool ready() const {
-		return _rev == _src.revision();
+		return _rev < 0 /* indicates trivial interpretation */ || _rev == _src.revision();
 	}
 	/** @brief tests if the substitution is identity */
 	bool identity() const {
@@ -787,6 +772,9 @@ public:
 	}
 	/** unprocessed modification */
 	Sum<Ctxt::Fix,Ctxt::Assume,Ctxt::Obtain,nullptr_t> modification( size_t i ) const& {
+		if( _rev < 0 ) {
+			return nullptr;
+		}
 		auto ind = _rev + i;
 		if( _src.revision() <= ind ) {
 			return nullptr;
@@ -802,11 +790,11 @@ public:
 			auto const& [sym,ex,spec] = *obtain;
 			return Ctxt::Obtain{sym,ex.subst(_subst),spec.subst(_subst)};
 		}
-		return {};
+		assert(false);
 	}
 	/** @brief returns the next fixed symbol */
 	Opt<std::string const&> fixing() const {
-		if( _rev < _src.revision() )
+		if( 0 <= _rev && _rev < _src.revision() )
 		if( auto const& fix = _src._ref->modifiers[_rev].ref<Ctxt::Fix>() ) {
 			return {*fix};
 		}
@@ -814,27 +802,19 @@ public:
 	}
 	/** @brief returns the next assumption */
 	Opt<CTerm> assuming() const {
-		if( _rev < _src.revision() )
+		if( 0 <= _rev && _rev < _src.revision() )
 		if( auto const& assume = _src._ref->modifiers[_rev].ref<Ctxt::Assume>() ) {
 			return {CTerm(_subst.ctxt(),assume->subst(_subst))};
 		}
 		return {};
 	}
 	Opt<std::tuple<std::string,Thm,CTerm>> obtaining() const {
-		if( _rev < _src.revision() )
+		if( 0 <= _rev && _rev < _src.revision() )
 		if( auto const& obtain = _src._ref->modifiers[_rev].ref<Ctxt::Obtain>() ) {
 			return {{obtain->sym,Thm(CTerm(_subst.ctxt(),obtain->ex.subst(_subst))),CTerm(_subst.ctxt(),obtain->spec.subst(_subst))}};
-		}
+			}
 		return {};
 	}
-	auto subst() && = delete;
-	Subst const& subst() const& {
-		return _subst;
-	}
-	/** @brief instantiates a theorem. */
-	Thm subst(Thm const& thm) const;
-	/** @brief (limited) instantiates a context. */
-	Ctxt subst(Ctxt const& ctxt) const;
 	/** @brief Instantiates a context variable.
 	 * If the interpreted context is modified by fixing a new variable,
 	 * then this method should be used to instantiate the variable.
@@ -842,7 +822,7 @@ public:
 	 */
 	void instantiate(CTerm const& term) {
 		auto fix = fixing();
-		if( !fix ) throw Error("#intp")("\"unexpected instantiate\"");
+		if( !fix ) throw Error(__func__)("\"unexpected\"");
 		_subst.assign(*fix,term);
 		_rev++;
 	}
@@ -853,8 +833,8 @@ public:
 	 */
 	void discharge(Thm const& thm) {
 		auto assm = assuming();
-		if( !assm ) throw Error("#intp")("\"unexpected discharge\"");
-		if( *assm != thm ) throw Error("#intp")("\"malformed discharge\"")(*assm)(thm);
+		if( !assm ) throw Error(__func__)("\"unexpected\"");
+		if( *assm != thm ) throw Error(__func__)("\"malformed\"")(*assm)(thm);
 		_rev++;
 	}
 	/** @brief If the interpreted context is modified by obtaining a constant,
@@ -864,28 +844,60 @@ public:
 	 * where the obtained constant is replaced by the term.
 	 */
 	void retain(CTerm const& term, Thm const& thm) {
-		if( thm.ctxt() != _subst.ctxt() ) throw Error("#intp")("\"wrong context retain\"");
+		if( thm.ctxt() != _subst.ctxt() ) throw Error(__func__)("\"wrong context retain\"");
 		auto obtain = obtaining();
-		if( !obtain ) throw Error("#intp")("\"unexpected retain\"");
+		if( !obtain ) throw Error(__func__)("\"unexpected retain\"");
 		auto const& [sym,ex,spec] = *obtain;
-		if( spec.inst(term) != thm ) throw Error("#intp")("\"malformed retain\"")(thm);
+		if( spec.inst(term) != thm ) throw Error(__func__)("\"malformed retain\"")(thm);
 		_subst.assign(sym,term);
 		_rev++;
 	}
+	/** @brief extend interpretation to child.
+	 * The source of this interpretation should be the parent of the new source context.
+	 */
+	Intp interpret(Ctxt const& ctxt) const {
+		if( !ready() ) throw Error(__func__)("\"not ready\"");
+		auto srcParent = ctxt.find_parent();
+		if( !srcParent ) throw Error(__func__)("\"root\"");
+		if( *srcParent != _src ) throw Error(__func__)("\"wrong parent\"");
+		return Intp(ctxt,_subst,_rev);
+	}
+	/** @brief composes with other interpretation.
+	 * The other interpretation should readily intepret the context this interpretation belongs.
+	 * @param other interpretation to be composed with.
+	 * @return an interpretation of this source in the other context.
+	 */
+	Intp compose(Intp const& other) const {
+		if( !other.ready() ) throw Error(__func__)("\"not ready\"");
+		if( other._src != ctxt() ) throw Error(__func__)("\"wrong middle\"");
+		auto subst = other._subst;
+		for( auto [x,v] : _subst.map() ) {
+			if( v ) {
+				subst.assign(x,v->subst(other));
+			}
+		}
+		return Intp(_src,std::move(subst),_rev);
+	}
 	friend Ctxt;
+	friend CTerm;
+	friend Thm;
 };
+inline Error const Intp::Error("#intp");
+inline Intp Ctxt::self() const {
+	return Intp(*this,*this,-1);
+}
+inline Intp Ctxt::branch() const {
+	auto child = Ctxt(Ref<Body>::make());
+	auto rev = revision();
+	child._ref->parent = *this;
+	child._ref->parent_rev = rev;
+	return Intp(*this,child,rev);
+}
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	if( auto it = _ref->constants.find(name); it != _ref->constants.end() ) {
 		return CTerm(*this,*it);
 	}
 	return {};
-}
-inline Intp Ctxt::interpret(Ctxt const& other) const {
-		if( auto srcParent = other.find_parent() )
-		if( !has_ancestor(*srcParent) )
-			throw Error("#intp")("unreachable");
-		if( has_ancestor(other) ) throw Error("#intp")("cyclic");
-		return Intp(other,*this);
 }
 inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const {
 	if( has_constant(sym) ) {
@@ -907,6 +919,16 @@ inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained(size_t i) const & {
 		return {{sym,CTerm(*this,thm),CTerm(*this,spec)}};
 	}
 	return {};
+}
+
+inline CTerm CTerm::subst(Intp const& intp) const {
+	if( _ctxt != intp._src ) throw Error("#cterm")("\"wrong context subst\"");
+	if( !intp.ready() ) throw Error("#cterm")("\"interpretation not ready\"");
+	return CTerm(_ctxt,this->Term::subst(intp));
+}
+
+inline Thm Thm::subst(Intp const& intp) const {
+	return CTerm::subst(intp);
 }
 
 // workaround for Visual Studio...?

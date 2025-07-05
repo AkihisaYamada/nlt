@@ -13,36 +13,37 @@ Error const Inference::NoGoal = Error("\"no goal to apply\"");
 Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm, size_t n ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	Thm rule = thm.weaken(ctxt);
+	auto child = thm.ctxt().branch();
+	Thm rule = thm.subst(child);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
 		if( i == n ) return Intro(rule,vars,i);
-		auto const& [rule2,vars2] = strip_all(rule,ctxt);
+		auto const& [rule2,vars2] = strip_all(rule,child);
 		vars += vars2;
 		auto imp = rule2.cbinary(IMP);
 		assert(imp);
-		rule = rule2.discharge(ctxt.assume(imp->first));
+		rule = rule2.discharge(child.ctxt().assume(imp->first));
 	}
 }
 
 Intro Intro::rule( Thm const& thm ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	auto [rule,vars] = strip_all(thm,ctxt);
+	auto child = thm.ctxt().branch();
+	auto ctxt = child.ctxt();
+	auto [rule,vars] = strip_all(thm,child);
 	size_t conds = 0;
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.discharge(ctxt.assume(imp->first));
 		conds++;
-		rule = strip_all(rule,ctxt).first;
+		rule = strip_all(rule,child).first;
 	}
 	return Intro(rule,vars,conds);
 }
 Elim Elim::rule( Thm const& thm ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	Thm body = strip_all(thm,ctxt).first;
+	auto child = thm.ctxt().branch();
+	Thm body = strip_all(thm,child).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
-	Thm premise = ctxt.assume(imp->first);
+	Thm premise = child.ctxt().assume(imp->first);
 	body = body.discharge(premise);
 	return Elim(premise,body);
 }
@@ -67,8 +68,8 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 			if( !safe ) throw Error("\"apply limit exceeded\"")(to_string(max));
 			return;
 		}
-		Ctxt subctxt = goal().ctxt().branch();
-		if( !_apply(rules,goal().weaken(subctxt)) ) {
+		auto subintp = goal().ctxt().branch();
+		if( !_apply(rules,goal().subst(subintp),subintp) ) {
 			break;
 		}
 		suc++;
@@ -88,7 +89,7 @@ bool Inference::_apply_blast(
 ) & {
 	auto const& m = intro.matches(goal);
 	if( !m ) return false;
-	auto rule_intp = _thy.interpret(intro.ctxt());
+	auto rule_intp = _thy.self().interpret(intro.ctxt());
 	while( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
 		if( auto const& val = m->get(*v) ) {
 			rule_intp.instantiate(*val);
@@ -102,35 +103,35 @@ bool Inference::_apply_blast(
 		if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
 		rule_intp.discharge(thesis._thm);
 	}
-	auto claim = intro.inst(rule_intp);
+	auto claim = intro.subst(rule_intp);
 	_thm = _thm.discharge(claim);
 	_goals--;
 	return true;
 }
 
-bool Inference::_apply( Intro const& rule, CTerm const& goal ) & {
+bool Inference::_apply( Intro const& rule, CTerm const& goal, Intp const& intp ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	auto ctxt = goal.ctxt();// collects new assumptions
-	auto rule_intp = ctxt.interpret(rule.ctxt());
+	auto pat_intp = intp.interpret(rule.ctxt());
 	for(;;) {
-		if( auto const& v = rule_intp.fixing() ) {// instantiate rule variables
+		if( auto const& v = pat_intp.fixing() ) {// instantiate rule variables
 			if( auto const& val = m->get(*v) ) {
-				rule_intp.instantiate(*val);
+				pat_intp.instantiate(*val);
 			} else {
-				rule_intp.instantiate(dummy(ctxt));
+				pat_intp.instantiate(dummy(ctxt));
 			}
 			continue;
 		}
-		if( auto const& assm = rule_intp.assuming() ) {// make assumptions
-			rule_intp.discharge(ctxt.assume(*assm));
+		if( auto const& assm = pat_intp.assuming() ) {// make assumptions
+			pat_intp.discharge(ctxt.assume(*assm));
 			_goals++;
 			continue;
 		}
 		break;
 	}
-	auto claim = rule.inst(rule_intp);
-	_thm = _thm.weaken(ctxt).discharge(claim).intro();
+	auto conc = rule.subst(pat_intp);
+	_thm = _thm.subst(intp).discharge(conc).intro();
 	_goals--;
 	return true;
 }
@@ -153,10 +154,11 @@ bool Inference::_blast(
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
 	auto subthy = _thy.branch();
-	auto goal = imp->first.weaken(subthy);
+	auto const& subintp = *subthy.import_parent();
+	auto goal = imp->first.subst(subintp);
 	size_t n_elim_res = 0;
 	for(;;) {
-		goal = strip_all(goal,subthy);
+		goal = strip_all(goal,subintp);
 		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
 			auto assm = subthy.assume(imp->first);
 			goal = imp->second;
@@ -169,7 +171,7 @@ bool Inference::_blast(
 					add_forced(subthy,assm,ctrl.force_assms);
 					break;
 				}
-				if( auto o = elim->matches(assm) ) {
+				if( auto o = elim->matches(assm,subintp/*FIX!*/) ) {
 					// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
 					elim_res.push_back(*o);
 					n_elim_res++;
@@ -186,11 +188,12 @@ bool Inference::_blast(
 	} ) ) {
 		fuel--;
 		auto thesis = claim_exact(subthy,goal);
-		auto const& g = thesis._claim.weaken(thesis._claim.ctxt().branch());
-		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g); } ) ) {
+		auto subgoal_intp = thesis._claim.ctxt().branch();
+		auto const& g = thesis._claim.subst(subgoal_intp);
+		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g,subgoal_intp); } ) ) {
 			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter().apply(rew.first,thesis,rew.second); }) &&
-				!thesis._apply(ctrl.intros,g) &&
-				!subthy.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g); } )
+				!thesis._apply(ctrl.intros,g,subgoal_intp) &&
+				!subthy.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g,subgoal_intp); } )
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
@@ -206,7 +209,7 @@ bool Inference::_blast(
 						break;
 					}
 // apply elimination result
-					if( !thesis._apply(elim_res[elim_res_ind],g) ) {
+					if( !thesis._apply(elim_res[elim_res_ind],g,subgoal_intp) ) {
 						add_forced(subthy,elim_res[elim_res_ind].thm(),true);
 					}
 					elim_res_ind++;

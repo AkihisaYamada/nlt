@@ -37,8 +37,8 @@ public:
 	static Error const NoGoal;
 	static Error const Unapplicable;
 	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {
-		Ctxt ctxt = claim.ctxt().branch();
-		return Inference( thy, ctxt.assume(claim.weaken(ctxt)).intro(), claim, 1 );// claim ⟹ claim
+		auto intp = claim.ctxt().branch();
+		return Inference( thy, intp.ctxt().assume(claim.subst(intp)).intro(), claim, 1 );// claim ⟹ claim
 	}
 	static Inference make( Thy const& thy, Thm const& thesis ) {
 		CTerm claim = thesis;
@@ -81,16 +81,19 @@ public:
 	}
 	/** @brief Tries to apply a rule once */
 	bool applies( Intro const& rule ) & {
-		return _apply(rule,goal().weaken(goal().ctxt().branch()));
+		auto g = goal();
+		auto intp = g.ctxt().branch();
+		return _apply(rule,g.subst(intp),intp);
 	}
 	void apply( Intro const& rule ) & {
-		auto g = goal().weaken(goal().ctxt().branch());
-		if( !_apply(rule,g) ) throw Unapplicable(g)(rule.conclusion());
+		auto g = goal();
+		auto intp = g.ctxt().branch();
+		if( !_apply(rule,g.subst(intp),intp) ) throw Unapplicable(g)(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
-		auto g = strip_all(goal());
-		if( !_apply(rules,g) ) throw Unapplicable(g);
+		auto [g,intp] = strip_all(goal());
+		if( !_apply(rules,g,intp) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool wide ) & {
@@ -125,9 +128,10 @@ public:
 	bool push() & {
 		if( _goals < 2 ) return false;
 		_thy = _thy.branch();
-		auto assm = _thy.assume(goal().weaken(_thy));
+		auto import = *_thy.import_parent();
+		auto assm = _thy.assume(goal().subst(import));
 		add_forced(_thy,assm);
-		_thm = _thm.weaken(_thy).discharge(assm);
+		_thm = _thm.subst(import).discharge(assm);
 		_goals--;
 		return true;
 	}
@@ -149,10 +153,10 @@ private:
 		return false;
 	}
 	/** goal must be in a fresh context */
-	bool _apply( Intro const& intro, CTerm const& goal ) &;
-	bool _apply( std::set<Intro> const& intros, CTerm const& goal ) & {
+	bool _apply( Intro const& intro, CTerm const& goal, Intp const& intp ) &;
+	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Intp const& intp ) & {
 		for( auto const& rule : intros ) {
-			if( _apply(rule,goal) ) return true;
+			if( _apply(rule,goal,intp) ) return true;
 		}
 		return false;
 	}

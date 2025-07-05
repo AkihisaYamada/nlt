@@ -18,8 +18,8 @@ bool operator<( Term const& l, Term const& r );
 
 /** makes the theorem t ⟹ t */
 inline Thm make_refl( CTerm const& t ) {
-	Ctxt ctxt = t.ctxt().branch();
-	return ctxt.assume(t.weaken(ctxt)).intro();
+	auto intp = t.ctxt().branch();
+	return intp.ctxt().assume(t.subst(intp)).intro();
 }
 
 /** Iterate over locally fixed variables. */
@@ -39,42 +39,44 @@ using Renamer = std::function<Opt<std::string>(std::string_view const&)>;
  * @param ctxt 
  * @return function that always gives a fresh name in the context.
  */
-Renamer avoider(Ctxt& ctxt);
+Renamer avoider(Ctxt const& ctxt);
 
 /** Fresh variable maker */
 Renamer fresh_maker();
 
 /**
  * @brief strips universal quantifiers.
- * @param t 
- * @param ctxt this context will fix the bound variables.
+ * @param t ∀x... φ
+ * @param intp interpretation of the context of `t` in the context that will fix the bound variables
  * @param renamer
+ * @return closed term φ in context
  */
-CTerm strip_all( CTerm t, Ctxt& ctxt, Renamer const& renamer );
+CTerm strip_all( CTerm t, Intp const& intp, Renamer const& renamer );
 
 /**
  * @brief strips universal quantifiers with default renaming
  */
-inline CTerm strip_all(CTerm t, Ctxt& ctxt) {
-	return strip_all(t,ctxt,avoider(ctxt));
+inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
+	return strip_all(t,intp,avoider(intp.ctxt()));
 }
-inline CTerm strip_all( CTerm thm ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	return strip_all(thm,ctxt);
+inline std::pair<CTerm,Intp> strip_all( CTerm const& thm ) {
+	auto intp = thm.ctxt().branch();
+	return {strip_all(thm,intp),intp};
 }
 
 /**
  * @brief strips universal quantifiers.
  * @param thm the theorem to be stripped.
- * @param loc this context will fix the bound variables.
+ * @param child this context will fix the bound variables.
  */
-std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer );
-inline std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt ) {
-	return strip_all(thm,ctxt,avoider(ctxt));
+std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child, Renamer const& renamer );
+inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
+	return strip_all(thm,child,avoider(child.ctxt()));
 }
-inline std::pair<Thm,size_t> strip_all( Thm const& thm ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	return strip_all(thm,ctxt);
+inline std::tuple<Thm,Intp,size_t> strip_all( Thm const& thm ) {
+	auto child = thm.ctxt().branch();
+	auto [strip_thm,n] = strip_all(thm,child);
+	return {strip_thm,child,n};
 }
 
 /**
@@ -158,21 +160,26 @@ public:
 		return _conds;
 	}
 	static Intro just( Thm const& thm ) {
-		return Intro(thm.weaken(thm.ctxt().branch()),0,0);
+		auto child = thm.ctxt().branch();
+		return Intro(thm.subst(child),0,0);
 	}
 	/** @brief Makes implication a rule. */
 	static Intro imp( Thm const& thm, size_t n = 1 );
-	/** @brief Makes a theorem into a rule. Number of conditions are returned. */
+	/** @brief Makes a theorem into a rule. */
 	static Intro rule( Thm const& thm );
 	/** @brief Makes a theorem into an axiom.
 	 * universal quantifications are processed but not implications.
      */
 	static Intro axiom( Thm const& thm ) {
-		auto [conc,vars] = strip_all(thm);
+		auto [conc,intp,vars] = strip_all(thm);
 		return Intro(conc,vars,0);
 	}
 	Thm const& conclusion() const& {
 		return _conclusion;
+	}
+	Ctxt ctxt() && = delete;
+	Ctxt const& ctxt() const& {
+		return _conclusion.ctxt();
 	}
 	Thm thm() const& {
 		return _conclusion.intro();
@@ -180,13 +187,9 @@ public:
 	Opt<Subst> matches( CTerm const& goal ) const {
 		return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
 	}
-	Ctxt ctxt() && = delete;
-	Ctxt const& ctxt() const& {
-		return _conclusion.ctxt();
-	}
 	/** @brief instantiates the rule. */
-	Thm inst( Intp const& intp ) const {
-		return intp.subst(_conclusion);
+	Thm subst( Intp const& intp ) const {
+		return _conclusion.subst(intp);
 	}
 	bool operator<( Intro const& y ) const {
 		return _conclusion < y._conclusion;
@@ -199,14 +202,14 @@ class Elim {
 	explicit Elim( Thm const& premise, Thm const& thm ) : _premise(premise), _thm(thm) {}
 public:
 	static Elim rule( Thm const& thm );
-	Opt<Intro> matches( Thm const& assm ) const {
+	Opt<Intro> matches( Thm const& assm, Intp const& intp ) const {
 		auto pat_ctxt = _premise.ctxt();
 		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
 		if( !m ) return {};
-		auto intp = assm.ctxt().interpret(pat_ctxt);
-		subst_intp(intp,*m);
-		intp.discharge(assm);
-		auto thm = intp.subst(_thm);// ∀thesis. ψθ... ⟹ thesis
+		auto pat_intp = intp.interpret(pat_ctxt);
+		subst_intp(pat_intp,*m);
+		pat_intp.discharge(assm);
+		auto thm = _thm.subst(pat_intp);// ∀thesis. ψθ... ⟹ thesis
 		return Intro::rule(thm);
 	}
 	Ctxt ctxt() && = delete;
@@ -215,12 +218,6 @@ public:
 	}
 	Thm premise() const {
 		return _premise;
-	}
-	/** @brief interpretation of the rule into given context.
-	 * 
-	 */
-	Intp intp( Ctxt const& tgt ) const {
-		return tgt.interpret(ctxt());
 	}
 	bool operator<( Elim const& y ) const {
 		return _premise < y._premise;

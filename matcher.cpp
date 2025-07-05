@@ -4,7 +4,7 @@ using namespace std;
 
 Term const DUMMY = "_" /= Term("_");
 
-Renamer avoider(Ctxt& ctxt) {
+Renamer avoider(Ctxt const& ctxt) {
 	return [&](string_view const& v)->Opt<string>{
 		return avoid(v,[&](string_view const& x){ return ctxt.constant(x); });
 	};
@@ -209,9 +209,10 @@ struct Matcher {
 Opt<Subst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
-pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer ) {
+pair<Thm,size_t> strip_all( Thm const& thm, Intp& intp, Renamer const& renamer ) {
 	pair<Thm,size_t> ret = {thm,0};
-	ret.first = thm.weaken(ctxt);
+	ret.first = thm.subst(intp);
+	auto ctxt = intp.ctxt();
 	while( auto all = ret.first.binder(ALL) ) {
 		auto [v,b] = *all;
 		auto nv = renamer(v);
@@ -221,8 +222,9 @@ pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer )
 	}
 	return ret;
 }
-CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
-	t = t.weaken(ctxt);
+CTerm strip_all(CTerm t, Intp& child, Renamer const& renamer) {
+	t = t.subst(child);
+	auto ctxt = child.ctxt();
 	auto subst = Subst(ctxt);
 	for(;;) {
 		auto all = t.cbinder(ALL);
@@ -246,19 +248,21 @@ void subst_intp( Intp& intp, Subst& subst ) {
 }
 
 Thm match_discharge( Thm const& thm, Thm const& arg ) {
-	Ctxt ctxt = thm.ctxt().branch();
-	Ctxt rule_ctxt = ctxt.branch();
-	Thm rule = strip_all(thm,rule_ctxt,fresh_maker()).first;
+	auto assm_intp = thm.ctxt().branch();
+	auto& assm_ctxt = assm_intp.source();
+	auto match_intp = assm_ctxt.branch();
+	auto& match_ctxt = match_intp.source();
+	Thm rule = strip_all(thm,match_intp,fresh_maker()).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) throw Error("#match_discharge")(thm);
-	auto const& arg_weaken = arg.weaken(ctxt);
+	auto const& arg_weaken = arg.subst(assm_intp);
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) throw Error("#match_discharge")(thm)(arg);
-	rule = rule.discharge(rule_ctxt.assume(imp->first));
-	auto intp = ctxt.interpret(rule_ctxt);
+	rule = rule.discharge(match_ctxt.assume(imp->first));
+	auto intp = assm_intp.interpret(match_ctxt);
 	subst_intp(intp,*m);
 	auto const& assm = intp.assuming();
 	assert(assm);
 	intp.discharge(arg_weaken);
-	return intp.subst(rule).intro();
+	return rule.subst(intp).intro();
 }

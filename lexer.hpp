@@ -156,7 +156,6 @@ private:
 	// writes one character into the buffer
 	int fetch_char();
 	void fetch_continue( Lex::CharType t );
-	void skip_spaces();
 	// to ensure pointer life
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.

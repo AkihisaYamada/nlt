@@ -6,7 +6,7 @@ static Error const MalformedBeta = Error("#malformed-beta");
 static Error const UnknownEq = Error("#unknown-equality");
 
 Definer::_Init Definer::_init( Thy const& thy, Thm const& beta ) {
-	auto const& beta2 = strip_all(beta).first;// (λ α) x = α.[x]
+	auto const& [beta2,n,i] = strip_all(beta);// (λ α) x = α.[x]
 	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
 	auto const& [EQ,l,r] = *bin;
@@ -34,20 +34,20 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 		}
 	}
 	auto r_cabs = thy.cterm(r_abs);// (λx... r) must be closed
-	auto lthy = thy.branch();// will fix x...
-	auto r_cabs_app = r_cabs.weaken(lthy);// will be (λx... r) x...
+	auto [lthy,limport] = thy.branch();// will fix x...
+	auto r_cabs_app = r_cabs.subst(limport);// will be (λx... r) x...
 	for( auto it = xs.begin(); it != xs.end(); it++ ) {
 		auto x = it->sym();
 		r_cabs_app = r_cabs_app(lthy.fix(*x));
 	}
 	// proving the existence
 	string thesis = avoid("thesis",[&](string_view const& x){ return thy.constant(x); });
-	Ctxt thesis_ctxt = thy.Ctxt::branch();
+	auto [thesis_ctxt,thesis_intp] = thy.Ctxt::branch();
 	thesis_ctxt.fix(thesis);
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis
 	auto eq_thm = lthy.rewriter().steps(beta,lthy,r_cabs_app,Rewriter::Ctrl{EQ,{},steps,steps,true});// (λx... r) x... = r
-	eq_thm = eq_thm.intro().weaken(thesis_ctxt);// ∀x... (λx... r) x... = r
-	thm = thm.instantiate(r_cabs.weaken(thesis_ctxt));// (∀x... (λx... r) x... = r) ⟹ thesis
+	eq_thm = eq_thm.intro().subst(thesis_intp);// ∀x... (λx... r) x... = r
+	thm = thm.instantiate(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
 	thm = thm << eq_thm;// thesis
 	thm = thm.intro();// ∀thesis. (∀f. (∀x... f x... = r) ⟹ thesis) ⟹ thesis
 	auto [cf,spec] = thy.obtain( f, thm, make_spec_name( name ? *name : f ) );// f, ((∀x... f x... = r) ⟹ thesis) ⟹ thesis

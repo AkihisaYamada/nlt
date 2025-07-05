@@ -128,15 +128,6 @@ int Lexer::fetch_char() {
 	fetched_char_type = plex->char_type(ch);
 	return ch;
 }
-void Lexer::skip_spaces() {
-	for(;;) {
-		if( fetched_char_type == Lex::Blank ) {
-			wp = 0;
-			fetch_char();
-			continue;
-		}
-	}
-}
 void Lexer::fetch_continue( Lex::CharType t ) {
 	for(;;) {
 		fetch_char();
