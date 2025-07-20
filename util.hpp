@@ -59,9 +59,9 @@ CTerm strip_all( CTerm t, Intp const& intp, Renamer const& renamer );
 inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
 	return strip_all(t,intp,avoider(intp.ctxt()));
 }
-inline std::pair<CTerm,Intp> strip_all( CTerm const& thm ) {
-	auto intp = thm.ctxt().branch();
-	return {strip_all(thm,intp),intp};
+inline std::pair<CTerm,Intp> strip_all( CTerm const& t ) {
+	auto intp = t.ctxt().branch();
+	return {strip_all(t,intp),intp};
 }
 
 /**
@@ -70,6 +70,7 @@ inline std::pair<CTerm,Intp> strip_all( CTerm const& thm ) {
  * @param child this context will fix the bound variables.
  */
 std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child, Renamer const& renamer );
+
 inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
 	return strip_all(thm,child,avoider(child.ctxt()));
 }

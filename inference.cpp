@@ -153,8 +153,8 @@ bool Inference::_blast(
 	}
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
-	auto subthy = _thy.branch();
-	auto const& subintp = *subthy.import_parent();
+	auto const& subintp = _thy.branch();
+	auto subthy = subintp.thy();
 	auto goal = imp->first.subst(subintp);
 	size_t n_elim_res = 0;
 	for(;;) {

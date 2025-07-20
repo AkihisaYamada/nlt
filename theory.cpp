@@ -17,18 +17,16 @@ struct Thy::_Body {
 
 Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname)) {};
 
-Thy Thy::branch() const {
+Import const& Thy::branch() const {
 	auto intp = Ctxt::branch();
 	auto child = Thy( Ref<_Body>::make("",""), intp.ctxt() );
-	child._ref->parent = Import(intp,child,*this);
-	return child;
+	return child._ref->parent.emplace(Import(intp,child,*this));
 }
-Thy Thy::branch( string_view const& name, string_view const& dirname ) {
+Import const& Thy::branch( string_view const& name, string_view const& dirname ) {
 	auto intp = Ctxt::branch();
 	auto child = Thy( Ref<_Body>::make(name,dirname), intp.ctxt() );
-	child._ref->parent = Import(intp,child,*this);
 	_ref->thys.emplace(name,child);
-	return child;
+	return child._ref->parent.emplace(Import(intp,child,*this));
 }
 Thy Thy::scope( string_view const& name ) const {
 	auto child = Thy( Ref<_Body>::make(name,""), *this );
@@ -91,11 +89,25 @@ StrMMap<Import> const& Thy::imports() const {
 Opt<Import&> Thy::import_parent() const & {
 	return _ref->parent;
 }
-
+Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
+	Intp ret = Ctxt::self();
+	for(;;) {
+		if( ctxt == *this ) {
+			return ret;
+		}
+		auto p = _ref->parent;
+		if( !p ) throw Error("\"wrong ancestor\"");
+		ret = ret.compose(*p);
+	}
+}
+Thm Thy::weaken( Thm const& thm ) const {
+	return thm.subst(interpret_ancestor(thm.ctxt()));
+}
+Import Thy::import( Import const& prefix, Thy const& loc ) & {
+	return Import(prefix.interpret(loc),*this,loc);
+}
 Import& Thy::import(string_view const& name, Import const& prefix, Thy const& loc) & {
-auto imp = Import(prefix.interpret(loc),*this,loc);
-	auto it = _ref->imports.emplace(name,imp);
-	return it->second;
+	return _ref->imports.emplace(name,import(prefix,loc))->second;
 };
 
 Thy::Error const Thy::ThyNotFound = Error("\"theory not found\"");
@@ -171,18 +183,31 @@ Opt<AThm> Thy::_find_thm(
 	return {};
 }
 
-Opt<Thy> Thy::find_thy(string_view const &name) const {
+Opt<std::pair<Import const&,Thy>> Thy::find_thy( string_view const &name ) const {
 	size_t sep = name.find('.');
 	if( sep == 0 ) {
-		auto const& p = _ref->parent;
+		auto const& p = import_parent();
 		if( !p ) throw ThyNotFound(".");
-		return p->_src.find_thy(name.substr(1));
+		auto ret = p->_src.find_thy(name.substr(1));
+		if( !ret ) return {};
+		return {{p->compose(ret->first),ret->second}};
 	}
-	if( name == _ref->name ) {
-		return *this;
+	if( sep != string::npos ) {
+		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
+			auto const& prefix = it->second;
+			if( prefix.ready() )
+			if( auto ret = prefix._src.find_thy(name.substr(sep+1)) ) {
+				return {{prefix.compose(ret->first),ret->second}};
+			}
+		}
+	} else {
+		if( auto ret = _ref->thys.finds(name) ) {
+			return {{self(),ret->second}};
+		}
 	}
-	if( auto ret = _ref->thys.finds(name) ) {
-		return ret->second;
+	if( auto const& p = import_parent() )
+	if( auto ret = p->_src.find_thy(name) ) {
+		return {{p->compose(ret->first),ret->second}};
 	}
 	return {};
 }

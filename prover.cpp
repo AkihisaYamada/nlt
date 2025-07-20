@@ -116,7 +116,7 @@ public:
 		return std::move(*this);
 	}
 	void enter_branch( string_view const& name, string_view const& dirname ) {
-		_thy = _thy.branch(name,dirname);
+		_thy = _thy.branch(name,dirname).thy();
 		_final = false;
 	}
 	void set_exit_on_error( bool b ) {
@@ -140,12 +140,11 @@ public:
 		return {};
 	}
 	Thm get_thm() {
-		if( auto thm = gets_thm() ) {
-			return *thm;
-		}
-		throw Parser::Error("expects a theorem");
+		auto ret = gets_thm();
+		if( !ret ) throw Parser::Error("expects a theorem");
+		return *ret;
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev = false ) {
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Import& loc, bool rev = false ) {
 		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_thy.rewriter().make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( _parser.skips("(") ) {
@@ -166,7 +165,7 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			_thy.rewriter().add_rule( loc, rules, *arg, _parser.skips("-") ? !rev : rev );
+			_thy.rewriter().add_rule( loc.thy(), rules, *arg, _parser.skips("-") ? !rev : rev );
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -174,26 +173,26 @@ public:
 		}
 		return ret;
 	}
-	Opt<Thm> _gets_thm(Thy loc) {
+	Opt<Thm> _gets_thm( Import& loc ) {
 		auto const& opt = _parser.gets_thm_name();
 		if( !opt ) {
 			return {};
 		}
-		Thm ret = loc.thm(*opt);
+		Thm ret = loc.thy().thm(*opt);
 		if( _parser.skips("[") ) {
 			for(;;) {
 				if( _parser.skips("of") ) {
 					while( auto t = _parser.gets_term(1000) ) {
-						ret = ret.instantiate(loc.enclose(*t));
+						ret = ret.instantiate(loc.thy().enclose(*t));
 					}
 				} else if( _parser.skips("OF") ) {
 					for(;;) {
 						if( _parser.skips("!") ) {
-							ret = blast(ret,loc);
+							ret = blast(ret,loc.thy());
 						} else if( _parser.skips("_") ) {
 							auto imp = ret.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							ret = discharge(ret,loc.assume(imp->first));
+							ret = discharge(ret,loc.thy().assume(imp->first));
 						} else if( auto const& arg = _gets_thm(loc) ) {
 							ret = discharge(ret,*arg);
 						} else {
@@ -202,48 +201,52 @@ public:
 					}
 				} else if( _parser.skips("THEN") ) {
 					auto thm = get_thm();
-					auto unifier_loc = loc.Ctxt::branch();
-					thm = strip_all(thm.weaken(unifier_loc),unifier_loc).first;
+					auto [thm,tmp,n] = strip_all(thm);
 					auto imp = thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(thm);
 					auto cond = imp->first;
-					auto arg = ret.weaken(unifier_loc);
+					auto arg = ret.subst(tmp);
 					for(;;){
-						arg = strip_all(arg,unifier_loc).first;
+						arg = strip_all(arg,tmp).first;
 						auto imp = arg.cbinary(IMP);
 						if( !imp ) break;
-						arg = arg.discharge(unifier_loc.assume(imp->first));
+						arg = arg.discharge(tmp.ctxt().assume(imp->first));
 					}
-					auto u = unify(arg,cond,[&](auto v){ return unifier_loc.fixes(v); });
+					auto u = unify(arg,cond,[&](auto v){ return tmp.ctxt().fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(thm);
-					auto intp = loc.interpret(unifier_loc);
+					auto intp = loc.interpret(tmp.ctxt());
 					for(;;){
 						if( auto const& v = intp.fixing() ) {
-							intp.instantiate(loc.enclose( [&]()->Term{
+							intp.instantiate(loc.thy().enclose( [&]()->Term{
 								if( auto t = u->get(*v) ) return *t;
 								return *v;
 							}()));
 						} else if( auto const& assm = intp.assuming() ) {
-							intp.discharge(loc.assume(loc.cterm(*assm)));
+							intp.discharge(loc.thy().assume(loc.thy().cterm(*assm)));
 						} else {
 							break;
 						}
 					}
-					thm = intp.subst(thm);
-					ret = thm.discharge(intp.subst(arg));
+					thm = thm.subst(intp);
+					ret = thm.discharge(arg.subst(intp));
 				} else if( _parser.skips("for") ) {
 					while( auto x = _parser.gets(Lexer::Word) ) {
-						loc.fix(*x);
+						loc.thy().fix(*x);
 					}
 				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = _thy.rewriter().rewrite(rules,loc,ret,ctrl);
+					ret = _thy.rewriter().rewrite(rules,loc.thy(),ret,ctrl);
 				} else break;
 				if( !_parser.skips(",") ) break;
 			}
 			_parser.skip("]");
 		}
 		return ret;
+	}
+	Thm _get_thm( Import& loc ) {
+		auto ret = _gets_thm(loc);
+		if( !ret ) throw Parser::Error("expects a theorem");
+		return *ret;
 	}
 
 	StrMap<Thm> get_named_thms() {
@@ -344,7 +347,7 @@ public:
 	}
 	Thy find_thy( Thy const& thy, string_view path ) {
 		if( auto o = thy.find_thy(path) ) {
-			return *o;
+			return o->second;
 		}
 		auto ret = thy;
 		while( path[0] == '.' ) {
@@ -357,15 +360,15 @@ public:
 			auto i = path.find('.');
 			if( i == string::npos ) break;
 			auto cur = path.substr(0,i);
-			if( auto o = ret.find_thy(cur,false) ) {
-				ret = *o;
+			if( auto o = ret.find_thy(cur) ) {
+				ret = o->second;
 			} else {
 				ret = load_thy(ret,cur);
 			}
 			path = path.substr(i+1);
 		}
-		if( auto o = ret.find_thy(path,false) ) {
-			return *o;
+		if( auto o = ret.find_thy(path) ) {
+			return o->second;
 		} else {
 			return load_thy(ret,path);
 		}

@@ -123,12 +123,16 @@ public:
 		}
 		return _thm;
 	}
+	/** @brief applies rewriting */
+	bool rewrites( Rewriter::Rules const& rules ) &;
+	/** @brief applies rewriting with control */
+	bool rewrites( Rewriter::Rules const& rules, Ctrl const& ctrl ) &;
 	/** @brief pushes the top subgoal into assumption.
 	 * @return false if there will be no further subgoal */
 	bool push() & {
 		if( _goals < 2 ) return false;
-		_thy = _thy.branch();
-		auto import = *_thy.import_parent();
+		auto import = _thy.branch();
+		_thy = import.thy();
 		auto assm = _thy.assume(goal().subst(import));
 		add_forced(_thy,assm);
 		_thm = _thm.subst(import).discharge(assm);

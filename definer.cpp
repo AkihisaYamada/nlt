@@ -34,7 +34,8 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 		}
 	}
 	auto r_cabs = thy.cterm(r_abs);// (λx... r) must be closed
-	auto [lthy,limport] = thy.branch();// will fix x...
+	auto const& limport = thy.branch();
+	Thy lthy = limport.thy();// will fix x...
 	auto r_cabs_app = r_cabs.subst(limport);// will be (λx... r) x...
 	for( auto it = xs.begin(); it != xs.end(); it++ ) {
 		auto x = it->sym();
@@ -42,7 +43,8 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	}
 	// proving the existence
 	string thesis = avoid("thesis",[&](string_view const& x){ return thy.constant(x); });
-	auto [thesis_ctxt,thesis_intp] = thy.Ctxt::branch();
+	auto const& thesis_intp = thy.Ctxt::branch();
+	Ctxt thesis_ctxt = thesis_intp.ctxt();
 	thesis_ctxt.fix(thesis);
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis
 	auto eq_thm = lthy.rewriter().steps(beta,lthy,r_cabs_app,Rewriter::Ctrl{EQ,{},steps,steps,true});// (λx... r) x... = r

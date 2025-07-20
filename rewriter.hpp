@@ -88,8 +88,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, CTerm const& source, Import const& import ) const {
-		return _step(rules,source,import,_default_ind);
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source ) const {
+		return _step(rules,thy,source,_default_ind);
 	}
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
@@ -97,8 +97,8 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Rules const& rules, CTerm const& source, Import const& import, std::vector<char> const& pos ) const {
-		return _step(rules,source,import,_default_ind,pos.begin(),pos.end());
+	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, std::vector<char> const& pos ) const {
+		return _step(rules,thy,source,_default_ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
 	bool apply( Rules const& rules, Inference& thesis) const;
@@ -107,24 +107,24 @@ public:
 	/** @brief Rewrites a theorem */
 	Thm rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const;
 	/** @brief returns a rewriting theorem */
-	Thm steps( Rules const& rules, CTerm const& source, Import const& import, Ctrl const& ctrl ) const {
+	Thm steps( Rules const& rules, Thy const& thy, CTerm const& source, Ctrl const& ctrl ) const {
 		size_t ind = _get_ind(ctrl.rel);
-		if( auto ret = _steps(rules,source,import,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
+		if( auto ret = _steps(rules,thy,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
 			return *ret;
 		}
-		return _make_refl(source,import,ind);
+		return _make_refl(thy,source,ind);
 	}
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
-	Opt<Thm> _step( Rules const& rules, CTerm const& source, Import const& import, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, Import const& import, size_t ind, CTerm const& assm, Subst const& subst ) const;
-	Opt<Thm> _step( Rules const& rules, CTerm const& source, Import const& import, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _step_abs( Rules const& rules, CTerm const& source, Import const& import, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _steps( Rules const& rules, CTerm const& source, Import const& import, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
-	Thm _make_refl( CTerm const& source, Import const& import, size_t ind ) const {
-		Thm refl = _refls[ind].subst(import).instantiate(source);
+	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const;
+	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
+	Opt<Thm> _steps( Rules const& rules, Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
+	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) const {
+		Thm refl = thy.weaken(_refls[ind]).instantiate(source);
 		while( auto imp = refl.cbinary(IMP) ) {
-			refl = refl.discharge(prove(imp->first,import.thy()));
+			refl = refl.discharge(prove(imp->first,thy));
 		}
 		return refl;
 	}

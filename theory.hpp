@@ -12,6 +12,10 @@ struct ThmInfo {
 };
 class AThm;
 class Import;
+struct RewriteRule {
+	CTerm pat;
+	Thm thm;
+};
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
 
@@ -51,9 +55,9 @@ public:
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** Creates an anonymous branch theory. */
-	Thy branch() const;
+	Import const& branch() const;
 	/** Creates a named branch. */
-	Thy branch( std::string_view const& name, std::string_view const& dirname );
+	Import const& branch( std::string_view const& name, std::string_view const& dirname );
 	/** Creates a namespace. */
 	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
@@ -85,13 +89,19 @@ public:
 	/** Self import */
 	Import self() const &;
 	Opt<Import&> import_parent() const &;
+	/** Gives interpretation for an ancestor context. */
+	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
+	/** Weaken theorem from an ancestor. */
+	Thm weaken( Thm const& thm ) const;
 	/** Declares import */
 	Import& import(std::string_view const& name, Import const& prefix, Thy const& loc) &;
+	/** Anonymous import */
+	Import import( Import const& prefix, Thy const& loc ) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
 	/** Finds branch theory */
-	Opt<Thy> find_thy(std::string_view const& name) const;
-	Thy thy(std::string_view const& name) const {
+	Opt<std::pair<Import const&,Thy>> find_thy(std::string_view const& name) const;
+	std::pair<Import const&,Thy> thy(std::string_view const& name) const {
 		if( auto x = find_thy(name) ) {
 			return *x;
 		}
@@ -100,6 +110,7 @@ public:
 	Rewriter& rewriter() &;
 	Rewriter const& rewriter() const &;
 	Rewriter rewriter() && = delete;
+	Thm rewrite( Thm const& thm ) const&;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for context */
@@ -142,6 +153,9 @@ public:
 		return _tgt;
 	}
 	Thy thy() && = delete;
+	/** Composition of imports.
+	 * The argument should import this target.
+	 */
 	Import compose( Import const& other ) const & {
 		if( _tgt != other._src ) throw Error("\"wrong compose\"");
 		return Import(Intp::compose(other),other._tgt,_src);
@@ -220,6 +234,9 @@ inline Import Thy::self() const& {
 
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
 	return os << loc.pretty(SYNTAX);
+}
+inline std::ostream& operator<<( std::ostream& os, RewriteRule const& rule ) {
+	return os << '[' << rule.pat << "] " << rule.thm;
 }
 
 #endif
