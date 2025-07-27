@@ -82,7 +82,8 @@ class Mem {
 	}
 public:
 	Mem() requires nullable {}
-	Mem( Mem const& other ) = default;
+	Mem( Mem const& other ) : _ptr(other._ptr) {}
+	Mem( Ref<T const> const& other ) : _ptr(other._ptr) {}
 	operator bool() const requires nullable {
 		return (bool)_ptr;
 	}

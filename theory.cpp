@@ -10,43 +10,35 @@ struct Thy::_Body {
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> imports;
+	Mem<Syntax> syntax;
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
-	_Body( string_view const& name, string_view const& dirname ) : name(name), dir(dirname), rewriter(Mem<Rewriter>::make()) {}
+	_Body( string_view const& name, string_view const& dirname, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, Mem<Definer> const& definer ) : name(name), dir(dirname), syntax(syntax), rewriter(rewriter), definer(definer) {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname)) {};
+Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname,Mem<Syntax>::make(),Mem<Rewriter>::make(),Mem<Definer>::make())) {};
 
 Import const& Thy::branch() const {
 	auto intp = Ctxt::branch();
-	auto child = Thy( Ref<_Body>::make("",""), intp.ctxt() );
+	auto child = Thy( Ref<_Body>::make("","",_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
 	return child._ref->parent.emplace(Import(intp,child,*this));
 }
 Import const& Thy::branch( string_view const& name, string_view const& dirname ) {
 	auto intp = Ctxt::branch();
-	auto child = Thy( Ref<_Body>::make(name,dirname), intp.ctxt() );
+	auto child = Thy( Ref<_Body>::make(name,dirname,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
 	_ref->thys.emplace(name,child);
 	return child._ref->parent.emplace(Import(intp,child,*this));
 }
 Thy Thy::scope( string_view const& name ) const {
-	auto child = Thy( Ref<_Body>::make(name,""), *this );
+	auto child = Thy( Ref<_Body>::make(name,"",_ref->syntax,_ref->rewriter,_ref->definer), *this );
 	child._ref->parent = self();
 	return child;
 }
 string const& Thy::name() const & {
 	return _ref->name;
 }
-Opt<Thy const&> Thy::parent() const & {
-	if( auto const& imp = _ref->parent ) {
-		return {imp->source()};
-	}
-	return {};
-}
-Opt<Thy&> Thy::parent() & {
-	if( auto& imp = _ref->parent ) {
-		return {imp->source()};
-	}
-	return {};
+Opt<Import const&> Thy::parent() const & {
+	return _ref->parent;
 }
 string const& Thy::dir() const & {
 	return _ref->dir;
@@ -56,6 +48,12 @@ Opt<AThm> Thy::find_thm(
 	function<bool(AThm const&)> const& test
 ) const {
 	return _find_thm(name,test,self());
+}
+Syntax const& Thy::syntax() const& {
+	return *_ref->syntax;
+}
+Syntax& Thy::syntax() & {
+	return *_ref->syntax;
 }
 Rewriter const& Thy::rewriter() const& {
 	return *_ref->rewriter;
@@ -86,9 +84,6 @@ Opt<string> Thy::find_assm_name( size_t rev ) const {
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
 }
-Opt<Import&> Thy::import_parent() const & {
-	return _ref->parent;
-}
 Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 	Intp ret = Ctxt::self();
 	for(;;) {
@@ -102,6 +97,9 @@ Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 }
 Thm Thy::weaken( Thm const& thm ) const {
 	return thm.subst(interpret_ancestor(thm.ctxt()));
+}
+CTerm Thy::weaken( CTerm const& t ) const {
+	return t.subst(interpret_ancestor(t.ctxt()));
 }
 Import Thy::import( Import const& prefix, Thy const& loc ) & {
 	return Import(prefix.interpret(loc),*this,loc);
@@ -185,13 +183,6 @@ Opt<AThm> Thy::_find_thm(
 
 Opt<std::pair<Import const&,Thy>> Thy::find_thy( string_view const &name ) const {
 	size_t sep = name.find('.');
-	if( sep == 0 ) {
-		auto const& p = import_parent();
-		if( !p ) throw ThyNotFound(".");
-		auto ret = p->_src.find_thy(name.substr(1));
-		if( !ret ) return {};
-		return {{p->compose(ret->first),ret->second}};
-	}
 	if( sep != string::npos ) {
 		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
 			auto const& prefix = it->second;
@@ -205,7 +196,7 @@ Opt<std::pair<Import const&,Thy>> Thy::find_thy( string_view const &name ) const
 			return {{self(),ret->second}};
 		}
 	}
-	if( auto const& p = import_parent() )
+	if( auto const& p = parent() )
 	if( auto ret = p->_src.find_thy(name) ) {
 		return {{p->compose(ret->first),ret->second}};
 	}
@@ -227,8 +218,8 @@ function<ostream&(ostream&)> const Thy::print_name( Syntax const& syntax ) const
 		list<string> pres;
 		auto p = parent();
 		while(p) {
-			pres.push_front(p->name());
-			p = p->parent();
+			pres.push_front(p->thy().name());
+			p = p->thy().parent();
 		}
 		for( auto& pre : pres ) {
 			os << pre << '.';

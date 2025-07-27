@@ -62,9 +62,10 @@ public:
 	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
 	auto name() && = delete;
+	/** Self import */
+	Import self() const &;
 	/** Obtains the parent import. */
-	Opt<Thy const&> parent() const &;
-	Opt<Thy&> parent() &;
+	Opt<Import const&> parent() const &;
 	/** The directory name for the theory. */
 	std::string const& dir() const&;
 	auto dir() && = delete;
@@ -86,13 +87,12 @@ public:
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
-	/** Self import */
-	Import self() const &;
-	Opt<Import&> import_parent() const &;
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
 	/** Weaken theorem from an ancestor. */
 	Thm weaken( Thm const& thm ) const;
+	/** Weaken closed term from an ancestor. */
+	CTerm weaken( CTerm const& t ) const;
 	/** Declares import */
 	Import& import(std::string_view const& name, Import const& prefix, Thy const& loc) &;
 	/** Anonymous import */
@@ -106,6 +106,17 @@ public:
 			return *x;
 		}
 		throw Error("\"not found\"")(name);
+	}
+	Syntax& syntax() &;
+	Syntax const& syntax() const&;
+	auto pretty_term( Term const& t ) const {
+		return syntax().pretty_term(t);
+	}
+	auto pretty_cterm( CTerm const& t ) const {
+		return syntax().pretty_cterm(t);
+	}
+	auto pretty_thm( Thm const& t ) const {
+		return syntax().pretty_thm(t);
 	}
 	Rewriter& rewriter() &;
 	Rewriter const& rewriter() const &;
@@ -153,7 +164,7 @@ public:
 		return _tgt;
 	}
 	Thy thy() && = delete;
-	/** Composition of imports.
+	/** @brief Composition of imports.
 	 * The argument should import this target.
 	 */
 	Import compose( Import const& other ) const & {
