@@ -339,34 +339,6 @@ public:
 			loc.add_thm(*cs.name,thm);
 		}
 	}
-	pair<Import,Thy> find_thy( Thy thy, string_view path ) {
-		if( auto o = thy.find_thy(path) ) {
-			return *o;
-		}
-		auto import = thy.self();
-		while( path[0] == '.' ) {
-			path = path.substr(1);
-			auto p = import.source().parent();
-			if( !p ) throw Error("no more ancestor");
-			import = p->compose(import);
-		}
-		for(;;) {
-			auto i = path.find('.');
-			if( i == string::npos ) break;
-			auto cur = path.substr(0,i);
-			if( auto o = import.source().find_thy(cur) ) {
-				ret = o->second;
-			} else {
-				ret = load_thy(ret,cur);
-			}
-			path = path.substr(i+1);
-		}
-		if( auto o = import.source().find_thy(path) ) {
-			return {o->first.compose(import),o->second};
-		} else {
-			return load_thy(ret,path);
-		}
-	}
 	void print_goal( Inference const& thesis, string pre = "goal " ) {
 		if( _out ) {
 			Term acc = thesis.thm();
@@ -404,7 +376,7 @@ public:
 		if( _parser.skips("if") ) {
 			_cout << "if " << flush;
 			auto add_assm = [&]( Term const& t ) {
-				return assm_thy.assume(var_thy.enclose(t).weaken(assm_thy));
+				return assm_thy.assume(assm_thy.weaken(var_thy.enclose(t)));
 			};
 			for(;;) {
 				if( _parser.skips("[") ) {
@@ -471,8 +443,9 @@ public:
 			swap(prefix,name);
 			name = _parser.get();
 		}
-		auto [im,src] = find_thy(_thy,name);
-		auto& intp = _thy.import(prefix,im,src);
+		auto im = _thy.find_thy(name,www);
+		if( !im ) throw Error("#theory_not_found");
+		auto& intp = _thy.add_import(prefix,*im);
 		while( auto const& t = _parser.gets_term(1000) ) {
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
@@ -671,7 +644,7 @@ public:
 	}
 	void _retain( string const& prefix, Import& intp, bool change, Thy& org_thy ) {
 		auto sym = get_sym();// the symbol to be instantiated
-		Thy thesis_loc = _thy.branch();
+		Thy thesis_loc = _thy.branch().thy();
 		auto term = org_thy.cterm( _parser.skips(":=") ? _parser.get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
@@ -686,11 +659,11 @@ public:
 					}));
 					CTerm t = ex.capp()->second;
 					// var'. (∀sym. props... ⟹ var') ⟹ var'
-					t = t.weaken(thesis_loc).inst(var);
+					t = thesis_loc.weaken(t).inst(var);
 					// (∀sym. props... ⟹ var) ⟹ var
 					t = t.cbinary(IMP)->first;
 					// ∀sym. props... ⟹ var
-					t = t.capp()->second.inst(term.weaken(thesis_loc));
+					t = t.capp()->second.inst(thesis_loc.weaken(term));
 					// props[sym:=term]... ⟹ var
 					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
 					// assume this and prove var, i.e., prove props[sym:=term]...
@@ -737,7 +710,7 @@ public:
 					ctrl.elims.emplace(Elim::rule(*elim));
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
-				auto [rrules,rctrl] = _get_rewrite(_thy,dir);
+				auto [rrules,rctrl] = _get_rewrite(_thy.self(),dir);
 				rctrl.min = 0;// returns false when not applicable
 				ctrl.rewrite = {{rrules,rctrl}};
 			} else if( _parser.skips("force") ) {
@@ -751,12 +724,13 @@ public:
 	bool _ctxt() {
 		if( _parser.skips("ctxt") ) {
 			if( _parser.skips(".") ) {
-				_cout << _thy.pretty(*_syntax) << endl;
+				_cout << _thy << endl;
 			} else {
 				string name = _parser.get();
 				_parser.skip(".");
-				auto loc = find_thy(_thy,name);
-				_cout << loc.pretty(*_syntax) << endl;
+				auto im = _thy.find_thy(name,www);
+				if( !im ) throw Error("\"theory not found\"");
+				_cout << im->thy() << endl;
 			}
 			return true;
 		}
@@ -845,14 +819,15 @@ public:
 		_cout << "defined " << name << ": " << _thy.pretty_term(l) << " := " << _thy.pretty_term(r) << endl;
 	}
 	Opt<Thm> _subgoal( CTerm const& goal ) {
-		auto subloc = _thy.branch();
-		CTerm subgoal = goal.weaken(subloc);
+		auto subintp = _thy.branch();
+		auto& subloc = subintp.thy();
+		CTerm subgoal = subloc.weaken(goal);
 		bool needsep = false;
 		if( _parser.skips("for") ) {// instantiate variables as long as names are given
 			needsep = true;
 			if( _out ) {
 				cout << "for";
-				subgoal = strip_all(subgoal,subloc,[&](string_view const& v){
+				subgoal = strip_all(subgoal,subintp,[&](string_view const& v){
 					auto o = gets_sym();
 					if( o ) {
 						cout << ' ' << *o;
@@ -862,7 +837,7 @@ public:
 				_parser.skips(",");
 				cout << ", ";
 			} else {
-				subgoal = strip_all(subgoal,subloc,[&](string_view const& v){ return gets_sym(); });
+				subgoal = strip_all(subgoal,subintp,[&](string_view const& v){ return gets_sym(); });
 				_parser.skips(",");
 			}
 		}
@@ -924,7 +899,7 @@ public:
 	bool _thy_decl() {
 		if( _parser.skips("theory") ) {
 			string name = _parser.get(Parser::Word);
-			auto loc = _thy.branch(name,"");
+			auto loc = _thy.branch(name,"").thy();
 			while( auto sym = gets_sym() ) {
 				loc.fix(*sym);
 			}
@@ -937,16 +912,16 @@ public:
 			auto name = _parser.get(Parser::Word);
 			_parser.skip("begin");
 			_cout << "creating namespace " << name << endl;
-			auto loc = _thy.branch();
-			Prover(*this,loc).deepen().loop();
-			_thy.import( name, loc );
+			auto im = _thy.branch();
+			Prover(*this,im.thy()).deepen().loop();
+			_thy.add_import(name,im);
 			_cout << "end namespace " << name << endl;
 		} else if( _parser.skips("context") ) {
 			string name = _parser.get();
 			_parser.skip("begin");
-			auto loc = find_thy(_thy,name);
+			auto im = _thy.find_thy(name,www);
 			_cout << "in context " << name << endl;
-			Prover(*this,loc).deepen().loop();
+			Prover(*this,im->thy()).deepen().loop();
 			_cout << "left " << name << endl;
 		} else if ( _parser.skips("lemma") ||
 			_parser.skips("theorem") ||
@@ -1012,7 +987,7 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
-				auto [rules,ctrl] = _get_rewrite(_thy,dir);
+				auto [rules,ctrl] = _get_rewrite(_thy.self(),dir);
 				_thy.rewriter().apply(rules,thesis,ctrl);
 				if( _parser.skips(";") ) {
 					print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
@@ -1191,7 +1166,7 @@ public:
 					_parser.skip(".");
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
-					Thy var_loc = _thy.branch();
+					Ctxt var_loc = _thy.Ctxt::branch().ctxt();
 					for_variables([&]( auto& var ){ var_loc.fix(var); });
 					CTerm assm = var_loc.enclose(get_term()).lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
@@ -1222,27 +1197,27 @@ public:
 		_cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<pair<ClaimStatus,Thm>> prop_thms;
-		auto thesis_loc = org_thy.branch();
-		CTerm var = thesis_loc.fix("?thesis");
-		Ctxt goal_ctxt = thesis_loc.Ctxt::branch();
-		goal_ctxt.fix(sym);
-		auto props_loc = org_thy.branch();
-		props_loc.fix(sym);
+		Thy thesis_thy = org_thy.branch().thy();
+		CTerm var = thesis_thy.fix("?thesis");
+		Thy goal_thy = thesis_thy.branch().thy();
+		goal_thy.fix(sym);
+		auto props_thy = org_thy.branch().thy();
+		props_thy.fix(sym);
 		for(;;) {
 			auto [cs,t] = get_assm();
-			Thm thm = props_loc.assume(props_loc.branch().enclose(t).intro());
-			add_claim(props_loc,cs,thm);
+			Thm thm = props_thy.assume(props_thy.branch().ctxt().enclose(t).intro());
+			add_claim(props_thy,cs,thm);
 			prop_thms.emplace_back(cs,thm);
-			props.push_back(goal_ctxt.branch().enclose(t).intro());
+			props.push_back(goal_thy.branch().ctxt().enclose(t).intro());
 			_cout << '\t' << cs << _thy.pretty_term(thm) << endl;
 			if( !_parser.skips(",") ) break;
 		}
 		_parser.skip(";");
-		CTerm goal = var.weaken(goal_ctxt);
+		CTerm goal = goal_thy.weaken(var);
 		for( auto& prop : ranges::reverse_view(props) ) {
 			goal = prop >>= goal;
 		}
-		goal = goal.lift(thesis_loc.cterm(ALL)) >>= var;
+		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
 		goal = goal.lift(org_thy.cterm(ALL));
 		_prompt();
 		_cout << "prove " << _thy.pretty_cterm(goal) << endl;
@@ -1263,7 +1238,7 @@ public:
 	Thy load_thy( Thy const& thy, string_view const& name ) {
 		auto [fis,path] = file_of_thy(thy.dir(),name);
 		if( !fis.fail() ) {
-			Lexer local_lexer(fis,path,*_syntax);
+			Lexer local_lexer(fis,path,thy.syntax());
 			auto base = thy;
 			if( local_lexer.skips("base") ) {
 				auto base_name = local_lexer.get();
@@ -1309,7 +1284,7 @@ void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_
 	auto fis = fstream("Root.nl");
 	if( !fis ) throw Error("\"Root not found\"");
 	auto base_lexer = Lexer(fis,"Root.nl",*syntax);
-	auto prover = Prover(base_lexer,syntax,true);
+	auto prover = Prover(base_lexer,true);
 	prover.set_out(load_out,load_out);
 	prover.loop();
 	prover.set_lexer(lexer);

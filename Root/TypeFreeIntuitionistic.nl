@@ -2,8 +2,12 @@
 # Type-Free Intuitionistic Logic
 -------
 
-import True.
-import False.
+-- Obtains false, which derives everything, including non-propositions.
+obtain false where false_elim: false ⟹ ∀P. P;
+	- for thesis, if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
+		by assm[of (∀P. P)].
+	.
+
 import TypeFreeMinimal.
 
 begin

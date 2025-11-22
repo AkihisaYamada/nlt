@@ -142,7 +142,7 @@ public:
 	void pop() & {
 		auto p = _thy.parent();
 		assert(p);
-		_thy = *p;
+		_thy = p->source();
 		_thm = _thm.intro();
 		_goals++;
 	}

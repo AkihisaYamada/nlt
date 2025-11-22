@@ -3,13 +3,13 @@
 
 False can be obtained using universal quantifier.
 ------
-fix prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
+fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
 
 interpret TypedFalse;
-	obtain false where ! prop false, false_elim: false ⟹ ∀P. prop P ⟹ P;
+	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
 		- for thesis, if assm;
 			apply assm[of (∀P:prop. P)];
 			- .

@@ -6,7 +6,7 @@ import TypedAll.
 begin
 
 interpret TypedTrue;
-	obtain true where ! prop true, ! true;
+	obtain true where ! true : prop, ! true;
 		- for thesis, if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
@@ -22,15 +22,15 @@ interpret TypedAnd;
 
 interpret TypedOr;
 	- by #unfold or_def.
-	- for P Q, if !P, !prop P, !prop Q then P ∨ Q;
+	- for P Q, if !P, !P : prop, !Q : prop then P ∨ Q;
 		unfold or_def;
 		apply all_intro;
-		- for R, if !prop R, !P ⟹ R, : Q ⟹ R then R.
+		- for R, if !R : prop, !P ⟹ R, : Q ⟹ R then R.
 		.
-	- for P Q, if !Q, !prop P, !prop Q then P ∨ Q;
+	- for P Q, if !Q, !P : prop, !Q : prop then P ∨ Q;
 		unfold or_def;
 		apply all_intro;
-		- for R, if !prop R, :P ⟹ R, !Q ⟹ R then R.
+		- for R, if !R : prop, :P ⟹ R, !Q ⟹ R then R.
 		.
 	- for P Q, if PQ: P ∨ Q;
 		- for R, if PR, QR, !, !, !;
@@ -51,14 +51,14 @@ setup dual iff.sym.
 interpret TypedEx;
 	-.
 	- by #unfold ex_def.
-	- for x P ι, if !P.[x], !ι x, ! ∀y. ι y ⟹ prop P.[y] then ∃y:ι. P.[y];
+	- for x P ι, if !P.[x], !x : ι, ! ∀y. y : ι ⟹ P.[y] : prop then ∃y:ι. P.[y];
 		unfold ex_def;
 		apply all_intro;
-		- for Q, if !prop Q, all: ∀y:ι. P.[y] ⟹ Q then Q;
+		- for Q, if !Q : prop, all: ∀y:ι. P.[y] ⟹ Q then Q;
 			apply all_elim1[OF all, of x].
 		.
 	- for ι P, if ex: ∃x:ι. P.[x];
-		- for Q, if all: ∀x. P.[x] ⟹ ι x ⟹ Q, ! ∀x. ι x ⟹ prop P.[x], ! prop Q;
+		- for Q, if all: ∀x. P.[x] ⟹ x : ι ⟹ Q, ! ∀x. x : ι ⟹ P.[x] : prop, ! Q : prop;
 			apply ex[unfolded ex_def, THEN all_elim1];
 			-.
 			-.

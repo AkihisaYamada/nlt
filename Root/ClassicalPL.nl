@@ -1,20 +1,20 @@
 import IntuitionisticPL.
 
-assume excluded_middle: prop P ⟹ P ∨ ¬P.
+assume excluded_middle: P : prop ⟹ P ∨ ¬P.
 
 begin
 
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
 
-lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! prop P, [prop Q] then Q;
+lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P : prop, [Q : prop] then Q;
 	apply or_elim[OF excluded_middle[OF pP]];
 	- by PQ.
 	- by nPQ.
 	.
 
-lemma nnot_iff: if [prop P] then ¬¬P ⟺ P;
-	apply prop_cases(P);
+lemma nnot_iff: if [P : prop] then ¬¬P ⟺ P;
+	apply prop_cases[of P];
 	- if P: P;
 		unfold+ iff_true[OF P] not_true_iff not_false_iff.
 	- if nP: ¬P;
@@ -24,8 +24,8 @@ lemma nnot_iff: if [prop P] then ¬¬P ⟺ P;
 		by nnot_intro.
 	.
 
-lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [prop P, prop Q] then P;
-	apply prop_cases(P);
+lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [P : prop, Q : prop] then P;
+	apply prop_cases[of P];
 	- .
 	- if nP: ¬P;
 		have f: false;

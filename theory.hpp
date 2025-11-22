@@ -64,7 +64,7 @@ public:
 	auto name() && = delete;
 	/** Self import */
 	Import self() const &;
-	/** Obtains the parent import. */
+	/** Import from the parent. */
 	Opt<Import const&> parent() const &;
 	/** The directory name for the theory. */
 	std::string const& dir() const&;
@@ -82,7 +82,7 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	AThm add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
-	/** finds the name of assumption made in the revision */
+	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
@@ -93,20 +93,14 @@ public:
 	Thm weaken( Thm const& thm ) const;
 	/** Weaken closed term from an ancestor. */
 	CTerm weaken( CTerm const& t ) const;
-	/** Declares import */
-	Import& import(std::string_view const& name, Import const& prefix, Thy const& loc) &;
-	/** Anonymous import */
-	Import import( Import const& prefix, Thy const& loc ) &;
+	/** Adds an import. */
+	Import& add_import( std::string_view const& name, Import const& im ) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
-	/** Finds branch theory */
-	Opt<std::pair<Import const&,Thy>> find_thy(std::string_view const& name) const;
-	std::pair<Import const&,Thy> thy(std::string_view const& name) const {
-		if( auto x = find_thy(name) ) {
-			return *x;
-		}
-		throw Error("\"not found\"")(name);
-	}
+	/** @brief Finds a theory.
+	 * @return initial import of the theory into this theory.
+	 */
+	Opt<Import> find_thy( std::string_view const& name, std::function<Thy(Thy const&, std::fstream&)> reader );
 	Syntax& syntax() &;
 	Syntax const& syntax() const&;
 	auto pretty_term( Term const& t ) const {
@@ -124,17 +118,15 @@ public:
 	Thm rewrite( Thm const& thm ) const&;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
-	/** Pretty printer for context */
-	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
-	std::function<std::ostream&(std::ostream&)> const pretty(Syntax&&,size_t) = delete;
-	std::function<std::ostream&(std::ostream&)> const print_name(Syntax const& syntax) const&;
-	std::function<std::ostream&(std::ostream&)> const print_name(Syntax&&) = delete;
-	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, Syntax const& syntax = SYNTAX, std::string_view const& prefix = "\t" ) const&;
+	/** Pretty printer for the theory */
+	std::function<std::ostream&(std::ostream&)> const pretty( size_t indent = 0 ) const &;
+	std::function<std::ostream&(std::ostream&)> const print_name() const&;
+	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 };
 
 class Import : public Intp {
 	friend Thy;
-	Thy _src;
+	Thy mutable _src;//
 	Thy _tgt;
 	/** @brief Obtains a theorem in the interpretation. */
 	Opt<AThm> _find_thm(
@@ -150,10 +142,7 @@ class Import : public Intp {
 		Intp(intp), _src(src), _tgt(tgt) {
 	}
 public:
-	Thy& source() & {
-		return _src;
-	}
-	Thy const& source() const& {
+	Thy& source() const & {
 		return _src;
 	}
 	Thy source() && = delete;
@@ -164,6 +153,11 @@ public:
 		return _tgt;
 	}
 	Thy thy() && = delete;
+	/** @brief Imports a child theory of the source.
+	 */
+	Import import( Thy const& other ) const & {
+		return Import(this->interpret(other),_tgt,other);
+	}
 	/** @brief Composition of imports.
 	 * The argument should import this target.
 	 */
@@ -222,8 +216,7 @@ public:
 		Intp::retain(c,thm);
 	}
 	/** Pretty printer for import */
-	std::function<std::ostream&(std::ostream&)> const pretty(Syntax const& syntax, size_t indent = 0) const &;
-	auto pretty(Syntax&&,size_t) = delete;
+	std::function<std::ostream&(std::ostream&)> const pretty( size_t indent = 0 ) const &;
 };
 
 /** Annotated theorem */
@@ -244,7 +237,7 @@ inline Import Thy::self() const& {
 }
 
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
-	return os << loc.pretty(SYNTAX);
+	return os << loc.pretty();
 }
 inline std::ostream& operator<<( std::ostream& os, RewriteRule const& rule ) {
 	return os << '[' << rule.pat << "] " << rule.thm;

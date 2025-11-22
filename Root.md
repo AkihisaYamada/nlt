@@ -18,11 +18,11 @@ theory Root
   - theory Classical
     * import Intuitionistic, Prop.Classical
 - theory HO
-  * import FO, FunType
+  * import FO, Fun
   * theory Intuitionistic
-    - import Minimal, FO/Intuitionistic
+    - import FO.Intuitionistic
   * theory Classical
-    - import Intuitionistic, FO/Classical
+    - import Intuitionistic, FO.Classical
 - theory Eq
   * fix `=`. assume `x = x`, `x = y ⟹ C[x] = C[y]`
   * theory Prop

@@ -2,9 +2,8 @@
 # Type-Free Minimal Logic
 -------
 
-import True.
-
 fix false (¬) (∧) (⟺) (∨) (∃).
+
 assume and_intro: P ⟹ Q ⟹ P ∧ Q.
 assume and_elim1: P ∧ Q ⟹ P.
 assume and_elim2: P ∧ Q ⟹ Q.
@@ -27,6 +26,12 @@ begin
 ---
 ## Theorems
 ---
+
+-- Obtains true, which is provable.
+obtain true where true_intro! true;
+	- for thesis, if assm: ∀true. true ⟹ thesis;
+		by assm[of (∀x. x ⟹ x)].
+	.
 
 ---
 ### If-and-only-if

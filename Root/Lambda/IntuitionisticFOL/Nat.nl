@@ -3,8 +3,8 @@ base IntuitionisticFOL.
 fix nat (0) suc rec.
 
 import zero: Member nat 0.
-import suc: Unary suc nat nat.
-import eq_nat: Binary (=) nat nat prop.
+import suc: Unary nat nat suc.
+import eq_nat: Relation nat (=).
 
 assume suc_inj: ∀x:nat. ∀y:nat. suc x = suc y ⟹ x = y.
 
@@ -14,7 +14,7 @@ assume rec_suc: ∀x:nat. ∀z:ι. ∀s:nat→ι→ι. rec z s (suc x) = s x (re
 
 --- The type of recursor is not derivable by the above typed induction axiom,
 as type judgements are not assumed to be propositions. ---
-assume rec_type: (ι → (nat → ι → ι) → nat → ι) rec.
+assume rec_type: rec : ι → (nat → ι → ι) → nat → ι.
 
 begin
 
@@ -24,31 +24,45 @@ note! eq_nat.type.
 
 thm iff_eq_cong.
 
+note rec_type_intro! rec_type[THEN fun_type_elim1, THEN fun_type_elim1, THEN fun_type_elim1].
+
 lemma induction:
-	if ! P.[0], ! ∀x. P.[x] ⟹ nat x ⟹ P.[suc x], ! ∀x. nat x ⟹ prop P.[x]
-	then ∀x. nat x ⟹ P.[x];
+	if ! P.[0], ! ∀x. P.[x] ⟹ x : nat ⟹ P.[suc x], ! ∀x. x : nat ⟹ P.[x] : prop
+	then ∀x. x : nat ⟹ P.[x];
 	have 1: ∀x:nat. (λx. P.[x]) x;
 		apply all_elim1[OF induct];
 		by all_intro #elim fun_type_elim1 #unfold(=) beta.
-	- for x, if !nat x;
+	- for x, if !x : nat;
 		have 2: (λx. P.[x]) x;
 			apply all_elim1[OF 1];
 			by #unfold(=) beta.
 		by 2[unfolded(=) beta].
 	.
 
-lemma suc_eq_suc_iff: if tx! nat x, ty! nat y then suc x = suc y ⟺ x = y;
+lemma suc_eq_suc_iff: if tx! x : nat, ty! y : nat then suc x = suc y ⟺ x = y;
 	apply iff_intro;
 	- by all_elim1[OF all_elim1[OF suc_inj tx _] ty].
 	- if xy: x = y;
 		by #unfold(=) xy.
 	.
 
-define case z s := rec z (λr x. s x).
+define case z s := rec z (λx r. s x).
 
-lemma case_zero: if ! ι z, ! ∀x. nat x ⟹ ι s then rec z s 0 = z;
-	apply rec_zero[THEN all_elim1[of z ι], THEN all_elim1];
+theory EqType:
+	import ..EqType.
+begin
+
+lemma case_zero: if ! z : σ, s: s : nat → σ then rec z s 0 = z;
+	note! fun_type_elim1[OF s].
+	apply rec_zero[THEN all_elim1[of z σ], THEN all_elim1];
 	-.
+	- for y, if !;
+		apply all.type;
+		- for s1, if !;
+			apply eq_nat.type;
+			apply rec_type_intro;
+			.
+		.
 	-.
 
 lemma not_zero_eq_suc: if !nat x then ¬ 0 = suc x;

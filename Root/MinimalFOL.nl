@@ -11,14 +11,14 @@ import Prop.
 import TypedAll.
 
 interpret TypedTrue;
-	obtain true where !prop true, !true;
+	obtain true where !true : prop, !true;
 		- for thesis, if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
 		.
 	.
 
-obtain false where !prop false;
+obtain false where !false : prop;
 	- for thesis, if assm;
 		apply assm[of (∀P:prop. P)].
 	.
@@ -36,7 +36,7 @@ interpret MinimalPL.
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
 
-lemma not_imp_not_all: if nax: ¬α.[x], ! ι x, ! ∀y. ι y ⟹ prop α.[y] then
+lemma not_imp_not_all: if nax: ¬α.[x], ! x : ι, ! ∀y. y : ι ⟹ α.[y] : prop then
 	¬(∀y:ι. α.[y]);
 	apply not_intro;
 	- if all: ∀y:ι. α.[y];
@@ -46,9 +46,9 @@ lemma not_imp_not_all: if nax: ¬α.[x], ! ι x, ! ∀y. ι y ⟹ prop α.[y] th
 	.
 
 lemma tall_cong#cong: for α,
-	if aa': ∀x. ι x ⟹ (α.[x] ⟺ α'.[x]),
-		! ∀x. ι x ⟹ prop α.[x],
-		! ∀x. ι x ⟹ prop α'.[x]
+	if aa': ∀x. x : ι ⟹ (α.[x] ⟺ α'.[x]),
+		! ∀x. x : ι ⟹ α.[x] : prop,
+		! ∀x. x : ι ⟹ α'.[x] : prop
 	then (∀x:ι. α.[x]) ⟺ (∀x:ι. α'.[x]);
 	apply iff_intro;
 	- by all_intro #fold aa' #elim all_elim.
@@ -59,7 +59,7 @@ lemma tall_cong#cong: for α,
 ### Existence
 ---
 
-lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
+lemma ex_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	(∃x:ι. α.[x]) ⟺ (∀P:prop. (∀x:ι. α.[x] ⟹ P) ⟹ P);
 	apply iff_intro;
 	- if ex: ∃x:ι. α.[x];
@@ -80,26 +80,26 @@ lemma ex_iff: if ! ∀x. ι x ⟹ prop α.[x] then
 	.
 
 lemma ex_cong#cong: for α,
-	if aa': ∀x. ι x ⟹ (α.[x] ⟺ α'.[x]),
-		! ∀x. ι x ⟹ prop α.[x],
-		! ∀x. ι x ⟹ prop α'.[x]
+	if aa': ∀x. x : ι ⟹ (α.[x] ⟺ α'.[x]),
+		! ∀x. x : ι ⟹ α.[x] : prop,
+		! ∀x. x : ι ⟹ α'.[x] : prop
 	then (∃x:ι. α.[x]) ⟺ (∃x:ι. α'.[x]);
 	unfold ex_iff aa'.
 
 lemma ex_imp_all_imp:
-	if ex: ∃x:ι. α.[x] ⟹ P, all: ∀x:ι. α.[x], ! prop P, ! ∀x. ι x ⟹ prop α.[x]
+	if ex: ∃x:ι. α.[x] ⟹ P, all: ∀x:ι. α.[x], ! P : prop, ! ∀x. x : ι ⟹ α.[x] : prop
 	then P;
 	apply ex_elim[OF ex];
-	- for x, if imp: α.[x] ⟹ P, ! ι x;
+	- for x, if imp: α.[x] ⟹ P, ! x : ι;
 		by imp all_elim1[OF all].
 	.
 
-lemma all_imp_iff_ex: if ! prop P, ! ∀x. ι x ⟹ prop α.[x] then
+lemma all_imp_iff_ex: if ! P : prop, ! ∀x. x : ι ⟹ α.[x] : prop then
 	(∀x:ι. α.[x] ⟹ P) ⟺ (∃x:ι. α.[x]) ⟹ P;
 	apply iff_intro;
 	- if imp: ∀x:ι. α.[x] ⟹ P, ex: ∃x:ι. α.[x];
 		apply ex_elim[OF ex];
-		- for x, if ax: α.[x], ! ι x;
+		- for x, if ax: α.[x], ! x : ι;
 			by all_elim1[OF imp, of x] ax.
 		.
 	- if imp: (∃x:ι. α.[x]) ⟹ P;
@@ -119,7 +119,7 @@ lemma nex_false: ¬(∃x:ι. false);
 The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
 ---
 lemma nnall_imp:
-	if nnall: ¬¬(∀x:ι. α.[x]), ! ∀x. ι x ⟹ prop α.[x]
+	if nnall: ¬¬(∀x:ι. α.[x]), ! ∀x. x : ι ⟹ α.[x] : prop
 	then ∀x:ι. ¬¬α.[x];
 	apply all_intro;
 	- for x, if !;
@@ -133,12 +133,12 @@ lemma nnall_imp:
 The other direction is provable if inside the quantification has negation.
 ---
 
-lemma nex_iff_all_not: if ! ∀x. ι x ⟹ prop α.[x] then
+lemma nex_iff_all_not: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	¬(∃x:ι. α.[x]) ⟺ (∀x:ι. ¬α.[x]);
 	unfold+ not_iff_imp_false;
 	fold all_imp_iff_ex.
 
-lemma nnall_not_iff: if ! ∀x. ι x ⟹ prop α.[x] then
+lemma nnall_not_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	¬¬(∀x:ι. ¬α.[x]) ⟺ (∀x:ι. ¬α.[x]);
 	fold+ nex_iff_all_not;
 	by nnnot_iff.

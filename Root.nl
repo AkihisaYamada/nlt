@@ -15,6 +15,7 @@ infix ∧ 35 36 36.
 infix ∨ 30 31 30.
 infix ⟺ 1 1 0.
 binder ∃ 0 0.
+infix : 50 51 50.
 binder_middle ∀ : ∀:.
 binder_middle ∃ : ∃:.
 binder_middle ∀ ∈ ∀∈.
@@ -160,95 +161,78 @@ lemma make_elim:
 		.
 	.
 
--- Obtains true, which is provable.
-theory True:
-	obtain true where true_intro! true;
-		- for thesis, if assm: ∀true. true ⟹ thesis;
-			by assm[of (∀x. x ⟹ x)].
-		.
-end
-
--- Obtains false, which derives everything, including non-propositions.
-theory False:
-	obtain false where false_elim: false ⟹ ∀P. P;
-		- for thesis, if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
-			by assm[of (∀P. P)].
-		.
-end
-
-
 -----
 ## For typed logic
 -----
 
 theory Member:
-	fix mem c.
-	assume type: mem c.
+	fix σ x (:).
+	assume type: x : σ.
 end
 
 theory Unary:
-	fix f dom cod.
-	assume type: dom x ⟹ cod (f x).
+	fix σ τ f (:).
+	assume type: x : σ ⟹ f x : τ.
 end
 
 theory Binary:
-	fix f dom1 dom2 cod.
-	assume type: dom1 x ⟹ dom2 y ⟹ cod (f x y).
+	fix σ τ ρ f (:).
+	assume type: x : σ ⟹ y : τ ⟹ f x y : ρ.
 end
 
 theory Relation:
-	fix mem (≤) prop.
-	import Binary (≤) mem mem prop.
+	fix σ (≤) (:) prop.
+	import Binary σ σ prop (≤) (:).
 end
 
 theory Reflexive:
-	fix mem (≤).
-	assume refl: mem x ⟹ x ≤ x.
+	fix σ (≤) (:).
+	assume refl: x : σ ⟹ x ≤ x.
 end
 
 theory Symmetric:
-	fix mem (≤).
-	assume sym: x ≤ y ⟹ mem x ⟹ mem y ⟹ y ≤ x.
+	fix σ (≤) (:).
+	assume sym: x ≤ y ⟹ x : σ ⟹ y : σ ⟹ y ≤ x.
 end
 
 theory Transitive:
-	fix mem (≤).
-	assume trans: x ≤ y ⟹ y ≤ z ⟹ mem x ⟹ mem y ⟹ mem z ⟹ x ≤ z.
+	fix σ (≤) (:).
+	assume trans: x ≤ y ⟹ y ≤ z ⟹ x : σ ⟹ y : σ ⟹ z : σ ⟹ x ≤ z.
 end
 
 theory Irreflexive:
-	fix mem (<) (¬).
-	assume irrefl: mem x ⟹ ¬ (x < x).
+	fix σ (<) (:) (¬).
+	assume irrefl: x : σ ⟹ ¬ (x < x).
 end
 
 theory TypedBinder:
-	fix mem ξ.
-	assume type: (∀x. ι x ⟹ mem α.[x]) ⟹ mem (ξ ι (x. α.[x])).
+	fix σ ξ (:).
+	assume type: (∀x. x : ι ⟹ α.[x] : σ) ⟹ ξ ι (x. α.[x]) : σ.
 end
 
 theory Magma:
-	fix mem (+).
-	import Binary (+) mem mem mem.
+	fix σ (+) (:).
+	import Binary σ σ σ (+).
 end
 
 theory Commutative:
-	fix mem (+) (=).
-	assume commute: mem x ⟹ mem y ⟹ x + y = y + x.
+	fix σ (+) (:) (=).
+	assume commute: x : σ ⟹ y : σ ⟹ x + y = y + x.
 end
 
 theory Associative:
-	fix mem (+) (=).
-	assume assoc: mem x ⟹ mem y ⟹ mem z ⟹ x + y + z = x + (y + z).
+	fix σ (+) (:) (=).
+	assume assoc: x : σ ⟹ y : σ ⟹ z : σ ⟹ x + y + z = x + (y + z).
 end
 
 theory LeftNeutral:
-	fix mem (+) (0) (=).
-	assume left_neutral: mem x ⟹ 0 + x = x.
+	fix σ (+) (0) (:) (=).
+	assume left_neutral: x : σ ⟹ 0 + x = x.
 end
 
 theory RightNeutral:
-	fix mem (+) (0) (=).
-	assume right_neutral: mem x ⟹ x + 0 = x.
+	fix σ (+) (0) (:) (=).
+	assume right_neutral: x : σ ⟹ x + 0 = x.
 end
 
 theory UnitalMagma:
@@ -268,31 +252,31 @@ theory Monoid:
 end
 
 theory LeftAbsorb:
-	fix mem (*) (0) (=).
-	assume left_absorb: mem x ⟹ 0 * x = 0.
+	fix σ (*) (0) (:) (=).
+	assume left_absorb: x : σ ⟹ 0 * x = 0.
 end
 
 theory RightAbsorb:
-	fix mem (*) (0) (=).
-	assume right_absorb: mem x ⟹ x * 0 = 0.
+	fix σ (*) (0) (:) (=).
+	assume right_absorb: x : σ ⟹ x * 0 = 0.
 end
 
 theory AbsorbMagma:
-	fix mem (*) (0) (=).
-	import Magma mem (*).
+	fix σ (*) (0) (:) (=).
+	import Magma σ (*).
 	import LeftAbsorb.
 	import RightAbsorb.
 end
 
 theory Prop:
-	fix prop.
+	fix prop (:).
 	import imp: Magma prop (⟹).
 begin
 	note! imp.type.
 end
 
 theory TypedTrue:
-	fix prop true.
+	fix prop true (:).
 	import Prop.
 	import true: Member prop true.
 	assume true_intro! true.
@@ -301,35 +285,35 @@ begin
 end
 
 theory TypedFalse:
-	fix prop false.
+	fix prop false (:).
 	import Prop.
 	import false: Member prop false.
-	assume false_elim: false ⟹ ∀P. prop P ⟹ P.
+	assume false_elim: false ⟹ ∀P. P : prop ⟹ P.
 begin
 	note! false.type.
 end
 
 theory TypedNot:
-	fix prop false (¬).
+	fix prop (¬) false (:).
 	import false: Member prop false.
-	import not: Unary (¬) prop prop.
-	assume not_intro: (P ⟹ false) ⟹ prop P ⟹ ¬P.
-	assume not_imp_false: ¬P ⟹ P ⟹ prop P ⟹ false.
+	import not: Unary prop prop (¬).
+	assume not_intro: (P ⟹ false) ⟹ P : prop ⟹ ¬P.
+	assume not_imp_false: ¬P ⟹ P ⟹ P : prop ⟹ false.
 begin
 	note! false.type.
 	note! not.type.
 end
 
 theory TypedAnd:
-	fix prop (∧).
+	fix prop (∧) (:).
 	import and: Magma prop (∧).
-	assume and_intro: P ⟹ Q ⟹ prop P ⟹ prop Q ⟹ P ∧ Q.
-	assume and_elim1: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ P.
-	assume and_elim2: P ∧ Q ⟹ prop P ⟹ prop Q ⟹ Q.
+	assume and_intro: P ⟹ Q ⟹ P : prop ⟹ Q : prop ⟹ P ∧ Q.
+	assume and_elim1: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ P.
+	assume and_elim2: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ Q.
 begin
 	note! and.type.
 	lemma and_elim: if and: P ∧ Q then
-		∀R. (P ⟹ Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ R;
+		∀R. (P ⟹ Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
 		- for R, if PQR: P ⟹ Q ⟹ R;
 			by PQR and_elim1[OF and] and_elim2[OF and].
 		.
@@ -338,15 +322,15 @@ begin
 end
 
 theory TypedOr:
-	fix prop (∨).
+	fix prop (∨) (:).
 	import or: Magma prop (∨).
-	assume or_intro1: P ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
-	assume or_intro2: for P Q, Q ⟹ prop P ⟹ prop Q ⟹ P ∨ Q.
-	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop P ⟹ prop Q ⟹ prop R ⟹ R.
+	assume or_intro1: P ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
+	assume or_intro2: for P Q, Q ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
+	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R : prop ⟹ R.
 begin
 	note! or.type.
 	lemma or_intro:
-		if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ prop R ⟹ R, [prop P, prop Q]
+		if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
 		then P ∨ Q;
 		apply PQR;
 		- by or_intro1.
@@ -356,36 +340,16 @@ begin
 		by or_intro #elim or_elim.
 end
 
-theory Collect:
-	fix Collect (∈).
-	assume Collect_elim1: x ∈ Collect P ⟹ P x.
-	assume Collect_intro: P x ⟹ x ∈ Collect P.
-begin
-	note Collect_elim: make_elim[of (x. x ∈ Collect P) (x. P x), OF Collect_elim1].
-end
-
-theory TypedTrue:
-	fix prop true.
-	import true: Member prop true.
-	assume true_intro: true.
-end
-
-theory TypedFalse:
-	fix prop false.
-	import false: Member prop false.
-	assume false_elim: false ⟹ ∀P. prop P ⟹ P.
-end
-
 theory TypedAll:
-	fix prop (∀:).
+	fix prop (∀:) (:).
 	import all: TypedBinder prop (∀:).
-	assume all_intro: (∀x. ι x ⟹ α.[x]) ⟹ (∀x. ι x ⟹ prop α.[x]) ⟹ ∀x:ι. α.[x].
-	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ α.[x].
+	assume all_intro: (∀x. x : ι ⟹ α.[x]) ⟹ (∀x. x : ι ⟹ α.[x] : prop) ⟹ ∀x:ι. α.[x].
+	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ α.[x].
 begin
 	note! all.type.
 	lemma all_elim:
 		if all: ∀x:ι. α.[x]
-		then ∀P. ((∀x. ι x ⟹ α.[x]) ⟹ P) ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ P;
+		then ∀P. ((∀x. x: ι ⟹ α.[x]) ⟹ P) ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ P;
 		- for P, if assm:, !;
 			apply assm;
 			- for x, if !;
@@ -395,17 +359,17 @@ begin
 end
 
 theory TypedEx:
-	fix prop (∃:).
+	fix prop (∃:) (:).
 	import Prop.
 	import ex: TypedBinder prop (∃:).
-	assume ex_intro1: for x, α.[x] ⟹ ι x ⟹ (∀y. ι y ⟹ prop α.[y]) ⟹ ∃y:ι. α.[y].
-	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹
-	(∀x. ι x ⟹ prop α.[x]) ⟹ prop P ⟹ P.
+	assume ex_intro1: for x, α.[x] ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ ∃y:ι. α.[y].
+	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹
+	(∀x. x : ι ⟹ α.[x] : prop) ⟹ P : prop ⟹ P.
 begin
 	note! ex.type.
 	lemma ex_intro:
-		if assm: ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ prop P ⟹ P,
-			! ∀x. ι x ⟹ prop α.[x]
+		if assm: ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹ P : prop ⟹ P,
+			! ∀x. x : ι ⟹ α.[x] : prop
 		then ∃x:ι. α.[x];
 		apply assm;
 		- for x;
@@ -414,10 +378,18 @@ begin
 end
 
 theory FunType:
-	fix (→).
-	assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
-	assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
+	fix (:) (→).
+	assume fun_type_elim1: f : σ → τ ⟹ ∀a. a : σ ⟹ f a : τ.
+	assume fun_type_intro! for f σ τ, (∀a. a : σ ⟹ f a : τ) ⟹ f : σ → τ.
 begin
-	note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
+	note fun_type_elim: make_elim[of (f. f : σ → τ) (f. ∀a. a : σ ⟹ f a : τ), OF fun_type_elim1].
+end
+
+theory Collect:
+	fix Collect (∈).
+	assume Collect_elim1: x ∈ Collect P ⟹ P x.
+	assume Collect_intro: P x ⟹ x ∈ Collect P.
+begin
+	note Collect_elim: make_elim[of (x. x ∈ Collect P) (x. P x), OF Collect_elim1].
 end
 

@@ -8,7 +8,7 @@ import TypedOr.
 
 begin
 
-obtain false where ! prop false;
+obtain false where ! false : prop;
 	- for thesis, if assm;
 		apply assm[of true].
 	.
@@ -26,12 +26,35 @@ interpret ..MinimalPL;
 setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
 setup dual iff.sym.
 
-lemma eq_iff: if eq: P = Q, ! prop P then P ⟺ Q;
-	have! prop Q;
+lemma eq_iff: if eq: P = Q, [P : prop] then P ⟺ Q;
+	have! Q : prop;
 		fold eq.
 	unfold eq.
 
-lemma iff_eq_cong#cong: for f x, if f: f = f', x: x = x', ! prop (f x) then f x ⟺ f' x';
+lemma iff_eq_cong#cong: for f x, if f: f = f', x: x = x', [f x : prop] then f x ⟺ f' x';
 	apply eq_iff;
 	unfold f x.
+
+define Relation σ r := r : σ → σ → prop.
+
+theory Relation:
+	fix σ (≤).
+	assume axiom: Relation σ (≤).
+begin
+	interpret ..Relation σ (≤);
+		- by axiom[unfolded Relation_def, THEN fun_type_elim1, THEN fun_type_elim1].
+		.
+end
+
+
+define EqType σ := Relation σ (=).
+
+theory EqType:
+	fix σ.
+	assume axiom: EqType σ.
+begin
+	interpret eq: Relation σ (=);
+		- by axiom[unfolded EqType_def].
+		.
+end
 

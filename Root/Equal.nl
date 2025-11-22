@@ -64,8 +64,9 @@ theory TwoValued:
 end
 
 theory TwoValuedTrue:
-	import True.
 	import TwoValued.
+	fix true.
+	assume true_intro: true.
 begin
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
