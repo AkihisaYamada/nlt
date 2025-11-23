@@ -209,7 +209,7 @@ struct Matcher {
 Opt<Subst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
-pair<Thm,size_t> strip_all( Thm const& thm, Intp& intp, Renamer const& renamer ) {
+pair<Thm,size_t> strip_all( Thm const& thm, Intp const& intp, Renamer const& renamer ) {
 	pair<Thm,size_t> ret = {thm,0};
 	ret.first = thm.subst(intp);
 	auto ctxt = intp.ctxt();
@@ -222,7 +222,7 @@ pair<Thm,size_t> strip_all( Thm const& thm, Intp& intp, Renamer const& renamer )
 	}
 	return ret;
 }
-CTerm strip_all(CTerm t, Intp& child, Renamer const& renamer) {
+CTerm strip_all(CTerm t, Intp const& child, Renamer const& renamer) {
 	t = t.subst(child);
 	auto ctxt = child.ctxt();
 	auto subst = Subst(ctxt);

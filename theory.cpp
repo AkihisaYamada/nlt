@@ -16,10 +16,10 @@ struct Thy::_Body {
 	Mem<Syntax> syntax;
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
-	_Body( string_view const& name, string_view const& dirname, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, Mem<Definer> const& definer ) : name(name), dir(dirname), syntax(syntax), rewriter(rewriter), definer(definer) {}
+	_Body( string_view const& name, string_view const& dirname, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dirname), syntax(syntax), rewriter(rewriter), definer(definer) {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname,Mem<Syntax>::make(),Mem<Rewriter>::make(),Mem<Definer>::make())) {};
+Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
 
 Import const& Thy::branch() const {
 	auto intp = Ctxt::branch();
@@ -153,7 +153,7 @@ Opt<AThm> Thy::_find_thm(
 	if( sep == 0 ) {// explicit parent
 		auto parent = _ref->parent;
 		if( !parent ) throw Error("\"parent theory not found\"");
-		return parent->_find_thm(name.substr(1),test,import.compose(*parent));
+		return parent->source()._find_thm(name.substr(1),test,import.compose(*parent));
 	}
 	if( sep != string::npos ) {// named imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),test,import) ) {
@@ -209,7 +209,7 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)>
 			}
 		}
 	}
-	if( auto& p = parent() )
+	if( auto const& p = parent() )
 	if( auto ret = p->_src.find_thy(name,reader) ) {
 		return {p->compose(*ret)};
 	}

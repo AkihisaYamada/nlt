@@ -74,6 +74,11 @@ std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child, Renamer cons
 inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
 	return strip_all(thm,child,avoider(child.ctxt()));
 }
+/**
+ * @brief strips universal quantifiers.
+ * @param thm the theorem to be stripped.
+ * @return Intp this context will fix the bound variables.
+ */
 inline std::tuple<Thm,Intp,size_t> strip_all( Thm const& thm ) {
 	auto child = thm.ctxt().branch();
 	auto [strip_thm,n] = strip_all(thm,child);

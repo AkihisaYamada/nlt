@@ -138,7 +138,7 @@ public:
 		if( !ret ) throw Parser::Error("expects a theorem");
 		return *ret;
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Import& loc, bool rev = false ) {
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Import const& loc, bool rev = false ) {
 		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_thy.rewriter().make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( _parser.skips("(") ) {
@@ -167,7 +167,7 @@ public:
 		}
 		return ret;
 	}
-	Opt<Thm> _gets_thm( Import& loc ) {
+	Opt<Thm> _gets_thm( Import const& loc ) {
 		auto const& opt = _parser.gets_thm_name();
 		if( !opt ) {
 			return {};
@@ -195,9 +195,9 @@ public:
 					}
 				} else if( _parser.skips("THEN") ) {
 					auto thm = get_thm();
-					auto [thm,tmp,n] = strip_all(thm);
-					auto imp = thm.cbinary(IMP);
-					if( !imp ) throw Error("\"malformed THEN\"")(thm);
+					auto [strip_thm,tmp,n] = strip_all(thm);
+					auto imp = strip_thm.cbinary(IMP);
+					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
 					auto cond = imp->first;
 					auto arg = ret.subst(tmp);
 					for(;;){
@@ -207,7 +207,7 @@ public:
 						arg = arg.discharge(tmp.ctxt().assume(imp->first));
 					}
 					auto u = unify(arg,cond,[&](auto v){ return tmp.ctxt().fixes(v); });
-					if( !u ) throw Error("\"mismatching THEN\"")(arg)(thm);
+					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
 					auto intp = loc.interpret(tmp.ctxt());
 					for(;;){
 						if( auto const& v = intp.fixing() ) {
@@ -221,7 +221,7 @@ public:
 							break;
 						}
 					}
-					thm = thm.subst(intp);
+					thm = strip_thm.subst(intp);
 					ret = thm.discharge(arg.subst(intp));
 				} else if( _parser.skips("for") ) {
 					while( auto x = _parser.gets(Lexer::Word) ) {
@@ -428,7 +428,7 @@ public:
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			Term const& stmt = spec.inst(*csym);
-			auto const& thm = _thy.find_thm(name,[&]( Term const& y ){ return stmt == y; },true,true);
+			auto const& thm = _thy.find_thm(name,[&]( AThm const& y ){ return stmt == y; });
 			if( !thm ) throw Error("\"failed retain\"")(sym)(name)(stmt);
 			intp.retain(*csym,*thm);
 		} else {

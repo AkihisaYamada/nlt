@@ -101,11 +101,7 @@ public:
 	 * @return initial import of the theory into this theory.
 	 */
 	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
-	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader ) {
-		auto ret = find_thy(name,reader);
-		if( !ret ) throw Error("\"theory not found\"");
-		return *ret;
-	}
+	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
 	Syntax& syntax() &;
 	Syntax const& syntax() const&;
 	auto pretty_term( Term const& t ) const {
@@ -133,12 +129,6 @@ class Import : public Intp {
 	friend Thy;
 	Thy mutable _src;//
 	Thy mutable _tgt;
-	/** @brief Obtains a theorem in the interpretation. */
-	Opt<AThm> _find_thm(
-		std::string_view const& name,
-		std::function<bool(AThm const&)> const& test,
-		Import const& import
-	) const;
 	/** creates import
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
@@ -238,6 +228,11 @@ Thm prove( CTerm const& claim, Thy const& thy );
 
 inline Import Thy::self() const& {
 	return Import(Ctxt::self(),*this,*this);
+}
+inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader ) {
+	auto ret = find_thy(name,reader);
+	if( !ret ) throw Error("\"theory not found\"");
+	return *ret;
 }
 
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
