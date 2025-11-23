@@ -100,7 +100,12 @@ public:
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
-	Opt<Import> find_thy( std::string_view const& name, std::function<Thy(Thy const&, std::fstream&)> reader );
+	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
+	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader ) {
+		auto ret = find_thy(name,reader);
+		if( !ret ) throw Error("\"theory not found\"");
+		return *ret;
+	}
 	Syntax& syntax() &;
 	Syntax const& syntax() const&;
 	auto pretty_term( Term const& t ) const {
@@ -127,7 +132,7 @@ public:
 class Import : public Intp {
 	friend Thy;
 	Thy mutable _src;//
-	Thy _tgt;
+	Thy mutable _tgt;
 	/** @brief Obtains a theorem in the interpretation. */
 	Opt<AThm> _find_thm(
 		std::string_view const& name,
@@ -146,13 +151,12 @@ public:
 		return _src;
 	}
 	Thy source() && = delete;
-	Thy& thy() & {
+	Thy& thy() const & {
 		return _tgt;
 	}
-	Thy const& thy() const & {
+	Thy thy() && {
 		return _tgt;
 	}
-	Thy thy() && = delete;
 	/** @brief Imports a child theory of the source.
 	 */
 	Import import( Thy const& other ) const & {

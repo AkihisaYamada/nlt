@@ -1,5 +1,6 @@
 #include<fstream>
 #include"definer.hpp"
+#include"parser.hpp"
 
 using namespace std;
 
@@ -181,7 +182,7 @@ Opt<AThm> Thy::_find_thm(
 	return {};
 }
 
-Opt<Import> Thy::find_thy( string_view const &name, function<Thy(Thy const&,fstream&)> reader ) {
+Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)> reader ) {
 	size_t sep = name.find('.');
 	if( sep != string::npos ) {
 		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
@@ -197,9 +198,13 @@ Opt<Import> Thy::find_thy( string_view const &name, function<Thy(Thy const&,fstr
 		}
 		if( !_ref->dir.empty() ) {
 			auto path = _ref->dir+"/"+name;
-			if( auto fis = fstream(path+".nl") ) {
+			auto fullpath = path + ".nl";
+			if( auto fis = fstream(fullpath) ) {
 				auto ret = branch(name,path);
-				reader(ret.thy(),fis);
+				Thy& thy = ret.thy();
+				auto lexer = Lexer(fis,fullpath,thy.syntax());
+				auto parser = Parser(lexer,thy.syntax());
+				reader(thy,parser);
 				return {ret};
 			}
 		}

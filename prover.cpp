@@ -34,43 +34,43 @@ pair<fstream,string> file_of_thy( string_view const& dir, string_view const& nam
 	return {fstream(path),std::move(path)};
 }
 
-Ref<Syntax> make_syntax() {
-	auto ret = Ref<Syntax>::make();
-	ret->register_multi_op(int_of_chars("∀"));
-	ret->register_multi_op(int_of_chars("⟹"));
-	ret->register_single_op(',');
-	ret->register_single_op(';');
-	ret->register_multi_op(':');
-	ret->register_multi_op('=');
-	ret->register_multi_op('!');
-	ret->register_multi_op('?');
-	ret->register_multi_op('*');
-	ret->register_multi_op('+');
-	ret->register_multi_op('-');
-	ret->register_multi_op('#');
-	ret->opener("(",-1000,[&]( Parser& parser ){
+void init_syntax( Syntax& syntax ) {
+	syntax.register_multi_op(int_of_chars("∀"));
+	syntax.register_multi_op(int_of_chars("⟹"));
+	syntax.register_single_op(',');
+	syntax.register_single_op(';');
+	syntax.register_multi_op(':');
+	syntax.register_multi_op('=');
+	syntax.register_multi_op('!');
+	syntax.register_multi_op('?');
+	syntax.register_multi_op('*');
+	syntax.register_multi_op('+');
+	syntax.register_multi_op('-');
+	syntax.register_multi_op('#');
+	syntax.opener("(",-1000,[&]( Parser& parser ){
 		Opt<Term> t = parser.gets_term(-1000);
 		parser.skip(")");
 		return *t;
 	});
-	ret->closer(")");
-	ret->closer("}");
-	ret->closer("]");
-	ret->infix(",",-2,-2,-3);
-	ret->infix(";",-3,-3,-4);
-	ret->infix(":=",-1,-1,-2);
-	ret->prefix("if",-1,-2);
-	ret->infix("then",-2,-1,-2);
-	ret->infix("else",-2,-2,-1);
-	return ret;
+	syntax.closer(")");
+	syntax.closer("}");
+	syntax.closer("]");
+	syntax.infix(",",-2,-2,-3);
+	syntax.infix(";",-3,-3,-4);
+	syntax.infix(":=",-1,-1,-2);
+	syntax.prefix("if",-1,-2);
+	syntax.infix("then",-2,-1,-2);
+	syntax.infix("else",-2,-2,-1);
 }
 
 static Error const ProofMismatch = Error("#proof-mismatch");
 
+static void _read(Thy&,Parser&);
+
 class Prover {
 	unsigned int _depth;
 	Thy _thy;
-	Parser _parser;
+	Parser& _parser;
 	bool _exit_on_error;
 	bool _final = false;
 	bool _out = true;
@@ -78,7 +78,7 @@ class Prover {
 	Prover( Prover& parent, Thy const& loc ) :
 		_depth(parent._depth),
 		_thy(loc),
-		_parser(parent._parser.get_lexer(),parent._thy.syntax()),
+		_parser(parent._parser),
 		_exit_on_error(parent._exit_on_error),
 		_out(parent._out),
 		_out_load(parent._out_load) {
@@ -89,10 +89,10 @@ public:
 		Error( Term const& msg ) : ::Error(RT(msg)) {
 		}
 	};
-	Prover( Lexer& lexer, bool exit_on_error ) :
+	Prover( Thy const& thy, Parser& parser, bool exit_on_error ) :
 		_depth(0),
-		_thy("Root","Root/"),
-		_parser(lexer,_thy.syntax()/*TODO*/),
+		_thy(thy),
+		_parser(parser),
 		_exit_on_error(exit_on_error) {
 		_prompt();
 	}
@@ -443,7 +443,7 @@ public:
 			swap(prefix,name);
 			name = _parser.get();
 		}
-		auto im = _thy.find_thy(name,www);
+		auto im = _thy.find_thy(name,_read);
 		if( !im ) throw Error("#theory_not_found");
 		auto& intp = _thy.add_import(prefix,*im);
 		while( auto const& t = _parser.gets_term(1000) ) {
@@ -728,7 +728,7 @@ public:
 			} else {
 				string name = _parser.get();
 				_parser.skip(".");
-				auto im = _thy.find_thy(name,www);
+				auto im = _thy.find_thy(name,_read);
 				if( !im ) throw Error("\"theory not found\"");
 				_cout << im->thy() << endl;
 			}
@@ -919,7 +919,7 @@ public:
 		} else if( _parser.skips("context") ) {
 			string name = _parser.get();
 			_parser.skip("begin");
-			auto im = _thy.find_thy(name,www);
+			auto im = _thy.find_thy(name,_read);
 			_cout << "in context " << name << endl;
 			Prover(*this,im->thy()).deepen().loop();
 			_cout << "left " << name << endl;
@@ -1235,98 +1235,45 @@ public:
 			_parser.skip(".");
 		}
 	}
-	Thy load_thy( Thy const& thy, string_view const& name ) {
-		auto [fis,path] = file_of_thy(thy.dir(),name);
-		if( !fis.fail() ) {
-			Lexer local_lexer(fis,path,thy.syntax());
-			auto base = thy;
-			if( local_lexer.skips("base") ) {
-				auto base_name = local_lexer.get();
-				base = find_thy(thy,base_name);
-				local_lexer.skip(".");
-			} else {// Belong to the Root
-				while( auto p = base.parent() ) {
-					base = *p;
-				}
-			}
-			cout << "loading " << base.dir() << name;
-			string dir;// has dedicated directory or not
-			if( filesystem::is_directory(base.dir()+name) ) {
-				dir+=name;
-				dir+='/';
-				cout << '/';
-			}
-			cout << endl;
-			auto sub = Prover(*this,base.branch(name,dir));
-			sub.set_out(_out_load,_out_load);
-			sub.set_lexer(local_lexer);
-			sub.loop();
-			return sub._thy;
-		}
-		if( auto gp = thy.parent() ) {
-			return load_thy(*gp,name);
-		}
-		throw Error("\"theory not found\"")(name);
-	}
 	void move_to_thy( Thy const& thy ) {
 		_thy = thy;
 	}
 private:
 	void _make_own_parser() {
-		if( !_own_parser ) {
-//			_parser.fork();
+/*		if( !_own_parser ) {
+			_parser.fork();
 			_own_parser = true;
 		}
-	}
+*/	}
 };
 
-void run( Lexer& lexer, Ref<Syntax>& syntax, string_view const& name, bool exit_on_error, bool out, bool load_out ) try {
-	auto fis = fstream("Root.nl");
-	if( !fis ) throw Error("\"Root not found\"");
-	auto base_lexer = Lexer(fis,"Root.nl",*syntax);
-	auto prover = Prover(base_lexer,true);
-	prover.set_out(load_out,load_out);
-	prover.loop();
-	prover.set_lexer(lexer);
-	cout << "loaded root theory." << endl;
-	auto base = prover.thy();
+void _read( Thy& thy, Parser& parser ) {
+	Prover(thy,parser,true).loop();
+}
+void run( istream& is, string_view const& name, bool exit_on_error, bool out, bool load_out ) {
+	auto root = Thy("Root","Root");// the empty root theory, linked to the "Root" directory
+	init_syntax(root.syntax());
+	Thy thy = root.branch(name,"").thy();
+	auto lexer = Lexer(is,name,thy.syntax());
+	auto parser = Parser(lexer,thy.syntax());
+	auto prover = Prover(thy,parser,exit_on_error);
 	prover.set_out(out,load_out);
-	prover._prompt();
-	if( lexer.skips("base") ) {
-		string base_ref = lexer.get();
-		string_view view = base_ref;
-		for(;;) {
-			auto p = view.find('.');
-			if( p == string::npos ) break;
-			base = prover.find_thy(base,view.substr(0,p));
-			prover.move_to_thy(base);
-			view = view.substr(p+1);
-		}
-		prover.move_to_thy(prover.find_thy(base,view));
-		cout << "moving to " << name << endl;
-		prover._prompt();
-		lexer.skip(".");
+	try {
+		prover.loop();
+	} catch( Error const& e ) {
+		cerr << lexer.location() << ": ERROR: " << e << endl;
+		exit(-1);
 	}
-	prover.enter_branch(name,"");
-	prover.set_exit_on_error(exit_on_error);
-	prover.loop();
-} catch( Error const& e ) {
-	cerr << lexer.location() << ": ERROR: " << e << endl;
-	exit(-1);
 }
 
 int main(int argc, char* argv[]) {
-	istream* pis;
-	auto syntax = make_syntax();
 	bool exit_on_error = false;
 	if( argc == 1 ) {
-		Lexer lexer(cin,"stdin",*syntax);
-		run(lexer,syntax,"#stdin",false,true,false);
+		run(cin,"#stdin",false,true,false);
 	} else {
 		string name = argv[1];
 		auto fin = fstream(name);
-		Lexer lexer(fin,name,*syntax);
-		run(lexer,syntax,name,true,true,true);
+		run(fin,name,true,true,true);
 	}
 	cout << "bye!" << endl;
 	return 0;

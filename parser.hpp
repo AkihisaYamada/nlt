@@ -7,7 +7,6 @@
 class Parser : public Tokenizer {
 	Lexer* _lexer;
 	Syntax const* _syntax;
-	Parser(std::istream&,Syntax&&) = delete;
 public:
 	void reset() {
 		_lexer->reset();
@@ -26,6 +25,8 @@ public:
 		_lexer(&lexer), _syntax(&syntax) {
 //		assert( &lexer.get_lex() == &syntax );
 	}
+	Parser(Lexer&&,auto) = delete;
+	Parser(auto,Syntax&&) = delete;
 	Lexer const& get_lexer() const & {
 		return *_lexer;
 	}
