@@ -230,18 +230,23 @@ static ostream& mk_indent(ostream& os, size_t n) {
 }
 function<ostream&(ostream&)> const Thy::print_name() const& {
 	return [&](ostream& os)->ostream& {
-		list<string> pres;
+		list<Thy const*> path;
 		auto p = parent();
 		while(p) {
-			pres.push_front(p->thy().name());
-			p = p->thy().parent();
+			auto const& thy = p->source();
+			path.push_front(&thy);
+			p = thy.parent();
 		}
-		for( auto& pre : pres ) {
-			os << pre << '.';
+		for( auto& pre : path ) {
+			if( pre->name() == "" ) {
+				os << '@' << pre->id() << '.';
+			} else {
+				os << pre->name() << '.';
+			}
 		}
 		os << _ref->name;
-		if( syntax().prints_ctxt() ) {
-			os << '@' << id() << ' ';
+		if( syntax().prints_ctxt() || _ref->name != "" ) {
+			os << '@' << id();
 		}
 		return os;
 	};
@@ -249,11 +254,7 @@ function<ostream&(ostream&)> const Thy::print_name() const& {
 
 function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 	return [&](ostream& os)->ostream& {
-		if( name() == "" ) {
-			os << endl;
-		} else {
-			os << "theory " << name() << ":" << endl;
-		}
+		os << "theory " << print_name() << ':' << endl;
 		n++;
 		for( size_t i = 0; i < revision(); i++ ) {
 			if( auto str = fixed(i) ) {
