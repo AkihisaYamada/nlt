@@ -128,7 +128,6 @@ public:
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _thy.branch();
-DEB(loc.thy().parent()->thy());
 		if( auto const& thm = _gets_thm(loc) ) {
 			return thm->intro();
 		}

@@ -21,21 +21,22 @@ struct Thy::_Body {
 
 Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
 
-Import const& Thy::branch() const {
-	auto intp = Ctxt::branch();
-	auto child = Thy( Ref<_Body>::make("","",_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
-	return child._ref->parent.emplace(Import(intp,*this,child));
+Import const& Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
+	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
+	auto it = child._ref->imports.emplace("",Import(intp,*this,child));
+	child._ref->parent.emplace(it->second);
+	return it->second;
 }
-Import const& Thy::branch( string_view const& name, string_view const& dirname ) {
-	auto intp = Ctxt::branch();
-	auto child = Thy( Ref<_Body>::make(name,dirname,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
-	_ref->thys.emplace(name,child);
-	return child._ref->parent.emplace(Import(intp,child,*this));
+Import const& Thy::branch() const {
+	return _branch("","",Ctxt::branch());
+}
+Import const& Thy::branch( string_view const& name, string_view const& dir ) {
+	auto const& ret = _branch(name,dir,Ctxt::branch());
+	_ref->thys.emplace(name,ret.thy());
+	return ret;
 }
 Thy Thy::scope( string_view const& name ) const {
-	auto child = Thy( Ref<_Body>::make(name,"",_ref->syntax,_ref->rewriter,_ref->definer), *this );
-	child._ref->parent = self();
-	return child;
+	return _branch(name,"",Ctxt::self()).thy();
 }
 string const& Thy::name() const & {
 	return _ref->name;
@@ -153,7 +154,7 @@ Opt<AThm> Thy::_find_thm(
 	if( sep == 0 ) {// explicit parent
 		auto parent = _ref->parent;
 		if( !parent ) throw Error("\"parent theory not found\"");
-		return parent->source()._find_thm(name.substr(1),test,import.compose(*parent));
+		return parent->source()._find_thm(name.substr(1),test,parent->compose(import));
 	}
 	if( sep != string::npos ) {// named imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),test,import) ) {
@@ -162,6 +163,9 @@ Opt<AThm> Thy::_find_thm(
 	}
 	if( auto ret = _find_thm("",name,test,import) ) {// unnamed import
 		return ret;
+	}
+	if( auto parent = _ref->parent ) {// parent
+		return parent->source()._find_thm(name,test,parent->compose(import));
 	}
 	return {};
 }
@@ -173,9 +177,9 @@ Opt<AThm> Thy::_find_thm(
 ) const {
 	// pre as interpretations
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
-		auto const& suffix = it->second;
-		if( suffix.ready() )
-		if( auto opt = suffix._src._find_thm(name,test,import.compose(suffix)) ) {
+		auto const& prefix = it->second;
+		if( prefix.ready() )
+		if( auto opt = prefix._src._find_thm(name,test,prefix.compose(import)) ) {
 			return opt;
 		}
 	}

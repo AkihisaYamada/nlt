@@ -42,6 +42,7 @@ class Thy : public Ctxt {
 		std::function<bool(AThm const&)> const& test,
 		Import const& import
 	) const;
+	Import const& _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
 	friend Import;
 public:
 	struct Error : public ::Error {
@@ -59,7 +60,7 @@ public:
 	 */
 	Import const& branch() const;
 	/** Creates a named branch. */
-	Import const& branch( std::string_view const& name, std::string_view const& dirname );
+	Import const& branch( std::string_view const& name, std::string_view const& dir );
 	/** Creates a namespace. */
 	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
@@ -135,8 +136,9 @@ class Import : public Intp {
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
 	 */
-	Import( Intp const& intp, Thy const& tgt, Thy const& src ) :
+	Import( Intp const& intp, Thy const& src, Thy const& tgt ) :
 		Intp(intp), _src(src), _tgt(tgt) {
+		assert( _tgt == intp.ctxt() );
 	}
 public:
 	Thy& source() const & {
@@ -151,15 +153,15 @@ public:
 	}
 	/** @brief Imports a child theory of the source.
 	 */
-	Import import( Thy const& other ) const & {
-		return Import(this->interpret(other),_tgt,other);
+	Import import( Thy const& src ) const & {
+		return Import(this->interpret(src),src,_tgt);
 	}
 	/** @brief Composition of imports.
 	 * The argument should import this target.
 	 */
 	Import compose( Import const& other ) const & {
 		if( _tgt != other._src ) throw Error("\"wrong compose\"");
-		return Import(Intp::compose(other),other._tgt,_src);
+		return Import(Intp::compose(other),_src,other._tgt);
 	}
 	Opt<std::pair<CTerm,std::string>> assuming() const & {
 		if( auto assm = Intp::assuming() ) {

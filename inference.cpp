@@ -34,7 +34,7 @@ Intro Intro::rule( Thm const& thm ) {
 	while( auto imp = rule.cbinary(IMP) ) {
 		rule = rule.discharge(ctxt.assume(imp->first));
 		conds++;
-		rule = strip_all(rule,child).first;
+		rule = strip_all(rule,ctxt.self()).first;
 	}
 	return Intro(rule,vars,conds);
 }
@@ -158,7 +158,7 @@ bool Inference::_blast(
 	auto goal = imp->first.subst(subintp);
 	size_t n_elim_res = 0;
 	for(;;) {
-		goal = strip_all(goal,subintp);
+		goal = strip_all(goal,subthy.self());
 		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
 			auto assm = subthy.assume(imp->first);
 			goal = imp->second;
