@@ -110,9 +110,7 @@ public:
 		bind->second.mids.emplace(mid,sym);
 		_mid_binders.emplace(sym,MidBinder(prefix,mid,bind->second.llevel,bind->second.rlevel));
 	}
-	std::function<std::ostream&(std::ostream&)> pretty_term(Term const& term, int level = -1000) const &;
-	std::function<std::ostream&(std::ostream&)> pretty_cterm(CTerm const& term) const &;
-	std::function<std::ostream&(std::ostream&)> pretty_thm(Thm const& thm) const &;
+	std::function<std::ostream&(std::ostream&)> pretty(Term const& term, int level = -1000) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_subst(Subst const& subst) const &;
@@ -121,7 +119,7 @@ public:
 extern Syntax SYNTAX;
 
 inline std::ostream& operator<<(std::ostream& os, Term const& t) {
-	return os << SYNTAX.pretty_term(t,0);
+	return os << SYNTAX.pretty(t,0);
 }
 
 inline std::ostream& operator<<(std::ostream& os, Subst const& subst) {

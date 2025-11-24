@@ -303,9 +303,6 @@ struct Error : public std::exception, Term {
 struct UnboundVariable : public Error {
 	UnboundVariable( std::string_view const& name ) : Error(Term("#ctxt")("\"unbound variable\"")(name)) {}
 };
-struct ParentNameConflict : public Error {
-	ParentNameConflict( std::string_view const& name ) : Error(Term("#ctxt")("\"parent name conflict\"")(name)) {}
-};
 /** @brief Context */
 class Ctxt {
 private:
@@ -329,7 +326,6 @@ public:
 	/** unique ID of the context */
 	void const* id() const &;
 	/** @brief Optionally returns the parent context.
-	 * @exception ParentNameConflict if the same constant is fixed or obtained in both parent and child
 	 */
 	Opt<Ctxt const&> find_parent() const &;
 	/** @brief Obtains the parent context.
@@ -337,7 +333,7 @@ public:
 	 */
 	Ctxt const& parent() const & {
 		auto opt = find_parent();
-		if( !opt ) throw Error("#ctxt")("\"parent of root\"");
+		if( !opt ) throw Error(__func__)("\"parent of root\"");
 		return *opt;
 	}
 	/** @brief Tests if this has the given context as an ancestor.
@@ -546,7 +542,7 @@ public:
 	/** @brief Application of closed terms. Both terms should belong to the same context.
 	 */
 	CTerm operator()(CTerm const& arg) const {
-		if( _ctxt != arg._ctxt ) throw Error("#cterm")("\"wrong context application\"");
+		if( _ctxt != arg._ctxt ) throw Error(__func__)("\"wrong context application\"");
 		return CTerm(_ctxt,Term::operator()(arg));
 	}
 	/** @brief closed substitution */
@@ -580,7 +576,7 @@ public:
 	}
 	/** closed implication */
 	friend CTerm operator>>=(CTerm const& l, CTerm const& r) {
-		if( l._ctxt != r._ctxt ) throw Error("#cterm")("\"wrong context implication\"");
+		if( l._ctxt != r._ctxt ) throw Error(__func__)("\"wrong context implication\"");
 		return CTerm( l._ctxt, (Term)l >>= r );
 	}
 	/** closed abstraction */
@@ -589,7 +585,7 @@ public:
 	}
 	/** closed binding */
 	friend CTerm operator/(std::string_view const& v, CTerm const& arg) {
-		if( !arg._ctxt.constant(v) ) throw Error("#cterm")("\"wrong context binding\"")(v);
+		if( !arg._ctxt.constant(v) ) throw Error(__func__)("\"wrong context binding\"")(v);
 		return CTerm( arg._ctxt, v %= (Term)arg );
 	}
 };
@@ -650,7 +646,7 @@ public:
 	}
 	/** @brief (re)assigns a value to a variable */
 	Subst& assign(std::string_view const& var, CTerm const& val) & {
-		if( val.ctxt() != _ctxt ) throw Error("#subst")("\"wrong context assign\"");
+		if( val.ctxt() != _ctxt ) throw Error(__func__)("\"wrong context assign\"");
 		return _assign(var,val);
 	}
 	Subst& assign(std::string_view const& var, Term const& val) & {
@@ -683,7 +679,7 @@ public:
 		return _instantiate(_ctxt.cterm(t));
 	}
 	Thm instantiate(CTerm const& t) const {
-		if( t._ctxt != _ctxt ) throw Error("#thm")("\"wrong context instantiate\"");
+		if( t._ctxt != _ctxt ) throw Error(__func__)("\"wrong context instantiate\"");
 		return _instantiate(t);
 	}
 	/** @brief implication elimination.
@@ -696,7 +692,7 @@ public:
 	Opt<Thm> discharges(Thm const& t) const;
 	Thm discharge(Thm const& t) const {
 		auto o = discharges(t);
-		if( !o ) throw Error("#thm")("\"malformed discharge\"")(*this)(t);
+		if( !o ) throw Error(__func__)("\"malformed discharge\"")(*this)(t);
 		return *o;
 	}
 	/** @brief Moves the theorem to the parent context.
@@ -710,7 +706,7 @@ public:
 private:
 	Thm _instantiate(CTerm const& t) const {
 		auto const& a = cunary(ALL);
-		if(!a) throw Error("#thm")("\"malformed instantiate\"")(*this)(t);
+		if(!a) throw Error(__func__)("\"malformed instantiate\"")(*this)(t);
 		return a->inst(t);
 	}
 	friend Ctxt;
@@ -721,7 +717,7 @@ inline Thm Ctxt::_assume(Term const& t) & {
 	return CTerm(*this,t);
 }
 inline Thm Ctxt::assume(CTerm const& t) {
-	if( t.ctxt() != *this ) throw Error("#ctxt")("wrong context assume");
+	if( t.ctxt() != *this ) throw Error(__func__)("wrong context assume");
 	return _assume(t);
 }
 inline Thm Ctxt::assume(Term const& t) {
@@ -922,9 +918,9 @@ inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained(size_t i) const & {
 }
 
 inline CTerm CTerm::subst(Intp const& intp) const {
-	if( _ctxt != intp._src ) throw Error("#cterm")("\"wrong context subst\"");
-	if( !intp.ready() ) throw Error("#cterm")("\"interpretation not ready\"");
-	return CTerm(_ctxt,this->Term::subst(intp));
+	if( _ctxt != intp._src ) throw Error(__func__)("\"wrong context subst\"");
+	if( !intp.ready() ) throw Error(__func__)("\"interpretation not ready\"");
+	return CTerm(intp.ctxt(),this->Term::subst(intp));
 }
 
 inline Thm Thm::subst(Intp const& intp) const {

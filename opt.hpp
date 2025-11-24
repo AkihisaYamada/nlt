@@ -46,6 +46,16 @@ public:
 		assert(_opt);
 		return *std::move(_opt);
 	}
+	/** @brief Returns a copy of the value or given default. */
+	T value_or( T&& def ) {
+		if(_opt) return *_opt;
+		return def;
+	}
+	/** @brief Refers to the value or the default. */
+	T const& value_or( T const& def ) const & {
+		if(_opt) return *_opt;
+		return def;
+	}
 	T const* operator->() const & {
 		assert(_opt);
 		return _opt.operator->();

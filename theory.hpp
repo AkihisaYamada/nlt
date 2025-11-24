@@ -54,7 +54,9 @@ public:
 	};
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
-	/** Creates an anonymous branch theory. */
+	/** @brief Creates an anonymous branch theory.
+	 * @return Import from parent into the child.
+	 */
 	Import const& branch() const;
 	/** Creates a named branch. */
 	Import const& branch( std::string_view const& name, std::string_view const& dirname );
@@ -104,14 +106,14 @@ public:
 	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
 	Syntax& syntax() &;
 	Syntax const& syntax() const&;
-	auto pretty_term( Term const& t ) const {
-		return syntax().pretty_term(t);
+	auto pretty( Term const& t ) const {
+		return syntax().pretty(t);
 	}
-	auto pretty_cterm( CTerm const& t ) const {
-		return syntax().pretty_cterm(t);
+	auto pretty( CTerm const& t ) const {
+		return syntax().pretty(t);
 	}
-	auto pretty_thm( Thm const& t ) const {
-		return syntax().pretty_thm(t);
+	auto pretty( Thm const& t ) const {
+		return syntax().pretty(t);
 	}
 	Rewriter& rewriter() &;
 	Rewriter const& rewriter() const &;

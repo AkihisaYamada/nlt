@@ -38,7 +38,8 @@ public:
 	static Error const Unapplicable;
 	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {
 		auto intp = claim.ctxt().branch();
-		return Inference( thy, intp.ctxt().assume(claim.subst(intp)).intro(), claim, 1 );// claim ⟹ claim
+		auto thesis = intp.ctxt().assume(claim.subst(intp)).intro();// claim ⟹ claim
+		return Inference( thy, thesis, claim, 1 );
 	}
 	static Inference make( Thy const& thy, Thm const& thesis ) {
 		CTerm claim = thesis;

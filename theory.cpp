@@ -24,7 +24,7 @@ Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body
 Import const& Thy::branch() const {
 	auto intp = Ctxt::branch();
 	auto child = Thy( Ref<_Body>::make("","",_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
-	return child._ref->parent.emplace(Import(intp,child,*this));
+	return child._ref->parent.emplace(Import(intp,*this,child));
 }
 Import const& Thy::branch( string_view const& name, string_view const& dirname ) {
 	auto intp = Ctxt::branch();
@@ -257,14 +257,18 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 			if( auto str = fixed(i) ) {
 				mk_indent(os,n) << "fixes " << *str << '.' << endl;
 			} else if( auto assm = assumed(i) ) {
-				mk_indent(os,n) << "assumes " << *find_assm_name(i) << ": " << pretty_thm(*assm) << '.' << endl;
+				mk_indent(os,n) << "assumes ";
+				if( auto name = find_assm_name(i) ) {
+					os << *name << ": ";
+				}
+				os << pretty(*assm) << '.' << endl;
 			} else if( auto obt = obtained(i) ) {
 				auto [sym,ex,spec] = *obt;
 				mk_indent(os,n) << "obtains ";
 				if( auto name = find_assm_name(i) ) {
 					os << *name;
 				}
-				os << ": " << pretty_term(spec) << '.' << endl;
+				os << ": " << pretty(spec) << '.' << endl;
 			} else {
 				assert(false);
 			}
@@ -273,7 +277,7 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 			mk_indent(os,n) << "interprets " << name << ": " << imp.pretty() << endl;
 		}
 		for( auto& [name,thm] : _ref->thms ) {
-			mk_indent(os,n) << "thm " << name << ": " << pretty_thm(thm.first) << '.' << endl;
+			mk_indent(os,n) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
 		}
 		for( auto& [name,thy] : _ref->thys ) {
 			mk_indent(os,n) << thy.pretty(n) << endl;
@@ -285,7 +289,7 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 function<ostream&(ostream&)> Thy::print_thms( string_view const& name, string_view const& prefix ) const& {
 	return [&]( ostream& os )->ostream& {
 		auto fun = [&]( AThm const& thm ){
-			os << prefix << pretty_thm(thm) << endl;
+			os << prefix << pretty(thm) << endl;
 			return false;
 		};
 		find_thm(name,fun);
@@ -304,7 +308,7 @@ function<ostream&(ostream&)> const Import::pretty( size_t indent ) const & {
 		string punc = "; ";
 		for( auto [sym,term] : Intp::subst().map() ) {
 			if( term ) {
-				os << punc << sym << " := " << _src.pretty_term(*term);
+				os << punc << sym << " := " << _src.pretty(*term);
 				punc = ", ";
 			}
 		}

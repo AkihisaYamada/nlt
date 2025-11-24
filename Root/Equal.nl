@@ -2,6 +2,8 @@
 # Equality
 ---
 
+import Base.
+
 fix (=).
 
 import eq: MetaReflexive (=).

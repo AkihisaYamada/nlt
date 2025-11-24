@@ -128,6 +128,7 @@ public:
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _thy.branch();
+DEB(loc.thy().parent()->thy());
 		if( auto const& thm = _gets_thm(loc) ) {
 			return thm->intro();
 		}
@@ -346,7 +347,7 @@ public:
 			while( i < thesis.goal_count() ) {
 				auto const& imp = acc.binary(IMP);
 				i++;
-				cout << pre << i << ": " << _thy.pretty_term(imp->first) << endl;
+				cout << pre << i << ": " << _thy.pretty(imp->first) << endl;
 				acc = imp->second;
 				pre = "\t";
 			}
@@ -370,21 +371,17 @@ public:
 	 * inner theory collects assumptions.
 	 */
 	Inference get_statement() {
-		auto var_thy = _thy.branch().thy();
-		auto assm_thy = var_thy.branch("#proof","").thy();
-		for_variables([&](auto const& v){ var_thy.fix(v); });
+		auto assm_thy = _thy.branch("#proof","").thy();
+		for_variables([&](auto const& v){ assm_thy.fix(v); });
 		if( _parser.skips("if") ) {
 			_cout << "if " << flush;
-			auto add_assm = [&]( Term const& t ) {
-				return assm_thy.assume(assm_thy.weaken(var_thy.enclose(t)));
-			};
 			for(;;) {
 				if( _parser.skips("[") ) {
 					_cout << "[ ";
 					for(;;) {
 						auto t = get_term();
 						_cout << t;
-						add_forced(assm_thy,add_assm(t),true);
+						add_forced(assm_thy,assm_thy.assume(t),true);
 						if( !_parser.skips(",") ) break;
 						_cout << ", ";
 					}
@@ -392,8 +389,8 @@ public:
 					_cout << " ] ";
 				} else {
 					auto [cs,t] = get_assm();
-					add_claim(assm_thy,cs,add_assm(t));
-					_cout << cs << _thy.pretty_term(t) << ", " << flush;
+					add_claim(assm_thy,cs,assm_thy.assume(t));
+					_cout << cs << _thy.pretty(t) << ", " << flush;
 				}
 				if( !_parser.skips(",") ) break;
 			};
@@ -402,8 +399,8 @@ public:
 		}
 		Term conc = _parser.get_term(0);
 		_parser.skip(";");
-		CTerm goal = assm_thy.weaken(var_thy.enclose(conc));
-		_cout << _thy.syntax().pretty_cterm(goal) << endl;
+		CTerm goal = assm_thy.enclose(conc);
+		_cout << _thy.pretty(goal) << endl;
 		return Inference::claim_exact(assm_thy,goal);
 	}
 	void _auto_instantiate( Import& intp, string const& fix, bool change ) {
@@ -494,10 +491,10 @@ public:
 			cout << endl;
 			return n;
 		} else if( auto const& assume = mod.ref<Import::Assume>() ) {
-			cout << pre << "show " << assume->name << ": " << _thy.pretty_term(assume->assm) << endl;
+			cout << pre << "show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
 			return 1;
 		} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-			cout << pre << "retain " << obtain->spec_name << ": " << _thy.pretty_term(obtain->spec) << endl;
+			cout << pre << "retain " << obtain->spec_name << ": " << _thy.pretty(obtain->spec) << endl;
 			return 1;
 		} else {
 			return 0;
@@ -571,7 +568,7 @@ public:
 						}
 					}
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
-					_cout << "instantiating " << x << " := " << _thy.pretty_term(t) << endl;
+					_cout << "instantiating " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( _parser.skips("-") ) {
 				for(;;) {
@@ -595,7 +592,7 @@ public:
 					_parser.skip(".");
 					Thm thm = org_thy.add_assm(assm_name,axiom);
 					intp.discharge(thm);
-					_cout << "assumed " << assm_name << ": " << _thy.pretty_thm(thm) << endl;
+					_cout << "assumed " << assm_name << ": " << _thy.pretty(thm) << endl;
 				} else {
 					if( auto thm = _subgoal(axiom) ) {
 						intp.discharge(*thm);
@@ -636,7 +633,7 @@ public:
 				_print_import_goal(intp,0,"next ");
 			}
 		} catch( ::Error const& e ) {
-			cerr << _parser.location() << ": ERROR: " << _thy.pretty_term(e) << endl;
+			cerr << _parser.location() << ": ERROR: " << _thy.pretty(e) << endl;
 			if( _exit_on_error ) exit(-1);
 			_prompt();
 		}
@@ -741,7 +738,7 @@ public:
 			string pref = "thm ";
 			do {
 				Thm thm = get_thm();
-				_cout << pref << _thy.pretty_thm(thm) << ';' << endl;
+				_cout << pref << _thy.pretty(thm) << ';' << endl;
 				pref = "\t";
 			} while( !_parser.skips(".") );
 			return true;
@@ -763,7 +760,7 @@ public:
 		if( _parser.skips("term") ) {
 			Term term = get_term();
 			_parser.skip(".");
-			cout << "term " << _thy.pretty_term(term) << endl;
+			cout << "term " << _thy.pretty(term) << endl;
 			return true;
 		}
 		return false;
@@ -773,10 +770,10 @@ public:
 			auto cs = get_claim_status();
 			auto thm = get_thm();
 			add_claim(_thy,cs,thm);
-			_cout << "note " << cs << _thy.pretty_thm(thm) << endl;
+			_cout << "note " << cs << _thy.pretty(thm) << endl;
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,cs,*o);
-				_cout << "\t" << cs << _thy.pretty_thm(*o) << endl;
+				_cout << "\t" << cs << _thy.pretty(*o) << endl;
 			}
 			_parser.skip(".");
 			return true;
@@ -789,13 +786,14 @@ public:
 		auto thesis = get_statement();
 		auto prev_thy = _thy;
 		_thy = thesis.thy();
+DEB(_thy);
 		_depth++;
 		_prompt();
 		auto o = proof_loop(thesis);
 		_thy = prev_thy;
 		_depth--;
 		if( o ) {
-			auto thm = o->intro().intro();
+			auto thm = o->intro();
 			add_claim(_thy,cs,thm);
 			_parser.skip(".");
 			return {{cs,thm}};
@@ -816,7 +814,7 @@ public:
 		Thm def = spec << _thy.thm("imp.refl");
 		string name = (name_op ? *name_op : f) + "_def";
 		_thy.add_thm(name,def);
-		_cout << "defined " << name << ": " << _thy.pretty_term(l) << " := " << _thy.pretty_term(r) << endl;
+		_cout << "defined " << name << ": " << _thy.pretty(l) << " := " << _thy.pretty(r) << endl;
 	}
 	Opt<Thm> _subgoal( CTerm const& goal ) {
 		auto subintp = _thy.branch();
@@ -858,7 +856,7 @@ public:
 					for(;;) {
 						auto assm = eat_assm(get_term());
 						add_forced(subloc,assm,true);
-						_cout << _thy.pretty_term(assm);
+						_cout << _thy.pretty(assm);
 						if( !_parser.skips(",") ) break;
 						_cout << ", ";
 					}
@@ -868,7 +866,7 @@ public:
 					auto cs = get_claim_status(false);
 					auto assm = eat_assm( cs.followable ? gets_term() : Opt<Term>{} );
 					add_claim(subloc,cs,assm);
-					_cout << cs << _thy.pretty_term(assm) << ", " << flush;
+					_cout << cs << _thy.pretty(assm) << ", " << flush;
 				}
 				if( !_parser.skips(",") ) break;
 			};
@@ -885,7 +883,7 @@ public:
 		}
 		if( needsep ) {
 			_parser.skip(";");
-			_cout << "show " << _thy.pretty_cterm(subgoal) << endl;
+			_cout << "show " << _thy.pretty(subgoal) << endl;
 			prover._prompt();
 		}
 		auto thesis = Inference::claim_exact(subloc,subgoal);
@@ -930,7 +928,7 @@ public:
 			auto o = _state();
 			if( _out && o ) {
 				auto const& [cs,thm] = *o;
-				cout << "proved " << cs << _thy.pretty_thm(thm) << endl;
+				cout << "proved " << cs << _thy.pretty(thm) << endl;
 			}
 		} else {
 			return false;
@@ -1022,7 +1020,7 @@ public:
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
-			cerr << _parser.location() << ": ERROR: " << _thy.pretty_term(e) << endl;
+			cerr << _parser.location() << ": ERROR: " << _thy.pretty(e) << endl;
 			if( _exit_on_error ) exit(-1);
 			_prompt();
 		}
@@ -1037,17 +1035,17 @@ public:
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
 					Thm trans = get_thm();
-					_cout << "registering rewriter:\n\timp: " << _thy.pretty_thm(imp) <<
-						"\n\trev: " <<  _thy.pretty_thm(revimp) <<
-						"\n\trefl: " << _thy.pretty_thm(refl) <<
-						"\n\ttrans: " << _thy.pretty_thm(trans);
+					_cout << "registering rewriter:\n\timp: " << _thy.pretty(imp) <<
+						"\n\trev: " <<  _thy.pretty(revimp) <<
+						"\n\trefl: " << _thy.pretty(refl) <<
+						"\n\ttrans: " << _thy.pretty(trans);
 					_thy.rewriter().register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
 					_thy.find_thm( Rewriter::CONG, [&](AThm const& thm ){
 						_thy.rewriter().register_cong(thm);
-						_cout << "\n\tcong: " << _thy.pretty_thm(thm);
+						_cout << "\n\tcong: " << _thy.pretty(thm);
 						return false;
 					} );
 					_cout << endl;
@@ -1055,19 +1053,19 @@ public:
 					_cout << "registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
 						_thy.rewriter().register_trans(*thm);
-						_cout << _thy.pretty_thm(*thm);
+						_cout << _thy.pretty(*thm);
 					}
 					_cout << endl;
 				} else if( _parser.skips("dual") ) {
 					_cout << "registering dual: ";
 					while( auto const& thm = gets_thm() ) {
 						_thy.rewriter().register_dual(*thm);
-						_cout << _thy.pretty_thm(*thm);
+						_cout << _thy.pretty(*thm);
 					};
 					_cout << endl;
 				} else if( _parser.skips("define") ) {
 					Thm const& beta = get_thm();
-					_cout << " beta: " << _thy.pretty_thm(beta) << endl;
+					_cout << " beta: " << _thy.pretty(beta) << endl;
 					_thy.setup_definer(beta);
 				} else if( _parser.skips("set_comprehension") ) {
 					Term const& collect = _parser.get_term(1000);
@@ -1171,7 +1169,7 @@ public:
 					CTerm assm = var_loc.enclose(get_term()).lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
-					_cout << "assumed " << cs << _thy.pretty_term(assm) << ". " << endl;
+					_cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
 					_parser.skip(".");
 				} else if( _parser.skips("import") ) {
 					import(true);
@@ -1186,7 +1184,7 @@ public:
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
-			cerr << _parser.location() << ": ERROR: " << _thy.pretty_term(e) << endl;
+			cerr << _parser.location() << ": ERROR: " << _thy.pretty(e) << endl;
 			if( _exit_on_error ) exit(-1);
 			_prompt();
 		}
@@ -1209,7 +1207,7 @@ public:
 			add_claim(props_thy,cs,thm);
 			prop_thms.emplace_back(cs,thm);
 			props.push_back(goal_thy.branch().ctxt().enclose(t).intro());
-			_cout << '\t' << cs << _thy.pretty_term(thm) << endl;
+			_cout << '\t' << cs << _thy.pretty(thm) << endl;
 			if( !_parser.skips(",") ) break;
 		}
 		_parser.skip(";");
@@ -1220,7 +1218,7 @@ public:
 		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
 		goal = goal.lift(org_thy.cterm(ALL));
 		_prompt();
-		_cout << "prove " << _thy.pretty_cterm(goal) << endl;
+		_cout << "prove " << _thy.pretty(goal) << endl;
 		auto thesis = Inference::claim_exact(org_thy,goal);
 		auto const& thm = Prover(*this,org_thy).deepen().proof_loop(thesis);
 		if( thm ) {

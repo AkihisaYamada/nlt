@@ -1,4 +1,6 @@
-base Lambda.IntuitionisticFOL.Nat.
+import Lambda.
+import IntuitionisticFOL.
+import Nat.
 
 -----
 ## Classes
