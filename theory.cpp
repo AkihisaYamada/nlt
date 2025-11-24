@@ -16,16 +16,14 @@ struct Thy::_Body {
 	Mem<Syntax> syntax;
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
-	_Body( string_view const& name, string_view const& dirname, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dirname), syntax(syntax), rewriter(rewriter), definer(definer) {}
+	_Body( string_view const& name, string_view const& dir, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dirname ) : _ref(Ref<_Body>::make(name,dirname,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
 
 Import const& Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
 	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
-	auto it = child._ref->imports.emplace("",Import(intp,*this,child));
-	child._ref->parent.emplace(it->second);
-	return it->second;
+	return child._ref->parent.emplace(Import(intp,*this,child));
 }
 Import const& Thy::branch() const {
 	return _branch("","",Ctxt::branch());
