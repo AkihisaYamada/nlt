@@ -104,7 +104,7 @@ Rewriter& Rewriter::register_trans( Thm const& thm ) & {
 Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 	// parsing congruence rule
 	auto rule = Intro::rule(thm);
-	Ctxt ctxt = rule.ctxt();
+	Ctxt ctxt = rule.conclusion().ctxt();
 	vector<Cong::Cond> conds;
 	size_t rev = 0;
 	while( ctxt.fixed(rev) ) rev++;

@@ -59,10 +59,6 @@ CTerm strip_all( CTerm t, Intp const& intp, Renamer const& renamer );
 inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
 	return strip_all(t,intp,avoider(intp.ctxt()));
 }
-inline std::pair<CTerm,Intp> strip_all( CTerm const& t ) {
-	auto intp = t.ctxt().branch();
-	return {strip_all(t,intp),intp};
-}
 
 /**
  * @brief strips universal quantifiers.
@@ -154,10 +150,11 @@ Opt<std::string> virtual_var( CTerm const& t );
 /** Introduction rule */
 class Intro {
 	friend class Elim;
-	Thm _conclusion;
+	Thm _thm;// Γ ⊢ ∀x... φ... ⟹ ψ
+	Thm _conclusion;// Γ. fix x... assume φ... ⊢ ψ
 	size_t _vars, _conds;
-	explicit Intro( Thm const& conc, size_t vars, size_t conds ) :
-		_conclusion(conc), _vars(vars), _conds(conds) {}
+	explicit Intro( Thm const& thm, Thm const& conc, size_t vars, size_t conds ) :
+		_thm(thm), _conclusion(conc), _vars(vars), _conds(conds) {}
 public:
 	size_t vars() const {
 		return _vars;
@@ -167,7 +164,7 @@ public:
 	}
 	static Intro just( Thm const& thm ) {
 		auto child = thm.ctxt().branch();
-		return Intro(thm.subst(child),0,0);
+		return Intro(thm,thm.subst(child),0,0);
 	}
 	/** @brief Makes implication a rule. */
 	static Intro imp( Thm const& thm, size_t n = 1 );
@@ -178,20 +175,16 @@ public:
      */
 	static Intro axiom( Thm const& thm ) {
 		auto [conc,intp,vars] = strip_all(thm);
-		return Intro(conc,vars,0);
+		return Intro(thm,conc,vars,0);
 	}
 	Thm const& conclusion() const& {
 		return _conclusion;
 	}
-	Ctxt ctxt() && = delete;
-	Ctxt const& ctxt() const& {
-		return _conclusion.ctxt();
-	}
-	Thm thm() const& {
-		return _conclusion.intro();
+	Thm const& thm() const& {
+		return _thm;
 	}
 	Opt<Subst> matches( CTerm const& goal ) const {
-		return match( _conclusion, goal, [&](auto v){ return ctxt().fixes(v); } );
+		return match( _conclusion, goal, [&](auto v){ return _conclusion.ctxt().fixes(v); } );
 	}
 	/** @brief instantiates the rule. */
 	Thm subst( Intp const& intp ) const {

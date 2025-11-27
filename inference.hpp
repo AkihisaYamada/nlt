@@ -83,18 +83,17 @@ public:
 	/** @brief Tries to apply a rule once */
 	bool applies( Intro const& rule ) & {
 		auto g = goal();
-		auto intp = g.ctxt().branch();
-		return _apply(rule,g.subst(intp),intp);
+		auto child = _thy.branch();
+		return _apply(rule,g.subst(child),child);
 	}
 	void apply( Intro const& rule ) & {
-		auto g = goal();
-		auto intp = g.ctxt().branch();
-		if( !_apply(rule,g.subst(intp),intp) ) throw Unapplicable(g)(rule.conclusion());
+		if( !applies(rule) ) throw Unapplicable(goal())(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
-		auto [g,intp] = strip_all(goal());
-		if( !_apply(rules,g,intp) ) throw Unapplicable(g);
+		auto child = _thy.branch();
+		auto g = strip_all(goal(),child);
+		if( !_apply(rules,g,child) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool wide ) & {
@@ -158,10 +157,10 @@ private:
 		return false;
 	}
 	/** goal must be in a fresh context */
-	bool _apply( Intro const& intro, CTerm const& goal, Intp const& intp ) &;
-	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Intp const& intp ) & {
+	bool _apply( Intro const& intro, CTerm const& goal, Import const& child ) &;
+	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Import const& child ) & {
 		for( auto const& rule : intros ) {
-			if( _apply(rule,goal,intp) ) return true;
+			if( _apply(rule,goal,child) ) return true;
 		}
 		return false;
 	}

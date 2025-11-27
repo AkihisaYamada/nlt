@@ -87,14 +87,16 @@ StrMMap<Import> const& Thy::imports() const {
 	return _ref->imports;
 }
 Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
+	Thy const* ptr = this;
 	Intp ret = Ctxt::self();
 	for(;;) {
-		if( ctxt == *this ) {
+		if( *ptr == ctxt ) {
 			return ret;
 		}
-		auto p = _ref->parent;
-		if( !p ) throw Error("\"wrong ancestor\"");
-		ret = ret.compose(*p);
+		auto const& parent = ptr->_ref->parent;
+		if( !parent ) throw Error("\"wrong ancestor\"");
+		ret = parent->Intp::compose(ret);
+		ptr = &parent->source();
 	}
 }
 Thm Thy::weaken( Thm const& thm ) const {

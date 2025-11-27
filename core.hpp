@@ -659,6 +659,7 @@ public:
 		return {};
 	}
 	friend Term;
+	friend Intp;
 };
 
 class Thm : public CTerm {
