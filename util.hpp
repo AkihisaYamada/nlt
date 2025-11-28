@@ -133,9 +133,9 @@ Opt<Subst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string 
 /**
  * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
  * 
- * @param t 
- * @param arg
- * @return the resulting theorem.
+ * @param t should be of form ∀x... (∀y... φ) ⟹ ψ
+ * @param arg should be of form ∀z... χ, where φ and χ are unifiable by θ
+ * @return the resulting theorem, ∀w... ψθ
  */
 Thm discharge(Thm t, Thm arg);
 
@@ -154,7 +154,8 @@ class Intro {
 	Thm _conclusion;// Γ. fix x... assume φ... ⊢ ψ
 	size_t _vars, _conds;
 	explicit Intro( Thm const& thm, Thm const& conc, size_t vars, size_t conds ) :
-		_thm(thm), _conclusion(conc), _vars(vars), _conds(conds) {}
+		_thm(thm), _conclusion(conc), _vars(vars), _conds(conds) {
+	}
 public:
 	size_t vars() const {
 		return _vars;
@@ -205,7 +206,7 @@ public:
 		auto pat_ctxt = _premise.ctxt();
 		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
 		if( !m ) return {};
-		auto pat_intp = intp.interpret(pat_ctxt);
+		auto pat_intp = Intp::make(pat_ctxt,intp.source()).compose(intp);
 		subst_intp(pat_intp,*m);
 		pat_intp.discharge(assm);
 		auto thm = _thm.subst(pat_intp);// ∀thesis. ψθ... ⟹ thesis

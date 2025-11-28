@@ -330,25 +330,30 @@ Opt<Subst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> c
 
 Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
-	// expand thm into cond ⟹ concl
+	// expand thm into fix x... ⊢ (∀y... prem) ⟹ concl
 	auto concl_intp = ctxt.branch();
 	auto concl_ctxt = concl_intp.ctxt();
 	Thm strip_thm = strip_all(thm,concl_intp).first;
 	auto imp = strip_thm.cbinary(IMP);
 	if( !imp ) throw Error("#util")("\"discharge\"")(strip_thm)(arg);
-	// expand cond
-	auto cond_intp = concl_ctxt.branch();
-	auto cond_ctxt = cond_intp.ctxt();
-	CTerm cond_strip = strip_all(imp->first,cond_intp);
-	// expand arg
-	auto arg_intp = cond_ctxt.branch();
-	Thm arg_strip = strip_all(arg.subst(concl_intp).subst(cond_intp),arg_intp).first;
-	cond_strip = cond_strip.subst(arg_intp);
+	// expand prem into fix x... y... ⊢ prem
+	auto prem_intp = concl_ctxt.branch();
+	auto prem_ctxt = prem_intp.ctxt();
+	CTerm prem_strip = strip_all(imp->first,prem_intp);
+	// expand arg into fix x... y... z... ⊢ arg
+	auto arg_intp = prem_ctxt.branch();
 	auto arg_ctxt = arg_intp.ctxt();
-	Opt<Subst> unifier = unify(cond_strip,arg_strip,[&](string const& x){
+	Thm arg_strip = strip_all(arg.subst(concl_intp).subst(prem_intp),arg_intp).first;
+	// move prem into fix x... y... z... ⊢ prem
+	prem_strip = prem_strip.subst(arg_intp);
+	// find x... and z... such that prem = arg
+DEB(arg_ctxt.id());
+	Opt<Subst> unifier = unify(prem_strip,arg_strip,[&](string const& x){
+DEB(arg_ctxt.id());
 		return concl_ctxt.fixes(x) || arg_ctxt.fixes(x);
 	} );
-	if( !unifier ) throw Error("#discharge")(thm)(cond_strip)(arg)(arg_strip);
+	if( !unifier ) throw Error("#discharge")(thm)(prem_strip)(arg)(arg_strip);
+DEB(arg_ctxt);
 	// unassigned free variables will be universally quantified in the result
 	auto ret_intp = ctxt.branch();
 	auto ret_ctxt = ret_intp.ctxt();
@@ -363,13 +368,14 @@ Thm discharge(Thm thm, Thm arg) {
 		}
 	});
 	// instantiating arg according to the unifier
-	// quantify variables as cond
+	// quantify y... as prem
 	auto discharger_intp = ret_ctxt.branch();
 	auto discharger_ctxt = discharger_intp.ctxt();
-	iter_local_vars(cond_ctxt,[&](string const& x){
+	iter_local_vars(prem_ctxt,[&](string const& x){
 		discharger_ctxt.fix(x);
 	});
 	arg = arg.subst(ret_intp).subst(discharger_intp);
+DEB(arg_ctxt);
 	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
 		arg = arg.instantiate( discharger_ctxt.cterm( val ? *val : Term(x) ) );

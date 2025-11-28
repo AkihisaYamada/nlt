@@ -30,17 +30,12 @@ class Thy : public Ctxt {
 	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
 	static std::function<Thm(Thm const&)> const _triv_proc;
 	static std::function<bool(AThm const&)> const _triv_test;
-	Opt<AThm> _find_thm(
-		std::string_view const& name,
-		std::function<bool(AThm const&)> const& test,
-		Import const& import
-	) const;
 	/** @brief Finds a named theorem with prefix from the theory or an ancestor. */
 	Opt<AThm> _find_thm(
 		std::string_view const& pre,
 		std::string_view const& name,
-		std::function<bool(AThm const&)> const& test,
-		Import const& import
+		Import const& import,
+		std::function<bool(AThm const&)> const& test
 	) const;
 	Import const& _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
 	friend Import;
@@ -75,6 +70,13 @@ public:
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<AThm> find_thm(
 		std::string_view const& name,
+		std::function<bool(AThm const&)> const& test = _triv_test
+	) const;
+	/** @brief Finds a named theorem from the theory or an ancestor, and then interpret.
+	 */
+	Opt<AThm> find_thm(
+		std::string_view const& name,
+		Import const& import,
 		std::function<bool(AThm const&)> const& test = _triv_test
 	) const;
 	/** @brief Obtains a named theorem from the theory.
@@ -141,6 +143,11 @@ class Import : public Intp {
 		assert( _tgt == intp.ctxt() );
 	}
 public:
+	/** @brief Import a child theory into the parent.
+	 */
+	static Import make( Thy const& src, Thy const& tgt ) {
+		return Import(Intp::make(src,tgt),src,tgt);
+	}
 	Thy& source() const & {
 		return _src;
 	}
@@ -150,11 +157,6 @@ public:
 	}
 	Thy thy() && {
 		return _tgt;
-	}
-	/** @brief Imports a child theory of the source.
-	 */
-	Import import( Thy const& src ) const & {
-		return Import(this->interpret(src),src,_tgt);
 	}
 	/** @brief Composition of imports.
 	 * The argument should import this target.
@@ -238,7 +240,12 @@ inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,Pa
 	if( !ret ) throw Error("\"theory not found\"");
 	return *ret;
 }
-
+inline Opt<AThm> Thy::find_thm(
+	std::string_view const& name,
+	std::function<bool(AThm const&)> const& test
+) const {
+	return find_thm(name,self(),test);
+}
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
 	return os << loc.pretty();
 }

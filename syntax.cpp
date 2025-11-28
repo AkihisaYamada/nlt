@@ -130,18 +130,34 @@ function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
 		function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
 			os << pretty(t);
 		};
-		for( int i = 0; i < ctxt.revision(); i++ ) {
-			if( auto fix = ctxt.fixed(i) ) {
-				os << "\tfixes " << *fix << ';' << std::endl;
-			} else if( auto assume = ctxt.assumed(i) ) {
-				os << "\tassumes " << pretty(*assume) << ';'<< std::endl;
-			} else if( auto obtain = ctxt.obtained(i) ) {
-				auto [sym,thm,spec] = *obtain;
-				os << "\tobtains " << sym << "\n\t  where " << spec << ';' << std::endl;
-			} else {
-				assert(false);
-			}
+		if( _print_ctxt ) {
+			os << '@' << ctxt.id() << " { " << endl;
+		} else {
+			os << '{';
 		}
+		for( int i = 0; i < ctxt.revision(); ) {
+			if( auto fix = ctxt.fixed(i) ) {
+				os << "\tfixes";
+				do {
+					os << ' ' << *fix;
+					i++;
+				} while( fix = ctxt.fixed(i) );
+				os << '.' << std::endl;
+			}
+			if( auto assume = ctxt.assumed(i) ) {
+				os << "\tassumes " << pretty(*assume) << '.'<< std::endl;
+				i++;
+				continue;
+			}
+			if( auto obtain = ctxt.obtained(i) ) {
+				auto [sym,thm,spec] = *obtain;
+				os << "\tobtains " << sym << "\n\t  where " << spec << '.' << std::endl;
+				i++;
+				continue;
+			}
+			break;
+		}
+		os << " }";
 		return os;
 	};
 }

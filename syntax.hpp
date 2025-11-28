@@ -122,6 +122,10 @@ inline std::ostream& operator<<(std::ostream& os, Term const& t) {
 	return os << SYNTAX.pretty(t,0);
 }
 
+inline std::ostream& operator<<(std::ostream& os, CTerm const& t) {
+	return os << SYNTAX.pretty(t,0) << " @" << t.ctxt().id();
+}
+
 inline std::ostream& operator<<(std::ostream& os, Subst const& subst) {
 	return os << SYNTAX.pretty_subst(subst);
 }

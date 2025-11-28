@@ -45,12 +45,6 @@ Opt<Import const&> Thy::parent() const & {
 string const& Thy::dir() const & {
 	return _ref->dir;
 }
-Opt<AThm> Thy::find_thm(
-	string_view const& name,
-	function<bool(AThm const&)> const& test
-) const {
-	return _find_thm(name,test,self());
-}
 Syntax const& Thy::syntax() const& {
 	return *_ref->syntax;
 }
@@ -119,6 +113,7 @@ function<bool(AThm const&)> const Thy::_triv_test =
 	[]( AThm const& ) { return true; };
 
 Thm Thy::add_assm(string_view const& name, CTerm const& assm) {
+	if( assm.ctxt() != *this ) throw Error("\"wrong context for add_assm\"")(assm);
 	size_t rev = revision();
 	_ref->assm_names.emplace(rev,name);
 	return assume(assm);
@@ -139,13 +134,13 @@ pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view 
 	_ref->assm_names.emplace(rev,spec_name);
 	return ret;
 }
-Opt<AThm> Thy::_find_thm(
+Opt<AThm> Thy::find_thm(
 	string_view const& name,
-	function<bool(AThm const&)> const& test,
-	Import const& import
+	Import const& import,
+	function<bool(AThm const&)> const& test
 ) const {
 	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
-		auto const& ret = AThm(import,it->second.first,it->second.second);
+		auto const& ret = AThm(import,it->second.first.subst(import),it->second.second);
 		if( test(ret) ) {// found in the current theory
 			return ret;
 		}
@@ -154,32 +149,32 @@ Opt<AThm> Thy::_find_thm(
 	if( sep == 0 ) {// explicit parent
 		auto parent = _ref->parent;
 		if( !parent ) throw Error("\"parent theory not found\"");
-		return parent->source()._find_thm(name.substr(1),test,parent->compose(import));
+		return parent->source().find_thm(name.substr(1),parent->compose(import),test);
 	}
 	if( sep != string::npos ) {// named imports
-		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),test,import) ) {
+		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),import,test) ) {
 			return ret;
 		}
 	}
-	if( auto ret = _find_thm("",name,test,import) ) {// unnamed import
+	if( auto ret = _find_thm("",name,import,test) ) {// unnamed import
 		return ret;
 	}
 	if( auto parent = _ref->parent ) {// parent
-		return parent->source()._find_thm(name,test,parent->compose(import));
+		return parent->source().find_thm(name,parent->compose(import),test);
 	}
 	return {};
 }
 Opt<AThm> Thy::_find_thm(
 	string_view const& pre,
 	string_view const& name,
-	function<bool(AThm const&)> const& test,
-	Import const& import
+	Import const& import,
+	function<bool(AThm const&)> const& test
 ) const {
 	// pre as interpretations
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
 		auto const& prefix = it->second;
 		if( prefix.ready() )
-		if( auto opt = prefix._src._find_thm(name,test,prefix.compose(import)) ) {
+		if( auto opt = prefix._src.find_thm(name,prefix.compose(import),test) ) {
 			return opt;
 		}
 	}
@@ -188,34 +183,40 @@ Opt<AThm> Thy::_find_thm(
 
 Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)> reader ) {
 	size_t sep = name.find('.');
-	if( sep != string::npos ) {
-		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
-			auto& prefix = it->second;
-			if( prefix.ready() )
-			if( auto ret = prefix._src.find_thy(name.substr(sep+1),reader) ) {
-				return {prefix.compose(*ret)};
-			}
-		}
-	} else {
+	if( sep == string::npos ) {
 		if( auto ret = _ref->thys.finds(name) ) {
-			return {self().import(ret->second)};
+			return {Import::make(ret->second,*this)};
 		}
 		if( !_ref->dir.empty() ) {
 			auto path = _ref->dir+"/"+name;
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
-				auto ret = branch(name,path);
-				Thy& thy = ret.thy();
+				Thy& thy = branch(name,path).thy();
 				auto lexer = Lexer(fis,fullpath,thy.syntax());
 				auto parser = Parser(lexer,thy.syntax());
 				reader(thy,parser);
-				return {ret};
+				return {Import::make(thy,*this)};
+			}
+		}
+	} else {
+		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
+			auto& im = it->second;
+			if( im.ready() )
+			if( auto o = im._src.find_thy(name.substr(sep+1),reader) ) {
+				return {o->compose(im)};
 			}
 		}
 	}
+	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
+		auto& im = it->second;
+		if( im.ready() )
+		if( auto o = im._src.find_thy(name.substr(sep+1),reader) ) {
+			return {o->compose(im)};
+		}
+	}
 	if( auto const& p = parent() )
-	if( auto ret = p->_src.find_thy(name,reader) ) {
-		return {p->compose(*ret)};
+	if( auto o = p->_src.find_thy(name,reader) ) {
+		return {o->compose(*p)};
 	}
 	return {};
 }
@@ -258,25 +259,35 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 	return [&](ostream& os)->ostream& {
 		os << "theory " << print_name() << ':' << endl;
 		n++;
-		for( size_t i = 0; i < revision(); i++ ) {
+		for( size_t i = 0; i < revision(); ) {
 			if( auto str = fixed(i) ) {
-				mk_indent(os,n) << "fixes " << *str << '.' << endl;
-			} else if( auto assm = assumed(i) ) {
+				mk_indent(os,n) << "fixes";
+				do {
+					os << ' ' << *str;
+					i++;
+				} while( str = fixed(i) );
+				os << '.' << endl;
+			}
+			if( auto assm = assumed(i) ) {
 				mk_indent(os,n) << "assumes ";
 				if( auto name = find_assm_name(i) ) {
 					os << *name << ": ";
 				}
 				os << pretty(*assm) << '.' << endl;
-			} else if( auto obt = obtained(i) ) {
+				i++;
+				continue;
+			}
+			if( auto obt = obtained(i) ) {
 				auto [sym,ex,spec] = *obt;
 				mk_indent(os,n) << "obtains ";
 				if( auto name = find_assm_name(i) ) {
 					os << *name;
 				}
 				os << ": " << pretty(spec) << '.' << endl;
-			} else {
-				assert(false);
+				i++;
+				continue;
 			}
+			break;
 		}
 		for( auto& [name,imp] : _ref->imports ) {
 			mk_indent(os,n) << "interprets " << name << ": " << imp.pretty() << endl;

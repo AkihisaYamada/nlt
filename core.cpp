@@ -333,7 +333,7 @@ CTerm CTerm::intro() const {
 Opt<CTerm::StrTerm> CTerm::cbind() const {
 	if( auto bind = Term::bind() ) {
 		auto const& [var,body] = *bind;
-		Ctxt loc = _ctxt.branch().source();
+		Ctxt loc = _ctxt.branch().ctxt();
 		auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
 		return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
 	}
@@ -374,5 +374,30 @@ CTerm Term::csubst(Subst const& subst) const {
 		}
 	};
 	return CTerm(ctxt,map(f,fixed));
+}
+
+Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
+	auto srcParent = src.find_parent();
+	if( srcParent && *srcParent != tgt ) throw Error(__func__)("\"wrong parent\"");
+	return Intp(src,Subst(tgt),0);
+}
+
+Intp Intp::compose(Intp const& other) const {
+	if( !other.ready() ) throw Error(__func__)("\"not ready\"");
+	if( other._src != ctxt() ) throw Error(__func__)("\"wrong middle\"");
+	auto subst = Subst(other.ctxt());
+	for( auto [x,v] : _subst._map ) {
+		if( v ) {
+			subst.assign(x,v->subst(other));
+			continue;
+		}
+		if( auto const& o = other._subst.map().finds(x) )
+		if( auto o2 = o->second ) {
+			subst._assign(x,*o2);
+			continue;
+		}
+		subst._map.emplace(x,Opt<Term>());
+	}
+	return Intp(_src,std::move(subst),_rev);
 }
 

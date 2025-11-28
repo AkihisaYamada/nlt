@@ -157,7 +157,7 @@ public:
 	Opt<StrTerm const&> binder( std::string_view const& b ) const & {
 		if( auto opt1 = app() )
 		if( opt1->first == b ) {
-			return {opt1->second.bind()};
+			return opt1->second.bind();
 		}
 		return {};
 	}
@@ -735,9 +735,10 @@ class Intp {
 	 @param src the context to be interpreted
 	 @param tgt the context that interprets src
 	 */
-	 Intp(Ctxt const& src, Subst const& tgt, int rev) : _subst(tgt), _src(src), _rev(rev) {}
+	 explicit Intp(Ctxt const& src, Subst const& tgt, int rev) : _subst(tgt), _src(src), _rev(rev) {}
 public:
-	static ::Error const Error;
+	/** @brief makes a direct interpretation. */
+	static Intp make( Ctxt const& src, Ctxt const& tgt );
 	operator Subst const&() const& {
 		return _subst;
 	}
@@ -747,10 +748,7 @@ public:
 	Ctxt const& source() const & {
 		return _src;
 	}
-	Ctxt& source() & {
-		return _src;
-	}
-	Ctxt ctxt() const {
+	Ctxt ctxt() const& {
 		return _subst.ctxt();
 	}
 	Subst const& subst() const {
@@ -849,41 +847,16 @@ public:
 		_subst.assign(sym,term);
 		_rev++;
 	}
-	/** @brief extend interpretation to child.
-	 * The source of this interpretation should be the parent of the new source context.
-	 */
-	Intp interpret(Ctxt const& ctxt) const {
-		if( !ready() ) throw Error(__func__)("\"not ready\"");
-		auto srcParent = ctxt.find_parent();
-		if( !srcParent ) throw Error(__func__)("\"root\"");
-		if( *srcParent != _src ) throw Error(__func__)("\"wrong parent\"");
-		return Intp(ctxt,_subst,0);
-	}
 	/** @brief composes with other interpretation.
 	 * The other interpretation should readily intepret the context this interpretation belongs.
 	 * @param other interpretation to be composed with.
 	 * @return an interpretation of this source in the other context.
 	 */
-	Intp compose(Intp const& other) const {
-		if( !other.ready() ) throw Error(__func__)("\"not ready\"");
-		if( other._src != ctxt() ) throw Error(__func__)("\"wrong middle\"");
-		auto subst = Subst(_subst.ctxt());
-		for( auto [x,v] : _subst._map ) {
-			if( v ) {
-				subst._map.emplace(x,v->subst(other));
-			} else if( auto const& o = other._subst.map().finds(x) ) {
-				subst._map.emplace(x,o->second);
-			} else {
-				subst._map.emplace(x,Opt<Term>());
-			}
-		}
-		return Intp(_src,std::move(subst),_rev);
-	}
+	Intp compose(Intp const& other) const;
 	friend Ctxt;
 	friend CTerm;
 	friend Thm;
 };
-inline Error const Intp::Error("#intp");
 inline Intp Ctxt::self() const {
 	return Intp(*this,*this,-1);
 }

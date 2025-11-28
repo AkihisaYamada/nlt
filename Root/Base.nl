@@ -324,6 +324,7 @@ end
 theory TypedOr:
 	fix prop (∨) (:).
 	import or: Magma prop (∨).
+ctxt.
 	assume or_intro1: P ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
 	assume or_intro2: for P Q, Q ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
 	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R : prop ⟹ R.
@@ -353,6 +354,8 @@ begin
 		- for P, if assm:, !;
 			apply assm;
 			- for x, if !;
+thm all_elim1.
+thm all.
 				apply all_elim1[OF all, of x].
 			.
 		.

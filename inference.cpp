@@ -27,15 +27,15 @@ Intro Intro::imp( Thm const& thm, size_t n ) {
 }
 
 Intro Intro::rule( Thm const& thm ) {
-	auto [rule,child,vars] = strip_all(thm);
+	auto [conc,child,vars] = strip_all(thm);
 	auto ctxt = child.ctxt();
 	size_t conds = 0;
-	while( auto imp = rule.cbinary(IMP) ) {
-		rule = rule.discharge(ctxt.assume(imp->first));
+	while( auto imp = conc.cbinary(IMP) ) {
+		conc = conc.discharge(ctxt.assume(imp->first));
 		conds++;
-		rule = strip_all(rule,ctxt.self()).first;
+		conc = strip_all(conc,ctxt.self()).first;
 	}
-	return Intro(thm,rule,vars,conds);
+	return Intro(thm,conc,vars,conds);
 }
 Elim Elim::rule( Thm const& thm ) {
 	auto child = thm.ctxt().branch();
@@ -89,9 +89,10 @@ bool Inference::_apply_blast(
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
-	auto rule_intp = _thy.interpret_ancestor(rule.thm().ctxt());
+	auto rule_ctxt = rule.thm().ctxt();
+	auto rule_intp = _thy.interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
-	auto pat_intp = rule_intp.interpret(rule.conclusion().ctxt());
+	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule_intp);
 	while( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
 		if( auto const& val = m->get(*v) ) {
 			pat_intp.instantiate(*val);
@@ -115,9 +116,10 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal, Import const& chil
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
-	auto rule2child = child.thy().interpret_ancestor(rule.thm().ctxt());
+	auto rule_ctxt = rule.thm().ctxt();
+	auto rule2child = child.thy().interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
-	auto pat2child = rule2child.interpret(rule.conclusion().ctxt());
+	auto pat2child = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
 	auto ctxt = goal.ctxt();// collects new assumptions
 	for(;;) {
 		if( auto const& v = pat2child.fixing() ) {// instantiate pattern variables
@@ -148,7 +150,6 @@ bool Inference::_blast(
 	vector<Intro>& elim_res,
 	size_t elim_res_ind
 ) & {
-DEB(_thm);
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");
 	}
@@ -189,7 +190,11 @@ DEB(_thm);
 	}
 	// try exact conclusions
 	if( !subthy.find_thm( EXACT, [&]( auto& thm ){
-		return thm == goal ? _thm = _thm.discharge(thm.intro()), true : false;
+		if( thm == goal ) {
+			_thm = _thm.discharge(thm.intro());
+			return true;
+		}
+		return false;
 	} ) ) {
 		fuel--;
 		auto thesis = claim_exact(subthy,goal);
@@ -209,6 +214,7 @@ DEB(_thm);
 							} ) )
 						) {
 							if( fail ) return false;
+DEB("concls: " << subthy.print_thms(CONCL) << "intros: " << subthy.print_thms(INTRO));
 							throw Error("\"failed to blast\"")(goal);
 						}
 						break;

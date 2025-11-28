@@ -208,7 +208,7 @@ public:
 					}
 					auto u = unify(arg,cond,[&](auto v){ return tmp.ctxt().fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
-					auto intp = loc.interpret(tmp.ctxt());
+					auto intp = Intp::make(tmp.ctxt(),loc.ctxt()).compose(loc);
 					for(;;){
 						if( auto const& v = intp.fixing() ) {
 							intp.instantiate(loc.thy().enclose( [&]()->Term{
@@ -372,6 +372,7 @@ public:
 	Inference get_statement() {
 		auto assm_thy = _thy.branch("#proof","").thy();
 		for_variables([&](auto const& v){ assm_thy.fix(v); });
+		auto assms = vector<pair<ClaimStatus,CTerm>>();
 		if( _parser.skips("if") ) {
 			_cout << "if " << flush;
 			for(;;) {
@@ -380,7 +381,7 @@ public:
 					for(;;) {
 						auto t = get_term();
 						_cout << t;
-						add_forced(assm_thy,assm_thy.assume(t),true);
+						assms.push_back({{"",true},assm_thy.enclose(t)});
 						if( !_parser.skips(",") ) break;
 						_cout << ", ";
 					}
@@ -388,13 +389,16 @@ public:
 					_cout << " ] ";
 				} else {
 					auto [cs,t] = get_assm();
-					add_claim(assm_thy,cs,assm_thy.assume(t));
+					assms.push_back({cs,assm_thy.enclose(t)});
 					_cout << cs << _thy.pretty(t) << ", " << flush;
 				}
 				if( !_parser.skips(",") ) break;
 			};
 			_parser.skip("then");
 			_cout << "then ";
+			for( auto [cs,t] : assms ) {
+				add_claim(assm_thy,cs,assm_thy.assume(t));
+			}
 		}
 		Term conc = _parser.get_term(0);
 		_parser.skip(";");
@@ -440,7 +444,7 @@ public:
 			name = _parser.get();
 		}
 		auto im = _thy.find_thy(name,_read);
-		if( !im ) throw Error("#theory_not_found");
+		if( !im ) throw Error("#theory_not_found")(name);
 		auto& intp = _thy.add_import(prefix,*im);
 		while( auto const& t = _parser.gets_term(1000) ) {
 			for(;;) {
@@ -737,7 +741,7 @@ public:
 			string pref = "thm ";
 			do {
 				Thm thm = get_thm();
-				_cout << pref << _thy.pretty(thm) << ';' << endl;
+				_cout << pref << _thy.pretty(thm) << endl;
 				pref = "\t";
 			} while( !_parser.skips(".") );
 			return true;
@@ -785,7 +789,6 @@ public:
 		auto thesis = get_statement();
 		auto prev_thy = _thy;
 		_thy = thesis.thy();
-DEB(_thy);
 		_depth++;
 		_prompt();
 		auto o = proof_loop(thesis);
@@ -824,7 +827,7 @@ DEB(_thy);
 			needsep = true;
 			if( _out ) {
 				cout << "for";
-				subgoal = strip_all(subgoal,subintp,[&](string_view const& v){
+				subgoal = strip_all(subgoal,subloc.self(),[&](string_view const& v){
 					auto o = gets_sym();
 					if( o ) {
 						cout << ' ' << *o;
@@ -1164,6 +1167,12 @@ DEB(_thy);
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
 					Ctxt var_loc = _thy.Ctxt::branch().ctxt();
+					if( _parser.skips("for") ) {
+						while( auto const& sym = gets_sym() ) {
+							var_loc.fix(*sym);
+						}
+						_parser.skip(",");
+					}
 					for_variables([&]( auto& var ){ var_loc.fix(var); });
 					CTerm assm = var_loc.enclose(get_term()).lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);

@@ -209,10 +209,9 @@ struct Matcher {
 Opt<Subst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
-pair<Thm,size_t> strip_all( Thm const& thm, Intp const& intp, Renamer const& renamer ) {
-	pair<Thm,size_t> ret = {thm,0};
-	ret.first = thm.subst(intp);
-	auto ctxt = intp.ctxt();
+pair<Thm,size_t> strip_all( Thm const& thm, Intp const& toChild, Renamer const& renamer ) {
+	pair<Thm,size_t> ret = {thm.subst(toChild),0};
+	auto ctxt = toChild.ctxt();
 	while( auto all = ret.first.binder(ALL) ) {
 		auto [v,b] = *all;
 		auto nv = renamer(v);
@@ -227,14 +226,16 @@ CTerm strip_all(CTerm t, Intp const& child, Renamer const& renamer) {
 	auto ctxt = child.ctxt();
 	auto subst = Subst(ctxt);
 	for(;;) {
-		auto all = t.cbinder(ALL);
-		if( !all ) break;
-		auto const& v = all->first;
+		auto a = t.cunary(ALL);
+		if( !a ) break;
+		auto b = a->bind();
+		if( !b ) break;
+		auto const& v = b->first;
 		auto nv = renamer(v);
 		if( !nv ) break;
 		auto nvt = ctxt.fix(*nv);
 		subst.assign(v,nvt);
-		t = all->second;
+		t = a->inst(nvt);
 	}
 	return t.csubst(subst);
 }
@@ -249,9 +250,9 @@ void subst_intp( Intp& intp, Subst& subst ) {
 
 Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto assm_intp = thm.ctxt().branch();
-	auto& assm_ctxt = assm_intp.source();
+	auto assm_ctxt = assm_intp.ctxt();
 	auto match_intp = assm_ctxt.branch();
-	auto& match_ctxt = match_intp.source();
+	auto match_ctxt = match_intp.ctxt();
 	Thm rule = strip_all(thm,match_intp,fresh_maker()).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) throw Error("#match_discharge")(thm);
@@ -259,7 +260,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) throw Error("#match_discharge")(thm)(arg);
 	rule = rule.discharge(match_ctxt.assume(imp->first));
-	auto intp = assm_intp.interpret(match_ctxt);
+	auto intp = Intp::make(match_ctxt,assm_ctxt).compose(assm_intp);
 	subst_intp(intp,*m);
 	auto const& assm = intp.assuming();
 	assert(assm);
