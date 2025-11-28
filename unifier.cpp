@@ -347,13 +347,10 @@ Thm discharge(Thm thm, Thm arg) {
 	// move prem into fix x... y... z... ⊢ prem
 	prem_strip = prem_strip.subst(arg_intp);
 	// find x... and z... such that prem = arg
-DEB(arg_ctxt.id());
 	Opt<Subst> unifier = unify(prem_strip,arg_strip,[&](string const& x){
-DEB(arg_ctxt.id());
 		return concl_ctxt.fixes(x) || arg_ctxt.fixes(x);
 	} );
 	if( !unifier ) throw Error("#discharge")(thm)(prem_strip)(arg)(arg_strip);
-DEB(arg_ctxt);
 	// unassigned free variables will be universally quantified in the result
 	auto ret_intp = ctxt.branch();
 	auto ret_ctxt = ret_intp.ctxt();
@@ -375,7 +372,6 @@ DEB(arg_ctxt);
 		discharger_ctxt.fix(x);
 	});
 	arg = arg.subst(ret_intp).subst(discharger_intp);
-DEB(arg_ctxt);
 	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
 		arg = arg.instantiate( discharger_ctxt.cterm( val ? *val : Term(x) ) );

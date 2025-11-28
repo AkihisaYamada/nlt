@@ -75,6 +75,7 @@ class Prover {
 	bool _final = false;
 	bool _out = true;
 	bool _out_load = false;
+	bool _no_syntax = true;
 	Prover( Prover& parent, Thy const& loc ) :
 		_depth(parent._depth),
 		_thy(loc),
@@ -477,6 +478,10 @@ public:
 				} else {
 					break;
 				}
+			}
+			if( _no_syntax ) {
+				_no_syntax = false;
+				_thy.syntax() = im->source().syntax();
 			}
 		}
 		_cout << (change ? "imported " : "interpreted ") << name << endl;

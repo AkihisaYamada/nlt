@@ -180,10 +180,11 @@ Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& s
 
 Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const {
 	for( auto const& rule : rules[ind] ) {
-		Ctxt const& rule_ctxt = rule.pat.ctxt();
-		if( auto const& m = match( rule.pat, source, [&](auto v){ return rule_ctxt.fixes(v); }) ) {
+		Ctxt const& rule_ctxt = rule.thm.ctxt();
+		Ctxt const& pat_ctxt = rule.pat.ctxt();
+		if( auto const& m = match( rule.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {
 			// source: l[m]
-			Intp intp = thy.interpret_ancestor(rule_ctxt);
+			Intp intp = Intp::make(pat_ctxt,rule_ctxt).compose(thy.interpret_ancestor(rule_ctxt));
 			for(;;) {
 				if( auto fix = intp.fixing() ) {
 					// instantiate variables
