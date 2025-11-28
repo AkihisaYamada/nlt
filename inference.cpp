@@ -148,6 +148,7 @@ bool Inference::_blast(
 	vector<Intro>& elim_res,
 	size_t elim_res_ind
 ) & {
+DEB(_thm);
 	if( _goals == 0 ) {// no goal to blast
 		throw Error("\"no goal to blast\"");
 	}

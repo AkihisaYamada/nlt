@@ -857,7 +857,7 @@ public:
 		auto srcParent = ctxt.find_parent();
 		if( !srcParent ) throw Error(__func__)("\"root\"");
 		if( *srcParent != _src ) throw Error(__func__)("\"wrong parent\"");
-		return Intp(ctxt,_subst,_rev);
+		return Intp(ctxt,_subst,0);
 	}
 	/** @brief composes with other interpretation.
 	 * The other interpretation should readily intepret the context this interpretation belongs.
@@ -867,10 +867,14 @@ public:
 	Intp compose(Intp const& other) const {
 		if( !other.ready() ) throw Error(__func__)("\"not ready\"");
 		if( other._src != ctxt() ) throw Error(__func__)("\"wrong middle\"");
-		auto subst = other._subst;
-		for( auto [x,v] : _subst.map() ) {
+		auto subst = Subst(_subst.ctxt());
+		for( auto [x,v] : _subst._map ) {
 			if( v ) {
-				subst.assign(x,v->subst(other));
+				subst._map.emplace(x,v->subst(other));
+			} else if( auto const& o = other._subst.map().finds(x) ) {
+				subst._map.emplace(x,o->second);
+			} else {
+				subst._map.emplace(x,Opt<Term>());
 			}
 		}
 		return Intp(_src,std::move(subst),_rev);
