@@ -16,7 +16,7 @@ class Concluder {
 	std::vector<_Rule> _rules;
 public:
 	void insert(Thm const& thm) {
-		auto pat_ctxt = thm.ctxt().branch();
+		auto pat_ctxt = thm.ctxt().fork();
 		auto const& pat = strip_all(thm,pat_ctxt,fresh_maker());
 		_rules.emplace_back(pat,pat.intro());
 	}

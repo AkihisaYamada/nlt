@@ -18,7 +18,7 @@ bool operator<( Term const& l, Term const& r );
 
 /** makes the theorem t ⟹ t */
 inline Thm make_refl( CTerm const& t ) {
-	auto intp = t.ctxt().branch();
+	auto intp = t.ctxt().fork();
 	return intp.ctxt().assume(t.subst(intp)).intro();
 }
 
@@ -76,7 +76,7 @@ inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
  * @return Intp this context will fix the bound variables.
  */
 inline std::tuple<Thm,Intp,size_t> strip_all( Thm const& thm ) {
-	auto child = thm.ctxt().branch();
+	auto child = thm.ctxt().fork();
 	auto [strip_thm,n] = strip_all(thm,child);
 	return {strip_thm,child,n};
 }
@@ -165,7 +165,7 @@ public:
 		return _conds;
 	}
 	static Intro just( Thm const& thm ) {
-		auto child = thm.ctxt().branch();
+		auto child = thm.ctxt().fork();
 		return Intro(thm,thm.subst(child),0,0);
 	}
 	/** @brief Makes implication a rule. */

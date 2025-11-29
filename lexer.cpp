@@ -60,8 +60,8 @@ Lex::Lex() :
 
 int Lexer::fetch_char() {
 	if( wp >= sizeof buf - 4 ) {
-		memcpy( buf+20, "...", 3 );
-		cerr << "Too long token \"" << buf << "\"!" << endl;
+		memcpy( buf+20, "...", 4 );
+		throw SyntaxError("\"Too long token\"")(string("\"")+buf+"\"");
 		exit(-1);
 	}
 	char c = pis->get();

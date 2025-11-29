@@ -49,20 +49,20 @@ int main() try {
 
 	Ctxt Root;
 	Thm imp_refl = [&]{
-		Ctxt loc = Root.branch().ctxt();
+		Ctxt loc = Root.fork().ctxt();
 		CTerm P = loc.fix("P");
 		return loc.assume(P).intro();
 	}();
 	cout << "proved imp_refl: " << imp_refl << endl;
 	Thm weaken = [&]{
-		Ctxt loc = Root.branch().ctxt();
+		Ctxt loc = Root.fork().ctxt();
 		Thm P = loc.assume(loc.fix("P"));
 		Thm Q = loc.assume(loc.fix("Q"));
 		return P.intro();
 	}();
 	cout << "proved weaken: " << weaken << endl;
 	Thm trueI = [&]{
-		Intp child = Root.branch();
+		Intp child = Root.fork();
 		Ctxt loc = child.ctxt();
 		loc.fix("thesis");
 		Thm assm = loc.assume("true" &= True >>= thesis);
@@ -72,7 +72,7 @@ int main() try {
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
 	cout << "context Root:\n" << Root << endl;
 	cout << "\n--- And ---" << endl;
-	Intp toAnd = Root.branch();
+	Intp toAnd = Root.fork();
 	Ctxt And = toAnd.ctxt();
 	And.fix(AND);
 	Thm andI1 = And.assume("P" &= "Q" &= p >>= q >>= p & q);
@@ -83,7 +83,7 @@ int main() try {
 	cout << "assumed andE2: " << andE2 << endl;
 	cout << "context And: " << endl << And << endl;
 	Thm andI = [&]{
-		Intp toLoc = And.branch();
+		Intp toLoc = And.fork();
 		Ctxt Loc = toLoc.ctxt();
 		Loc.fix("P");
 		Loc.fix("Q");
@@ -93,14 +93,14 @@ int main() try {
 	}();
 	cout << "proved andI: " << andI << endl;
 	Thm andE = [&]{
-		Intp toLoc = And.branch();
+		Intp toLoc = And.fork();
 		Ctxt Loc = toLoc.ctxt();
 		Loc.fix("P");
 		Loc.fix("Q");
 		Thm pq = Loc.assume(p & q);
 		Thm P = andE1.subst(toLoc).instantiate(p).instantiate(q).discharge(pq);
 		Thm Q = andE2.subst(toLoc).instantiate(p).instantiate(q).discharge(pq);
-		Intp toLoc2 = Loc.branch();
+		Intp toLoc2 = Loc.fork();
 		Ctxt Loc2 = toLoc2.ctxt();
 		Loc2.fix("R");
 		Thm pqr = Loc2.assume(p >>= q >>= r);
@@ -108,7 +108,7 @@ int main() try {
 	}();
 	cout << "proved andE: " << andE << endl;
 	cout << "\n--- Iff ---" << endl;
-	Intp toIff = Root.branch();
+	Intp toIff = Root.fork();
 	Ctxt Iff = toIff.ctxt();
 	Iff.fix("⟺");
 	Thm iffI1 = Iff.assume("P" &= "Q" &= (p >>= q) >>= (q >>= p) >>= (p <=> q));
@@ -121,7 +121,7 @@ int main() try {
 	cout << "context Iff:\n" << Iff << endl;
 
 	Thm iff_trans = [&]{
-		Intp toLoc = Iff.branch();
+		Intp toLoc = Iff.fork();
 		Ctxt Loc = toLoc.ctxt();
 		Loc.fix("P");
 		Loc.fix("Q");
@@ -129,7 +129,7 @@ int main() try {
 		Thm pq = Loc.assume(p <=> q);
 		Thm qr = Loc.assume(q <=> r);
 		Thm p_r = [&]{
-			Intp toLoc2 = Loc.branch();
+			Intp toLoc2 = Loc.fork();
 			Ctxt Loc2 = toLoc2.ctxt();
 			Intp Iff_to_Loc2 = toLoc.compose(toLoc2);
 			Thm P = Loc2.assume(p);
@@ -137,7 +137,7 @@ int main() try {
 			return iffE1.subst(Iff_to_Loc2).instantiate(q).instantiate(r).discharge(qr.subst(toLoc2)).discharge(Q).intro();
 		}();
 		Thm r_p = [&]{
-			Intp toLoc2 = Loc.branch();
+			Intp toLoc2 = Loc.fork();
 			Ctxt Loc2 = toLoc2.ctxt();
 			Intp Iff_to_Loc2 = toLoc.compose(toLoc2);
 			Thm R = Loc2.assume(r);
@@ -148,7 +148,7 @@ int main() try {
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
 	cout << "\n--- PropLogic ---" << endl;
-	Intp toLogic = Root.branch();
+	Intp toLogic = Root.fork();
 	Ctxt Logic = toLogic.ctxt();
 	Intp Logic_Iff = toLogic.interpret(Iff);
 	Logic_Iff.instantiate(Logic.fix(IFF));
@@ -169,7 +169,7 @@ int main() try {
 		<< "  and andE2: " << andE2.subst(Logic_And) << endl;
 
 	Thm and_iff = [&]{
-		Intp toLoc = Logic.branch();
+		Intp toLoc = Logic.fork();
 		Ctxt loc = toLoc.ctxt();
 		loc.fix("P");
 		loc.fix("Q");
@@ -179,7 +179,7 @@ int main() try {
 	}();
 	cout << "proved and_iff: " << and_iff << endl;
 	Thm and_imp_iff = [&]{
-		Intp toLoc = Logic.branch();
+		Intp toLoc = Logic.fork();
 		Ctxt loc = toLoc.ctxt();
 		loc.fix("P");
 		loc.fix("Q");

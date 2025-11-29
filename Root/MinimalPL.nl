@@ -1,6 +1,7 @@
 ---
 # Minimal Propositional Logic
 ---
+import Base.
 
 ---
 ## Axiomatization

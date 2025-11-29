@@ -14,7 +14,7 @@ Thm conclude( Subst const& matcher, Thm const& thesis, Thm const& thm_strip ) {
 Opt<Thm> concludes( CTerm const& goal, Thm const& thesis, CTerm const& pat, Thm const& thm ) {
 	if( auto const& m = match(pat,goal,[&](auto v){ return pat.ctxt().fixes(v); }) ) {
 		auto const& thesis_ctxt = thesis.ctxt();
-		auto thm_vars = thesis_ctxt.branch();
+		auto thm_vars = thesis_ctxt.fork();
 		Thm thm_strip = strip_all(thm,thm_vars);
 		return conclude(*m,thesis,thm_strip);
 	}

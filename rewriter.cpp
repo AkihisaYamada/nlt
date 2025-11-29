@@ -34,8 +34,8 @@ Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 
 void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
-	auto const& import = thy.branch();
-	Thy subthy = import.thy();
+	Thy subthy = thy.branch();
+	auto const& import = *subthy.parent();
 	Thm body = strip_all(thm,import,fresh_maker()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subthy.assume(imp->first);
@@ -142,7 +142,7 @@ Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 }
 
 Rewriter& Rewriter::register_dual( Thm const& thm ) & {
-	Intp const& intp = thm.ctxt().branch();
+	Intp const& intp = thm.ctxt().fork();
 	Thm thm_strip = strip_all(thm,intp).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
@@ -163,8 +163,7 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const {
 	auto const& abs = source.bind();
 	assert(abs);
-	auto const& subimport = thy.branch();
-	Thy subthy = subimport.thy();
+	Thy subthy = thy.branch();
 	CTerm v = subthy.fix(avoid(abs->first,[&](auto const& v){ return thy.has_constant(v); }));
 	CTerm body = source.inst(v);
 	Term prem = assm.Term::inst(subthy.cterm(abs->first)).subst(subst);

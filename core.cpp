@@ -333,7 +333,7 @@ CTerm CTerm::intro() const {
 Opt<CTerm::StrTerm> CTerm::cbind() const {
 	if( auto bind = Term::bind() ) {
 		auto const& [var,body] = *bind;
-		Ctxt loc = _ctxt.branch().ctxt();
+		Ctxt loc = _ctxt.fork().ctxt();
 		auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
 		return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
 	}

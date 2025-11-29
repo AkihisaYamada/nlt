@@ -111,7 +111,7 @@ public:
 		return std::move(*this);
 	}
 	void enter_branch( string_view const& name, string_view const& dirname ) {
-		_thy = _thy.branch(name,dirname).thy();
+		_thy = _thy.branch(name,dirname);
 		_final = false;
 	}
 	void set_exit_on_error( bool b ) {
@@ -139,7 +139,7 @@ public:
 		if( !ret ) throw Parser::Error("expects a theorem");
 		return *ret;
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Import const& loc, bool rev = false ) {
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev = false ) {
 		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_thy.rewriter().make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( _parser.skips("(") ) {
@@ -160,7 +160,7 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			_thy.rewriter().add_rule( loc.thy(), rules, *arg, _parser.skips("-") ? !rev : rev );
+			_thy.rewriter().add_rule( loc, rules, *arg, _parser.skips("-") ? !rev : rev );
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -168,26 +168,27 @@ public:
 		}
 		return ret;
 	}
-	Opt<Thm> _gets_thm( Import const& loc ) {
+	Opt<Thm> _gets_thm( Thy& loc ) {
 		auto const& opt = _parser.gets_thm_name();
+		auto loc2thy = *loc.parent();
 		if( !opt ) {
 			return {};
 		}
-		Thm ret = loc.thy().thm(*opt);
+		Thm ret = loc.thm(*opt);
 		if( _parser.skips("[") ) {
 			for(;;) {
 				if( _parser.skips("of") ) {
 					while( auto t = _parser.gets_term(1000) ) {
-						ret = ret.instantiate(loc.thy().enclose(*t));
+						ret = ret.instantiate(loc.enclose(*t));
 					}
 				} else if( _parser.skips("OF") ) {
 					for(;;) {
 						if( _parser.skips("!") ) {
-							ret = blast(ret,loc.thy());
+							ret = blast(ret,loc);
 						} else if( _parser.skips("_") ) {
 							auto imp = ret.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							ret = discharge(ret,loc.thy().assume(imp->first));
+							ret = discharge(ret,loc.assume(imp->first));
 						} else if( auto const& arg = _gets_thm(loc) ) {
 							ret = discharge(ret,*arg);
 						} else {
@@ -209,15 +210,15 @@ public:
 					}
 					auto u = unify(arg,cond,[&](auto v){ return tmp.ctxt().fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
-					auto intp = Intp::make(tmp.ctxt(),loc.ctxt()).compose(loc);
+					auto intp = Intp::make(tmp.ctxt(),loc).compose(loc2thy);
 					for(;;){
 						if( auto const& v = intp.fixing() ) {
-							intp.instantiate(loc.thy().enclose( [&]()->Term{
+							intp.instantiate(loc.enclose( [&]()->Term{
 								if( auto t = u->get(*v) ) return *t;
 								return *v;
 							}()));
 						} else if( auto const& assm = intp.assuming() ) {
-							intp.discharge(loc.thy().assume(loc.thy().cterm(*assm)));
+							intp.discharge(loc.assume(loc.cterm(*assm)));
 						} else {
 							break;
 						}
@@ -226,11 +227,11 @@ public:
 					ret = thm.discharge(arg.subst(intp));
 				} else if( _parser.skips("for") ) {
 					while( auto x = _parser.gets(Lexer::Word) ) {
-						loc.thy().fix(*x);
+						loc.fix(*x);
 					}
 				} else if( bool dir = false; _parser.skips("unfolded") || (dir = true, _parser.skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = _thy.rewriter().rewrite(rules,loc.thy(),ret,ctrl);
+					ret = _thy.rewriter().rewrite(rules,loc,ret,ctrl);
 				} else break;
 				if( !_parser.skips(",") ) break;
 			}
@@ -238,7 +239,7 @@ public:
 		}
 		return ret;
 	}
-	Thm _get_thm( Import& loc ) {
+	Thm _get_thm( Thy& loc ) {
 		auto ret = _gets_thm(loc);
 		if( !ret ) throw Parser::Error("expects a theorem");
 		return *ret;
@@ -371,7 +372,7 @@ public:
 	 * inner theory collects assumptions.
 	 */
 	Inference get_statement() {
-		auto assm_thy = _thy.branch("#proof","").thy();
+		auto assm_thy = _thy.branch("#proof","");
 		for_variables([&](auto const& v){ assm_thy.fix(v); });
 		auto assms = vector<pair<ClaimStatus,CTerm>>();
 		if( _parser.skips("if") ) {
@@ -461,8 +462,9 @@ public:
 				}
 			}
 		}
+		auto path = im->source().print_name();
 		if( _parser.skips(";") ) {
-			_cout << (change ? "importing " : "interpreting ") << name << endl;
+			_cout << (change ? "importing " : "interpreting ") << path << endl;
 			_depth++;
 			_prompt();
 			_import_loop(prefix,intp,change);
@@ -481,10 +483,10 @@ public:
 			}
 			if( _no_syntax ) {
 				_no_syntax = false;
-				_thy.syntax() = im->source().syntax();
+				_thy.syntax_ptr() = im->source().syntax_ptr();
 			}
 		}
-		_cout << (change ? "imported " : "interpreted ") << name << endl;
+		_cout << (change ? "imported " : "interpreted ") << path << endl;
 		_parser.skip(".");
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
@@ -649,7 +651,7 @@ public:
 	}
 	void _retain( string const& prefix, Import& intp, bool change, Thy& org_thy ) {
 		auto sym = get_sym();// the symbol to be instantiated
-		Thy thesis_loc = _thy.branch().thy();
+		Thy thesis_loc = _thy.branch();
 		auto term = org_thy.cterm( _parser.skips(":=") ? _parser.get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
@@ -715,7 +717,7 @@ public:
 					ctrl.elims.emplace(Elim::rule(*elim));
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || (dir = true, _parser.skips("fold") ) ) {
-				auto [rrules,rctrl] = _get_rewrite(_thy.self(),dir);
+				auto [rrules,rctrl] = _get_rewrite(_thy,dir);
 				rctrl.min = 0;// returns false when not applicable
 				ctrl.rewrite = {{rrules,rctrl}};
 			} else if( _parser.skips("force") ) {
@@ -733,9 +735,9 @@ public:
 			} else {
 				string name = _parser.get();
 				_parser.skip(".");
-				auto im = _thy.find_thy(name,_read);
-				if( !im ) throw Error("\"theory not found\"");
-				_cout << im->thy() << endl;
+				auto thy = _thy.find_thy(name,_read);
+				if( !thy ) throw Error("\"theory not found\"");
+				_cout << *thy << endl;
 			}
 			return true;
 		}
@@ -824,8 +826,7 @@ public:
 		_cout << "defined " << name << ": " << _thy.pretty(l) << " := " << _thy.pretty(r) << endl;
 	}
 	Opt<Thm> _subgoal( CTerm const& goal ) {
-		auto subintp = _thy.branch();
-		auto& subloc = subintp.thy();
+		auto subloc = _thy.branch();
 		CTerm subgoal = subloc.weaken(goal);
 		bool needsep = false;
 		if( _parser.skips("for") ) {// instantiate variables as long as names are given
@@ -842,7 +843,7 @@ public:
 				_parser.skips(",");
 				cout << ", ";
 			} else {
-				subgoal = strip_all(subgoal,subintp,[&](string_view const& v){ return gets_sym(); });
+				subgoal = strip_all(subgoal,subloc.self(),[&](string_view const& v){ return gets_sym(); });
 				_parser.skips(",");
 			}
 		}
@@ -855,8 +856,10 @@ public:
 				auto assm = imp->first;
 				if( t && assm != *t ) throw Error("\"assumption mismatch\"")(assm)(*t);
 				subgoal = imp->second;
+assert(!subloc.syntax_ptr().unique());
 				return subloc.assume(assm);
 			};
+assert(!subloc.syntax_ptr().unique());
 			for(;;) {
 				if( _parser.skips("[") ) {
 					_cout << "[ ";
@@ -872,11 +875,16 @@ public:
 				} else {
 					auto cs = get_claim_status(false);
 					auto assm = eat_assm( cs.followable ? gets_term() : Opt<Term>{} );
+assert(!subloc.syntax_ptr().unique());
 					add_claim(subloc,cs,assm);
+assert(!subloc.syntax_ptr().unique());
 					_cout << cs << _thy.pretty(assm) << ", " << flush;
 				}
+assert(!subloc.syntax_ptr().unique());
 				if( !_parser.skips(",") ) break;
+assert(!subloc.syntax_ptr().unique());
 			};
+assert(!subloc.syntax_ptr().unique());
 		}
 		if( _parser.skips("then") ) {
 			if( _parser.get_term() != subgoal ) {
@@ -894,17 +902,20 @@ public:
 			prover._prompt();
 		}
 		auto thesis = Inference::claim_exact(subloc,subgoal);
+assert(!subloc.syntax_ptr().unique());
 		auto thm = prover.proof_loop(thesis);
+assert(!subloc.syntax_ptr().unique());
 		if( thm ) {
 			_parser.skip(".");
 			return thm->intro();
 		}
+assert(!subloc.syntax_ptr().unique());
 		return {};
 	}
 	bool _thy_decl() {
 		if( _parser.skips("theory") ) {
 			string name = _parser.get(Parser::Word);
-			auto loc = _thy.branch(name,"").thy();
+			auto loc = _thy.branch(name,"");
 			while( auto sym = gets_sym() ) {
 				loc.fix(*sym);
 			}
@@ -917,16 +928,15 @@ public:
 			auto name = _parser.get(Parser::Word);
 			_parser.skip("begin");
 			_cout << "creating namespace " << name << endl;
-			auto im = _thy.branch();
-			Prover(*this,im.thy()).deepen().loop();
-			_thy.add_import(name,im);
+			auto thy = _thy.branch(name,"");
+			Prover(*this,thy).deepen().loop();
 			_cout << "end namespace " << name << endl;
 		} else if( _parser.skips("context") ) {
 			string name = _parser.get();
 			_parser.skip("begin");
 			auto im = _thy.find_thy(name,_read);
 			_cout << "in context " << name << endl;
-			Prover(*this,im->thy()).deepen().loop();
+			Prover(*this,im->source()).deepen().loop();
 			_cout << "left " << name << endl;
 		} else if ( _parser.skips("lemma") ||
 			_parser.skips("theorem") ||
@@ -992,7 +1002,7 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; _parser.skips("unfold") || ( dir = true, _parser.skips("fold") ) ) {
-				auto [rules,ctrl] = _get_rewrite(_thy.self(),dir);
+				auto [rules,ctrl] = _get_rewrite(_thy,dir);
 				_thy.rewriter().apply(rules,thesis,ctrl);
 				if( _parser.skips(";") ) {
 					print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
@@ -1098,12 +1108,12 @@ public:
 						parser.skip("}");
 						return ret;
 					};
-					_thy.syntax().opener("{",-1000,handler);
-					_thy.syntax().closer("}");
+					_thy.syntax_ptr()->opener("{",-1000,handler);
+					_thy.syntax_ptr()->closer("}");
 					_cout << "set up set comprehension" << endl;
 				} else if( _parser.skips("print") ) {
 					if( _parser.skips("ctxt_id") ) {
-						_thy.syntax().print_ctxt(true);
+						_thy.syntax_ptr()->print_ctxt(true);
 					}
 				}
 				_parser.skip(".");
@@ -1114,9 +1124,9 @@ public:
 					string const& sym = _parser.get();
 					int ch = int_of_chars(sym.data());
 					if( solo ) {
-						_thy.syntax().register_single_op(ch);
+						_thy.syntax_ptr()->register_single_op(ch);
 					} else {
-						_thy.syntax().register_multi_op(ch);
+						_thy.syntax_ptr()->register_multi_op(ch);
 					}
 					_cout << ' ' << sym;
 				}
@@ -1126,7 +1136,7 @@ public:
 				int rlevel = _parser.get_int();
 				int level = _parser.get_int();
 				_make_own_parser();
-				_thy.syntax().prefix(sym,level,rlevel);
+				_thy.syntax_ptr()->prefix(sym,level,rlevel);
 				_cout << "new prefix operator " << sym << endl;
 				_parser.skip(".");
 			} else if( _parser.skips("infix") ) {
@@ -1135,7 +1145,7 @@ public:
 				int rlevel = _parser.get_int();
 				int level = _parser.get_int();
 				_make_own_parser();
-				_thy.syntax().infix(sym,level,llevel,rlevel);
+				_thy.syntax_ptr()->infix(sym,level,llevel,rlevel);
 				_cout << "new infix operator " << sym << endl;
 				_parser.skip(".");
 			} else if( _parser.skips("binder") ) {
@@ -1143,7 +1153,7 @@ public:
 				int llevel = _parser.get_int();
 				int rlevel = _parser.get_int();
 				_make_own_parser();
-				_thy.syntax().binder(sym,llevel,rlevel);
+				_thy.syntax_ptr()->binder(sym,llevel,rlevel);
 				_cout << "new binder " << sym << endl;
 				_parser.skip(".");
 			} else if( _parser.skips("binder_middle") ) {
@@ -1151,7 +1161,7 @@ public:
 				string mid = _parser.get();
 				string sym = _parser.get();
 				_make_own_parser();
-				_thy.syntax().binder_mid(prefix,mid,sym);
+				_thy.syntax_ptr()->binder_mid(prefix,mid,sym);
 				_cout << "new binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
 				_parser.skip(".");
 			} else if( _parser.skips("end") || _parser.skips("") ) {
@@ -1171,7 +1181,7 @@ public:
 					_parser.skip(".");
 				} else if( _parser.skips("assume") ) {
 					auto cs = get_claim_status();
-					Ctxt var_loc = _thy.Ctxt::branch().ctxt();
+					Ctxt var_loc = _thy.Ctxt::fork().ctxt();
 					if( _parser.skips("for") ) {
 						while( auto const& sym = gets_sym() ) {
 							var_loc.fix(*sym);
@@ -1208,18 +1218,18 @@ public:
 		_cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<pair<ClaimStatus,Thm>> prop_thms;
-		Thy thesis_thy = org_thy.branch().thy();
+		Thy thesis_thy = org_thy.branch();
 		CTerm var = thesis_thy.fix("?thesis");
-		Thy goal_thy = thesis_thy.branch().thy();
+		Thy goal_thy = thesis_thy.branch();
 		goal_thy.fix(sym);
-		auto props_thy = org_thy.branch().thy();
+		auto props_thy = org_thy.branch();
 		props_thy.fix(sym);
 		for(;;) {
 			auto [cs,t] = get_assm();
-			Thm thm = props_thy.assume(props_thy.branch().ctxt().enclose(t).intro());
+			Thm thm = props_thy.assume(props_thy.fork().ctxt().enclose(t).intro());
 			add_claim(props_thy,cs,thm);
 			prop_thms.emplace_back(cs,thm);
-			props.push_back(goal_thy.branch().ctxt().enclose(t).intro());
+			props.push_back(goal_thy.fork().ctxt().enclose(t).intro());
 			_cout << '\t' << cs << _thy.pretty(thm) << endl;
 			if( !_parser.skips(",") ) break;
 		}
@@ -1263,8 +1273,8 @@ void _read( Thy& thy, Parser& parser ) {
 }
 void run( istream& is, string_view const& name, bool exit_on_error, bool out, bool load_out ) {
 	auto root = Thy("Root","Root");// the empty root theory, linked to the "Root" directory
-	init_syntax(root.syntax());
-	Thy thy = root.branch(name,"").thy();
+	init_syntax(*root.syntax_ptr());
+	Thy thy = root.branch(name,"");
 	auto lexer = Lexer(is,name,thy.syntax());
 	auto parser = Parser(lexer,thy.syntax());
 	auto prover = Prover(thy,parser,exit_on_error);

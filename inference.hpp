@@ -37,7 +37,7 @@ public:
 	static Error const NoGoal;
 	static Error const Unapplicable;
 	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {
-		auto intp = claim.ctxt().branch();
+		auto intp = claim.ctxt().fork();
 		auto thesis = intp.ctxt().assume(claim.subst(intp)).intro();// claim ⟹ claim
 		return Inference( thy, thesis, claim, 1 );
 	}
@@ -82,9 +82,8 @@ public:
 	}
 	/** @brief Tries to apply a rule once */
 	bool applies( Intro const& rule ) & {
-		auto g = goal();
 		auto child = _thy.branch();
-		return _apply(rule,g.subst(child),child);
+		return _apply(rule,child.weaken(goal()),child);
 	}
 	void apply( Intro const& rule ) & {
 		if( !applies(rule) ) throw Unapplicable(goal())(rule.conclusion());
@@ -92,7 +91,7 @@ public:
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
 		auto child = _thy.branch();
-		auto g = strip_all(goal(),child);
+		auto g = strip_all(goal(),*child.parent());
 		if( !_apply(rules,g,child) ) throw Unapplicable(g);
 	}
 	/** @brief Applies set of rules many times */
@@ -131,11 +130,11 @@ public:
 	 * @return false if there will be no further subgoal */
 	bool push() & {
 		if( _goals < 2 ) return false;
-		auto import = _thy.branch();
-		_thy = import.thy();
-		auto assm = _thy.assume(goal().subst(import));
+		_thy = _thy.branch();
+		auto const& weaken = *_thy.parent();
+		auto assm = _thy.assume(goal().subst(weaken));
 		add_forced(_thy,assm);
-		_thm = _thm.subst(import).discharge(assm);
+		_thm = _thm.subst(weaken).discharge(assm);
 		_goals--;
 		return true;
 	}
@@ -157,8 +156,8 @@ private:
 		return false;
 	}
 	/** goal must be in a fresh context */
-	bool _apply( Intro const& intro, CTerm const& goal, Import const& child ) &;
-	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Import const& child ) & {
+	bool _apply( Intro const& intro, CTerm const& goal, Thy const& child ) &;
+	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Thy const& child ) & {
 		for( auto const& rule : intros ) {
 			if( _apply(rule,goal,child) ) return true;
 		}

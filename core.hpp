@@ -402,7 +402,7 @@ public:
 	/** @brief Creates a child context.
 	 * @return interpretation of the parent in the child.
 	 */
-	Intp branch() const;
+	Intp fork() const;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
 	friend bool operator==(Ctxt const& l, Ctxt const& r) {
@@ -860,7 +860,7 @@ public:
 inline Intp Ctxt::self() const {
 	return Intp(*this,*this,-1);
 }
-inline Intp Ctxt::branch() const {
+inline Intp Ctxt::fork() const {
 	auto child = Ctxt(Ref<Body>::make());
 	auto rev = revision();
 	child._ref->parent = *this;

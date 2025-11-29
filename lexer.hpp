@@ -37,6 +37,9 @@ private:
 public:
 	Lex();
 	Lex( Lex const& other ) : _char_map(other._char_map) {}
+	~Lex() {
+DEB("Lex destructed");
+	}
 	void register_single_op( int c ) {
 		_char_map.insert({c,SingleOp});
 	}
@@ -142,7 +145,7 @@ private:
 	// input stream
 	std::istream* pis;
 	/** Lexical grammar */
-	Lex const* plex;
+	Ref<Lex const> plex;
 	std::string_view peeked_token;
 	// stores the next token type
 	TokenType token_type = Unset;
@@ -156,12 +159,12 @@ private:
 	// writes one character into the buffer
 	int fetch_char();
 	void fetch_continue( Lex::CharType t );
+public:
+	Lexer( std::istream& is, std::string_view const& filename, Ref<Lex const> const& lex ) : plex(lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
 	// to ensure pointer life
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.
 	Lexer( Lexer const& ) = delete;
-public:
-	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
 	void reset() {
 		read_lines = peeked_lines;
 		token_type = Unset;

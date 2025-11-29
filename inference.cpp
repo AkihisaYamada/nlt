@@ -13,7 +13,7 @@ Error const Inference::NoGoal = Error("\"no goal to apply\"");
 Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm, size_t n ) {
-	auto child = thm.ctxt().branch();
+	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
@@ -39,7 +39,7 @@ Intro Intro::rule( Thm const& thm ) {
 	return Intro(thm,conc,vars,conds);
 }
 Elim Elim::rule( Thm const& thm ) {
-	auto child = thm.ctxt().branch();
+	auto child = thm.ctxt().fork();
 	Thm body = strip_all(thm,child).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
@@ -81,7 +81,7 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 			return;
 		}
 		auto child = _thy.branch();
-		if( !_apply(rules,goal().subst(child),child) ) {
+		if( !_apply(rules,child.weaken(goal()),child) ) {
 			break;
 		}
 		suc++;
@@ -125,12 +125,12 @@ bool Inference::_apply_blast(
 	return true;
 }
 
-bool Inference::_apply( Intro const& rule, CTerm const& goal, Import const& child ) & {
+bool Inference::_apply( Intro const& rule, CTerm const& goal, Thy const& child ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
 	auto rule_ctxt = rule.thm().ctxt();
-	auto rule2child = child.thy().interpret_ancestor(rule_ctxt);
+	auto rule2child = child.interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
 	auto pat2child = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
 	auto ctxt = goal.ctxt();// collects new assumptions
@@ -150,7 +150,7 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal, Import const& chil
 		}
 		break;
 	}
-	_thm = _thm.subst(child).discharge(rule.subst(pat2child)).intro();
+	_thm = child.weaken(_thm).discharge(rule.subst(pat2child)).intro();
 	_goals--;
 	return true;
 }
@@ -172,9 +172,8 @@ bool Inference::_blast(
 	}
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
-	auto const& child = _thy.branch();
-	auto subthy = child.thy();
-	auto goal = imp->first.subst(child);
+	auto subthy = _thy.branch();
+	auto goal = subthy.weaken(imp->first);
 	size_t n_elim_res = 0;
 	for(;;) {
 		goal = strip_all(goal,subthy.self());
@@ -212,7 +211,7 @@ bool Inference::_blast(
 		fuel--;
 		auto thesis = claim_exact(subthy,goal);
 		auto subgoal_child = subthy.branch();
-		auto const& g = thesis._claim.subst(subgoal_child);
+		auto const& g = subgoal_child.weaken(thesis._claim);
 		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g,subgoal_child); } ) ) {
 			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter().apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g,subgoal_child) &&

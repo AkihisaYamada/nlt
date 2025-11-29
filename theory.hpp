@@ -32,7 +32,7 @@ class Thy : public Ctxt {
 		Import const& import,
 		std::function<bool(AThm const&)> const& test
 	) const;
-	Import const& _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
+	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
 	friend Import;
 public:
 	struct Error : public ::Error {
@@ -46,11 +46,10 @@ public:
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
-	 * @return Import from parent into the child.
 	 */
-	Import const& branch() const;
+	Thy branch() const;
 	/** Creates a named branch. */
-	Import const& branch( std::string_view const& name, std::string_view const& dir );
+	Thy branch( std::string_view const& name, std::string_view const& dir ) &;
 	/** Creates a namespace. */
 	Thy scope( std::string_view const& name ) const;
 	std::string const& name() const &;
@@ -102,7 +101,8 @@ public:
 	 */
 	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
 	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
-	Syntax& syntax() &;
+	Mem<Syntax> const& syntax_ptr() const&;
+	Mem<Syntax>& syntax_ptr() &;
 	Syntax const& syntax() const&;
 	auto pretty( Term const& t ) const {
 		return syntax().pretty(t);
@@ -128,37 +128,28 @@ public:
 class Import : public Intp {
 	friend Thy;
 	Thy mutable _src;//
-	Thy mutable _tgt;
 	/** creates import
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
 	 */
-	Import( Intp const& intp, Thy const& src, Thy const& tgt ) :
-		Intp(intp), _src(src), _tgt(tgt) {
-		assert( _tgt == intp.ctxt() );
+	Import( Intp const& intp, Thy const& src ) :
+		Intp(intp), _src(src) {
 	}
 public:
 	/** @brief Import a child theory into the parent.
 	 */
 	static Import make( Thy const& src, Thy const& tgt ) {
-		return Import(Intp::make(src,tgt),src,tgt);
+		return Import(Intp::make(src,tgt),src);
 	}
 	Thy& source() const & {
 		return _src;
 	}
 	Thy source() && = delete;
-	Thy& thy() const & {
-		return _tgt;
-	}
-	Thy thy() && {
-		return _tgt;
-	}
 	/** @brief Composition of imports.
 	 * The argument should import this target.
 	 */
 	Import compose( Import const& other ) const & {
-		if( _tgt != other._src ) throw Error("\"wrong compose\"");
-		return Import(Intp::compose(other),_src,other._tgt);
+		return Import(Intp::compose(other),_src);
 	}
 	Opt<std::pair<CTerm,std::string>> assuming() const & {
 		if( auto assm = Intp::assuming() ) {
@@ -228,7 +219,7 @@ Opt<Thm> proves( CTerm const& claim, Thy const& thy );
 Thm prove( CTerm const& claim, Thy const& thy );
 
 inline Import Thy::self() const& {
-	return Import(Ctxt::self(),*this,*this);
+	return Import(Ctxt::self(),*this);
 }
 inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader ) {
 	auto ret = find_thy(name,reader);

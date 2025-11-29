@@ -57,4 +57,3 @@ begin
 		- by axiom[unfolded EqType_def].
 		.
 end
-

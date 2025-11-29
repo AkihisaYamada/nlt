@@ -250,9 +250,9 @@ void subst_intp( Intp& intp, Subst& subst ) {
 
 Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto thm_ctxt = thm.ctxt();
-	auto thm2assm = thm_ctxt.branch();
+	auto thm2assm = thm_ctxt.fork();
 	auto assm_ctxt = thm2assm.ctxt();
-	auto assm2match = assm_ctxt.branch();
+	auto assm2match = assm_ctxt.fork();
 	auto match_ctxt = assm2match.ctxt();
 	auto thm2match = thm2assm.compose(assm2match);
 	Thm rule = strip_all(thm,thm2match,fresh_maker()).first;

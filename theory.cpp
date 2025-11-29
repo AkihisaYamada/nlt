@@ -16,25 +16,34 @@ struct Thy::_Body {
 	Mem<Syntax> syntax;
 	Mem<Rewriter> rewriter;
 	OptMem<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {}
+	_Body( string_view const& name, string_view const& dir, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
+		if( this->syntax.unique() ) {
+DEB("unique syntax");
+		}
+	}
+	~_Body() {
+		if( syntax.unique() ) {
+DEB("deleting syntax");
+		}
+	}
 };
 
 Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
 
-Import const& Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
+Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
 	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
-	return child._ref->parent.emplace(Import(intp,*this,child));
+	child._ref->parent.emplace(Import(intp,*this));
+	return child;
 }
-Import const& Thy::branch() const {
-	return _branch("","",Ctxt::branch());
+Thy Thy::branch() const {
+	return _branch("","",Ctxt::fork());
 }
-Import const& Thy::branch( string_view const& name, string_view const& dir ) {
-	auto const& ret = _branch(name,dir,Ctxt::branch());
-	_ref->thys.emplace(name,ret.thy());
-	return ret;
+Thy Thy::branch( string_view const& name, string_view const& dir ) & {
+	// a bit tricky, emplace in the childs, and return a reference to it
+	return _ref->thys.emplace(name,_branch(name,dir,Ctxt::fork())).first->second;
 }
 Thy Thy::scope( string_view const& name ) const {
-	return _branch(name,"",Ctxt::self()).thy();
+	return _branch(name,"",Ctxt::self());
 }
 string const& Thy::name() const & {
 	return _ref->name;
@@ -46,10 +55,13 @@ string const& Thy::dir() const & {
 	return _ref->dir;
 }
 Syntax const& Thy::syntax() const& {
-	return *_ref->syntax;
+	return *(Mem<Syntax> const)_ref->syntax;
 }
-Syntax& Thy::syntax() & {
-	return *_ref->syntax;
+Mem<Syntax> const& Thy::syntax_ptr() const& {
+	return _ref->syntax;
+}
+Mem<Syntax>& Thy::syntax_ptr() & {
+	return _ref->syntax;
 }
 Rewriter const& Thy::rewriter() const& {
 	return *_ref->rewriter;
@@ -100,7 +112,7 @@ CTerm Thy::weaken( CTerm const& t ) const {
 	return t.subst(interpret_ancestor(t.ctxt()));
 }
 Import& Thy::add_import( string_view const& name, Import const& import ) & {
-	if( import.thy() != *this ) throw Error("\"wrong import\"");
+	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	return _ref->imports.emplace(name,import)->second;
 };
 
@@ -191,7 +203,7 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)>
 			auto path = _ref->dir+"/"+name;
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
-				Thy& thy = branch(name,path).thy();
+				Thy thy = branch(name,path);
 				auto lexer = Lexer(fis,fullpath,thy.syntax());
 				auto parser = Parser(lexer,thy.syntax());
 				reader(thy,parser);

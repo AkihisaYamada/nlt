@@ -331,17 +331,17 @@ Opt<Subst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> c
 Thm discharge(Thm thm, Thm arg) {
 	Ctxt ctxt = thm.ctxt();
 	// expand thm into fix x... ⊢ (∀y... prem) ⟹ concl
-	auto concl_intp = ctxt.branch();
+	auto concl_intp = ctxt.fork();
 	auto concl_ctxt = concl_intp.ctxt();
 	Thm strip_thm = strip_all(thm,concl_intp).first;
 	auto imp = strip_thm.cbinary(IMP);
 	if( !imp ) throw Error("#util")("\"discharge\"")(strip_thm)(arg);
 	// expand prem into fix x... y... ⊢ prem
-	auto prem_intp = concl_ctxt.branch();
+	auto prem_intp = concl_ctxt.fork();
 	auto prem_ctxt = prem_intp.ctxt();
 	CTerm prem_strip = strip_all(imp->first,prem_intp);
 	// expand arg into fix x... y... z... ⊢ arg
-	auto arg_intp = prem_ctxt.branch();
+	auto arg_intp = prem_ctxt.fork();
 	auto arg_ctxt = arg_intp.ctxt();
 	Thm arg_strip = strip_all(arg.subst(concl_intp).subst(prem_intp),arg_intp).first;
 	// move prem into fix x... y... z... ⊢ prem
@@ -352,7 +352,7 @@ Thm discharge(Thm thm, Thm arg) {
 	} );
 	if( !unifier ) throw Error("#discharge")(thm)(prem_strip)(arg)(arg_strip);
 	// unassigned free variables will be universally quantified in the result
-	auto ret_intp = ctxt.branch();
+	auto ret_intp = ctxt.fork();
 	auto ret_ctxt = ret_intp.ctxt();
 	iter_local_vars(arg_ctxt,[&](string const& x){
 		if( !unifier->map().contains(x) ) {
@@ -366,7 +366,7 @@ Thm discharge(Thm thm, Thm arg) {
 	});
 	// instantiating arg according to the unifier
 	// quantify y... as prem
-	auto discharger_intp = ret_ctxt.branch();
+	auto discharger_intp = ret_ctxt.fork();
 	auto discharger_ctxt = discharger_intp.ctxt();
 	iter_local_vars(prem_ctxt,[&](string const& x){
 		discharger_ctxt.fix(x);
