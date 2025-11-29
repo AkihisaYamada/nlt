@@ -1,5 +1,3 @@
-base Lambda.
-
 fix true (∧) (∨).
 import Prop.
 import TypedTrue.

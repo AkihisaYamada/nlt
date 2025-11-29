@@ -155,7 +155,6 @@ public:
 	}
 	Opt<Thm> _gets_thm( Thy& loc ) {
 		auto const& opt = gets_thm_name();
-		auto loc2thy = *loc.parent();
 		if( !opt ) {
 			return {};
 		}
@@ -181,35 +180,36 @@ public:
 						}
 					}
 				} else if( skips("THEN") ) {
-					auto thm = get_thm();
-					auto [strip_thm,tmp,n] = strip_all(thm);
+					auto thm = _get_thm(loc);
+					auto [strip_thm,loc2strip,n] = strip_all(thm);
+					auto strip_ctxt = strip_thm.ctxt();
 					auto imp = strip_thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
 					auto cond = imp->first;
-					auto arg = ret.subst(tmp);
+					auto arg = ret.subst(loc2strip);
 					for(;;){
-						arg = strip_all(arg,tmp).first;
+						arg = strip_all(arg,strip_ctxt.self()).first;
 						auto imp = arg.cbinary(IMP);
 						if( !imp ) break;
-						arg = arg.discharge(tmp.ctxt().assume(imp->first));
+						arg = arg.discharge(strip_ctxt.assume(imp->first));
 					}
-					auto u = unify(arg,cond,[&](auto v){ return tmp.ctxt().fixes(v); });
+					auto u = unify(arg,cond,[&](auto v){ return strip_ctxt.fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
-					auto intp = Intp::make(tmp.ctxt(),loc).compose(loc2thy);
+					auto strip2loc = Intp::make(strip_ctxt,loc);
 					for(;;){
-						if( auto const& v = intp.fixing() ) {
-							intp.instantiate(loc.enclose( [&]()->Term{
+						if( auto const& v = strip2loc.fixing() ) {
+							strip2loc.instantiate(loc.enclose( [&]()->Term{
 								if( auto t = u->get(*v) ) return *t;
 								return *v;
 							}()));
-						} else if( auto const& assm = intp.assuming() ) {
-							intp.discharge(loc.assume(loc.cterm(*assm)));
+						} else if( auto const& assm = strip2loc.assuming() ) {
+							strip2loc.discharge(loc.assume(loc.cterm(*assm)));
 						} else {
 							break;
 						}
 					}
-					thm = strip_thm.subst(intp);
-					ret = thm.discharge(arg.subst(intp));
+					thm = strip_thm.subst(strip2loc);
+					ret = thm.discharge(arg.subst(strip2loc));
 				} else if( skips("for") ) {
 					while( auto x = gets(Lexer::Word) ) {
 						loc.fix(*x);

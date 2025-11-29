@@ -204,6 +204,11 @@ DEB("found " << fullpath);
 			}
 DEB("not found " << fullpath);
 		}
+	} else if( sep == 0 ) {// explicit parent
+		if( auto const& p = parent() )
+		if( auto o = p->_src.find_thy(name.substr(1),reader) ) {
+			return {o->compose(*p)};
+		}
 	} else {
 		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
 			auto& im = it->second;
