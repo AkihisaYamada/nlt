@@ -5,8 +5,6 @@ begin
 
 define false := ∀P:prop. P.
 
-ctxt. oops
-
 interpret MinimalFOL;
 	retain false;
 		by #unfold false_def #elim all_elim.

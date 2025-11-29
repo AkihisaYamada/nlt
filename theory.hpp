@@ -71,7 +71,8 @@ public:
 	Opt<AThm> find_thm(
 		std::string_view const& name,
 		Import const& import,
-		std::function<bool(AThm const&)> const& test = _triv_test
+		std::function<bool(AThm const&)> const& test = _triv_test,
+		bool ancestor = true
 	) const;
 	/** @brief Obtains a named theorem from the theory.
 	 * @exception TheoremNotFound is thrown if the name doesn't match any.
@@ -99,7 +100,7 @@ public:
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
-	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
+	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor = true );
 	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;

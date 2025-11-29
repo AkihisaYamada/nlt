@@ -1,5 +1,3 @@
-base Lambda.
-
 import Prop.
 import TypedAll.
 

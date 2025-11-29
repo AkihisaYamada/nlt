@@ -139,7 +139,8 @@ pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view 
 Opt<AThm> Thy::find_thm(
 	string_view const& name,
 	Import const& import,
-	function<bool(AThm const&)> const& test
+	function<bool(AThm const&)> const& test,
+	bool ancestor
 ) const {
 	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
 		auto const& ret = AThm(import,it->second.first.subst(import),it->second.second);
@@ -151,7 +152,7 @@ Opt<AThm> Thy::find_thm(
 	if( sep == 0 ) {// explicit parent
 		auto parent = _ref->parent;
 		if( !parent ) throw Error("\"parent theory not found\"");
-		return parent->source().find_thm(name.substr(1),parent->compose(import),test);
+		return parent->source().find_thm(name.substr(1),parent->compose(import),test,ancestor);
 	}
 	if( sep != string::npos ) {// named imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),import,test) ) {
@@ -161,6 +162,7 @@ Opt<AThm> Thy::find_thm(
 	if( auto ret = _find_thm("",name,import,test) ) {// unnamed import
 		return ret;
 	}
+	if( ancestor )
 	if( auto parent = _ref->parent ) {// parent
 		return parent->source().find_thm(name,parent->compose(import),test);
 	}
@@ -176,14 +178,14 @@ Opt<AThm> Thy::_find_thm(
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
 		auto const& prefix = it->second;
 		if( prefix.ready() )
-		if( auto opt = prefix._src.find_thm(name,prefix.compose(import),test) ) {
+		if( auto opt = prefix._src.find_thm(name,prefix.compose(import),test,false) ) {
 			return opt;
 		}
 	}
 	return {};
 }
 
-Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istream&,std::string_view const&)> reader ) {
+Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor ) {
 	size_t sep = name.find('.');
 	if( sep == string::npos ) {
 		if( auto ret = _ref->thys.finds(name) ) {
@@ -193,18 +195,20 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 			auto path = _ref->dir+"/"+name;
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
+DEB("found " << fullpath);
 				Thy thy = branch(name,path);
 				// TODO: cloning rewriter
 				thy._ref->rewriter = Ref<Rewriter>::make(*_ref->rewriter);
 				reader(thy,fis,fullpath);
 				return {Import::make(thy,*this)};
 			}
+DEB("not found " << fullpath);
 		}
 	} else {
 		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
 			auto& im = it->second;
 			if( im.ready() )
-			if( auto o = im._src.find_thy(name.substr(sep+1),reader) ) {
+			if( auto o = im._src.find_thy(name.substr(sep+1),reader,false) ) {
 				return {o->compose(im)};
 			}
 		}
@@ -212,10 +216,11 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto& im = it->second;
 		if( im.ready() )
-		if( auto o = im._src.find_thy(name.substr(sep+1),reader) ) {
+		if( auto o = im._src.find_thy(name.substr(sep+1),reader,false) ) {
 			return {o->compose(im)};
 		}
 	}
+	if( ancestor )
 	if( auto const& p = parent() )
 	if( auto o = p->_src.find_thy(name,reader) ) {
 		return {o->compose(*p)};
