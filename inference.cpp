@@ -262,3 +262,15 @@ Opt<Thm> proves( CTerm const& claim, Thy const& thy ) {
 Thm prove( CTerm const& claim, Thy const& thy ) {
 	return prove(claim,thy,Inference::DEFAULT_CTRL);
 }
+
+ostream& operator<<( ostream& os, Inference::Ctrl const& ctrl ) {
+	os << "intros:" << endl;
+	for( auto const& intro : ctrl.intros ) {
+		os << '\t' << intro.thm() << endl;
+	}
+	os << "elims:" << endl;
+	for( auto const& elim : ctrl.elims ) {
+		os << '\t' << elim.thm() << endl;
+	}
+	return os;
+}

@@ -31,7 +31,7 @@ inline std::ostream& operator<<(
 
 class Parser;
 
-class Syntax : public Lex {
+class Syntax {
 public:
 	struct Prefix {
 		int llevel;

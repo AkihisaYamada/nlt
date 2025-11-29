@@ -145,7 +145,7 @@ private:
 	// input stream
 	std::istream* pis;
 	/** Lexical grammar */
-	Ref<Lex const> plex;
+	Lex const* const plex;
 	std::string_view peeked_token;
 	// stores the next token type
 	TokenType token_type = Unset;
@@ -160,9 +160,8 @@ private:
 	int fetch_char();
 	void fetch_continue( Lex::CharType t );
 public:
-	Lexer( std::istream& is, std::string_view const& filename, Ref<Lex const> const& lex ) : plex(lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
-	// to ensure pointer life
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
+	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.
 	Lexer( Lexer const& ) = delete;
 	void reset() {

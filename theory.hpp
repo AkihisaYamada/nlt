@@ -99,10 +99,9 @@ public:
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
-	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
-	Import thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader );
-	Mem<Syntax> const& syntax_ptr() const&;
-	Mem<Syntax>& syntax_ptr() &;
+	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
+	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
+	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
 	auto pretty( Term const& t ) const {
 		return syntax().pretty(t);
@@ -113,7 +112,7 @@ public:
 	auto pretty( Thm const& t ) const {
 		return syntax().pretty(t);
 	}
-	Rewriter& rewriter() &;
+	Rewriter& modify_rewriter() &;
 	Rewriter const& rewriter() const &;
 	Rewriter rewriter() && = delete;
 	Thm rewrite( Thm const& thm ) const&;
@@ -221,7 +220,7 @@ Thm prove( CTerm const& claim, Thy const& thy );
 inline Import Thy::self() const& {
 	return Import(Ctxt::self(),*this);
 }
-inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,Parser&)> reader ) {
+inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) {
 	auto ret = find_thy(name,reader);
 	if( !ret ) throw Error("\"theory not found\"");
 	return *ret;

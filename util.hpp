@@ -213,6 +213,9 @@ public:
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();
 	}
+	Thm thm() const {
+		return _thm;
+	}
 	Thm premise() const {
 		return _premise;
 	}

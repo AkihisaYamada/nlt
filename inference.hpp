@@ -230,6 +230,6 @@ inline Thm blast(
 	return thesis.discharge(prove(imp->first,thy,ctrl));
 }
 
-
+std::ostream& operator<<( std::ostream& os, Inference::Ctrl const& ctrl );
 
 #endif

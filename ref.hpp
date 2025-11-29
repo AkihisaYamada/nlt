@@ -105,13 +105,9 @@ public:
 	/**
 	 * @brief Modifiable reference. This will be the unique owner of the object.
 	 */
-	T& operator*() & {
+	T& modify() & {
 		_fork();
 		return *_ptr;
-	}
-	T* operator->() & {
-		_fork();
-		return _ptr.get();
 	}
 	/**
 	 * @brief Constructing a shared object.

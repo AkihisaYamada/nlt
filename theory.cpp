@@ -13,22 +13,15 @@ struct Thy::_Body {
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> imports;
-	Mem<Syntax> syntax;
-	Mem<Rewriter> rewriter;
-	OptMem<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Mem<Syntax> const& syntax, Mem<Rewriter> const& rewriter, OptMem<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
-		if( this->syntax.unique() ) {
-DEB("unique syntax");
-		}
+	Ref<Syntax> syntax;
+	Ref<Rewriter> rewriter;
+	OptRef<Definer> definer;
+	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, Ref<Rewriter> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
 	}
-	~_Body() {
-		if( syntax.unique() ) {
-DEB("deleting syntax");
-		}
-	}
+	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Mem<Syntax>::make(),Mem<Rewriter>::make(),OptMem<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),Ref<Rewriter>::make(),OptRef<Definer>())) {};
 
 Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
 	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
@@ -55,23 +48,20 @@ string const& Thy::dir() const & {
 	return _ref->dir;
 }
 Syntax const& Thy::syntax() const& {
-	return *(Mem<Syntax> const)_ref->syntax;
+	return *_ref->syntax;
 }
-Mem<Syntax> const& Thy::syntax_ptr() const& {
-	return _ref->syntax;
-}
-Mem<Syntax>& Thy::syntax_ptr() & {
-	return _ref->syntax;
+Syntax& Thy::modify_syntax() & {
+	return *_ref->syntax;
 }
 Rewriter const& Thy::rewriter() const& {
 	return *_ref->rewriter;
 }
-Rewriter& Thy::rewriter() & {
+Rewriter& Thy::modify_rewriter() & {
 	return *_ref->rewriter;
 }
 void Thy::setup_definer( Thm const& beta ) & {
 	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
-	_ref->definer = OptMem<Definer>::make(*this,beta);
+	_ref->definer = OptRef<Definer>::make(*this,beta);
 }
 pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&> name ) & {
 	if( !_ref->definer ) throw Error("\"definer not setup\"");
@@ -193,7 +183,7 @@ Opt<AThm> Thy::_find_thm(
 	return {};
 }
 
-Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)> reader ) {
+Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istream&,std::string_view const&)> reader ) {
 	size_t sep = name.find('.');
 	if( sep == string::npos ) {
 		if( auto ret = _ref->thys.finds(name) ) {
@@ -204,9 +194,7 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,Parser&)>
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
 				Thy thy = branch(name,path);
-				auto lexer = Lexer(fis,fullpath,thy.syntax());
-				auto parser = Parser(lexer,thy.syntax());
-				reader(thy,parser);
+				reader(thy,fis,fullpath);
 				return {Import::make(thy,*this)};
 			}
 		}
