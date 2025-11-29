@@ -194,6 +194,8 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
 				Thy thy = branch(name,path);
+				// TODO: cloning rewriter
+				thy._ref->rewriter = Ref<Rewriter>::make(*_ref->rewriter);
 				reader(thy,fis,fullpath);
 				return {Import::make(thy,*this)};
 			}
