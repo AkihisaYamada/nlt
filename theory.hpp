@@ -5,16 +5,11 @@
 #include"syntax.hpp"
 
 class Rewriter;
-
+class AThm;
+class Import;
 struct ThmInfo {
 	Opt<Intro> intro;
 	Opt<Elim> elim;
-};
-class AThm;
-class Import;
-struct RewriteRule {
-	CTerm pat;
-	Thm thm;
 };
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
@@ -248,9 +243,6 @@ inline Opt<AThm> Thy::find_thm(
 }
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
 	return os << loc.pretty();
-}
-inline std::ostream& operator<<( std::ostream& os, RewriteRule const& rule ) {
-	return os << '[' << rule.pat << "] " << rule.thm;
 }
 
 #endif

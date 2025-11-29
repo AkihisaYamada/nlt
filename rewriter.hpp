@@ -3,6 +3,7 @@
 
 #include "theory.hpp"
 
+class Inference;
 /**
  * @brief Congruence prover.
  * 

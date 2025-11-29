@@ -45,7 +45,19 @@ Elim Elim::rule( Thm const& thm ) {
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);
 	body = body.discharge(premise);
-	return Elim(premise,body);
+	return Elim(thm,premise,body);
+}
+Opt<Intro> Elim::matches( Thm const& arg, Thy const& thy ) const {
+	auto pat_ctxt = _premise.ctxt();
+	auto thm_ctxt = _thm.ctxt();
+	auto thm2loc = thy.interpret_ancestor(thm_ctxt);
+	auto m = match( _premise, arg, [&](auto v){ return pat_ctxt.fixes(v); } );
+	if( !m ) return {};
+	auto pat2loc = Intp::make(pat_ctxt,thm_ctxt).compose(thm2loc);
+	subst_intp(pat2loc,*m);
+	pat2loc.discharge(arg);
+	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
+	return Intro::rule(thm);
 }
 
 void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
@@ -178,7 +190,7 @@ bool Inference::_blast(
 					add_forced(subthy,assm,ctrl.force_assms);
 					break;
 				}
-				if( auto o = elim->matches(assm,child/*FIX!*/) ) {
+				if( auto o = elim->matches(assm,subthy) ) {
 					// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
 					elim_res.push_back(*o);
 					n_elim_res++;

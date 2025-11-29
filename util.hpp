@@ -146,6 +146,7 @@ inline Thm operator<<(Thm const& t, Thm arg) {
 
 /** detects trivial abstraction x. y.[x], and returns y */
 Opt<std::string> virtual_var( CTerm const& t );
+class Thy;
 
 /** Introduction rule */
 class Intro {
@@ -197,21 +198,17 @@ public:
 };
 
 class Elim {
-	Thm _thm;// ∀thesis. ψ... ⟹ thesis, where the context fixes other variables and assumes premise φ
-	Thm _premise;// φ
-	explicit Elim( Thm const& premise, Thm const& thm ) : _premise(premise), _thm(thm) {}
+	Thm _thm;//  Γ ⊢ ∀x... φ ⟹ ∀thesis. ψ... ⟹ thesis
+	Thm _rule;// Γ. fix x... assume φ ⊢ ∀thesis. ψ... ⟹ thesis
+	Thm _premise;// Γ. fix x... assume φ ⊢ φ
+	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule ) : _thm(thm), _premise(premise), _rule(rule) {}
 public:
 	static Elim rule( Thm const& thm );
-	Opt<Intro> matches( Thm const& assm, Intp const& intp ) const {
-		auto pat_ctxt = _premise.ctxt();
-		auto m = match( _premise, assm, [&](auto v){ return pat_ctxt.fixes(v); } );
-		if( !m ) return {};
-		auto pat_intp = Intp::make(pat_ctxt,intp.source()).compose(intp);
-		subst_intp(pat_intp,*m);
-		pat_intp.discharge(assm);
-		auto thm = _thm.subst(pat_intp);// ∀thesis. ψθ... ⟹ thesis
-		return Intro::rule(thm);
-	}
+	/** matches a theorem against the premise of elimination.
+	 * @param arg the theorem to eliminate
+	 * @param thy the theory arg belongs
+	 */
+	Opt<Intro> matches( Thm const& arg, Thy const& thy ) const;
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();
@@ -223,7 +220,5 @@ public:
 		return _premise < y._premise;
 	}
 };
-
-class Inference;
 
 #endif

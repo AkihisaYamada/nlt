@@ -4,6 +4,7 @@
 In addition to propositional minimal logic, this theory axiomatizes typed quantifiers.
 Now the true proposition can be obtained using the universal quantifier.
 ---
+import Base.
 
 fix prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
