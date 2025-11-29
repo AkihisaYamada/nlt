@@ -9,8 +9,9 @@
  */
 class Rewriter {
 	struct Rule {
-		CTerm pat;
-		Thm thm;
+		CTerm pat;// Γ.fix x... assume φ... ⊢ l
+		Thm rule;//  Γ.fix x... assume φ... ⊢ l = r
+		Ctxt ctxt;// Γ, holding ∀x... φ ⟹... l = r
 	};
 	struct Cong : Thm {
 		struct Cond {
@@ -132,6 +133,6 @@ private:
 };
 
 inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) {
-	return os << '[' << rule.pat << "] " << rule.thm;
+	return os << '[' << rule.pat << "] " << rule.rule;
 }
 #endif

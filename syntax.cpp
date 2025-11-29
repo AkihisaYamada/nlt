@@ -168,7 +168,7 @@ function<ostream&(ostream&)> Syntax::pretty_subst(Subst const& subst) const & {
 		os << pretty(p.first) << " := " << pretty(t);
 	};
 	return [&](ostream& os)->ostream&{
-		os << "[ ";
+		os << '@' << subst.ctxt().id() << " [ ";
 		auto& map = subst.map();
 		out_sep(os, map.begin(), map.end(), ",\n  ", pair );
 		return os << " ]";

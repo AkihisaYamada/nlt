@@ -249,21 +249,23 @@ void subst_intp( Intp& intp, Subst& subst ) {
 }
 
 Thm match_discharge( Thm const& thm, Thm const& arg ) {
-	auto assm_intp = thm.ctxt().branch();
-	auto assm_ctxt = assm_intp.ctxt();
-	auto match_intp = assm_ctxt.branch();
-	auto match_ctxt = match_intp.ctxt();
-	Thm rule = strip_all(thm,match_intp,fresh_maker()).first;
+	auto thm_ctxt = thm.ctxt();
+	auto thm2assm = thm_ctxt.branch();
+	auto assm_ctxt = thm2assm.ctxt();
+	auto assm2match = assm_ctxt.branch();
+	auto match_ctxt = assm2match.ctxt();
+	auto thm2match = thm2assm.compose(assm2match);
+	Thm rule = strip_all(thm,thm2match,fresh_maker()).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) throw Error("#match_discharge")(thm);
-	auto const& arg_weaken = arg.subst(assm_intp);
+	auto const& arg_weaken = arg.subst(thm2assm);
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) throw Error("#match_discharge")(thm)(arg);
 	rule = rule.discharge(match_ctxt.assume(imp->first));
-	auto intp = Intp::make(match_ctxt,assm_ctxt).compose(assm_intp);
-	subst_intp(intp,*m);
-	auto const& assm = intp.assuming();
+	auto match2assm = Intp::make(match_ctxt,assm_ctxt);
+	subst_intp(match2assm,*m);
+	auto const& assm = match2assm.assuming();
 	assert(assm);
-	intp.discharge(arg_weaken);
-	return rule.subst(intp).intro();
+	match2assm.discharge(arg_weaken);
+	return rule.subst(match2assm).intro();
 }

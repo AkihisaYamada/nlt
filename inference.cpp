@@ -14,11 +14,12 @@ Error const Inference::Unapplicable = Error("\"apply failed\"");
 
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	auto child = thm.ctxt().branch();
+	auto self = child.ctxt().self();
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
 		if( i == n ) return Intro(thm,rule,vars,i);
-		auto const& [rule2,vars2] = strip_all(rule,child);
+		auto const& [rule2,vars2] = strip_all(rule,self);
 		vars += vars2;
 		auto imp = rule2.cbinary(IMP);
 		assert(imp);

@@ -51,9 +51,9 @@ void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev 
 			while( auto o = blasts(dual_thm,subthy) ) {
 				dual_thm = *o;
 			}
-			rules[dual->second.ind].emplace_back(get<2>(*bin),dual_thm);
+			rules[dual->second.ind].emplace_back(get<2>(*bin),dual_thm,thm.ctxt());
 		} else {
-			rules[*ind].emplace_back(get<1>(*bin),body);
+			rules[*ind].emplace_back(get<1>(*bin),body,thm.ctxt());
 		}
 		return;
 	}
@@ -180,11 +180,10 @@ Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& s
 
 Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const {
 	for( auto const& rule : rules[ind] ) {
-		Ctxt const& rule_ctxt = rule.thm.ctxt();
 		Ctxt const& pat_ctxt = rule.pat.ctxt();
 		if( auto const& m = match( rule.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {
 			// source: l[m]
-			Intp intp = Intp::make(pat_ctxt,rule_ctxt).compose(thy.interpret_ancestor(rule_ctxt));
+			Intp intp = Intp::make(pat_ctxt,rule.ctxt).compose(thy.interpret_ancestor(rule.ctxt));
 			for(;;) {
 				if( auto fix = intp.fixing() ) {
 					// instantiate variables
@@ -200,7 +199,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 					break;
 				}
 			}
-			return rule.thm.subst(intp); // l[m] = r[m]
+			return rule.rule.subst(intp); // l[m] = r[m]
 		}
 	}
 	bool success = false;
