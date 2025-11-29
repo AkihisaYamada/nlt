@@ -1,5 +1,3 @@
-base IntuitionisticFOL.
-
 fix nat (0) suc rec.
 
 import zero: Member nat 0.

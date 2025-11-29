@@ -1,3 +1,5 @@
+import Base.
+
 fix (:) prop true false (¬) (∧) (∨) (⟺).
 
 import Prop.

@@ -3,6 +3,8 @@
 
 False can be obtained using universal quantifier.
 ------
+import Base.
+
 fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
