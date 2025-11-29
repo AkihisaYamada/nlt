@@ -68,9 +68,6 @@ private:
 	bool _print_ctxt = false;
 public:
 	Syntax();
-	~Syntax() {
-DEB("syntax destructed");
-	}
 	bool prints_ctxt() const {
 		return _print_ctxt;
 	}

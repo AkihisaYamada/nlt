@@ -226,7 +226,6 @@ bool Inference::_blast(
 							} ) )
 						) {
 							if( fail ) return false;
-DEB("concls: " << subthy.print_thms(CONCL) << "intros: " << subthy.print_thms(INTRO));
 							throw Error("\"failed to blast\"")(goal);
 						}
 						break;

@@ -58,6 +58,8 @@ lemma case_zero: if ! z : σ, s: s : nat → σ then rec z s 0 = z;
 		apply all.type;
 		- for s1, if !;
 			apply eq_nat.type;
+oops -- σ has to be EqType!
+
 			apply rec_type_intro;
 			.
 		.

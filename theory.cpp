@@ -204,14 +204,12 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 			auto path = _ref->dir+"/"+name;
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
-DEB("found " << fullpath);
 				Thy thy = branch(name,path);
 				// TODO: cloning rewriter
 				thy._ref->rewriter = Ref<Rewriter>::make(*_ref->rewriter);
 				reader(thy,fis,fullpath);
 				return {Import::make(thy,*this)};
 			}
-DEB("not found " << fullpath);
 		}
 	} else if( sep == 0 ) {// explicit parent
 		if( auto const& p = parent() )

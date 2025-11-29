@@ -37,9 +37,6 @@ private:
 public:
 	Lex();
 	Lex( Lex const& other ) : _char_map(other._char_map) {}
-	~Lex() {
-DEB("Lex destructed");
-	}
 	void register_single_op( int c ) {
 		_char_map.insert({c,SingleOp});
 	}
