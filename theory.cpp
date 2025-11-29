@@ -101,8 +101,17 @@ Thm Thy::weaken( Thm const& thm ) const {
 CTerm Thy::weaken( CTerm const& t ) const {
 	return t.subst(interpret_ancestor(t.ctxt()));
 }
+void Thy::_check_loop_import( Thy const& origin ) const {
+	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
+	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
+		it->second.source()._check_loop_import(origin);
+	}
+}
 Import& Thy::add_import( string_view const& name, Import const& import ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
+	if( name == "" ) {// check looping import
+		import.source()._check_loop_import(*this);
+	}
 	return _ref->imports.emplace(name,import)->second;
 };
 

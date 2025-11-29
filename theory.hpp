@@ -32,6 +32,7 @@ class Thy : public Ctxt {
 		Import const& import,
 		std::function<bool(AThm const&)> const& test
 	) const;
+	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
 	friend Import;
 public:

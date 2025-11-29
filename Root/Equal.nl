@@ -52,7 +52,7 @@ lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
 	by eq.trans[OF 1 2].
 
 theory Prop:
-	import .Prop.
+	import ..Prop.
 begin
 	theory EqType:
 		fix ι.

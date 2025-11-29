@@ -494,7 +494,11 @@ public:
 			cout << pre << "show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
 			return 1;
 		} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-			cout << pre << "retain " << obtain->spec_name << ": " << _thy.pretty(obtain->spec) << endl;
+			cout << pre << "retain ";
+			if( auto const& o = obtain->spec_name ) {
+				cout << *o << ": ";
+			}
+			cout << _thy.pretty(obtain->spec) << endl;
 			return 1;
 		} else {
 			return 0;
@@ -641,7 +645,6 @@ public:
 	}
 	void _retain( string const& prefix, Import& intp, bool change, Thy& org_thy ) {
 		auto sym = get_sym();// the symbol to be instantiated
-		Thy thesis_loc = _thy.branch();
 		auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
@@ -650,6 +653,7 @@ public:
 				_auto_discharge(org_thy,prefix,intp,*assume,change);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
+				Thy thesis_loc = _thy.branch();
 				if( osym == sym ) {
 					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 						return _thy.constant(x);
