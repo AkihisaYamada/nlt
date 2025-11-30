@@ -36,7 +36,8 @@ class Thy : public Ctxt {
 	friend Import;
 public:
 	struct Error : public ::Error {
-		Error(Term const& term) : ::Error(term) {}
+		static inline Term const RT = "#thy";
+		Error(Term const& term) : ::Error(RT(term)) {}
 	};
 	static Error const ThyNotFound;
 	struct TheoremNotFound : public Error {
@@ -147,7 +148,9 @@ public:
 	Thy& source() const & {
 		return _src;
 	}
-	Thy source() && = delete;
+	Thy source() && {
+		return std::move(_src);
+	}
 	/** @brief Composition of imports.
 	 * The argument should import this target.
 	 */

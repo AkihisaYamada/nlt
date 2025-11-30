@@ -72,23 +72,24 @@ class Prover : public Parser {
 	Thy _thy;
 	Lex& lex;
 	bool _final = false;
-	bool _exit_on_error;
+	bool _through_error;
 	bool _out_system = true;
 	bool _out;
 	bool _out_load = false;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
-		static inline Term const RT = Term("#prover_error");
+		static inline Term const RT = Term("#prover");
 		Error( Term const& msg ) : ::Error(RT(msg)) {
 		}
 	};
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool exit_on_error, bool out ) :
+	static inline Error const THROUGH = Error("\"from here\"");
+	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, bool out ) :
 		_depth(0),
 		_thy(thy),
 		lex(lex),
 		Parser(is,filename,lex),
-		_exit_on_error(exit_on_error),
+		_through_error(through_error),
 		_out(out) {
 		_prompt();
 	}
@@ -107,9 +108,6 @@ public:
 		_thy = _thy.branch(name,dirname);
 		_final = false;
 	}
-	void set_exit_on_error( bool b ) {
-		_exit_on_error = b;
-	}
 	Opt<Thm> gets_thm() {
 		auto loc = _thy.branch();
 		if( auto const& thm = _gets_thm(loc) ) {
@@ -119,7 +117,7 @@ public:
 	}
 	Thm get_thm() {
 		auto ret = gets_thm();
-		if( !ret ) throw Parser::Error("expects a theorem");
+		if( !ret ) throw Parser::Error("\"expects a theorem\"");
 		return *ret;
 	}
 	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev = false ) {
@@ -224,7 +222,7 @@ public:
 	}
 	Thm _get_thm( Thy& loc ) {
 		auto ret = _gets_thm(loc);
-		if( !ret ) throw Parser::Error("expects a theorem");
+		if( !ret ) throw Parser::Error("\"expected a theorem\"");
 		return *ret;
 	}
 
@@ -257,7 +255,7 @@ public:
 		if( auto const& term = gets_term_mod() ) {
 			return *term;
 		}
-		throw Error("Expects a term");
+		throw Error("\"expected a term\"");
 	}
 	Opt<string> gets_sym() {
 		if( skips("(") ) {
@@ -447,9 +445,8 @@ public:
 			swap(prefix,name);
 			name = get();
 		}
-		auto im = _thy.find_thy(name,reader());
-		if( !im ) throw Error("#theory_not_found")(name);
-		auto& intp = _thy.add_import(prefix,*im);
+		auto im = _thy.thy(name,reader());
+		auto& intp = _thy.add_import(prefix,im);
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
@@ -464,7 +461,7 @@ public:
 				}
 			}
 		}
-		auto path = im->source().print_name();
+		auto path = im.source().print_name();
 		if( skips(";") ) {
 			_cout << (change ? "importing " : "interpreting ") << path << endl;
 			_depth++;
@@ -484,7 +481,7 @@ public:
 			}
 			if( _no_syntax ) {
 				_no_syntax = false;
-				_thy.modify_syntax() = im->source().syntax();
+				_thy.modify_syntax() = im.source().syntax();
 			}
 		}
 		_cout << (change ? "imported " : "interpreted ") << path << endl;
@@ -638,7 +635,7 @@ public:
 			}
 		} catch( ::Error const& e ) {
 			cerr << location() << ": ERROR: " << _thy.pretty(e) << endl;
-			if( _exit_on_error ) exit(-1);
+			if( _through_error ) throw THROUGH;
 			_prompt();
 		}
 		_thy = org_thy;
@@ -733,9 +730,8 @@ public:
 			} else {
 				string name = get();
 				skip(".");
-				auto thy = _thy.find_thy(name,reader());
-				if( !thy ) throw Error("\"theory not found\"");
-				_cout << thy->source().pretty_ctxt() << endl;
+				auto thy = _thy.thy(name,reader());
+				_cout << thy.source().pretty_ctxt() << endl;
 			}
 			return true;
 		}
@@ -934,7 +930,7 @@ assert(_thy != subloc);
 		} else if( skips("context") ) {
 			string name = get();
 			skip("begin");
-			auto loc = _thy.find_thy(name,reader())->source();
+			auto loc = _thy.thy(name,reader()).source();
 			_cout << "in context " << name << endl;
 			local_thy(loc,true);
 			_cout << "left " << name << endl;
@@ -1037,8 +1033,8 @@ assert(_thy != subloc);
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
-			cerr << location() << ": ERROR: " << _thy.pretty(e) << endl;
-			if( _exit_on_error ) exit(-1);
+			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
+			if( _through_error ) throw THROUGH;
 			_prompt();
 		}
 	}
@@ -1221,15 +1217,15 @@ assert(_thy != subloc);
 					_final = true;
 					_cout << "finalized" << endl;
 				} else {
-					throw Error("unexpected")(get());
+					throw Error("\"unexpected\"")(get());
 				}
 			} else {
-				throw Error(Term("unexpected")(get()));
+				throw Error("\"unexpected\"")(get());
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
-			cerr << location() << ": ERROR: " << _thy.pretty(e) << endl;
-			if( _exit_on_error ) exit(-1);
+			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
+			if( _through_error ) throw THROUGH;
 			_prompt();
 		}
 	}
@@ -1302,7 +1298,6 @@ void run( istream& is, string_view const& name, bool exit_on_error, bool out ) {
 	try {
 		prover.loop();
 	} catch( Error const& e ) {
-		cerr << prover.location() << ": ERROR: " << e << endl;
 		exit(-1);
 	}
 }
