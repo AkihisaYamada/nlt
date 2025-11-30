@@ -403,8 +403,14 @@ public:
 		}
 		assm_name += assume.second;
 		auto const& assm = assume.first;
-		if( auto opt = _thy.find_thm(assm_name,[&]( Term const& y ) { return assm == y; }) ) {
-			intp.discharge(*opt);
+		if( _thy.find_thm(assm_name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto thm2 = thm.subst(import);
+			if( thm2 == assm ) {
+				intp.discharge(thm2);
+				return {thm2};
+			}
+			return {};
+		} ) ) {
 		} else if( change ) {
 			intp.discharge(thy.add_assm(assm_name,assm));
 		} else {
@@ -415,9 +421,14 @@ public:
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			Term const& stmt = spec.inst(*csym);
-			auto const& thm = _thy.find_thm(name,[&]( AThm const& y ){ return stmt == y; });
-			if( !thm ) throw Error("\"failed retain\"")(sym)(name)(stmt);
-			intp.retain(*csym,*thm);
+			if( !_thy.find_thm(name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+				auto thm2 = thm.subst(import);
+				if( stmt == thm2 ) {
+					intp.retain(*csym,thm2);
+					return {thm2};
+				};
+				return {};
+			} ) ) throw Error("\"failed retain\"")(sym)(name)(stmt);
 		} else {
 			auto [sym_term,spec] = thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
@@ -1060,10 +1071,11 @@ assert(_thy != subloc);
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
-					_thy.find_thm( Rewriter::CONG, [&](AThm const& thm ){
-						_thy.modify_rewriter().register_cong(thm);
-						_cout << "\n\tcong: " << _thy.pretty(thm);
-						return false;
+					_thy.find_thm( Rewriter::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+					auto thm2 = thm.subst(import);
+						_thy.modify_rewriter().register_cong(thm2);
+						_cout << "\n\tcong: " << _thy.pretty(thm2);
+						return {};
 					} );
 					_cout << endl;
 				} else if( skips("trans") ) {

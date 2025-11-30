@@ -201,28 +201,45 @@ bool Inference::_blast(
 		break;
 	}
 	// try exact conclusions
-	if( !subthy.find_thm( EXACT, [&]( auto& thm ){
-		if( thm == goal ) {
-			_thm = _thm.discharge(thm.intro());
-			return true;
+	if( !subthy.find_thm( EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		auto thm2 = thm.subst(import);
+		if( thm2 == goal ) {
+			_thm = _thm.discharge(thm2.intro());
+			return {thm2};
 		}
-		return false;
+		return {};
 	} ) ) {
 		fuel--;
 		auto thesis = claim_exact(subthy,goal);
 		auto subgoal_child = subthy.branch();
 		auto const& g = subgoal_child.weaken(thesis._claim);
-		if( !subthy.find_thm( CONCL, [&]( auto& thm ){ return thesis._apply(Intro::axiom(thm),g,subgoal_child); } ) ) {
+		if( !subthy.find_thm( CONCL, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto thm2 = thm.subst(import);
+			if( thesis._apply(Intro::axiom(thm2),g,subgoal_child) ) {
+				return {thm2};
+			}
+			return {};
+		} ) ) {
 			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter().apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g,subgoal_child) &&
-				!subthy.find_thm( INTRO, [&]( auto& thm ){ return thesis._apply(Intro::rule(thm),g,subgoal_child); } )
+				!subthy.find_thm( INTRO, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+					auto thm2 = thm.subst(import);
+					if( thesis._apply(Intro::rule(thm2),g,subgoal_child) ) {
+						return {thm2};
+					}
+					return {};
+				} )
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
 						if( trial == 0 ||
 							( trial--,
-							 !subthy.find_thm( WEAK, [&]( auto& thm ){
-								return thesis._apply_blast(fuel,trial,goal,Intro::rule(thm),ctrl);
+							 !subthy.find_thm( WEAK, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+								auto thm2 = thm.subst(import);
+								if( thesis._apply_blast(fuel,trial,goal,Intro::rule(thm2),ctrl) ) {
+									return {thm2};
+								}
+								return {};
 							} ) )
 						) {
 							if( fail ) return false;

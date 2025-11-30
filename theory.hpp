@@ -23,14 +23,13 @@ class Thy : public Ctxt {
 	struct _Body;
 	Ref<_Body> _ref;
 	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
-	static std::function<Thm(Thm const&)> const _triv_proc;
-	static std::function<bool(AThm const&)> const _triv_test;
+	static std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const _triv_test;
 	/** @brief Finds a named theorem with prefix from the theory or an ancestor. */
-	Opt<AThm> _find_thm(
+	Opt<Thm> _find_thm(
 		std::string_view const& pre,
 		std::string_view const& name,
 		Import const& import,
-		std::function<bool(AThm const&)> const& test
+		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test
 	) const;
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
@@ -63,16 +62,16 @@ public:
 	std::string const& dir() const&;
 	auto dir() && = delete;
 	/** @brief Finds a named theorem from the theory or an ancestor. */
-	Opt<AThm> find_thm(
+	Opt<Thm> find_thm(
 		std::string_view const& name,
-		std::function<bool(AThm const&)> const& test = _triv_test
+		std::function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test = _triv_test
 	) const;
 	/** @brief Finds a named theorem from the theory or an ancestor, and then interpret.
 	 */
-	Opt<AThm> find_thm(
+	Opt<Thm> find_thm(
 		std::string_view const& name,
 		Import const& import,
-		std::function<bool(AThm const&)> const& test = _triv_test,
+		std::function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test = _triv_test,
 		bool ancestor = true
 	) const;
 	/** @brief Obtains a named theorem from the theory.
@@ -208,11 +207,10 @@ public:
 
 /** Annotated theorem */
 class AThm : public Thm {
-	Import _import;
-	AThm( Import const& import, Thm const& thm, ThmInfo const& info = {} ) : _import(import), Thm(thm), info(info) {}
 	friend Thy;
 	friend Import;
 public:
+	AThm( Thm const& thm, ThmInfo const& info = {} ) : Thm(thm), info(info) {}
 	ThmInfo info;
 };
 
@@ -227,9 +225,9 @@ inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,st
 	if( !ret ) throw Error("\"theory not found\"");
 	return *ret;
 }
-inline Opt<AThm> Thy::find_thm(
+inline Opt<Thm> Thy::find_thm(
 	std::string_view const& name,
-	std::function<bool(AThm const&)> const& test
+	std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test
 ) const {
 	return find_thm(name,self(),test);
 }

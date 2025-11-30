@@ -117,11 +117,10 @@ Import& Thy::add_import( string_view const& name, Import const& import ) & {
 
 Thy::Error const Thy::ThyNotFound = Error("\"theory not found\"");
 
-function<Thm(Thm const&)> const Thy::_triv_proc =
-	[]( Thm const& thm ) { return thm; };
-
-function<bool(AThm const&)> const Thy::_triv_test =
-	[]( AThm const& ) { return true; };
+function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =
+	[]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm> {
+		return {thm.subst(import)};
+	};
 
 Thm Thy::add_assm(string_view const& name, CTerm const& assm) {
 	if( assm.ctxt() != *this ) throw Error("\"wrong context for add_assm\"")(assm);
@@ -135,7 +134,7 @@ AThm Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) 
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
 	_ref->thms.emplace(name,pair(thm,info));
-	return AThm(self(),thm,info);
+	return AThm(thm,info);
 }
 
 pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name ) {
@@ -145,15 +144,14 @@ pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view 
 	_ref->assm_names.emplace(rev,spec_name);
 	return ret;
 }
-Opt<AThm> Thy::find_thm(
+Opt<Thm> Thy::find_thm(
 	string_view const& name,
 	Import const& import,
-	function<bool(AThm const&)> const& test,
+	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
 	bool ancestor
 ) const {
 	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
-		auto const& ret = AThm(import,it->second.first.subst(import),it->second.second);
-		if( test(ret) ) {// found in the current theory
+		if( auto ret = test(import,it->second.first,it->second.second) ) {// found in the current theory
 			return ret;
 		}
 	}
@@ -177,11 +175,11 @@ Opt<AThm> Thy::find_thm(
 	}
 	return {};
 }
-Opt<AThm> Thy::_find_thm(
+Opt<Thm> Thy::_find_thm(
 	string_view const& pre,
 	string_view const& name,
 	Import const& import,
-	function<bool(AThm const&)> const& test
+	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test
 ) const {
 	// pre as interpretations
 	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
@@ -323,9 +321,9 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 }
 function<ostream&(ostream&)> Thy::print_thms( string_view const& name, string_view const& prefix ) const& {
 	return [&]( ostream& os )->ostream& {
-		auto fun = [&]( AThm const& thm ){
-			os << prefix << pretty(thm) << endl;
-			return false;
+		auto fun = [&]( Import const& import, Thm const& thm, ThmInfo const& )->Opt<Thm>{
+			os << prefix << pretty(thm.subst(import)) << endl;
+			return {};
 		};
 		find_thm(name,fun);
 		return os;
