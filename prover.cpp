@@ -365,13 +365,13 @@ public:
 			};
 			skip("then");
 			_cout << "then ";
-			for( auto [cs,t] : assms ) {
-				add_claim(assm_thy,cs,assm_thy.assume(t));
-			}
 		}
 		Term conc = get_term(0);
 		skip(";");
 		CTerm goal = assm_thy.enclose(conc);
+		for( auto [cs,t] : assms ) {
+			add_claim(assm_thy,cs,assm_thy.assume(t));
+		}
 		_cout << _thy.pretty(goal) << endl;
 		return Inference::claim_exact(assm_thy,goal);
 	}

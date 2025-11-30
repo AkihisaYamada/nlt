@@ -314,7 +314,7 @@ lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q;
 lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
 	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
-		thm nnimp_imp_nnot[OF nnimp P][unfolded nnnot_iff].
+		by nnimp_imp_nnot[OF nnimp P, unfolded nnnot_iff].
 	apply nnot_intro=.
 
 lemma not_true_iff: ¬true ⟺ false;
@@ -330,7 +330,7 @@ lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
 	by iff_true[OF imp.refl].
 
 lemma false_and_false_iff: false ∧ false ⟺ false;
-	apply iff_intro[OF and_elim1],
+	apply iff_intro[OF and_elim1];
 	by and_intro.
 
 lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q);
@@ -390,7 +390,7 @@ lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R
 				by PS.
 			.
 		- if !Q;
-			apply or_imp,
+			apply or_imp;
 			- for S if PS: P ⟹ S, QS: Q ⟹ S then S;
 				by QS.
 			.
@@ -422,7 +422,7 @@ interpret or: MetaSymmetric (∨);
 		by or_elim[OF PQ or_intro2 or_intro1].
 	.
 
-lemma iff_cong_or#cong: for P R, if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+lemma iff_cong_or#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 	apply iff_intro;
 	- if PR: P ∨ R;
 		apply or_elim[OF PR];
@@ -461,13 +461,13 @@ interpret or_iff: MetaAssociative (∨) (⟺);
 			apply or_elim[OF PQR];
 			- if PQ: P ∨ Q;
 				apply or_elim[OF PQ];
-				- by or_intro1.
+				-; by or_intro1.
 				- if !Q;
-					apply or_intro2,
+					apply or_intro2;
 					apply or_intro1.
 				.
 			- if !R;
-				apply or_intro2,
+				apply or_intro2;
 				apply or_intro2.
 			.
 		- if PQR: P ∨ (Q ∨ R);
@@ -478,7 +478,7 @@ interpret or_iff: MetaAssociative (∨) (⟺);
 			- if QR: Q ∨ R;
 				apply or_elim[OF QR];
 				- if !Q;
-					apply or_intro1,
+					apply or_intro1;
 					apply or_intro2.
 				by or_intro2.
 			.
@@ -524,8 +524,8 @@ lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 		have nQ: ¬Q;
 			by and_elim2[OF and].
 		apply or_elim[OF PQ];
-		- by not_imp_false[OF nP].
-		- by not_imp_false[OF nQ].
+		-; by not_imp_false[OF nP].
+		-; by not_imp_false[OF nQ].
 		.
 	.
 
@@ -553,7 +553,9 @@ lemma ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
 	.
 
 lemma ex_iff: (∃x. α.[x]) ⟺ (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
-	by iff_intro[OF ex_elim ex_intro].
+	apply iff_intro;
+	-; apply ex_elim=.
+	apply ex_intro=.
 
 lemma ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P;
 	apply ex_elim[OF ex];
