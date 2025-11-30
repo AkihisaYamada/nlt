@@ -17,8 +17,8 @@ interpret MinimalPL;
 		.
 	.
 
-setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-setup dual iff.sym.
+set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
+set dual iff.sym.
 
 lemma not_imp_iff_false: if nP: ¬P, [P : prop] then P ⟺ false;
 	by iff_intro not_imp_false[OF nP] #elim false_elim.

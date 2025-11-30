@@ -165,7 +165,7 @@ Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& s
 	assert(abs);
 	Thy subthy = thy.branch();
 	CTerm v = subthy.fix(avoid(abs->first,[&](auto const& v){ return thy.has_constant(v); }));
-	CTerm body = source.inst(v);
+	CTerm body = subthy.weaken(source).inst(v);
 	Term prem = assm.Term::inst(subthy.cterm(abs->first)).subst(subst);
 	while( auto imp = prem.binary(IMP) ) {
 		add_forced(subthy,subthy.assume(imp->first));

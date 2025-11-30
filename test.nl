@@ -1,5 +1,6 @@
 import Lambda.
 import IntuitionisticFOL.
+set print load.
 import Nat.
 
 -----

@@ -259,13 +259,14 @@ function<ostream&(ostream&)> const Thy::print_name() const& {
 		}
 		for( auto& pre : path ) {
 			if( pre->name() == "" ) {
-				os << '@' << pre->id() << '.';
+				os << '@' << pre->id();
 			} else {
-				os << pre->name() << '.';
+				os << pre->name();
 			}
+			os << '/';
 		}
 		os << _ref->name;
-		if( syntax().prints_ctxt() || _ref->name != "" ) {
+		if( syntax().prints_ctxt() || _ref->name == "" ) {
 			os << '@' << id();
 		}
 		return os;

@@ -125,45 +125,43 @@ function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const 
 	};
 }
 
-function<ostream&(ostream&)> Syntax::pretty_ctxt(Ctxt const& ctxt) const & {
-	return [this,ctxt](ostream& os)->ostream& {
-		function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
-			os << pretty(t);
-		};
-		if( _print_ctxt ) {
-			os << '@' << ctxt.id() << " { " << endl;
-		} else {
-			os << '{';
-		}
-		for( int i = 0; i < ctxt.revision(); ) {
-			if( auto fix = ctxt.fixed(i) ) {
-				os << "\tfixes";
-				do {
-					os << ' ' << *fix;
-					i++;
-				} while( fix = ctxt.fixed(i) );
-				os << '.' << std::endl;
-			}
-			if( auto assume = ctxt.assumed(i) ) {
-				os << "\tassumes " << pretty(*assume) << '.'<< std::endl;
-				i++;
-				continue;
-			}
-			if( auto obtain = ctxt.obtained(i) ) {
-				auto [sym,thm,spec] = *obtain;
-				os << "\tobtains " << sym << "\n\t  where " << spec << '.' << std::endl;
-				i++;
-				continue;
-			}
-			break;
-		}
-		os << " }";
-		return os;
+ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev ) const & {
+	function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
+		os << pretty(t);
 	};
+	if( auto p = ctxt.find_parent() ) {
+		pretty_ctxt( os, p->first, p-> second );
+	}
+	if( _print_ctxt ) {
+		os << "-- ctxt @" << ctxt.id() << endl;
+	}
+	for( int i = 0; i < rev; ) {
+		if( auto fix = ctxt.fixed(i) ) {
+			os << "\tfixes";
+			do {
+				os << ' ' << *fix;
+				i++;
+			} while( fix = ctxt.fixed(i) );
+			os << '.' << endl;
+		}
+		if( auto assume = ctxt.assumed(i) ) {
+			os << "\tassumes " << pretty(*assume) << '.'<< endl;
+			i++;
+			continue;
+		}
+		if( auto obtain = ctxt.obtained(i) ) {
+			auto [sym,thm,spec] = *obtain;
+			os << "\tobtains " << sym << "\n\t  where " << pretty(spec) << '.' << endl;
+			i++;
+			continue;
+		}
+		break;
+	}
+	return os;
 }
 
 function<ostream&(ostream&)> Syntax::pretty_subst(Subst const& subst) const & {
-	static function<void(ostream&,std::pair<std::string const,Opt<Term>> const&)> pair = [this](ostream& os, auto p){
+	static function<void(ostream&,pair<string const,Opt<Term>> const&)> pair = [this](ostream& os, auto p){
 		auto t = p.second ? *p.second : p.first;
 		os << pretty(p.first) << " := " << pretty(t);
 	};

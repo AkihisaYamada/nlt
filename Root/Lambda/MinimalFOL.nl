@@ -43,8 +43,8 @@ interpret TypedOr;
 
 interpret MinimalPL.
 
-setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-setup dual iff.sym.
+set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
+set dual iff.sym.
 
 interpret TypedEx;
 	-.

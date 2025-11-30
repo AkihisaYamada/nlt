@@ -6,10 +6,10 @@ assume beta: (λx. α.[x]) s = α.[s].
 
 begin
 
-setup rewrite eq_imp eq_imp_rev eq.refl eq.trans.
-setup dual eq.sym.
+set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
+set dual eq.sym.
 
-setup define beta.
+set define beta.
 
 theory Ext:
 	assume ext: (∀x. α.[x] = β.[x]) ⟹ (λx. α.[x]) = (λx. β.[x]).

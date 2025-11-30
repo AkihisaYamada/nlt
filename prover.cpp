@@ -71,23 +71,25 @@ class Prover : public Parser {
 	unsigned int _depth;
 	Thy _thy;
 	Lex& lex;
-	bool _exit_on_error;
 	bool _final = false;
-	bool _out = true;
-	bool _out_load = false;
-	bool _no_syntax = true;
+	bool _exit_on_error;
+	bool _out;
+	bool _out_load;
+	bool _no_syntax;
 public:
 	struct Error : ::Error {
 		static inline Term const RT = Term("#prover_error");
 		Error( Term const& msg ) : ::Error(RT(msg)) {
 		}
 	};
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool exit_on_error ) :
+	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool exit_on_error, bool out, bool out_load ) :
 		_depth(0),
 		_thy(thy),
 		lex(lex),
 		Parser(is,filename,lex),
-		_exit_on_error(exit_on_error) {
+		_exit_on_error(exit_on_error),
+		_out(out),
+		_out_load(out_load) {
 		_prompt();
 	}
 	Syntax const& syntax() const {
@@ -107,10 +109,6 @@ public:
 	}
 	void set_exit_on_error( bool b ) {
 		_exit_on_error = b;
-	}
-	void set_out( bool out, bool out_load ) {
-		_out = out;
-		_out_load = out_load;
 	}
 	Opt<Thm> gets_thm() {
 		auto loc = _thy.branch();
@@ -436,7 +434,10 @@ public:
 	}
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, string_view const& filename ){
-			Prover(thy,fis,filename,lex,true).loop();
+			if( _out_load ) {
+				cout << "loading " << filename << endl;
+			}
+			Prover(thy,fis,filename,lex,true,_out_load,_out_load).loop();
 		};
 	}
 	void import( bool change ) {
@@ -531,7 +532,6 @@ public:
 	void _import_loop( string const& prefix, Import& intp, bool change ) {
 		auto org_thy = _thy;
 		_thy = org_thy.scope("#import");// namespace
-		_print_import_goals(intp);
 		for(;;) try {
 			_prompt();
 			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
@@ -740,13 +740,13 @@ public:
 	bool _ctxt() {
 		if( skips("ctxt") ) {
 			if( skips(".") ) {
-				_cout << _thy << endl;
+				_cout << _thy.pretty_ctxt() << endl;
 			} else {
 				string name = get();
 				skip(".");
 				auto thy = _thy.find_thy(name,reader());
 				if( !thy ) throw Error("\"theory not found\"");
-				_cout << *thy << endl;
+				_cout << thy->source().pretty_ctxt() << endl;
 			}
 			return true;
 		}
@@ -1056,7 +1056,7 @@ assert(_thy != subloc);
 	void loop() {
 		for(;;) try {
 			if( _stat() || _thy_decl() || _shared_decl() ) {
-			} else if( skips("setup") ) {
+			} else if( skips("set") ) {
 				if( skips("rewrite") ) {
 					bool def = skips("!") || _thy.rewriter().empty();
 					Thm imp = get_thm();
@@ -1125,7 +1125,13 @@ assert(_thy != subloc);
 					_cout << "set up set comprehension" << endl;
 				} else if( skips("print") ) {
 					if( skips("ctxt_id") ) {
-						_thy.modify_syntax().print_ctxt(true);
+						auto b = gets_bool().value_or(true);
+						_thy.modify_syntax().print_ctxt(b);
+						_cout << "set print ctxt_id" << endl;
+					} else if( skips("load") ) {
+						auto b = gets_bool().value_or(true);
+						_out_load = b;
+						_cout << "set print loaded theories" << endl;
 					}
 				}
 				skip(".");
@@ -1283,14 +1289,13 @@ private:
 */	}
 };
 
-void run( istream& is, string_view const& name, bool exit_on_error, bool out, bool load_out ) {
+void run( istream& is, string_view const& name, bool exit_on_error, bool out ) {
 	auto root = Thy("Root","Root");// the empty root theory, linked to the "Root" directory
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
 	Thy thy = root.branch(name,"");
-	auto prover = Prover(thy,is,name,lex,exit_on_error);
-	prover.set_out(out,load_out);
+	auto prover = Prover(thy,is,name,lex,exit_on_error,out,false);
 	try {
 		prover.loop();
 	} catch( Error const& e ) {
@@ -1302,11 +1307,11 @@ void run( istream& is, string_view const& name, bool exit_on_error, bool out, bo
 int main(int argc, char* argv[]) {
 	bool exit_on_error = false;
 	if( argc == 1 ) {
-		run(cin,"#stdin",false,true,false);
+		run(cin,"#stdin",false,true);
 	} else {
 		string name = argv[1];
 		auto fin = fstream(name);
-		run(fin,name,true,true,true);
+		run(fin,name,true,true);
 	}
 	cout << "bye!" << endl;
 	return 0;

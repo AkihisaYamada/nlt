@@ -113,6 +113,9 @@ public:
 	auto pretty( Thm const& t ) const {
 		return syntax().pretty(t);
 	}
+	auto pretty_ctxt() const {
+		return syntax().pretty_ctxt(*this);
+	}
 	Rewriter& modify_rewriter() &;
 	Rewriter const& rewriter() const &;
 	Rewriter rewriter() && = delete;

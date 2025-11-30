@@ -125,9 +125,28 @@ public:
 		peek_token();
 		reset();
 	}
+	Opt<bool> gets_bool() {
+		if( skips("true") ) return {true};
+		if( skips("false") ) return {false};
+		return {};
+	}
+	bool get_bool() {
+		auto ret = gets_bool();
+		if( !ret ) throw SyntaxError("\"expected bool\"");
+		return *ret;
+	}
 	Opt<size_t> gets_nat();
-	size_t get_nat();
-	int get_int();
+	size_t get_nat() {
+		auto ret = gets_nat();
+		if( !ret ) throw SyntaxError("\"expected nat\"");
+		return *ret;
+	}
+	Opt<int> gets_int();
+	int get_int() {
+		auto ret = gets_int();
+		if( !ret ) throw SyntaxError("\"expected int\"");
+		return *ret;
+	}
 	float get_float();
 	virtual std::string location() const = 0;
 };

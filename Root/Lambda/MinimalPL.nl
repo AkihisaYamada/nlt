@@ -21,8 +21,8 @@ define[iff] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
 interpret ..MinimalPL;
 	by and_intro #unfold iff_def #elim and_elim.
 
-setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-setup dual iff.sym.
+set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
+set dual iff.sym.
 
 lemma eq_iff: if eq: P = Q, [P : prop] then P ⟺ Q;
 	have! Q : prop;

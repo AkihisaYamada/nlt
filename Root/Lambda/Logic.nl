@@ -82,8 +82,8 @@ interpret TypeFreeIntuitionistic;
 		apply imp.refl=.
 	.
 
-setup rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
-setup dual iff.sym.
+set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
+set dual iff.sym.
 
 interpret eq_iff: MetaCommutative (=) (⟺);
 	show: for x y, x = y ⟺ y = x;

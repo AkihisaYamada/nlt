@@ -34,8 +34,8 @@ begin
 
 interpret MinimalPL.
 
-setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-setup dual iff.sym.
+set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
+set dual iff.sym.
 
 lemma not_imp_not_all: if nax: ¬α.[x], ! x : ι, ! ∀y. y : ι ⟹ α.[y] : prop then
 	¬(∀y:ι. α.[y]);

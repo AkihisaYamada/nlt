@@ -242,7 +242,7 @@ bool Ctxt::has_constant(string_view const& sym) const {
 		return true;
 	}
 	if( auto parent = find_parent() ) {
-		return parent->has_constant(sym);
+		return parent->first.has_constant(sym);// TODO
 	}
 	return false;
 }
@@ -314,7 +314,7 @@ CTerm CTerm::intro() const {
 		};
 		iter_syms(check);
 	}
-	auto const& parent = _ctxt.parent();
+	auto const& [parent,rev] = _ctxt.parent();
 	Term stmt = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
@@ -340,7 +340,7 @@ Opt<CTerm::StrTerm> CTerm::cbind() const {
 	return {};
 }
 CTerm CTerm::lift( CTerm const& quantifier ) const {
-	auto const& parent = _ctxt.parent();
+	auto const& [parent,rev] = _ctxt.parent();
 	if( quantifier.ctxt() != parent ) throw Error("#cterm")("\"wrong context lift\"");
 	Term ret = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
@@ -378,7 +378,7 @@ CTerm Term::csubst(Subst const& subst) const {
 
 Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
 	auto srcParent = src.find_parent();
-	if( srcParent && *srcParent != tgt ) throw Error(__func__)("\"wrong parent\"");
+	if( srcParent && srcParent->first != tgt ) throw Error(__func__)("\"wrong parent\"");
 	return Intp(src,Subst(tgt),0);
 }
 

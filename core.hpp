@@ -325,31 +325,17 @@ public:
 	Ctxt();
 	/** unique ID of the context */
 	void const* id() const &;
-	/** @brief Optionally returns the parent context.
+	/** @brief Optionally returns the parent information.
+	 * @return the pair of the parent context and the revision when this context was forked.
 	 */
-	Opt<Ctxt const&> find_parent() const &;
-	/** @brief Obtains the parent context.
+	Opt<std::pair<Ctxt,size_t> const&> find_parent() const &;
+	/** @brief Obtains the parent information.
 	 * @exception is thrown if no such context is found.
 	 */
-	Ctxt const& parent() const & {
+	std::pair<Ctxt,size_t> const& parent() const & {
 		auto opt = find_parent();
 		if( !opt ) throw Error(__func__)("\"parent of root\"");
 		return *opt;
-	}
-	/** @brief Tests if this has the given context as an ancestor.
-	 */
-	bool has_ancestor(Ctxt const& ancestor) const {
-		Ctxt cur = *this;
-		for(;;) {
-			if( cur == ancestor ) {
-				return true;
-			}
-			if( auto const& parent = cur.find_parent() ) {
-				cur = *parent;
-			} else {
-				return false;
-			}
-		}
 	}
 	/** The variable fixed at i-th modification. */
 	Opt<std::string const&> fixed(size_t i) const&;
@@ -415,9 +401,7 @@ public:
 struct Ctxt::Body {
 	using _Modifier = Sum<Fix,Assume,Obtain>;
 	/** Parent context and its revision. */
-	Opt<Ctxt> parent;
-	/** Validated revision of the parent/ */
-	size_t parent_rev;
+	Opt<std::pair<Ctxt,size_t>> parent;
 	/** Vector of modifiers */
 	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
@@ -434,7 +418,7 @@ struct Ctxt::Body {
 inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
 }
-inline Opt<Ctxt const&> Ctxt::find_parent() const & {
+inline Opt<std::pair<Ctxt,size_t> const&> Ctxt::find_parent() const & {
 	return _ref->parent;
 }
 inline size_t Ctxt::revision() const {
@@ -553,7 +537,7 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm inst(CTerm const& arg) const {
-		assert(arg._ctxt.has_ancestor(_ctxt));
+		if( arg._ctxt != _ctxt ) throw Error("#core")("\"wrong context inst\"");
 		return CTerm(arg._ctxt,Term::inst(arg));
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.
@@ -863,8 +847,7 @@ inline Intp Ctxt::self() const {
 inline Intp Ctxt::fork() const {
 	auto child = Ctxt(Ref<Body>::make());
 	auto rev = revision();
-	child._ref->parent = *this;
-	child._ref->parent_rev = rev;
+	child._ref->parent = {{*this,rev}};
 	return Intp(*this,child,rev);
 }
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {

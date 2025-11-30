@@ -252,16 +252,14 @@ Opt<size_t> Tokenizer::gets_nat() {
 	reset();
 	return ret;
 }
-size_t Tokenizer::get_nat() {
-	auto ret = gets_nat();
-	if( !ret ) throw SyntaxError("\"expected number\"");
-	return *ret;
-}
-int Tokenizer::get_int() {
+Opt<int> Tokenizer::gets_int() {
 	if( skips("-") ) {
-		return -get_nat();
+		return {-get_nat()};
 	}
-	return get_nat();
+	if( auto n = gets_nat() ) {
+		return {*n};
+	}
+	return {};
 }
 float Tokenizer::get_float() {
 	auto const& t = peek_token();
