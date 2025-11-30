@@ -13,14 +13,14 @@ import TypedAll.
 
 interpret TypedTrue;
 	obtain true where !true : prop, !true;
-		- for thesis, if assm;
+		- for thesis if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
 		.
 	.
 
 obtain false where !false : prop;
-	- for thesis, if assm;
+	- for thesis if assm;
 		apply assm[of (∀P:prop. P)].
 	.
 
@@ -46,14 +46,14 @@ lemma not_imp_not_all: if nax: ¬α.[x], ! x : ι, ! ∀y. y : ι ⟹ α.[y] : p
 		by not_imp_false[OF nax ax].
 	.
 
-lemma tall_cong#cong: for α,
+lemma tall_cong#cong: for α
 	if aa': ∀x. x : ι ⟹ (α.[x] ⟺ α'.[x]),
 		! ∀x. x : ι ⟹ α.[x] : prop,
 		! ∀x. x : ι ⟹ α'.[x] : prop
 	then (∀x:ι. α.[x]) ⟺ (∀x:ι. α'.[x]);
 	apply iff_intro;
-	- by all_intro #fold aa' #elim all_elim.
-	- by all_intro #unfold aa' #elim all_elim.
+	-; by all_intro #fold aa' #elim all_elim.
+	-; by all_intro #unfold aa' #elim all_elim.
 	.
 
 ---
@@ -65,9 +65,9 @@ lemma ex_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	apply iff_intro;
 	- if ex: ∃x:ι. α.[x];
 		apply ex_elim[OF ex];
-		- for x, if !α.[x], !;
+		- for x if !α.[x], !;
 			apply all_intro;
-			- for P, if !, all: ∀x:ι. α.[x] ⟹ P;
+			- for P if !, all: ∀x:ι. α.[x] ⟹ P;
 				by all_elim1[of x, OF all].
 			.
 		.
@@ -80,7 +80,7 @@ lemma ex_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 		.
 	.
 
-lemma ex_cong#cong: for α,
+lemma ex_cong#cong: for α
 	if aa': ∀x. x : ι ⟹ (α.[x] ⟺ α'.[x]),
 		! ∀x. x : ι ⟹ α.[x] : prop,
 		! ∀x. x : ι ⟹ α'.[x] : prop
@@ -91,7 +91,7 @@ lemma ex_imp_all_imp:
 	if ex: ∃x:ι. α.[x] ⟹ P, all: ∀x:ι. α.[x], ! P : prop, ! ∀x. x : ι ⟹ α.[x] : prop
 	then P;
 	apply ex_elim[OF ex];
-	- for x, if imp: α.[x] ⟹ P, ! x : ι;
+	- for x if imp: α.[x] ⟹ P, ! x : ι;
 		by imp all_elim1[OF all].
 	.
 
@@ -100,12 +100,12 @@ lemma all_imp_iff_ex: if ! P : prop, ! ∀x. x : ι ⟹ α.[x] : prop then
 	apply iff_intro;
 	- if imp: ∀x:ι. α.[x] ⟹ P, ex: ∃x:ι. α.[x];
 		apply ex_elim[OF ex];
-		- for x, if ax: α.[x], ! x : ι;
+		- for x if ax: α.[x], ! x : ι;
 			by all_elim1[OF imp, of x] ax.
 		.
 	- if imp: (∃x:ι. α.[x]) ⟹ P;
 		apply all_intro;
-		- for x, if !, ax: α.[x];
+		- for x if !, ax: α.[x];
 			by imp ex_intro1[OF ax].
 		.
 	.
@@ -123,7 +123,7 @@ lemma nnall_imp:
 	if nnall: ¬¬(∀x:ι. α.[x]), ! ∀x. x : ι ⟹ α.[x] : prop
 	then ∀x:ι. ¬¬α.[x];
 	apply all_intro;
-	- for x, if !;
+	- for x if !;
 		apply not_intro;
 		- if nax: ¬α.[x];
 			by not_imp_false[OF nnall] not_imp_not_all[OF nax].

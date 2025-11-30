@@ -12,7 +12,7 @@ import TypedAll.
 
 interpret TypedFalse;
 	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
-		- for thesis, if assm;
+		- for thesis if assm;
 			apply assm[of (∀P:prop. P)];
 			- .
 			- if all: ∀P : prop. P;

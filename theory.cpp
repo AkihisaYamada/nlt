@@ -70,7 +70,7 @@ pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&>
 
 AThm Thy::thm(string_view const& name) const {
 	auto opt = find_thm(name);
-	if( !opt ) throw TheoremNotFound(name);
+	if( !opt ) throw Error("\"theorem not found\"")(name);
 	return *opt;
 }
 Opt<string> Thy::find_assm_name( size_t rev ) const {
@@ -114,8 +114,6 @@ Import& Thy::add_import( string_view const& name, Import const& import ) & {
 	}
 	return _ref->imports.emplace(name,import)->second;
 };
-
-Thy::Error const Thy::ThyNotFound = Error("\"theory not found\"");
 
 function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =
 	[]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm> {

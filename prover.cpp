@@ -75,7 +75,7 @@ class Prover : public Parser {
 	bool _through_error;
 	bool _out_system = true;
 	bool _out;
-	bool _out_load = false;
+	bool _out_load;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
@@ -84,13 +84,14 @@ public:
 		}
 	};
 	static inline Error const THROUGH = Error("\"from here\"");
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, bool out ) :
+	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, bool out, bool out_load = false ) :
 		_depth(0),
 		_thy(thy),
 		lex(lex),
 		Parser(is,filename,lex),
 		_through_error(through_error),
-		_out(out) {
+		_out(out),
+		_out_load(out_load) {
 		_prompt();
 	}
 	Syntax const& syntax() const {
@@ -257,20 +258,6 @@ public:
 		}
 		throw Error("\"expected a term\"");
 	}
-	Opt<string> gets_sym() {
-		if( skips("(") ) {
-			auto const& ret = get();
-			skip(")");
-			return ret;
-		} else {
-			return gets(Tokenizer::Word);
-		}
-	}
-	string get_sym() {
-		auto ret = gets_sym();
-		if( ret ) return *ret;
-		throw Error("\"expected symbol\"");
-	}
 	void _prompt() & {
 		if( _out ) {
 			for( int i = 0; i <= _depth; i++ ) {
@@ -345,8 +332,6 @@ public:
 				_cout << ' ' << *sym << flush;
 				act(*sym);
 			}
-			skip(",");
-			_cout << ", ";
 		}
 	}
 	/** Creates a nested theory, where outer one fixes free variables, and 
@@ -435,7 +420,7 @@ public:
 			if( _out || _out_system ) {
 				cout << "loading " << filename << endl;
 			}
-			Prover(thy,fis,filename,lex,true,_out_load).loop();
+			Prover(thy,fis,filename,lex,true,_out_load,_out_load).loop();
 		};
 	}
 	void import( bool change ) {
@@ -445,8 +430,7 @@ public:
 			swap(prefix,name);
 			name = get();
 		}
-		auto im = _thy.thy(name,reader());
-		auto& intp = _thy.add_import(prefix,im);
+		auto intp = _thy.thy(name,reader());
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
@@ -461,11 +445,12 @@ public:
 				}
 			}
 		}
-		auto path = im.source().print_name();
+		auto path = intp.source().print_name();
+		bool success = true;
 		if( skips(";") ) {
 			_cout << (change ? "importing " : "interpreting ") << path << endl;
 			_depth++;
-			_import_loop(prefix,intp,change);
+			success = _import_loop(prefix,intp,change);
 			_depth--;
 		} else {
 			for(;;) {
@@ -481,11 +466,20 @@ public:
 			}
 			if( _no_syntax ) {
 				_no_syntax = false;
-				_thy.modify_syntax() = im.source().syntax();
+				_thy.modify_syntax() = intp.source().syntax();
 			}
 		}
-		_cout << (change ? "imported " : "interpreted ") << path << endl;
-		skip(".");
+		if( success ) {
+			_thy.add_import(prefix,std::move(intp));
+			if( _out ) {
+				cout << (change ? "imported " : "interpreted ");
+				if( !prefix.empty() ) {
+					cout << prefix << ": ";
+				}
+				cout << path << endl;
+			}
+			skip(".");
+		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
 		auto mod = intp.modification(i);
@@ -525,12 +519,12 @@ public:
 			if( n == 0 ) return;
 		}
 	}
-	void _import_loop( string const& prefix, Import& intp, bool change ) {
+	bool _import_loop( string const& prefix, Import& intp, bool change ) {
 		auto org_thy = _thy;
 		_thy = org_thy.scope("#import");// namespace
 		for(;;) try {
 			_prompt();
-			if( _term() || _thm() || _thms() || _ctxt() || _note() ) {
+			if( _stats() || _note() ) {
 			} else if( skips("goals") ) {
 				_print_import_goals(intp);
 			} else if( skips("have") ) {
@@ -583,27 +577,23 @@ public:
 					_cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( skips("-") ) {
+				auto pat = _get_goalpat();
+				skips(";");
 				for(;;) {
-					if( auto const& fix = intp.fixing() ) {
+					if( auto const& assume = intp.assuming() ) {
+						if( auto thm = goal_matches(pat,assume->first) ) {
+							intp.discharge(*thm);
+							_cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
+							break;
+						} else {
+							_auto_discharge(org_thy,prefix,intp,*assume,false);
+						}
+					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						_auto_retain(org_thy,prefix,intp,*obtain);
 					} else {
 						break;
-					}
-				}
-				auto const& assume = intp.assuming();
-				if( !assume ) throw Error("\"unexpected subgoal\"");
-				auto [axiom,assm_name] = *assume;
-				if( prefix != "" ) {
-					assm_name = prefix + "." + assm_name;
-				}
-				if( skips(".") ) {
-					_auto_discharge(org_thy,prefix,intp,*assume,false);
-				} else {
-					if( auto thm = _subgoal(axiom) ) {
-						intp.discharge(*thm);
-						_cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 					}
 				}
 			} else if( skips("obtain") ) {
@@ -612,6 +602,9 @@ public:
 				_define(org_thy);
 			} else if( skips("retain") ) {
 				_retain(prefix,intp,change,org_thy);
+			} else if( skips("oops") ) {
+				_cout << "oops" << endl;
+				return false;
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
 				exit(0);
@@ -639,6 +632,7 @@ public:
 			_prompt();
 		}
 		_thy = org_thy;
+		return true;
 	}
 	void _retain( string const& prefix, Import& intp, bool change, Thy& org_thy ) {
 		auto sym = get_sym();// the symbol to be instantiated
@@ -723,48 +717,39 @@ public:
 		}
 	}
 
-	bool _ctxt() {
+	bool _stats() {
 		if( skips("ctxt") ) {
+			skip(".");
+			cout << _thy.pretty_ctxt() << endl;
+			return true;
+		} else if( skips("thy") ) {
 			if( skips(".") ) {
-				_cout << _thy.pretty_ctxt() << endl;
+				cout << _thy << endl;
 			} else {
 				string name = get();
 				skip(".");
-				auto thy = _thy.thy(name,reader());
-				_cout << thy.source().pretty_ctxt() << endl;
+				cout << _thy.thy(name,reader()).source() << endl;
 			}
 			return true;
-		}
-		return false;
-	}
-	bool _thm() {
-		if( skips("thm") ) {
+		} else if( skips("thm") ) {
 			string pref = "thm ";
 			do {
 				Thm thm = get_thm();
-				_cout << pref << _thy.pretty(thm) << endl;
+				cout << pref << _thy.pretty(thm) << endl;
 				pref = "\t";
 			} while( !skips(".") );
 			return true;
-		}
-		return false;
-	}
-	bool _thms() {
-		if( skips("thms") ) {
+		} else if( skips("thms") ) {
 			bool shp = skips("#");
 			string name = get_thm_name();
 			string ref = shp ? "#"+name : name;
-			_cout << "thms " << ref << ":\n" << _thy.print_thms(ref);
+			cout << "thms " << ref << ":\n" << _thy.print_thms(ref);
 			skip(".");
 			return true;
-		}
-		return false;
-	}
-	bool _term() {
-		if( skips("term") ) {
+		} else if( skips("term") ) {
 			Term term = get_term();
 			skip(".");
-			_cout << "term " << _thy.pretty(term) << endl;
+			cout << "term " << _thy.pretty(term) << endl;
 			return true;
 		}
 		return false;
@@ -828,83 +813,75 @@ public:
 		swap(_final,finalized);
 		_depth--;
 	}
-	Opt<Thm> _subgoal( CTerm const& goal ) {
-		auto subloc = _thy.branch();
-		CTerm subgoal = subloc.weaken(goal);
-		bool needsep = false;
-		if( skips("for") ) {// instantiate variables as long as names are given
-			needsep = true;
-			if( _out ) {
-				cout << "for";
-				subgoal = strip_all(subgoal,subloc.self(),[&](string_view const& v){
-					auto o = gets_sym();
-					if( o ) {
-						cout << ' ' << *o;
-					}
-					return o;
-				});
-				skips(",");
-				cout << ", ";
-			} else {
-				subgoal = strip_all(subgoal,subloc.self(),[&](string_view const& v){ return gets_sym(); });
-				skips(",");
+	struct GoalPat {
+		Thy thy;
+		vector<pair<ClaimStatus,Opt<CTerm>>> assms;
+		Opt<CTerm> concl;
+	};
+	GoalPat _get_goalpat() {
+		auto ret = GoalPat{_thy.branch()};
+		if( skips("for") ) {
+			while( auto o = gets_sym() ) {
+				ret.thy.fix(*o);
 			}
 		}
 		if( skips("if") ) {
-			needsep = true;
-			_cout << "if ";
-			auto eat_assm = [&]( Opt<Term> const& t ){
-				auto imp = subgoal.cbinary(IMP);
-				if( !imp ) throw Error("\"unexpected assumption\"")(subgoal);
-				auto assm = imp->first;
-				if( t && assm != *t ) throw Error("\"assumption mismatch\"")(assm)(*t);
-				subgoal = imp->second;
-				return subloc.assume(assm);
-			};
-			for(;;) {
-				if( skips("[") ) {
-					_cout << "[ ";
-					for(;;) {
-						auto assm = eat_assm(get_term());
-						add_forced(subloc,assm,true);
-						_cout << _thy.pretty(assm);
-						if( !skips(",") ) break;
-						_cout << ", ";
-					}
-					skip("]");
-					_cout << " ] ";
+			do {
+				auto cs = get_claim_status(false);
+				if( auto o = gets_term() ) {
+					ret.assms.push_back({cs,{ret.thy.cterm(*o)}});
 				} else {
-					auto cs = get_claim_status(false);
-					auto assm = eat_assm( cs.followable ? gets_term() : Opt<Term>{} );
-					add_claim(subloc,cs,assm);
-					_cout << cs << _thy.pretty(assm) << ", " << flush;
+					ret.assms.push_back({cs,{}});
 				}
-				if( !skips(",") ) break;
-			};
-		}
-		if( skips("then") ) {
-			if( get_term() != subgoal ) {
-				throw Error("\"conclusion mismatch\"")(subgoal);
+			} while( skips(",") );
+			if( !skips("then") ) {
+				return ret;
 			}
 		}
-		if( skips(".") ) {
-			return {prove(subgoal,subloc).intro()};
+		if( auto o = gets_term() ) {
+			ret.concl = {ret.thy.cterm(*o)};
+			return ret;
+		}
+		return ret;
+	}
+	Opt<Thm> goal_matches( GoalPat& pat, CTerm const& goal ) {
+		auto loc_goal = pat.thy.weaken(goal);
+		for( size_t i = 0; auto o = pat.thy.fixed(i); i++ ) {
+			auto all = loc_goal.cunary(ALL);
+			if( !all || !all->bind() ) return {};
+			loc_goal = all->inst(pat.thy.cterm(*o));
+		}
+		auto assms = vector<pair<ClaimStatus,CTerm>>();
+		for( auto const& [cs,assm] : pat.assms ) {
+			auto imp = loc_goal.cbinary(IMP);
+			if( !imp ) return {};
+			if( assm ) {
+				if( *assm != imp->first ) return {};
+			}
+			assms.push_back({cs,imp->first});
+			loc_goal = imp->second;
+		}
+		if( pat.concl ) {
+			if( *pat.concl != loc_goal ) return {};
+		}
+		// matched, making assumptions
+		for( auto const& [cs,assm] : assms ) {
+			auto thm = pat.thy.add_assm(cs.name.value_or(""),assm);
+			add_claim(pat.thy,cs,thm);
 		}
 		_depth++;
-		if( needsep ) {
-			skip(";");
-			_cout << "show " << _thy.pretty(subgoal) << endl;
+		if( skips(";") ) {
+			_cout << "show " << _thy.pretty(loc_goal) << endl;
 			_prompt();
 		}
-		auto thesis = Inference::claim_exact(subloc,subgoal);
-assert(_thy != subloc);
-		swap(_thy,subloc);
+		auto thesis = Inference::claim_exact(pat.thy,loc_goal);
+		swap(_thy,pat.thy);
 		auto thm = proof_loop(thesis);
-		swap(_thy,subloc);
+		swap(_thy,pat.thy);
 		_depth--;
 		if( thm ) {
 			skip(".");
-			return thm->intro();
+			return {thm->intro()};
 		}
 		return {};
 	}
@@ -948,9 +925,6 @@ assert(_thy != subloc);
 		}
 		return true;
 	}
-	bool _stat() {
-		return _ctxt() || _thm() || _thms() || _term() || _note();
-	}
 	bool _shared_decl() {
 		if( skips("obtain") ) {
 			_obtain(_thy);
@@ -965,7 +939,7 @@ assert(_thy != subloc);
 	}
 	Opt<Thm> proof_loop( Inference& thesis ) {
 		for(;;) try {
-			if( _stat() || _shared_decl() ) {
+			if( _stats() || _note() || _shared_decl() ) {
 			} else if( skips("goal") ) {
 				skip(".");
 				print_goal(thesis);
@@ -1006,17 +980,17 @@ assert(_thy != subloc);
 					return thesis.blast_all();
 				}
 			} else if( skips("-") ) {
-				auto goal = thesis.has_goal();
-				if( !goal ) {
-					throw Error("\"unexpected subgoal\"");
+				auto pat = _get_goalpat();
+				for(;;) {
+					auto goal = thesis.has_goal();
+					if( !goal ) throw Error("\"unexpected subgoal\"");
+					if( auto thm = goal_matches(pat,*goal) ) {
+						thesis.discharge(*thm);
+						break;
+					}
+					thesis.blast();
 				}
-				auto thm = _subgoal(*goal);
-				if( thm ) {
-					thesis.discharge(*thm);
-					print_goal(thesis,"next goal ");
-				} else {
-					print_goal(thesis);
-				}
+				print_goal(thesis,"next goal ");
 			} else if( skips("by") ) {
 				Inference::Ctrl ctrl;
 				get_ctrl(ctrl);
@@ -1040,7 +1014,7 @@ assert(_thy != subloc);
 	}
 	void loop() {
 		for(;;) try {
-			if( _stat() || _thy_decl() || _shared_decl() ) {
+			if( _stats() || _thy_decl() || _note() || _shared_decl() ) {
 			} else if( skips("set") ) {
 				if( skips("rewrite") ) {
 					bool def = skips("!") || _thy.rewriter().empty();
@@ -1119,7 +1093,7 @@ assert(_thy != subloc);
 						_cout << "set print loaded theories" << endl;
 					} else {
 						_out = gets_bool().value_or(true);
-						_cout << "set print out" << endl;
+						_cout << "set print " << _out << endl;
 					}
 				}
 				skip(".");
@@ -1192,9 +1166,8 @@ assert(_thy != subloc);
 						while( auto const& sym = gets_sym() ) {
 							var_loc.fix(*sym);
 						}
-						skip(",");
+						skips(",");
 					}
-					for_variables([&]( auto& var ){ var_loc.fix(var); });
 					auto prems = vector<CTerm>();
 					if( skips("if") ) {
 						do {

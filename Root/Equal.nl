@@ -3,6 +3,7 @@
 ---
 
 import Base.
+set print.
 
 fix (=).
 
@@ -15,12 +16,12 @@ begin -- Above are the all axioms.
 note! eq.refl.
 
 interpret eq: MetaSymmetric (=);
-	- for x y, if xy: x = y then y = x;
+	- for x y if xy: x = y then y = x;
 		by eq_imp_meta[of (z. z = x), OF xy eq.refl].
 	.
 
 interpret eq: MetaTransitive (=);
-	- for x y z, if xy: x = y, yz: y = z then x = z;
+	- for x y z if xy: x = y, yz: y = z then x = z;
 		by eq_imp_meta[of (w. x = w), OF yz xy].
 	.
 
@@ -35,7 +36,7 @@ lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
 set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
 set dual eq.sym.
 
-lemma eq_cong_meta: for α, if xy: x = y then α.[x] = α.[y];
+lemma eq_cong_meta: for α if xy: x = y then α.[x] = α.[y];
 	by eq_imp_meta[of (z. α.[x] = α.[z]), OF xy eq.refl].
 
 lemma arg_cong: if xy: x = y then f x = f y;
@@ -44,7 +45,7 @@ lemma arg_cong: if xy: x = y then f x = f y;
 lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
-lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
+lemma eq_cong#cong: for f x if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;
 		by arg_cong[OF xy].
 	have 2: f y = g y;
@@ -74,7 +75,7 @@ theory TwoValued:
 	assume imp_eq: if P then (P ⟹ Q) = Q.
 begin
 	obtain true where true_intro: true;
-		- for thesis, if assm;
+		- for thesis if assm;
 			apply assm[of (∀P. P ⟹ P)].
 		.
 	lemma eq_true: if P: P then P = true;
@@ -119,7 +120,7 @@ theory MetaInverse:
 	assume inverse: f⁻ (f x) = x.
 begin
 	interpret MetaInjective;
-		- for x x', if eq: f x = f x';
+		- for x x' if eq: f x = f x';
 			have 1: f⁻ (f x) = f⁻ (f x');
 				unfold eq.
 			by 1[unfolded inverse].

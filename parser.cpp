@@ -120,5 +120,26 @@ Term Parser::get_term( int level ) & {
 	if( auto const& opt = gets_term(level) ) {
 		return *opt;
 	}
-	throw Error("Required a term");
+	throw Error("\"expected a term\"");
+}
+
+Opt<string> Parser::gets_sym() & {
+	auto& syn = syntax();
+	string_view peek = peek_token();
+	if( peek == "(" ) {
+		ignore_token();
+		auto ret = get();
+		skip(")");
+		return {ret};
+	}
+	if( peek == "" || syn.has_closer(peek) || syn.finds_opener(peek) || syn.finds_binder(peek) || syn.finds_prefix(peek) || syn.finds_infix(peek) ) {
+		return {};
+	}
+	return {get()};
+}
+string Parser::get_sym() & {
+	if( auto o = gets_sym() ) {
+		return *o;
+	}
+	throw Error("\"expected a symbol\"");
 }

@@ -13,6 +13,8 @@ public:
 	std::string get_thm_name() &;
 	Opt<Term> gets_term(int level = 0) &;
 	Term get_term(int level = 0) &;
+	Opt<std::string> gets_sym() &;
+	std::string get_sym() &;
 	Term nest_abs( Term const& bind, int level ) &;
 };
 

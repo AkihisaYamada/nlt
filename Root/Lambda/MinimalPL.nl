@@ -7,7 +7,7 @@ import TypedOr.
 begin
 
 obtain false where ! false : prop;
-	- for thesis, if assm;
+	- for thesis if assm;
 		apply assm[of true].
 	.
 
@@ -29,7 +29,7 @@ lemma eq_iff: if eq: P = Q, [P : prop] then P ⟺ Q;
 		fold eq.
 	unfold eq.
 
-lemma iff_eq_cong#cong: for f x, if f: f = f', x: x = x', [f x : prop] then f x ⟺ f' x';
+lemma iff_eq_cong#cong: for f x if f: f = f', x: x = x', [f x : prop] then f x ⟺ f' x';
 	apply eq_iff;
 	unfold f x.
 
@@ -40,8 +40,7 @@ theory Relation:
 	assume axiom: Relation σ (≤).
 begin
 	interpret ..Relation σ (≤);
-		- by axiom[unfolded Relation_def, THEN fun_type_elim1, THEN fun_type_elim1].
-		.
+		by axiom[unfolded Relation_def, THEN fun_type_elim1, THEN fun_type_elim1].
 end
 
 
@@ -52,6 +51,5 @@ theory EqType:
 	assume axiom: EqType σ.
 begin
 	interpret eq: Relation σ (=);
-		- by axiom[unfolded EqType_def].
-		.
+		by axiom[unfolded EqType_def].
 end

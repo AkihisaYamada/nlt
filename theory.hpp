@@ -39,11 +39,6 @@ public:
 		static inline Term const RT = "#thy";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	static Error const ThyNotFound;
-	struct TheoremNotFound : public Error {
-		TheoremNotFound(std::string_view const& name) :
-			Error(Term("#theorem_not_found")(name)) {}
-	};
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -76,7 +71,6 @@ public:
 		bool ancestor = true
 	) const;
 	/** @brief Obtains a named theorem from the theory.
-	 * @exception TheoremNotFound is thrown if the name doesn't match any.
 	 */
 	AThm thm(std::string_view const& name) const;
 	/** @brief Adds a named theorem in the theory.
@@ -228,7 +222,7 @@ inline Import Thy::self() const& {
 }
 inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) {
 	auto ret = find_thy(name,reader);
-	if( !ret ) throw Error("\"theory not found\"");
+	if( !ret ) throw Error("\"theory not found\"")(name);
 	return *ret;
 }
 inline Opt<Thm> Thy::find_thm(

@@ -125,7 +125,7 @@ theory MetaUnitalCommutative (+) (0) (=):
 ---
 interpret imp: MetaPreorder;
 	instantiate (≤) := (⟹).
-	show: for P Q R, if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+	- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 		by QR PQ.
 	.
 
@@ -142,7 +142,7 @@ lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
 	.
 
 lemma imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
-	- for x, if P: P;
+	- for x if P: P;
 		by imp[OF P].
 	.
 
@@ -151,12 +151,12 @@ lemma all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x];
 
 lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x];
 	by imp.
-
+set print.
 lemma make_elim:
 	if imp: ∀x. P.[x] ⟹ Q.[x]
 	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
-	- for x, if Px;
-		- for thesis, if assm;
+	- for x if Px;
+		- for thesis if assm;
 			by assm imp Px.
 		.
 	.
@@ -314,7 +314,7 @@ begin
 	note! and.type.
 	lemma and_elim: if and: P ∧ Q then
 		∀R. (P ⟹ Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
-		- for R, if PQR: P ⟹ Q ⟹ R;
+		- for R if PQR: P ⟹ Q ⟹ R;
 			by PQR and_elim1[OF and] and_elim2[OF and].
 		.
 	interpret and: Symmetric prop (∧);
@@ -334,8 +334,8 @@ begin
 		if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
 		then P ∨ Q;
 		apply PQR;
-		- by or_intro1.
-		- by or_intro2.
+		-; by or_intro1.
+		-; by or_intro2.
 		.
 	interpret or: Symmetric prop (∨);
 		by or_intro #elim or_elim.
@@ -351,11 +351,9 @@ begin
 	lemma all_elim:
 		if all: ∀x:ι. α.[x]
 		then ∀P. ((∀x. x: ι ⟹ α.[x]) ⟹ P) ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ P;
-		- for P, if assm:, !;
+		- for P if assm, !;
 			apply assm;
-			- for x, if !;
-thm all_elim1.
-thm all.
+			- for x if !;
 				apply all_elim1[OF all, of x].
 			.
 		.
