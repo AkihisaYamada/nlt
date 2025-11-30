@@ -1,3 +1,6 @@
+------
+# Untyped Lambda Calculus
+------
 import Equal.
 
 fix (λ).
@@ -12,7 +15,7 @@ set dual eq.sym.
 set define beta.
 
 theory Ext:
-	assume ext: (∀x. α.[x] = β.[x]) ⟹ (λx. α.[x]) = (λx. β.[x]).
+	assume ext: if ∀x. α.[x] = β.[x] then (λx. α.[x]) = (λx. β.[x]).
 end
 
 define [type] x : σ := σ x.

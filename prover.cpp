@@ -73,8 +73,9 @@ class Prover : public Parser {
 	Lex& lex;
 	bool _final = false;
 	bool _exit_on_error;
+	bool _out_system = true;
 	bool _out;
-	bool _out_load;
+	bool _out_load = false;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
@@ -82,14 +83,13 @@ public:
 		Error( Term const& msg ) : ::Error(RT(msg)) {
 		}
 	};
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool exit_on_error, bool out, bool out_load ) :
+	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool exit_on_error, bool out ) :
 		_depth(0),
 		_thy(thy),
 		lex(lex),
 		Parser(is,filename,lex),
 		_exit_on_error(exit_on_error),
-		_out(out),
-		_out_load(out_load) {
+		_out(out) {
 		_prompt();
 	}
 	Syntax const& syntax() const {
@@ -434,10 +434,10 @@ public:
 	}
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, string_view const& filename ){
-			if( _out_load ) {
+			if( _out || _out_system ) {
 				cout << "loading " << filename << endl;
 			}
-			Prover(thy,fis,filename,lex,true,_out_load,_out_load).loop();
+			Prover(thy,fis,filename,lex,true,_out_load).loop();
 		};
 	}
 	void import( bool change ) {
@@ -468,7 +468,6 @@ public:
 		if( skips(";") ) {
 			_cout << (change ? "importing " : "interpreting ") << path << endl;
 			_depth++;
-			_prompt();
 			_import_loop(prefix,intp,change);
 			_depth--;
 		} else {
@@ -550,15 +549,16 @@ public:
 							_auto_instantiate(intp,*fix,change);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							_auto_retain(org_thy,prefix,intp,*obtain);
-							continue;
 						} else if( auto assume = intp.assuming() ) {
-							if( assume->first == thm ) break;
+							if( assume->first == thm ) {
+								intp.discharge(thm);
+								break;
+							}
 							_auto_discharge(org_thy,prefix,intp,*assume,change);
 						} else {
 							throw Error("\"unexpected show\"")(thm);
 						}
 					}
-					intp.discharge(thm);
 				}
 			} else if( skips("instantiate") ) {
 				vector<pair<string,Term>> ass;
@@ -583,7 +583,7 @@ public:
 						}
 					}
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
-					_cout << "instantiating " << x << " := " << _thy.pretty(t) << endl;
+					_cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( skips("-") ) {
 				for(;;) {
@@ -603,14 +603,10 @@ public:
 				}
 				if( skips(".") ) {
 					_auto_discharge(org_thy,prefix,intp,*assume,false);
-				} else if( change && skips("assume") ) {
-					skip(".");
-					Thm thm = org_thy.add_assm(assm_name,axiom);
-					intp.discharge(thm);
-					_cout << "assumed " << assm_name << ": " << _thy.pretty(thm) << endl;
 				} else {
 					if( auto thm = _subgoal(axiom) ) {
 						intp.discharge(*thm);
+						_cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 					}
 				}
 			} else if( skips("obtain") ) {
@@ -619,10 +615,6 @@ public:
 				_define(org_thy);
 			} else if( skips("retain") ) {
 				_retain(prefix,intp,change,org_thy);
-			} else if( skips("oops") ) {
-				_cout << "oops" << endl;
-				_prompt();
-				break;
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
 				exit(0);
@@ -643,9 +635,6 @@ public:
 					}
 				}
 				break;
-			}
-			if( _out ) {
-				_print_import_goal(intp,0,"next ");
 			}
 		} catch( ::Error const& e ) {
 			cerr << location() << ": ERROR: " << _thy.pretty(e) << endl;
@@ -769,7 +758,7 @@ public:
 			bool shp = skips("#");
 			string name = get_thm_name();
 			string ref = shp ? "#"+name : name;
-			cout << "thms " << ref << ":\n" << _thy.print_thms(ref);
+			_cout << "thms " << ref << ":\n" << _thy.print_thms(ref);
 			skip(".");
 			return true;
 		}
@@ -779,7 +768,7 @@ public:
 		if( skips("term") ) {
 			Term term = get_term();
 			skip(".");
-			cout << "term " << _thy.pretty(term) << endl;
+			_cout << "term " << _thy.pretty(term) << endl;
 			return true;
 		}
 		return false;
@@ -1132,6 +1121,9 @@ assert(_thy != subloc);
 						auto b = gets_bool().value_or(true);
 						_out_load = b;
 						_cout << "set print loaded theories" << endl;
+					} else {
+						_out = gets_bool().value_or(true);
+						_cout << "set print out" << endl;
 					}
 				}
 				skip(".");
@@ -1207,7 +1199,18 @@ assert(_thy != subloc);
 						skip(",");
 					}
 					for_variables([&]( auto& var ){ var_loc.fix(var); });
-					CTerm assm = var_loc.enclose(get_term()).lift(_thy.cterm(ALL));
+					auto prems = vector<CTerm>();
+					if( skips("if") ) {
+						do {
+							prems.push_back(var_loc.enclose(get_term()));
+						} while( skips(",") );
+						skip("then");
+					}
+					auto assm = var_loc.enclose(get_term());
+					for( auto const& prem : ranges::reverse_view(prems) ) {
+						assm = prem >>= assm;
+					}
+					assm = assm.lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
 					_cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
@@ -1295,7 +1298,7 @@ void run( istream& is, string_view const& name, bool exit_on_error, bool out ) {
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
 	Thy thy = root.branch(name,"");
-	auto prover = Prover(thy,is,name,lex,exit_on_error,out,false);
+	auto prover = Prover(thy,is,name,lex,exit_on_error,out);
 	try {
 		prover.loop();
 	} catch( Error const& e ) {

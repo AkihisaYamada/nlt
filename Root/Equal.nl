@@ -8,7 +8,7 @@ fix (=).
 
 import eq: MetaReflexive (=).
 
-assume eq_imp_meta: for X, y = z ⟹ X.[y] ⟹ X.[z].
+assume eq_imp_meta: for X, if y = z, X.[y] then X.[z].
 
 begin -- Above are the all axioms.
 
@@ -51,25 +51,32 @@ lemma eq_cong#cong: for f x, if fg: f = g, xy: x = y then f x = g y;
 		by fun_cong[OF fg].
 	by eq.trans[OF 1 2].
 
-theory Prop:
-	import ..Prop.
+theory Const:
+	fix Const const const_fun const_arg.
+	assume const_Const: const Const.
+	assume const_app: if const c then const (c x).
+	assume const_fun: if const c then const_fun (c x) = c.
+	assume const_arg: if const c then const_arg (c x) = x.
 begin
-	theory EqType:
-		fix ι.
-		import eq: Relation ι (=).
-	end
+	lemma const_eq_fun: if ! const c, ! const d, cd: c x = d y then c = d;
+		have 1: const_fun (c x) = const_fun (d y);
+			unfold cd.
+		by 1[unfolded+ const_fun].
+	lemma const_eq_arg: if ! const c, ! const d, cd: c x = d y then x = y;
+		have 1: const_arg (c x) = const_arg (d y);
+			unfold cd.
+		by 1[unfolded+ const_arg].
 end
+
 
 theory TwoValued:
-	assume imp_imp_eq: P ⟹ Q ⟹ P = Q.
-	assume imp_eq: P ⟹ (P ⟹ Q) = Q.
-end
-
-theory TwoValuedTrue:
-	import TwoValued.
-	fix true.
-	assume true_intro: true.
+	assume imp_imp_eq: if P, Q then P = Q.
+	assume imp_eq: if P then (P ⟹ Q) = Q.
 begin
+	obtain true where true_intro: true;
+		- for thesis, if assm;
+			apply assm[of (∀P. P ⟹ P)].
+		.
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
 	lemma true_eq: if P: P then true = P;
@@ -90,11 +97,21 @@ begin
 		- for P;
 			by eq_true true_intro.
 		.
+	end
+end
+
+theory Prop:
+	import ..Prop.
+begin
+	theory EqType:
+		fix ι.
+		import eq: Relation ι (=).
+	end
 end
 
 theory MetaInjective:
 	fix f.
-	assume inj: f x = f x' ⟹ x = x'.
+	assume inj: if f x = f x' then x = x'.
 end
 
 theory MetaInverse:
