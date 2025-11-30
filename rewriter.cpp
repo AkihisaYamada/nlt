@@ -35,8 +35,7 @@ Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	Thy subthy = thy.branch();
-	auto const& import = *subthy.parent();
-	Thm body = strip_all(thm,import,fresh_maker()).first;
+	Thm body = strip_all(thm,*subthy.parent(),fresh_maker()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subthy.assume(imp->first);
 		add_forced(subthy,assm);
@@ -60,7 +59,7 @@ void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev 
 	throw Error("\"malformed rule\"")(thm);
 }
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
-	Thm rule = get<0>(strip_all(thm));// x = y ⟹ conds... ⟹ x ⟹ y
+	auto rule = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
@@ -91,7 +90,7 @@ Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
 	return *this;
 }
 Rewriter& Rewriter::register_trans( Thm const& thm ) & {
-	if( auto const& imp1 = get<0>(strip_all(thm)).cbinary(IMP) )
+	if( auto const& imp1 = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first.cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
@@ -142,8 +141,7 @@ Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 }
 
 Rewriter& Rewriter::register_dual( Thm const& thm ) & {
-	Intp const& intp = thm.ctxt().fork();
-	Thm thm_strip = strip_all(thm,intp).first;
+	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
 	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) ) {

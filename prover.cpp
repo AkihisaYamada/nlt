@@ -178,7 +178,8 @@ public:
 					}
 				} else if( skips("THEN") ) {
 					auto thm = _get_thm(loc);
-					auto [strip_thm,loc2strip,n] = strip_all(thm);
+					auto loc2strip = loc.fork();
+					auto [strip_thm,n] = strip_all(thm,loc2strip);
 					auto strip_ctxt = strip_thm.ctxt();
 					auto imp = strip_thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
@@ -213,7 +214,7 @@ public:
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = _thy.rewriter().rewrite(rules,loc,ret,ctrl);
+					ret = loc.rewriter().rewrite(rules,loc,ret,ctrl);
 				} else break;
 				if( !skips(",") ) break;
 			}
@@ -453,6 +454,7 @@ public:
 			success = _import_loop(prefix,intp,change);
 			_depth--;
 		} else {
+			skip(".");
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(intp,*fix,change);
@@ -478,7 +480,6 @@ public:
 				}
 				cout << path << endl;
 			}
-			skip(".");
 		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
@@ -526,31 +527,12 @@ public:
 			_prompt();
 			if( _stats() || _note() ) {
 			} else if( skips("goals") ) {
+				skip(".");
 				_print_import_goals(intp);
 			} else if( skips("have") ) {
 				_state();
 			} else if( skips("interpret") ) {
 				import(false);
-			} else if( skips("show") ) {
-				auto o = _state();
-				if( o ) {
-					auto const& [cs,thm] = *o;
-					for(;;) {
-						if( auto const& fix = intp.fixing() ) {
-							_auto_instantiate(intp,*fix,change);
-						} else if( auto const& obtain = intp.obtaining() ) {
-							_auto_retain(org_thy,prefix,intp,*obtain);
-						} else if( auto assume = intp.assuming() ) {
-							if( assume->first == thm ) {
-								intp.discharge(thm);
-								break;
-							}
-							_auto_discharge(org_thy,prefix,intp,*assume,change);
-						} else {
-							throw Error("\"unexpected show\"")(thm);
-						}
-					}
-				}
 			} else if( skips("instantiate") ) {
 				vector<pair<string,Term>> ass;
 				for(;;) {
@@ -586,6 +568,7 @@ public:
 							_cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							break;
 						} else {
+							_cout << "skipping " << assume->second << ": " << assume->first << endl;
 							_auto_discharge(org_thy,prefix,intp,*assume,false);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
@@ -613,6 +596,7 @@ public:
 				if( skips("by") ) {
 					get_ctrl(ctrl);
 				}
+				skip(".");
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
@@ -837,6 +821,8 @@ public:
 			if( !skips("then") ) {
 				return ret;
 			}
+		} else {
+			skips(",");
 		}
 		if( auto o = gets_term() ) {
 			ret.concl = {ret.thy.cterm(*o)};

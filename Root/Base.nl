@@ -11,7 +11,7 @@ infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
 prefix ¬ 40 40.
-infix ∧ 35 36 36.
+infix ∧ 35 36 35.
 infix ∨ 30 31 30.
 infix ⟺ 1 1 0.
 binder ∃ 0 0.

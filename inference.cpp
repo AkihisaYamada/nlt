@@ -15,11 +15,12 @@ Error const Inference::Unapplicable = Error("\"apply failed\"");
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
+	auto f = fresh_maker();
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
 		if( i == n ) return Intro(thm,rule,vars,i);
-		auto const& [rule2,vars2] = strip_all(rule,self);
+		auto const& [rule2,vars2] = strip_all(rule,self,f);
 		vars += vars2;
 		auto imp = rule2.cbinary(IMP);
 		assert(imp);
@@ -28,19 +29,21 @@ Intro Intro::imp( Thm const& thm, size_t n ) {
 }
 
 Intro Intro::rule( Thm const& thm ) {
-	auto [conc,child,vars] = strip_all(thm);
-	auto ctxt = child.ctxt();
+	auto intp = thm.ctxt().fork();
+	auto f = fresh_maker();
+	auto [conc,vars] = strip_all(thm,intp,f);
+	auto ctxt = intp.ctxt();
 	size_t conds = 0;
 	while( auto imp = conc.cbinary(IMP) ) {
 		conc = conc.discharge(ctxt.assume(imp->first));
 		conds++;
-		conc = strip_all(conc,ctxt.self()).first;
+		conc = strip_all(conc,ctxt.self(),f).first;
 	}
 	return Intro(thm,conc,vars,conds);
 }
 Elim Elim::rule( Thm const& thm ) {
 	auto child = thm.ctxt().fork();
-	Thm body = strip_all(thm,child).first;
+	Thm body = strip_all(thm,child,fresh_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);
@@ -106,19 +109,24 @@ bool Inference::_apply_blast(
 	auto rule_intp = _thy.interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
 	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule_intp);
-	while( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
-		if( auto const& val = m->get(*v) ) {
-			pat_intp.instantiate(*val);
+DEB(*m);
+	for(;;) {
+		if( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
+			if( auto const& val = m->get(*v) ) {
+				pat_intp.instantiate(*val);
+			} else {
+				pat_intp.instantiate(dummy(_thy));
+			}
+		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
+			Inference thesis = claim_exact(_thy,*assm);
+			vector<Intro> elim_res;
+			if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
+			pat_intp.discharge(thesis._thm);
 		} else {
-			pat_intp.instantiate(dummy(_thy));
+			break;
 		}
 	}
-	while( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
-		Inference thesis = claim_exact(_thy,*assm);
-		vector<Intro> elim_res;
-		if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
-		pat_intp.discharge(thesis._thm);
-	}
+DEB(rule.conclusion());
 	auto claim = rule.subst(pat_intp);
 	_thm = _thm.discharge(claim);
 	_goals--;

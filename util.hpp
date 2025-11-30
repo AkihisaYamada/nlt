@@ -67,18 +67,13 @@ inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
  */
 std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child, Renamer const& renamer );
 
-inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
-	return strip_all(thm,child,avoider(child.ctxt()));
-}
 /**
  * @brief strips universal quantifiers.
  * @param thm the theorem to be stripped.
  * @return Intp this context will fix the bound variables.
  */
-inline std::tuple<Thm,Intp,size_t> strip_all( Thm const& thm ) {
-	auto child = thm.ctxt().fork();
-	auto [strip_thm,n] = strip_all(thm,child);
-	return {strip_thm,child,n};
+inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
+	return strip_all(thm,child,avoider(child.ctxt()));
 }
 
 /**
@@ -176,7 +171,8 @@ public:
 	 * universal quantifications are processed but not implications.
      */
 	static Intro axiom( Thm const& thm ) {
-		auto [conc,intp,vars] = strip_all(thm);
+		auto intp = thm.ctxt().fork();
+		auto [conc,vars] = strip_all(thm,intp,fresh_maker());
 		return Intro(thm,conc,vars,0);
 	}
 	Thm const& conclusion() const& {

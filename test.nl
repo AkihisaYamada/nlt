@@ -1,4 +1,5 @@
 set print load.
+import TypeFreeMinimal.
 import Lambda.
 import IntuitionisticFOL.
 import Nat.
