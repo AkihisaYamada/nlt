@@ -58,10 +58,10 @@ class Term {
 	Sum<std::string,App,Abs,Unbind> _un;
 	struct _Mapper {
 		std::function<Opt<Term>(std::string const&)> const& f;
-		std::function<bool(std::string_view const&)> const& fixed;
+		std::function<bool(std::string_view const&)> const& avoided;
 		StrMap<std::string> bsyms;
 		std::string rename( std::string_view const& var ) const {
-			return avoid(var,[&](std::string_view const& x){ return bsyms.contains(x) || fixed(x); });
+			return avoid(var,[&](std::string_view const& x){ return bsyms.contains(x) || avoided(x); });
 		}
 		Opt<Term> map_var( std::string const& sym ) {
 			if( auto opt = bsyms.finds(sym) ) {
@@ -247,15 +247,15 @@ public:
 	/** @brief homomorphic extension.
 	 * 
 	 * @param f the mapping applied on free variables.
-	 * @param fixed flags fixed variables.
+	 * @param avoided flags symbols to be avoided.
 	 * @return Term 
 	 */
 	Term map(
 		std::function<Opt<Term>(std::string_view const&)> const& f,
 		std::function<bool(std::string_view const&)> const&
-			fixed = [](std::string_view const&){ return false; }
+			avoided = [](std::string_view const&){ return false; }
 	) const {
-		return _Mapper{f,fixed}.map(*this).ref(*this);
+		return _Mapper{f,avoided}.map(*this).ref(*this);
 	};
 	/** @brief instantiates the bound variable. This must be a binding.
 	 * 
@@ -357,6 +357,8 @@ public:
 	CTerm cterm(Term const& t) const;
 	/** Tests if a term is closed in this context. */
 	Opt<CTerm> closed(Term const& t) const;
+	/** Tests if a closed term term is also closed in this context. */
+	Opt<CTerm> closed(CTerm const& t) const;
 	/** Make the term closed by fixing free variables. */
 	CTerm enclose(Term const& t);
 	/** @brief Fixes a local variable.
@@ -475,9 +477,9 @@ public:
 	}
 	/** @brief Decompose closed abstraction.
 	 * 
-	 * @return If this is an abstraction, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
+	 * @return If this is an abstraction, the triple of the bound variable, interpretation into a child context that fixes the bound variable, and the body in the child.
 	 */
-	Opt<StrTerm> cbind() const;
+	Opt<std::tuple<std::string,Intp,CTerm>> cbind() const;
 	/** @brief Decompose closed fix
 	 * returns tuple of string, closed term of the variable, and the argument
 	 */
@@ -493,13 +495,7 @@ public:
 	 * @param b the binder
 	 * @return If this is binding, the pair of the bound variable and the body, belonging to a new context that fixes the bound variable.
 	 */
-	Opt<StrTerm> cbinder( std::string_view const& b ) const {
-		if( auto app = capp() )
-		if( app->first == b ) {
-			return app->second.cbind();
-		}
-		return {};
-	}
+	Opt<std::tuple<std::string,Intp,CTerm>> cbinder( std::string_view const& b ) const;
 	/** @brief Decompose closed unary function.
 	 * 
 	 * @param f expected function
@@ -587,7 +583,10 @@ inline Opt<CTerm> Ctxt::closed(Term const& t) const try {
 } catch( UnboundVariable const& e ) {
 	return {};
 }
-
+inline Opt<CTerm> Ctxt::closed(CTerm const& t) const {
+	if( t.ctxt() == *this ) return {t};
+	return closed((Term)t);
+}
 /** @brief Substitution.
  * For efficiency, the range should be closed with respect to a common context.
  */

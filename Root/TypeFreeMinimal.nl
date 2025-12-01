@@ -568,11 +568,11 @@ lemma all_imp_iff_ex: (∀x. α.[x] ⟹ P) ⟺ (∃x. α.[x]) ⟹ P;
 	- if imp: ∀x. α.[x] ⟹ P, ex: ∃x. α.[x];
 		obtain x where ax: α.[x];
 			- for thesis;
-				apply ex[unfolded ex_iff](thesis)=.
+				apply ex[unfolded ex_iff, of thesis]=.
 			.
 		by imp[OF ax].
 	- if imp: (∃x. α.[x]) ⟹ P;
-		- for x, if ax: α.[x];
+		- for x if ax: α.[x];
 			by imp ex_intro1[OF ax].
 		.
 	.

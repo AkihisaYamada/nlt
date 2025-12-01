@@ -208,11 +208,11 @@ Opt<Term> Term::_Mapper::map( Term const& t ) {
 				return *nsym %= s2;
 			} else if( auto nabs = mapC->bind() ) {// (x. t)[s']
 				auto const& [x,t] = *nabs;
-				// return t[x := s'], where bound variables are considered fixed.
-				auto newfixed = [&]( string_view const& sym ) {
-					return sym == x || fixed(sym) || bsyms.contains(sym);
+				// return t[x := s'], where bound variables are avoided.
+				auto avoided2 = [&]( string_view const& sym ) {
+					return sym == x || avoided(sym) || bsyms.contains(sym);
 				};
-				return t.map(unit_map(x,s2),newfixed);
+				return t.map(unit_map(x,s2),avoided2);
 			} else {
 				throw Error("#term")("\"bad unbind\"")(*mapC);
 			}
@@ -330,12 +330,19 @@ CTerm CTerm::intro() const {
 	}
 	return CTerm(parent,stmt);
 }
-Opt<CTerm::StrTerm> CTerm::cbind() const {
-	if( auto bind = Term::bind() ) {
+Opt<tuple<string,Intp,CTerm>> CTerm::cbind() const {
+	if( auto const& bind = Term::bind() ) {
 		auto const& [var,body] = *bind;
-		Ctxt loc = _ctxt.fork().ctxt();
+		auto const& child = _ctxt.fork();
 		auto var2 = avoid( var, [&](auto x){ return _ctxt.has_constant(x); } );
-		return {{var2,CTerm(loc,body.subst(var,loc.fix(var2)))}};
+		return {{var2,child,CTerm(child.ctxt(),body.subst(var,child.ctxt().fix(var2)))}};
+	}
+	return {};
+}
+Opt<tuple<string,Intp,CTerm>> CTerm::cbinder( std::string_view const& b ) const {
+	if( auto app = capp() )
+	if( app->first == b ) {
+		return app->second.cbind();
 	}
 	return {};
 }

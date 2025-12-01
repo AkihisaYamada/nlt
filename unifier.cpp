@@ -173,10 +173,10 @@ private:
 			}
 			throw Mismatch();
 		} else if( auto lbind = l.cbind() ) {
-			auto const& [x,lbody] = *lbind;
+			auto const& [x,lch,lbody] = *lbind;
 			if( auto rbind = r.cbind() ) {
 				// both are binding.
-				auto const& [y,rbody] = *rbind;
+				auto const& [y,rch,rbody] = *rbind;
 				bvars[0].push_back(x);
 				bvars[1].push_back(y);
 				auto const& xinfo = inds[0].insert({x,index});
