@@ -1,7 +1,9 @@
 #ifndef _REWRITER_HPP_
 #define _REWRITER_HPP_
 
-#include "theory.hpp"
+#include"util.hpp"
+
+class Thy;
 
 class Inference;
 /**
@@ -108,7 +110,7 @@ public:
 	/** @brief applies rewriting with control */
 	bool apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
 	/** @brief Rewrites a theorem */
-	Thm rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const;
+	Thm rewrite( Thy const& thy, Thm const& source, Rules const& rules, Ctrl const& ctrl ) const;
 	/** @brief returns a rewriting theorem */
 	Thm steps( Rules const& rules, Thy const& thy, CTerm const& source, Ctrl const& ctrl ) const {
 		size_t ind = _get_ind(ctrl.rel);
@@ -117,6 +119,7 @@ public:
 		}
 		return _make_refl(thy,source,ind);
 	}
+	Rewriter subst( Intp const& intp ) const;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const;
@@ -124,13 +127,7 @@ private:
 	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
 	Opt<Thm> _steps( Rules const& rules, Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
-	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) const {
-		Thm refl = thy.weaken(_refls[ind]).instantiate(source);
-		while( auto imp = refl.cbinary(IMP) ) {
-			refl = refl.discharge(prove(imp->first,thy));
-		}
-		return refl;
-	}
+	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

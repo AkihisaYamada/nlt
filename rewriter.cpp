@@ -183,7 +183,13 @@ Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& s
 	}
 	return {};
 }
-
+Thm Rewriter::_make_refl( Thy const& thy, CTerm const& source, size_t ind ) const {
+	Thm refl = thy.weaken(_refls[ind]).instantiate(source);
+	while( auto imp = refl.cbinary(IMP) ) {
+		refl = refl.discharge(prove(imp->first,thy));
+	}
+	return refl;
+}
 Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const {
 	for( auto const& rule : rules[ind] ) {
 		Ctxt const& pat_ctxt = rule.pat.ctxt();
@@ -393,7 +399,7 @@ bool Rewriter::apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) 
 	}// t ⟹ s
 	return true;
 }
-Thm Rewriter::rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ctrl const& ctrl ) const {
+Thm Rewriter::rewrite( Thy const& thy, Thm const& source, Rules const& rules, Ctrl const& ctrl ) const {
 	size_t ind = _get_ind(ctrl.rel);
 	auto const& o = _imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
@@ -407,4 +413,30 @@ Thm Rewriter::rewrite( Rules const& rules, Thy const& thy, Thm const& source, Ct
 		tmp = blast(tmp,thy);
 	}// s ⟹ t
 	return tmp << source;
+}
+Rewriter Rewriter::subst( Intp const& intp ) const {
+	Rewriter ret;
+	int i = 0;
+	for( auto const& refl : _refls ) {
+		ret.register_refl(refl.subst(intp),i==_default_ind);
+		i++;
+	}
+	for( auto const& congs : _congs ) {
+		for( auto const& cong : congs ) {
+			ret.register_cong(cong.subst(intp));
+		}
+	}
+	for( auto const& [i,dual] : _duals ) {
+		ret.register_dual(dual.thm.subst(intp));
+	}
+	for( auto const& [i,trans] : _trans ) {
+		ret.register_trans(trans.subst(intp));
+	}
+	for( auto const& [i,imp] : _imps ) {
+		ret.register_imp(imp.thm.subst(intp),true);
+	}
+	for( auto const& [i,imp] : _revimps ) {
+		ret.register_imp(imp.thm.subst(intp),false);
+	}
+	return ret;
 }

@@ -1,7 +1,7 @@
 #ifndef _INFERENCE_HPP
 #define _INFERENCE_HPP
 
-#include "rewriter.hpp"
+#include "theory.hpp"
 
 /** @brief Add concluder theorem to theory */
 void add_forced( Thy&, Thm const& thm, bool allow_intro = false );

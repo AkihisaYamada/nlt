@@ -18,8 +18,8 @@ class Definer {
 		Thm refl;
 	};
 	Definer( _Init && init ) :
-		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(_thy.rewriter().make_rules()), refl(std::move(init.refl)) {
-		_thy.rewriter().add_rule(this->beta,std::move(init.beta));
+		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(_thy.rewriter()->make_rules()), refl(std::move(init.refl)) {
+		_thy.rewriter()->add_rule(this->beta,std::move(init.beta));
 	}
 	static _Init _init( Thy const& thy, Thm const& beta );
 public:

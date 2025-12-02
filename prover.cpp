@@ -123,7 +123,8 @@ public:
 	}
 	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev ) {
 		auto const& rew = _thy.rewriter();
-		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {rew.make_rules(),{}};
+		if( !rew ) throw Error("\"rewriter not set\"");
+		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {rew->make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( skips("(") ) {
 			ctrl.rel = get();
@@ -144,9 +145,9 @@ public:
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
 			if( rev ) {
-				rew.add_rule(rules,rew.dualize(loc,*arg));
+				rew->add_rule(rules,rew->dualize(loc,*arg));
 			} else {
-				rew.add_rule(rules,*arg);
+				rew->add_rule(rules,*arg);
 			}
 			n++;
 		}
@@ -219,9 +220,9 @@ public:
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = loc.rewriter().rewrite(rules,loc,ret,ctrl);
+					ret = loc.rewrite(ret,rules,ctrl);
 				} else if( skips("dual") ) {
-					ret = loc.rewriter().dualize(loc,ret);
+					ret = loc.dualize(ret);
 				} else break;
 				if( !skips(",") ) break;
 			}
@@ -311,7 +312,7 @@ public:
 		}
 		if( cs.cong ) {
 			loc.add_thm(Rewriter::CONG,thm);
-			_thy.modify_rewriter().register_cong(thm);
+			_thy.rewriter()->register_cong(thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -439,6 +440,7 @@ public:
 			name = get();
 		}
 		auto intp = _thy.thy(name,reader());
+		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
@@ -453,7 +455,7 @@ public:
 				}
 			}
 		}
-		auto path = intp.source().print_name();
+		auto path = src.print_name();
 		bool success = true;
 		if( skips(";") ) {
 			_cout << (change ? "importing " : "interpreting ") << path << endl;
@@ -475,7 +477,10 @@ public:
 			}
 			if( _no_syntax ) {
 				_no_syntax = false;
-				_thy.modify_syntax() = intp.source().syntax();
+				_thy.modify_syntax() = src.syntax();
+			}
+			if( !_thy.rewriter() && src.rewriter() ) {
+				_thy.rewriter() = OptRef<Rewriter>::make(src.rewriter()->subst(intp));
 			}
 		}
 		if( success ) {
@@ -966,7 +971,7 @@ public:
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
 				auto [rules,ctrl] = _get_rewrite(_thy,dir);
-				_thy.rewriter().apply(rules,thesis,ctrl);
+				_thy.rewriter()->apply(rules,thesis,ctrl);
 				if( skips(";") ) {
 					print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 				} else {
@@ -1010,7 +1015,7 @@ public:
 			if( _stats() || _thy_decl() || _note() || _shared_decl() ) {
 			} else if( skips("set") ) {
 				if( skips("rewrite") ) {
-					bool def = skips("!") || _thy.rewriter().empty();
+					bool def = skips("!") || !_thy.rewriter();
 					Thm imp = get_thm();
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
@@ -1019,13 +1024,17 @@ public:
 						"\n\trev: " <<  _thy.pretty(revimp) <<
 						"\n\trefl: " << _thy.pretty(refl) <<
 						"\n\ttrans: " << _thy.pretty(trans);
-					_thy.modify_rewriter().register_refl(refl,def).
+					if( !_thy.rewriter() ) {
+						_thy.rewriter() = OptRef<Rewriter>::make();
+					}
+					
+					_thy.rewriter()->register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
 					_thy.find_thm( Rewriter::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 					auto thm2 = thm.subst(import);
-						_thy.modify_rewriter().register_cong(thm2);
+						_thy.rewriter()->register_cong(thm2);
 						_cout << "\n\tcong: " << _thy.pretty(thm2);
 						return {};
 					} );
@@ -1033,14 +1042,14 @@ public:
 				} else if( skips("trans") ) {
 					_cout << "registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.modify_rewriter().register_trans(*thm);
+						_thy.rewriter()->register_trans(*thm);
 						_cout << _thy.pretty(*thm);
 					}
 					_cout << endl;
 				} else if( skips("dual") ) {
 					_cout << "registering dual: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.modify_rewriter().register_dual(*thm);
+						_thy.rewriter()->register_dual(*thm);
 						_cout << _thy.pretty(*thm);
 					};
 					_cout << endl;

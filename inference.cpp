@@ -187,7 +187,7 @@ bool Inference::_blast(
 			auto assm = subthy.assume(imp->first);
 			goal = imp->second;
 			if( auto rew = ctrl.rewrite ) {// rewrite the assumption
-				assm = subthy.rewriter().rewrite(rew->first,subthy,assm,rew->second);
+				assm = subthy.rewrite(assm,rew->first,rew->second);
 			}
 			for( auto elim = ctrl.elims.begin();; elim++ ) {// checks if an elimination rule matches
 				if( elim == ctrl.elims.end() ) {
@@ -226,7 +226,7 @@ bool Inference::_blast(
 			}
 			return {};
 		} ) ) {
-			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter().apply(rew.first,thesis,rew.second); }) &&
+			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g,subgoal_child) &&
 				!subthy.find_thm( INTRO, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 					auto thm2 = thm.subst(import);

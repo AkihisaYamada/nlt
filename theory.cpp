@@ -14,14 +14,14 @@ struct Thy::_Body {
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> imports;
 	Ref<Syntax> syntax;
-	Ref<Rewriter> rewriter;
+	OptRef<Rewriter> rewriter;
 	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, Ref<Rewriter> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewriter> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
 	}
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),Ref<Rewriter>::make(),OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewriter>(),OptRef<Definer>())) {};
 
 Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
 	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
@@ -53,12 +53,13 @@ Syntax const& Thy::syntax() const& {
 Syntax& Thy::modify_syntax() & {
 	return *_ref->syntax;
 }
-Rewriter const& Thy::rewriter() const& {
-	return *_ref->rewriter;
+OptRef<Rewriter> const& Thy::rewriter() const& {
+	return _ref->rewriter;
 }
-Rewriter& Thy::modify_rewriter() & {
-	return *_ref->rewriter;
+OptRef<Rewriter>& Thy::rewriter() & {
+	return _ref->rewriter;
 }
+
 void Thy::setup_definer( Thm const& beta ) & {
 	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
 	_ref->definer = OptRef<Definer>::make(*this,beta);
@@ -201,8 +202,6 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 			auto fullpath = path + ".nl";
 			if( auto fis = fstream(fullpath) ) {
 				Thy thy = branch(name,path);
-				// TODO: cloning rewriter
-				thy._ref->rewriter = Ref<Rewriter>::make(*_ref->rewriter);
 				reader(thy,fis,fullpath);
 				return {Import::make(thy,*this)};
 			}

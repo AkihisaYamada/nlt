@@ -10,12 +10,12 @@ Definer::_Init Definer::_init( Thy const& thy, Thm const& beta ) {
 	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
 	auto const& [EQ,l,r] = *bin;
-	auto const& ind = thy.rewriter().gets_rel_ind(EQ);
+	auto const& ind = thy.rewriter()->gets_rel_ind(EQ);
 	if( !ind ) throw UnknownEq(beta);
 	auto const& bin2 = strips_binary(l);// l: (λ _) _
 	if( !bin2 ) throw MalformedBeta(beta);
 	auto const& [LAM,abs,arg] = *bin2;
-	auto const& refl = thy.rewriter().get_refl(*ind);
+	auto const& refl = thy.rewriter()->get_refl(*ind);
 	return {thy,EQ,LAM,beta,refl};
 }
 
@@ -46,7 +46,7 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	Ctxt thesis_ctxt = thesis_intp.ctxt();
 	thesis_ctxt.fix(thesis);
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis
-	auto eq_thm = lthy.rewriter().steps(beta,lthy,r_cabs_app,Rewriter::Ctrl{EQ,{},steps,steps,true});// (λx... r) x... = r
+	auto eq_thm = lthy.rewriter()->steps(beta,lthy,r_cabs_app,Rewriter::Ctrl{EQ,{},steps,steps,true});// (λx... r) x... = r
 	eq_thm = eq_thm.intro().subst(thesis_intp);// ∀x... (λx... r) x... = r
 	thm = thm.instantiate(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
 	thm = thm << eq_thm;// thesis

@@ -1,10 +1,8 @@
 #ifndef _THEORY_HPP
 #define _THEORY_HPP
 #include<map>
-#include"util.hpp"
-#include"syntax.hpp"
+#include"rewriter.hpp"
 
-class Rewriter;
 class AThm;
 class Import;
 struct ThmInfo {
@@ -111,10 +109,15 @@ public:
 	auto pretty_ctxt() const {
 		return syntax().pretty_ctxt(*this);
 	}
-	Rewriter& modify_rewriter() &;
-	Rewriter const& rewriter() const &;
-	Rewriter rewriter() && = delete;
-	Thm rewrite( Thm const& thm ) const&;
+	OptRef<Rewriter> rewriter() && = delete;
+	OptRef<Rewriter> const& rewriter() const &;
+	OptRef<Rewriter>& rewriter() &;
+	Thm rewrite( Thm const& thm, Rewriter::Rules const& rules, Rewriter::Ctrl const& ctrl ) const& {
+		return rewriter()->rewrite(*this,thm,rules,ctrl);
+	}
+	Thm dualize( Thm const& thm ) const& {
+		return rewriter()->dualize(*this,thm);
+	}
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */

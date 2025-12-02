@@ -1,5 +1,5 @@
 import Lambda.
-import IntuitionisticFOL.
+import Logic.
 import Nat.
 
 -----

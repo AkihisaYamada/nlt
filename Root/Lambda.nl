@@ -9,9 +9,6 @@ assume beta: (λx. α.[x]) s = α.[s].
 
 begin
 
-set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
-set dual eq.sym.
-
 set define beta.
 
 theory Ext:
