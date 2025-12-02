@@ -1,6 +1,4 @@
-import Lambda.
-import Logic.
-import Nat.
+import ClassicalHOL.
 
 -----
 ## Classes

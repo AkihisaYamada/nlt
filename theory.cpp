@@ -41,6 +41,9 @@ Thy Thy::scope( string_view const& name ) const {
 string const& Thy::name() const & {
 	return _ref->name;
 }
+Opt<Import&> Thy::parent() & {
+	return _ref->parent;
+}
 Opt<Import const&> Thy::parent() const & {
 	return _ref->parent;
 }

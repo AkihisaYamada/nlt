@@ -27,10 +27,6 @@ begin
 ## Theorems
 ---
 
-set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-set dual iff.sym.
-
-
 ----
 ### True, False, and Negation
 ----

@@ -1,24 +1,7 @@
-import Base.
-
-fix (:) prop true false (¬) (∧) (∨) (⟺).
-
-import Prop.
-import TypedTrue.
-import TypedFalse.
-import TypedNot.
-import TypedAnd.
-import TypedIff.
-import TypedOr.
+import MinimalPL.
+assume false_elim: false ⟹ ∀P. P : prop ⟹ P.
 
 begin
-
-interpret MinimalPL;
-	retain false;
-		.
-	.
-
-set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-set dual iff.sym.
 
 lemma not_imp_iff_false: if nP: ¬P, [P : prop] then P ⟺ false;
 	by iff_intro not_imp_false[OF nP] #elim false_elim.

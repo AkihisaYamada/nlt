@@ -4,13 +4,10 @@ assume excluded_middle: P : prop ⟹ P ∨ ¬P.
 
 begin
 
-setup rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-setup dual iff.sym.
-
 lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P : prop, [Q : prop] then Q;
 	apply or_elim[OF excluded_middle[OF pP]];
-	- by PQ.
-	- by nPQ.
+	-; by PQ.
+	-; by nPQ.
 	.
 
 lemma nnot_iff: if [P : prop] then ¬¬P ⟺ P;

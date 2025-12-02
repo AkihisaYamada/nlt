@@ -284,15 +284,6 @@ begin
 	note! true.type.
 end
 
-theory TypedFalse:
-	fix prop false (:).
-	import Prop.
-	import false: Member prop false.
-	assume false_elim: false ⟹ ∀P. P : prop ⟹ P.
-begin
-	note! false.type.
-end
-
 theory TypedNot:
 	fix prop (¬) false (:).
 	import false: Member prop false.

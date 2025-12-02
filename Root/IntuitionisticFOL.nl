@@ -9,8 +9,8 @@ fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
-
-interpret TypedFalse;
+set print.
+import IntuitionisticPL;
 	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
 		- for thesis if assm;
 			apply assm[of (∀P:prop. P)];
@@ -19,12 +19,10 @@ interpret TypedFalse;
 				by all_elim1[of P prop, OF all].
 			.
 		.
-	by #elim false_elim.
-
-import TypedNot.
-import TypedIff.
-import TypedAnd.
-import TypedOr.
+	retain false := false.
+	- false ⟹ ∀P. P : prop ⟹ P;
+		by #elim false_elim.
+	.
 import TypedEx.
 
 begin
@@ -32,11 +30,6 @@ begin
 interpret MinimalFOL;
 	retain false; .
 	.
-
-interpret IntuitionisticPL.
-
-set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-set dual iff.sym.
 
 lemma ex_false_iff: (∃x:ι. false) ⟺ false;
 	by not_imp_iff_false nex_false.

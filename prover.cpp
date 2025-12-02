@@ -383,10 +383,11 @@ public:
 		_cout << _thy.pretty(goal) << endl;
 		return Inference::claim_exact(assm_thy,goal);
 	}
-	void _auto_instantiate( Import& intp, string const& fix, bool change ) {
-			intp.instantiate( change ? _thy.enclose(fix) : _thy.cterm(fix) );
+	void _auto_instantiate( Thy& org_thy, Import& intp, string const& fix, bool change ) {
+		intp.instantiate( change ? org_thy.enclose(fix) : org_thy.cterm(fix) );
 	}
-	void _auto_discharge( Thy& thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
+	/** @return the assumption if such was made */
+	Opt<Thm> _auto_discharge( Thy& thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
@@ -401,27 +402,38 @@ public:
 			}
 			return {};
 		} ) ) {
+			_cout << "transferred ";
 		} else if( change ) {
-			intp.discharge(thy.add_assm(assm_name,assm));
+			Thm ret = thy.add_assm(assm_name,assm);
+			intp.discharge(ret);
+			_cout << "admitted " << assm_name << ": " << _thy.pretty(assm) << endl;
+			return {ret};
 		} else {
 			intp.discharge(prove(assm,_thy,ctrl));
+			_cout << "blasted ";
 		}
+		_cout << assm_name << ": " << _thy.pretty(assm) << endl;
+		return {};
 	}
-	void _auto_retain( Thy& thy, string const& prefix, Import& intp, auto const& obtain ) {
+	pair<CTerm,Thm> _auto_retain( Thy& thy, string const& prefix, Import& intp, auto const& obtain ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			Term const& stmt = spec.inst(*csym);
-			if( !_thy.find_thm(name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			if( auto const& spec = _thy.find_thm(name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 				auto thm2 = thm.subst(import);
 				if( stmt == thm2 ) {
 					intp.retain(*csym,thm2);
 					return {thm2};
 				};
 				return {};
-			} ) ) throw Error("\"failed retain\"")(sym)(name)(stmt);
+			} ) ) {
+				return {*csym,*spec};
+			}
+			throw Error("\"failed retain\"")(sym)(name)(stmt);
 		} else {
 			auto [sym_term,spec] = thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
+			return {sym_term,spec};
 		}
 	}
 	auto reader() const& {
@@ -466,7 +478,7 @@ public:
 			skip(".");
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
-					_auto_instantiate(intp,*fix,change);
+					_auto_instantiate(_thy,intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
 					_auto_discharge(_thy,prefix,intp,*assume,change);
 				} else if( auto const& obtain = intp.obtaining() ) {
@@ -546,15 +558,15 @@ public:
 			} else if( skips("interpret") ) {
 				import(false);
 			} else if( skips("instantiate") ) {
-				vector<pair<string,Term>> ass;
+				vector<pair<string,Term>> map;
 				for(;;) {
 					auto x = get_sym();// the symbol to be instantiated
 					skip(":=");
-					ass.emplace_back(x,get_term());
+					map.emplace_back(x,get_term());
 					if( !skips(",") ) break;
 				}
 				skip(".");
-				for( auto [x,t] : ass ) {
+				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
 							_auto_discharge(org_thy,prefix,intp,*assume,change);
@@ -562,7 +574,7 @@ public:
 							_auto_retain(org_thy,prefix,intp,*obtain);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
-							_auto_instantiate(intp,*fix,change);
+							_auto_instantiate(org_thy,intp,*fix,change);
 						} else {
 							throw Error("\"unexpected instantiate\"")(x);
 						}
@@ -572,6 +584,7 @@ public:
 				}
 			} else if( skips("-") ) {
 				auto pat = _get_goalpat();
+				auto& par = *pat.thy.parent();
 				skips(";");
 				for(;;) {
 					if( auto const& assume = intp.assuming() ) {
@@ -580,13 +593,19 @@ public:
 							_cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							break;
 						} else {
-							_cout << "skipping " << assume->second << ": " << assume->first << endl;
-							_auto_discharge(org_thy,prefix,intp,*assume,false);
+							auto assm = _auto_discharge(org_thy,prefix,intp,*assume,change);
+							if( assm ) {
+								par.discharge(*assm);
+							}
 						}
 					} else if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
+						_auto_instantiate(org_thy,intp,*fix,change);
+						while( auto const& v = par.fixing() ) {
+							par.instantiate(org_thy.cterm(*v));
+						}
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain);
+						auto const& [term,spec] = _auto_retain(org_thy,prefix,intp,*obtain);
+						par.retain(term,spec);
 					} else {
 						break;
 					}
@@ -611,7 +630,7 @@ public:
 				skip(".");
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
+						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(org_thy,prefix,intp,*assume,change,ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
@@ -635,7 +654,7 @@ public:
 		auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
-				_auto_instantiate(intp,*fix,change);
+				_auto_instantiate(org_thy,intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
 				_auto_discharge(org_thy,prefix,intp,*assume,change);
 			} else if( auto const& obtain = intp.obtaining() ) {

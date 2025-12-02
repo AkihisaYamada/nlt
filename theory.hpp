@@ -51,6 +51,7 @@ public:
 	/** Self import */
 	Import self() const &;
 	/** Import from the parent. */
+	Opt<Import&> parent() &;
 	Opt<Import const&> parent() const &;
 	/** The directory name for the theory. */
 	std::string const& dir() const&;

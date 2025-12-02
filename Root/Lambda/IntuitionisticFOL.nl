@@ -15,7 +15,4 @@ interpret ..IntuitionisticFOL;
 		by #unfold false_def #elim all_elim.
 	.
 
-set rewrite iff_imp iff_imp_rev iff.refl iff.trans.
-set dual iff.sym.
-
 

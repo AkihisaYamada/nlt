@@ -211,7 +211,7 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 					break;
 				}
 			}
-			return rule.rule.subst(intp); // l[m] = r[m]
+			return {rule.rule.subst(intp)}; // l[m] = r[m]
 		}
 	}
 	bool success = false;

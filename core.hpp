@@ -786,6 +786,12 @@ public:
 		}
 		return {};
 	}
+	/** returns the next obtained symbol.
+	 * @return tuple of
+	 *  - the symbol x
+	 *  - the existence theorem: ∀thesis. (∀x. Pθ[x] ⟹ thesis) ⟹ thesis
+	 *  - and the specification: x. Pθ[x]
+	 */
 	Opt<std::tuple<std::string,Thm,CTerm>> obtaining() const {
 		if( 0 <= _rev && _rev < _src.revision() )
 		if( auto const& obtain = _src._ref->modifiers[_rev].ref<Ctxt::Obtain>() ) {
@@ -812,7 +818,8 @@ public:
 	void discharge(Thm const& thm) {
 		auto assm = assuming();
 		if( !assm ) throw Error(__func__)("\"unexpected\"");
-		if( *assm != thm ) throw Error(__func__)("\"malformed\"")(*assm)(thm);
+		if( assm->ctxt() != thm.ctxt() ) throw Error("\"context mismatch\"");
+		if( (Term)*assm != thm ) throw Error(__func__)("\"malformed\"")(*assm)(thm);
 		_rev++;
 	}
 	/** @brief If the interpreted context is modified by obtaining a constant,
