@@ -109,7 +109,6 @@ bool Inference::_apply_blast(
 	auto rule_intp = _thy.interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
 	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule_intp);
-DEB(*m);
 	for(;;) {
 		if( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
 			if( auto const& val = m->get(*v) ) {
@@ -126,7 +125,6 @@ DEB(*m);
 			break;
 		}
 	}
-DEB(rule.conclusion());
 	auto claim = rule.subst(pat_intp);
 	_thm = _thm.discharge(claim);
 	_goals--;

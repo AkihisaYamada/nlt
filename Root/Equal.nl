@@ -3,7 +3,6 @@
 ---
 
 import Base.
-set print.
 
 fix (=).
 

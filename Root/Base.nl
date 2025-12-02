@@ -151,7 +151,7 @@ lemma all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x];
 
 lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x];
 	by imp.
-set print.
+
 lemma make_elim:
 	if imp: ∀x. P.[x] ⟹ Q.[x]
 	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
@@ -324,7 +324,6 @@ end
 theory TypedOr:
 	fix prop (∨) (:).
 	import or: Magma prop (∨).
-ctxt.
 	assume or_intro1: P ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
 	assume or_intro2: for P Q, Q ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
 	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R : prop ⟹ R.

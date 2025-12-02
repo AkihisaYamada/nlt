@@ -16,8 +16,6 @@ assume rec_type: rec : ι → (nat → ι → ι) → nat → ι.
 
 begin
 
-ctxt.
-
 note! zero.type.
 note! suc.type.
 note! eq_nat.type.
