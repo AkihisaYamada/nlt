@@ -31,11 +31,9 @@ Opt<string const&> gets_binary_sym( Term const& term ) {
 	return {};
 }
 Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
-
-void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev ) const {
-	// checking well-formedness and extracting the lhs of the rewrite rule
+Thm Rewriter::dualize( Thy const& thy, Thm const& thm ) const {
 	Thy subthy = thy.branch();
-	Thm body = strip_all(thm,*subthy.parent(),fresh_maker()).first;
+	Thm body = strip_all(thm,*subthy.parent()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = subthy.assume(imp->first);
 		add_forced(subthy,assm);
@@ -43,17 +41,28 @@ void Rewriter::add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev 
 	}
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
-		if( rev ) {
-			auto const& dual = _duals.finds(*ind);
-			if( !dual ) throw Error("\"no dual rule registered\"");
-			Thm dual_thm = subthy.weaken(dual->second.thm) << body;
-			while( auto o = blasts(dual_thm,subthy) ) {
-				dual_thm = *o;
-			}
-			rules[dual->second.ind].emplace_back(get<2>(*bin),dual_thm,thm.ctxt());
-		} else {
-			rules[*ind].emplace_back(get<1>(*bin),body,thm.ctxt());
+		auto const& dual = _duals.finds(*ind);
+		if( !dual ) throw Error("\"no dual rule for\"")(get<0>(*bin));
+		Thm dual_thm = subthy.weaken(dual->second.thm) << body;
+		while( auto o = blasts(dual_thm,subthy) ) {
+			dual_thm = *o;
 		}
+		return dual_thm.intro();
+	}
+	throw Error("\"not dualizable\"")(thm);
+}
+void Rewriter::add_rule( Rules& rules, Thm const& thm ) const {
+	// checking well-formedness and extracting the lhs of the rewrite rule
+	Intp toSub = thm.ctxt().fork();
+	Ctxt sub = toSub.ctxt();
+	Thm body = strip_all(thm,toSub,fresh_maker()).first;
+	while( auto imp = body.cbinary(IMP) ) {
+		Thm assm = sub.assume(imp->first);
+		body = body.discharge(assm);
+	}
+	if( auto const& bin = strips_binary(body) )
+	if( auto const& ind = gets_rel_ind(get<0>(*bin)) ) {
+		rules[*ind].emplace_back(get<1>(*bin),body,thm.ctxt());
 		return;
 	}
 	throw Error("\"malformed rule\"")(thm);

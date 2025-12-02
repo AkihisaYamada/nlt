@@ -78,7 +78,8 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	void add_rule( Thy const& thy, Rules& rules, Thm const& thm, bool rev = false ) const;
+	void add_rule( Rules& rules, Thm const& thm ) const;
+	Thm dualize( Thy const& thy, Thm const& thm ) const;
 	Rewriter& register_imp( Thm const& thm, bool dir ) &;
 	Rewriter& register_refl( Thm const& thm, bool def ) &;
 	Rewriter& register_trans(Thm const& thm) &;

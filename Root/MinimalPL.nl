@@ -141,6 +141,7 @@ lemma nnot_imp_not_iff: if [P : prop, Q : prop] then
 lemma nnimp_not_iff: if [P : prop, Q : prop] then
 	¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
+thm mp.
 	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
 		fold nnnot_iff;
 		by nnimp_imp_nnot[OF nnimp P].

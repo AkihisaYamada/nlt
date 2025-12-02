@@ -1,12 +1,16 @@
+#include<string>
 #include"util.hpp"
 
 using namespace std;
 
-Term const DUMMY = "_" /= Term("_");
+Term const DUMMY = "?" /= Term("?");
 
 Renamer avoider(Ctxt const& ctxt) {
 	return [&](string_view const& v)->Opt<string>{
-		return avoid(v,[&](string_view const& x){ return ctxt.constant(x); });
+		return avoid(
+			v[0] == '?' ? string("_")+v.substr(1) : v,
+			[&]( string_view const& x ){ return ctxt.constant(x); }
+		);
 	};
 }
 class FreshMaker {
@@ -274,7 +278,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto assm2match = assm_ctxt.fork();
 	auto match_ctxt = assm2match.ctxt();
 	auto thm2match = thm2assm.compose(assm2match);
-	Thm rule = strip_all(thm,thm2match,fresh_maker()).first;
+	Thm rule = strip_all(thm,thm2match).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) throw Error("#match_discharge")(thm);
 	auto const& arg_weaken = arg.subst(thm2assm);

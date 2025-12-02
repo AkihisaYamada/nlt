@@ -121,8 +121,9 @@ public:
 		if( !ret ) throw Parser::Error("\"expects a theorem\"");
 		return *ret;
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev = false ) {
-		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {_thy.rewriter().make_rules(),{}};
+	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev ) {
+		auto const& rew = _thy.rewriter();
+		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {rew.make_rules(),{}};
 		auto& [rules,ctrl] = ret;
 		if( skips("(") ) {
 			ctrl.rel = get();
@@ -142,7 +143,11 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			_thy.rewriter().add_rule( loc, rules, *arg, skips("-") ? !rev : rev );
+			if( rev ) {
+				rew.add_rule(rules,rew.dualize(loc,*arg));
+			} else {
+				rew.add_rule(rules,*arg);
+			}
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -215,6 +220,8 @@ public:
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
 					auto [rules,ctrl] = _get_rewrite(loc,dir);
 					ret = loc.rewriter().rewrite(rules,loc,ret,ctrl);
+				} else if( skips("dual") ) {
+					ret = loc.rewriter().dualize(loc,ret);
 				} else break;
 				if( !skips(",") ) break;
 			}
