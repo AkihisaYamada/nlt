@@ -1,5 +1,5 @@
 set print load.
-import IntuitionisticFOL.
+import ClassicalHOL.
 
 ctxt.
 

@@ -1,3 +1,7 @@
+---
+# Intuitionistic Propositional Logic
+---
+
 import MinimalPL.
 assume false_elim: false ⟹ ∀P. P : prop ⟹ P.
 

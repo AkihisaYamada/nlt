@@ -7,31 +7,22 @@ import Base.
 
 fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
-import Prop.
 import TypedAll.
-import TypedEx.
 
-interpret TypedFalse;
-	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
-		- for thesis if assm;
-			apply assm[of (∀P:prop. P)];
-			- .
-			- if all: ∀P : prop. P;
-				by all_elim1[of P prop, OF all].
-			.
+obtain false where false_type! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
+	- for thesis if assm;
+		apply assm[of (∀P:prop. P)];
+		- .
+		- if all: ∀P : prop. P;
+			by all_elim1[of P prop, OF all].
 		.
-	retain false := false.
-	- false ⟹ ∀P. P : prop ⟹ P;
-		by #elim false_elim.
 	.
 
-import IntuitionisticPL.
+import MinimalFOL.
 
 begin
 
-interpret MinimalFOL;
-	retain false; .
-	.
+interpret IntuitionisticPL.
 
 lemma ex_false_iff: (∃x:ι. false) ⟺ false;
 	by not_imp_iff_false nex_false.

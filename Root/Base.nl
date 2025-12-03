@@ -268,83 +268,13 @@ theory AbsorbMagma:
 	import RightAbsorb.
 end
 
-theory Prop:
-	fix prop (:).
-	import imp: Magma prop (⟹).
-begin
-	note! imp.type.
-end
-
-theory TypedTrue:
-	fix prop true (:).
-	import Prop.
-	import true: Member prop true.
-	assume true_intro! true.
-begin
-	note! true.type.
-end
-
-theory TypedFalse:
-	fix prop false (:).
-	import Prop.
-	import false: Member prop false.
-	assume false_elim: if false, P : prop then P.
-begin
-	note! false.type.
-end
-
-theory TypedNot:
-	fix prop (¬) false (:).
-	import not: Unary prop prop (¬).
-	assume not_intro: (P ⟹ false) ⟹ P : prop ⟹ ¬P.
-	assume not_imp_false: ¬P ⟹ P ⟹ P : prop ⟹ false.
-begin
-	note! not.type.
-end
-
-theory TypedAnd:
-	fix prop (∧) (:).
-	import and: Magma prop (∧).
-	assume and_intro: P ⟹ Q ⟹ P : prop ⟹ Q : prop ⟹ P ∧ Q.
-	assume and_elim1: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ P.
-	assume and_elim2: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ Q.
-begin
-	note! and.type.
-	lemma and_elim: if and: P ∧ Q then
-		∀R. (P ⟹ Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
-		- for R if PQR: P ⟹ Q ⟹ R;
-			by PQR and_elim1[OF and] and_elim2[OF and].
-		.
-	interpret and: Symmetric prop (∧);
-		by and_intro #elim and_elim.
-end
-
-theory TypedOr:
-	fix prop (∨) (:).
-	import or: Magma prop (∨).
-	assume or_intro1: P ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
-	assume or_intro2: for P Q, Q ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
-	assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R : prop ⟹ R.
-begin
-	note! or.type.
-	lemma or_intro:
-		if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
-		then P ∨ Q;
-		apply PQR;
-		-; by or_intro1.
-		-; by or_intro2.
-		.
-	interpret or: Symmetric prop (∨);
-		by or_intro #elim or_elim.
-end
-
 theory TypedAll:
-	fix prop (∀:) (:).
-	import all: TypedBinder prop (∀:).
+	fix (∀:) prop (:).
+	assume imp_type! P : prop ⟹ Q : prop ⟹ (P ⟹ Q) : prop.
+	assume all_type! (∀x. x : ι ⟹ α.[x] : prop) ⟹ (∀x : ι. α.[x]) : prop.
 	assume all_intro: (∀x. x : ι ⟹ α.[x]) ⟹ (∀x. x : ι ⟹ α.[x] : prop) ⟹ ∀x:ι. α.[x].
 	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ α.[x].
 begin
-	note! all.type.
 	lemma all_elim:
 		if all: ∀x:ι. α.[x]
 		then ∀P. ((∀x. x: ι ⟹ α.[x]) ⟹ P) ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ P;
@@ -354,24 +284,10 @@ begin
 				apply all_elim1[OF all, of x].
 			.
 		.
-end
-
-theory TypedEx:
-	fix prop (∃:) (:).
-	import Prop.
-	import ex: TypedBinder prop (∃:).
-	assume ex_intro1: for x, α.[x] ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ ∃y:ι. α.[y].
-	assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹
-	(∀x. x : ι ⟹ α.[x] : prop) ⟹ P : prop ⟹ P.
-begin
-	note! ex.type.
-	lemma ex_intro:
-		if assm: ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹ P : prop ⟹ P,
-			! ∀x. x : ι ⟹ α.[x] : prop
-		then ∃x:ι. α.[x];
-		apply assm;
-		- for x;
-			by ex_intro1[of x].
+	obtain true where true_type! true : prop, true_intro! true;
+		- for thesis if assm;
+			apply assm[of (∀P:prop. P ⟹ P)];
+			by all_intro.
 		.
 end
 

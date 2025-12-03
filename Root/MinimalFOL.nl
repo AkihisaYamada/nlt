@@ -6,24 +6,21 @@ Now the true proposition can be obtained using the universal quantifier.
 ---
 import Base.
 
-fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
+fix (:) prop false (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
-import Prop.
 import TypedAll.
-import TypedEx.
-
-interpret TypedTrue;
-	obtain true where ! true : prop, ! true;
-		- for thesis if assm;
-			apply assm[of (∀P:prop. P ⟹ P)];
-			by all_intro.
-		.
-	instantiate true.
-	.
-
 import MinimalPL.
 
+assume ex_type! (∀x. x : ι ⟹ α.[x] : prop) ⟹ (∃x : ι. α.[x]) : prop.
+assume ex_intro1: for x, α.[x] ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ ∃y:ι. α.[y].
+assume ex_elim: (∃x:ι. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹
+	(∀x. x : ι ⟹ α.[x] : prop) ⟹ P : prop ⟹ P.
+
 begin
+
+---
+## Universal Quantifier
+---
 
 lemma not_imp_not_all: if nax: ¬α.[x], ! x : ι, ! ∀y. y : ι ⟹ α.[y] : prop then
 	¬(∀y:ι. α.[y]);
@@ -45,8 +42,17 @@ lemma tall_cong#cong: for α
 	.
 
 ---
-### Existence
+## Existence
 ---
+
+lemma ex_intro:
+	if assm: ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹ P : prop ⟹ P,
+		! ∀x. x : ι ⟹ α.[x] : prop
+	then ∃x:ι. α.[x];
+	apply assm;
+	- for x;
+		by ex_intro1[of x].
+	.
 
 lemma ex_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	(∃x:ι. α.[x]) ⟺ (∀P:prop. (∀x:ι. α.[x] ⟹ P) ⟹ P);

@@ -7,31 +7,62 @@ import Base.
 ## Axiomatization
 ---
 
-fix (:) prop true (¬) (∧) (∨) (⟺).
+fix (:) prop true false (¬) (∧) (∨) (⟺).
 
-import Prop.
-import TypedTrue.
+assume true_type! true : prop.
+assume false_type! false : prop.
+assume imp_type! P : prop ⟹ Q : prop ⟹ (P ⟹ Q) : prop.
+assume not_type! P : prop ⟹ (¬ P) : prop.
+assume and_type! P : prop ⟹ Q : prop ⟹ (P ∧ Q) : prop.
+assume  or_type! P : prop ⟹ Q : prop ⟹ (P ∨ Q) : prop.
+assume iff_type! P : prop ⟹ Q : prop ⟹ (P ⟺ Q) : prop.
 
-namespace false begin
-	obtain false where type: false : prop;
-		- for thesis if assm;
-			apply assm[of true].
-		.
-	interpret Member prop false.
-end
+assume true_intro! true.
+assume not_intro: (P ⟹ false) ⟹ P : prop ⟹ ¬P.
+assume not_imp_false: ¬P ⟹ P ⟹ P : prop ⟹ false.
+assume and_intro: P ⟹ Q ⟹ P : prop ⟹ Q : prop ⟹ P ∧ Q.
+assume and_elim1: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ P.
+assume and_elim2: P ∧ Q ⟹ P : prop ⟹ Q : prop ⟹ Q.
+assume or_intro1: P ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
+assume or_intro2: ∀ P Q. Q ⟹ P : prop ⟹ Q : prop ⟹ P ∨ Q.
+assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R : prop ⟹ R.
 
-note ! false.type.
-
-import TypedNot.
-import TypedAnd.
-import TypedIff.
-import TypedOr.
+assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P : prop ⟹ Q : prop ⟹ (P ⟺ Q).
+assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ P : prop ⟹ Q : prop ⟹ Q.
+assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P : prop ⟹ Q : prop ⟹ P.
 
 begin
 
 ---
 ## Theorems
 ---
+
+interpret TypedIff.
+
+lemma not_false: ¬false;
+	apply not_intro.
+
+lemma and_elim: if and: P ∧ Q then
+	∀R. (P ⟹ Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
+	- for R if PQR: P ⟹ Q ⟹ R;
+		by PQR and_elim1[OF and] and_elim2[OF and].
+	.
+
+interpret and: Magma prop (∧).
+interpret and: Symmetric prop (∧);
+	by and_intro #elim and_elim.
+
+lemma or_intro:
+	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
+	then P ∨ Q;
+	apply PQR;
+	-; by or_intro1.
+	-; by or_intro2.
+	.
+
+interpret or: Magma prop (∨).
+interpret or: Symmetric prop (∨);
+	by or_intro #elim or_elim.
 
 ----
 ### True, False, and Negation
@@ -66,9 +97,6 @@ lemma not_iff_imp_false: if [P : prop] then ¬P ⟺ (P ⟹ false);
 	- if Pf: P ⟹ false;
 		by not_intro Pf.
 	.
-
-lemma not_false: ¬false;
-	apply not_intro.
 
 lemma not_true_iff: ¬true ⟺ false;
 	by iff_intro not_intro #elim not_imp_false.
