@@ -9,7 +9,7 @@ fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
-set print.
+
 import IntuitionisticPL;
 	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
 		- for thesis if assm;

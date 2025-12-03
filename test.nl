@@ -1,9 +1,13 @@
-import ClassicalHOL.
+import IntuitionisticFOL.
+
+ctxt.
+
+end
+
 
 -----
 ## Classes
 -----
-
 
 
 

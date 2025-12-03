@@ -10,22 +10,19 @@ fix prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
+import TypedEx.
 
-interpret TypedTrue;
+import MinimalPL;
 	obtain true where !true : prop, !true;
 		- for thesis if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
 		.
+	obtain false where !false : prop;
+		- for thesis if assm;
+			apply assm[of (∀P:prop. P)].
+		.
 	.
-
-obtain false where !false : prop;
-	- for thesis if assm;
-		apply assm[of (∀P:prop. P)].
-	.
-
-import MinimalPL.
-import TypedEx.
 
 begin
 
@@ -133,6 +130,5 @@ lemma nex_iff_all_not: if ! ∀x. x : ι ⟹ α.[x] : prop then
 
 lemma nnall_not_iff: if ! ∀x. x : ι ⟹ α.[x] : prop then
 	¬¬(∀x:ι. ¬α.[x]) ⟺ (∀x:ι. ¬α.[x]);
-thm nex_iff_all_not[dual].
 	fold+ nex_iff_all_not;
 	by nnnot_iff.
