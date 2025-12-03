@@ -6,13 +6,12 @@ import Base.
 
 fix (=).
 
-import eq: MetaReflexive (=).
-
+assume eq_refl! x = y.
 assume eq_imp_meta: for X, if y = z, X.[y] then X.[z].
 
 begin -- Above are the all axioms.
 
-note! eq.refl.
+interpret eq: MetaReflexive (=).
 
 interpret eq: MetaSymmetric (=);
 	- for x y if xy: x = y then y = x;

@@ -1,5 +1,6 @@
 set print load.
-import ClassicalHOL.
+import Lambda.
+import Logic.
 
 ctxt.
 

@@ -602,7 +602,6 @@ public:
 				}
 			} else if( skips("-") ) {
 				auto pat = _get_goalpat();
-				skips(";");
 				for(;;) {
 					if( auto const& assume = intp.assuming() ) {
 						if( auto thm = goal_matches(pat,assume->first) ) {
@@ -636,8 +635,9 @@ public:
 				Inference::Ctrl ctrl;
 				if( skips("by") ) {
 					get_ctrl(ctrl);
+				} else {
+					skip(".");
 				}
-				skip(".");
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
@@ -693,14 +693,13 @@ public:
 						auto prf = proof_loop(thesis);
 						_depth--;
 						swap(_thy,thesis_loc);
-						skips(".");
 						if( prf ) {
 							auto const& spec = prf->intro();
 							// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 							intp.retain(term,spec);
 						}
 					} else {
-						skips(".");
+						skip(".");
 						intp.retain(term,thesis.blast_all().intro());
 					}
 					break;
@@ -740,6 +739,7 @@ public:
 				throw Error("\"unexpected\"")(peek_token());
 			}
 		}
+		skip(".");
 	}
 
 	bool _stats() {
@@ -808,7 +808,6 @@ public:
 		if( o ) {
 			auto thm = o->intro();
 			add_claim(_thy,cs,thm);
-			skip(".");
 			return {{cs,thm}};
 		}
 		return {};
@@ -842,13 +841,16 @@ public:
 		vector<string> vars;
 		vector<pair<ClaimStatus,Opt<Term>>> assms;
 		Opt<Term> concl;
+		bool proof;
 	};
 	GoalPat _get_goalpat() {
 		auto ret = GoalPat();
+		bool concl;
 		if( skips("for") ) {
 			while( auto o = gets_sym() ) {
 				ret.vars.emplace_back(*o);
 			}
+			skips(",");
 		}
 		if( skips("if") ) {
 			do {
@@ -856,13 +858,18 @@ public:
 				auto const& assm = gets_term();
 				ret.assms.emplace_back(cs,assm);
 			} while( skips(",") );
-			if( !skips("then") ) {
-				return ret;
+			if( skips("then") ) {
+				ret.concl = {get_term()};
 			}
 		} else {
-			skips(",");
+			ret.concl = gets_term();
 		}
-		ret.concl = gets_term();
+		if( skips(";") ) {
+			ret.proof = true;
+		} else {
+			skip(".");
+			ret.proof = false;
+		}
 		return ret;
 	}
 	Opt<Thm> goal_matches( GoalPat& pat, CTerm const& goal ) {
@@ -879,7 +886,6 @@ public:
 			auto imp = loc_goal.cbinary(IMP);
 			if( !imp ) return {};
 			if( assm && *assm != imp->first ) {
-DEB(imp->first << "  vs  " << *assm );
 				return {};
 			}
 			assms.push_back({cs,imp->first});
@@ -893,21 +899,21 @@ DEB(imp->first << "  vs  " << *assm );
 			auto thm = loc.add_assm(cs.name.value_or(""),assm);
 			add_claim(loc,cs,thm);
 		}
-		_depth++;
-		if( skips(";") ) {
+		if( pat.proof ) {
 			if MSG cout << "show " << _thy.pretty(loc_goal) << endl;
+			_depth++;
 			_prompt();
+			auto thesis = Inference::claim_exact(loc,loc_goal);
+			swap(_thy,loc);
+			auto thm = proof_loop(thesis);
+			swap(_thy,loc);
+			_depth--;
+			if( thm ) {
+				return {thm->intro()};
+			}
+			return {};
 		}
-		auto thesis = Inference::claim_exact(loc,loc_goal);
-		swap(_thy,loc);
-		auto thm = proof_loop(thesis);
-		swap(_thy,loc);
-		_depth--;
-		if( thm ) {
-			skip(".");
-			return {thm->intro()};
-		}
-		return {};
+		return {prove(loc_goal,loc)};
 	}
 	bool _thy_decl() {
 		if( skips("theory") ) {
@@ -993,6 +999,7 @@ DEB(imp->first << "  vs  " << *assm );
 				if( skips(";") ) {
 					if MSG print_goal(thesis,"applied goals:\n\t");
 				} else {
+					skip(".");
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
@@ -1001,6 +1008,7 @@ DEB(imp->first << "  vs  " << *assm );
 				if( skips(";") ) {
 					if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 				} else {
+					skip(".");
 					return thesis.blast_all();
 				}
 			} else if( skips("-") ) {
@@ -1025,7 +1033,7 @@ DEB(imp->first << "  vs  " << *assm );
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
 				exit(0);
-			} else {
+			} else if( skips(".") ) {
 				auto thm = thesis.blast_all();
 				return thm;
 			}
@@ -1281,7 +1289,6 @@ DEB(imp->first << "  vs  " << *assm );
 				add_claim(_thy,cs,prop);
 			}
 			if MSG cout << "obtained " << sym << endl;
-			skip(".");
 		}
 	}
 	void move_to_thy( Thy const& thy ) {

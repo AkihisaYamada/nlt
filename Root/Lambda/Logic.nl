@@ -1,7 +1,7 @@
 ------
-# Untyped Lambda Calculus
+# Type-Free Logic on Lambda Calculus
 
-We axiomatize untyped lambda calculus, and define logical operations, and arrive at untyped multivalued intuitionistic logic.
+On top fo untyped lambda calculus we define logical operations, and arrive at untyped multivalued intuitionistic logic.
 ------
 begin
 
@@ -22,72 +22,72 @@ define[tex] (∃:) ι α := ∀P. (∀x. α.[x] ⟹ ι x ⟹ P) ⟹ P.
 define[neq] x ≠ y := ¬ x = y.
 
 interpret TypeFreeIntuitionistic;
-	retain true := true;
-		unfold true_def.
 	retain false := false;
 		- if f: false;
 			by f[unfolded false_def].
 		.
-	show: for P Q, if [P, Q] then P ∧ Q;
-		apply eq_prop2[OF and_def],
-		- for R, if PQR: P ⟹ Q ⟹ R;
+	- for P Q if !P, !Q then P ∧ Q;
+		apply eq_imp_rev[OF and_def];
+		- for R if PQR: P ⟹ Q ⟹ R;
 			by PQR.
 		.
-	show: for P Q, if PQ: P ∧ Q then P;
-		by eq_prop1[OF and_def][OF PQ].
-	show: for P Q, if PQ: P ∧ Q then Q;
-		by eq_prop1[OF and_def][OF PQ].
+	- for P Q if PQ: P ∧ Q then P;
+		by eq_imp[OF and_def PQ].
+	- for P Q if PQ: P ∧ Q then Q;
+		by eq_imp[OF and_def PQ].
 
-	show: for P, if nP: ¬P, [P] then false;
+	- for P if nP: ¬P, !P then false;
 		by nP[unfolded not_def].
-	show: for P, if nP: P ⟹ false then ¬P;
+	- for P if nP: P ⟹ false then ¬P;
 		by nP[folded not_def].
 
-	show: for P Q, if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
-		apply eq_prop2[OF iff_def],
-		unfold and_def,
-		- for R, if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
+	- for P Q if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
+		apply eq_imp_rev[OF iff_def];
+		unfold and_def;
+		- for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
 			by imp[OF PQ QP].
 		.
-	show: for P Q, if PQ: P ⟺ Q then P ⟹ Q;
-		apply PQ[unfolded iff_def and_def],
+	- for P Q if PQ: P ⟺ Q then P ⟹ Q;
+		apply PQ[unfolded iff_def and_def];
 		- if PQ: P ⟹ Q;
 			by PQ.
 		.
-	show: for P Q, if PQ: P ⟺ Q then Q ⟹ P;
-		apply PQ[unfolded iff_def and_def],
+	- for P Q if PQ: P ⟺ Q then Q ⟹ P;
+		apply PQ[unfolded iff_def and_def];
 		- if PQ: P ⟹ Q, QP: Q ⟹ P;
 			by QP.
 		.
 
-	show: for P Q, if P: P then P ∨ Q;
+	- for P Q if P: P then P ∨ Q;
 		have 1: if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by PR[OF P].
-		by eq_prop2[OF or_def 1].
-	show: for P Q, if Q: Q then P ∨ Q;
+		by eq_imp_rev[OF or_def 1].
+	- for P Q if Q: Q then P ∨ Q;
 		have 1: if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by QR[OF Q].
-		by eq_prop2[OF or_def 1].
-	show: for P Q, P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
-		unfold or_def,
+		by eq_imp_rev[OF or_def 1].
+	- for P Q, P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+		unfold or_def;
 		apply imp.refl=.
 
-	show: for x α, if ax: α.[x] then ∃x. α.[x];
-		unfold ex_def,
-		- for P, if all: ∀x. α.[x] ⟹ P;
+	- for x α if ax: α.[x] then ∃x. α.[x];
+		unfold ex_def;
+		- for P if all: ∀x. α.[x] ⟹ P;
 			by all[OF ax].
 		.
-	show: for α, (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P;
-		unfold ex_def,
+	- for α, (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P;
+		unfold ex_def;
 		apply imp.refl=.
+	retain true := true;
+		unfold true_def.
 	.
 
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
 set dual iff.sym.
 
 interpret eq_iff: MetaCommutative (=) (⟺);
-	show: for x y, x = y ⟺ y = x;
-		apply iff_intro,
+	- for x y, x = y ⟺ y = x;
+		apply iff_intro;
 		- if xy: x = y;
 			unfold xy.
 		- if yx: y = x;
@@ -96,22 +96,22 @@ interpret eq_iff: MetaCommutative (=) (⟺);
 	.
 
 theorem russel_paradox: ¬(∀P. P ∨ ¬P);
-	apply not_intro,
+	apply not_intro;
 	- if or: ∀P. P ∨ ¬P;
 		define R x := ¬ x x.
 		have eq: R R = (¬ R R);
 			by R_def.
 		have Ror: R R ∨ ¬ R R;
 			by or.
-		apply or_elim[OF Ror],
+		apply or_elim[OF Ror];
 		- if RR: R R;
 			have nRR: ¬ R R;
-				fold eq,
+				fold eq;
 				by RR.
 			by not_imp_false[OF nRR RR].
 		- if nRR: ¬ R R;
 			have RR: R R;
-				unfold eq,
+				unfold eq;
 				by nRR.
 			by not_imp_false[OF nRR RR].
 		.
@@ -122,7 +122,7 @@ define decided x := x ∨ ¬x.
 namespace decided begin
 
 interpret imp: Magma decided (⟹);
-	show: for x y, if x: decided x, y: decided y then decided (x ⟹ y);
+	- for x y, if x: decided x, y: decided y then decided (x ⟹ y);
 		unfold decided_def;
 		apply or_elim[OF y[unfolded decided_def]];
 		- by or_intro1.
@@ -139,7 +139,7 @@ interpret imp: Magma decided (⟹);
 	.
 
 interpret and: Magma decided (∧);
-	show: for x y, decided x ⟹ decided y ⟹ decided (x ∧ y);
+	- for x y, decided x ⟹ decided y ⟹ decided (x ∧ y);
 		unfold+ decided_def;
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x];
@@ -154,13 +154,13 @@ interpret and: Magma decided (∧);
 	.
 
 interpret iff: Magma decided (⟺);
-	show: for x y, decided x ⟹ decided y ⟹ decided (x ⟺ y);
+	- for x y, decided x ⟹ decided y ⟹ decided (x ⟺ y);
 		unfold iff_def;
 		by and.type imp.type.
 	.
 
 interpret or: Magma decided (∨);
-	show: for x y, decided x ⟹ decided y ⟹ decided (x ∨ y);
+	- for x y, decided x ⟹ decided y ⟹ decided (x ∨ y);
 		unfold decided_def;
 		- if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x];
@@ -180,38 +180,38 @@ interpret or: Magma decided (∨);
 	.
 
 interpret PropositionalClassical decided;
-	show: decided true;
+	- decided true;
 		by or_intro #unfold decided_def.
-	show: decided false;
+	- decided false;
 		by or_intro not_false #unfold decided_def.
-	show: for x, decided x ⟹ decided (¬ x);
+	- for x, decided x ⟹ decided (¬ x);
 		unfold+ decided_def;
 		by or_intro nnot_intro #elim or_elim.
-	show: ∀P. (P ⟹ false) ⟹ decided P ⟹ ¬ P;
+	- ∀P. (P ⟹ false) ⟹ decided P ⟹ ¬ P;
 		by not_intro.
-	show: for P, ¬ P ⟹ P ⟹ decided P ⟹ false;
+	- for P, ¬ P ⟹ P ⟹ decided P ⟹ false;
 		by not_imp_false(P).
-	show: ∀P Q. P ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P ∧ Q;
+	- ∀P Q. P ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P ∧ Q;
 		by and_intro.
-	show: ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ P;
+	- ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ P;
 		by #elim and_elim.
-	show: ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ Q;
+	- ∀P Q. P ∧ Q ⟹ decided P ⟹ decided Q ⟹ Q;
 		by #elim and_elim.
-	show: ∀P Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ decided P ⟹ decided Q ⟹ P ⟺ Q;
+	- ∀P Q. (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ decided P ⟹ decided Q ⟹ P ⟺ Q;
 		by iff_intro.
-	show: ∀P Q. (P ⟺ Q) ⟹ P ⟹ decided P ⟹ decided Q ⟹ Q;
+	- ∀P Q. (P ⟺ Q) ⟹ P ⟹ decided P ⟹ decided Q ⟹ Q;
 		by #elim iff_elim.
-	show: ∀P Q. (P ⟺ Q) ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P;
+	- ∀P Q. (P ⟺ Q) ⟹ Q ⟹ decided P ⟹ decided Q ⟹ P;
 		by #elim iff_elim.
-	show: ∀P Q. P ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
+	- ∀P Q. P ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
 		by or_intro.
-	show: ∀P Q. Q ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
+	- ∀P Q. Q ⟹ decided P ⟹ decided Q ⟹ P ∨ Q;
 		by or_intro.
-	show: ∀P Q. P ∨ Q ⟹ ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ decided P ⟹ decided Q ⟹ decided R ⟹ R;
+	- ∀P Q. P ∨ Q ⟹ ∀ R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ decided P ⟹ decided Q ⟹ decided R ⟹ R;
 		by #elim or_elim.
-	show: false ⟹ ∀P. decided P ⟹ P;
+	- false ⟹ ∀P. decided P ⟹ P;
 		by #elim false_elim.
-	show: for P, decided P ⟹ P ∨ ¬ P;
+	- for P, decided P ⟹ P ∨ ¬ P;
 		unfold decided_def.
 	.
 end
@@ -267,7 +267,7 @@ lemma neq_intro: if xyf: x = y ⟹ false then x ≠ y;
 	apply not_intro;
 	by xyf.
 
-note neq_elim: eq_prop1[OF neq_def].
+note neq_elim: eq_imp[OF neq_def].
 
 lemma neq_irrefl: ¬ x ≠ x;
 	unfold neq_def;
