@@ -10,111 +10,113 @@ Syntax::Syntax() {
 	infix(".",-1,-1,-2);
 }
 
-function<ostream&(ostream&)> Syntax::pretty(Term const& term, int level) const & {
-	return [this,&term,level](ostream& os) -> ostream& {
-		if( auto sym = term.sym() ) {
-			if( _prefixes.contains(*sym) || _binders.contains(*sym) || _infixes.contains(*sym) ) {
-				return os << '(' << *sym << ')';
+ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
+	if( _prefixes.contains(sym) || _binders.contains(sym) || _infixes.contains(sym) ) {
+		return os << '(' << sym << ')';
+	}
+	return os << sym;
+}
+
+ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
+	if( auto sym = term.sym() ) {
+		return pretty_sym(os,*sym);
+	} else if( auto app = term.app() ) {
+		auto const& fun = app->first, arg = app->second;
+		if( auto sym = fun.sym() ) {
+			if( auto x = _prefixes.finds(*sym) ) {
+				auto const& op = x->second;
+				if( level > op.llevel ) {
+					os << '(';
+				}
+				os << *sym << ' ' << pretty(arg,op.rlevel);
+				if( level > op.llevel ) {
+					os << ')';
+				}
+				return os;
 			}
-			return os << *sym;
-		} else if( auto app = term.app() ) {
-			auto const& fun = app->first, arg = app->second;
-			if( auto sym = fun.sym() ) {
+			if( auto abs = arg.bind() )
+			if( auto x = _binders.finds(*sym) ) {
+				auto const& op = x->second;
+				if( level > op.llevel ) {
+					os << '(';
+				}
+				os << *sym << ' ' << abs->first;
+				Term cur = abs->second;
+				while( auto abs2 = cur.binder(*sym) ) {
+					os << ' ' << abs2->first;
+					cur = abs2->second;
+				}
+				os << ". " << pretty(cur,op.rlevel);
+				if( level > op.llevel ) {
+					os << ')';
+				}
+				return os;
+			}
+		} else if( auto app_in = fun.app() ) {
+			auto const& fun_in = app_in->first, arg_in = app_in->second;
+			if( auto sym = fun_in.sym() ) {
 				if( auto x = _prefixes.finds(*sym) ) {
 					auto const& op = x->second;
 					if( level > op.llevel ) {
 						os << '(';
 					}
-					os << *sym << ' ' << pretty(arg,op.rlevel);
+					os << *sym << ' ';
+					os << pretty(arg,op.rlevel);
 					if( level > op.llevel ) {
+						os << ')';
+					}
+					return os;
+				}
+				if( auto x = _infixes.finds(*sym) ) {
+					auto const& op = x->second;
+					if( level > op.level ) {
+						os << '(';
+					}
+					os << pretty(arg_in,op.llevel);
+					os << ' ' << *sym << ' ';
+					os << pretty(arg,op.rlevel);
+					if( level > op.level ) {
 						os << ')';
 					}
 					return os;
 				}
 				if( auto abs = arg.bind() )
-				if( auto x = _binders.finds(*sym) ) {
+				if( auto x = _mid_binders.finds(*sym) ) {
 					auto const& op = x->second;
 					if( level > op.llevel ) {
 						os << '(';
 					}
-					os << *sym << ' ' << abs->first;
-					Term cur = abs->second;
-					while( auto abs2 = cur.binder(*sym) ) {
-						os << ' ' << abs2->first;
-						cur = abs2->second;
-					}
-					os << ". " << pretty(cur,op.rlevel);
+					os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,level);
 					if( level > op.llevel ) {
 						os << ')';
 					}
 					return os;
 				}
-			} else if( auto app_in = fun.app() ) {
-				auto const& fun_in = app_in->first, arg_in = app_in->second;
-				if( auto sym = fun_in.sym() ) {
-					if( auto x = _prefixes.finds(*sym) ) {
-						auto const& op = x->second;
-						if( level > op.llevel ) {
-							os << '(';
-						}
-						os << *sym << ' ';
-						os << pretty(arg,op.rlevel);
-						if( level > op.llevel ) {
-							os << ')';
-						}
-						return os;
-					}
-					if( auto x = _infixes.finds(*sym) ) {
-						auto const& op = x->second;
-						if( level > op.level ) {
-							os << '(';
-						}
-						os << pretty(arg_in,op.llevel);
-						os << ' ' << *sym << ' ';
-						os << pretty(arg,op.rlevel);
-						if( level > op.level ) {
-							os << ')';
-						}
-						return os;
-					}
-					if( auto abs = arg.bind() )
-					if( auto x = _mid_binders.finds(*sym) ) {
-						auto const& op = x->second;
-						if( level > op.llevel ) {
-							os << '(';
-						}
-						os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,level);
-						if( level > op.llevel ) {
-							os << ')';
-						}
-						return os;
-					}
-				}
 			}
-			if( level >= 1000 ) {
-				os << '(';
-			}
-			os << pretty(fun, 999) << ' ';
-			os << pretty(arg, 1000);
-			if( level >= 1000 ) {
-				os << ')';
-			}
-			return os;
-		} else if( auto abs = term.bind() ) {
-			if( level > 0 ) {
-				os << '(';
-			}
-			os << abs->first << ". " << pretty(abs->second, 0);
-			if( level > 0 ) {
-				os << ')';
-			}
-			return os;
-		} else if( auto fix = term.unbind() ) {
-			return os << fix->first << ".[" << pretty(fix->second) << ']';
-		} else {
-			assert(false);
 		}
-	};
+		if( level >= 1000 ) {
+			os << '(';
+		}
+		os << pretty(fun, 999) << ' ';
+		os << pretty(arg, 1000);
+		if( level >= 1000 ) {
+			os << ')';
+		}
+		return os;
+	} else if( auto abs = term.bind() ) {
+		if( level > 0 ) {
+			os << '(';
+		}
+		os << abs->first << ". " << pretty(abs->second, 0);
+		if( level > 0 ) {
+			os << ')';
+		}
+		return os;
+	} else if( auto fix = term.unbind() ) {
+		return os << fix->first << ".[" << pretty(fix->second) << ']';
+	} else {
+		assert(false);
+	}
 }
 function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const & {
 	return [this,&thms](ostream& os) -> ostream& {
@@ -136,12 +138,13 @@ ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev ) const 
 		os << "-- ctxt @" << ctxt.id() << endl;
 	}
 	for( int i = 0; i < rev; ) {
-		if( auto fix = ctxt.fixed(i) ) {
+		if( auto sym = ctxt.fixed(i) ) {
 			os << "\tfixes";
 			do {
-				os << ' ' << *fix;
+				os << ' ';
+				pretty(os,*sym);
 				i++;
-			} while( fix = ctxt.fixed(i) );
+			} while( sym = ctxt.fixed(i) );
 			os << '.' << endl;
 		}
 		if( auto assume = ctxt.assumed(i) ) {

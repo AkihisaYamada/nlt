@@ -110,7 +110,18 @@ public:
 		bind->second.mids.emplace(mid,sym);
 		_mid_binders.emplace(sym,MidBinder(prefix,mid,bind->second.llevel,bind->second.rlevel));
 	}
-	std::function<std::ostream&(std::ostream&)> pretty(Term const& term, int level = -1000) const &;
+	std::ostream& pretty_sym( std::ostream& os, std::string_view const& sym ) const &;
+	std::function<std::ostream&(std::ostream&)> pretty_sym( std::string_view const& sym ) const & {
+		return [this,sym](std::ostream& os) -> std::ostream& {
+			return pretty_sym(os,sym);
+		};
+	}
+	std::ostream& pretty( std::ostream& os, Term const& term, int level = -1000 ) const &;
+	std::function<std::ostream&(std::ostream&)> pretty(Term const& term, int level = -1000) const & {
+		return [this,&term,level](std::ostream& os) -> std::ostream& {
+			return pretty(os,term,level);
+		};
+	}
 	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const &;
 	std::ostream& pretty_ctxt( std::ostream& os, Ctxt const& ctxt, size_t rev ) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const & {

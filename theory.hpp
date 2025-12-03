@@ -98,6 +98,9 @@ public:
 	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
+	auto pretty_sym( std::string_view const& s ) const {
+		return syntax().pretty_sym(s);
+	}
 	auto pretty( Term const& t ) const {
 		return syntax().pretty(t);
 	}

@@ -397,7 +397,7 @@ public:
 		} else if( change ) {
 			auto const& c = org_thy.fix(sym);
 			intp.instantiate(c);
-			if LOG cout << "fixed " << sym;
+			if LOG cout << "fixed " << _thy.pretty_sym(sym) << endl;
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
 	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
@@ -1188,7 +1188,7 @@ DEB(imp->first << "  vs  " << *assm );
 					for(;;) {
 						if ( auto sym = gets_sym() ) {
 							_thy.fix(*sym);
-							if LOG cout << ' ' << *sym << flush;
+							if LOG cout << ' ' << _thy.syntax().pretty_sym(*sym) << flush;
 						} else {
 							break;
 						}
