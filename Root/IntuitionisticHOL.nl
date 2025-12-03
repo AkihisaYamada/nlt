@@ -1,4 +1,6 @@
 import IntuitionisticFOL.
-import MinimalHOL.
+import MinimalHOL;
+	goals.
+	.
 
 begin

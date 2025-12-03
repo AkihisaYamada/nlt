@@ -1,3 +1,4 @@
+set print load.
 import IntuitionisticFOL.
 
 ctxt.

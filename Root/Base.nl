@@ -284,14 +284,21 @@ begin
 	note! true.type.
 end
 
+theory TypedFalse:
+	fix prop false (:).
+	import Prop.
+	import false: Member prop false.
+	assume false_elim: if false, P : prop then P.
+begin
+	note! false.type.
+end
+
 theory TypedNot:
 	fix prop (¬) false (:).
-	import false: Member prop false.
 	import not: Unary prop prop (¬).
 	assume not_intro: (P ⟹ false) ⟹ P : prop ⟹ ¬P.
 	assume not_imp_false: ¬P ⟹ P ⟹ P : prop ⟹ false.
 begin
-	note! false.type.
 	note! not.type.
 end
 

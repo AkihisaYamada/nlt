@@ -9,8 +9,9 @@ fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
+import TypedEx.
 
-import IntuitionisticPL;
+interpret TypedFalse;
 	obtain false where ! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
 		- for thesis if assm;
 			apply assm[of (∀P:prop. P)];
@@ -23,7 +24,8 @@ import IntuitionisticPL;
 	- false ⟹ ∀P. P : prop ⟹ P;
 		by #elim false_elim.
 	.
-import TypedEx.
+
+import IntuitionisticPL.
 
 begin
 

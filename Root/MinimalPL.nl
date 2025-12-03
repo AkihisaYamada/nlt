@@ -12,10 +12,16 @@ fix (:) prop true (¬) (∧) (∨) (⟺).
 import Prop.
 import TypedTrue.
 
-obtain false where ! false : prop;
-	- for thesis if assm;
-		apply assm[of true].
-	.
+namespace false begin
+	obtain false where type: false : prop;
+		- for thesis if assm;
+			apply assm[of true].
+		.
+	interpret Member prop false.
+end
+
+note ! false.type.
+
 import TypedNot.
 import TypedAnd.
 import TypedIff.

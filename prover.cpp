@@ -7,15 +7,15 @@
 
 #define FLAG_SYS (1 << 0)
 #define FLAG_STA (1 << 1)
-#define FLAG_LOG (1 << 2)
+#define FLAG_CTXT (1 << 2)
 #define FLAG_MSG (1 << 3)
 
 #define FLAGS_MIN (FLAG_SYS | FLAG_STA)
-#define FLAGS_DEFAULT (FLAGS_MIN | FLAG_LOG | FLAG_MSG)
+#define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_MSG)
 
 #define SYS ( _out & FLAG_SYS )
 #define STA ( _out & FLAG_STA )
-#define LOG ( _out & FLAG_LOG )
+#define CTXT ( _out & FLAG_CTXT )
 #define MSG ( _out & FLAG_MSG )
 
 using namespace std;
@@ -397,7 +397,7 @@ public:
 		} else if( change ) {
 			auto const& c = org_thy.fix(sym);
 			intp.instantiate(c);
-			if LOG cout << "fixed " << _thy.pretty_sym(sym) << endl;
+			if CTXT cout << "fixed " << _thy.pretty_sym(sym) << endl;
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
 	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
@@ -419,7 +419,7 @@ public:
 		} else if( change ) {
 			Thm ret = org_thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
-			if LOG cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
+			if CTXT cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
 		} else {
 			if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
 			Thm ret = prove(assm,_thy,ctrl);
@@ -449,7 +449,7 @@ public:
 	}
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, string_view const& filename ){
-			if( SYS && _out_load & FLAG_MSG ) cout << "loading " << filename << endl;
+			if( SYS && _out_load & FLAG_CTXT ) cout << "loading " << filename << endl;
 			Prover(thy,fis,filename,lex,true,_out_load,_out_load).loop();
 			if SYS cout << "loaded " << filename << endl;
 		};
@@ -513,7 +513,7 @@ public:
 		if( success ) {
 			_thy.add_import(prefix,std::move(intp));
 			if( change ) {
-				if LOG {
+				if CTXT {
 					cout << "imported ";
 					_print_prefix(prefix);
 					cout << path << endl;
@@ -580,8 +580,7 @@ public:
 				vector<pair<string,Term>> map;
 				for(;;) {
 					auto x = get_sym();// the symbol to be instantiated
-					skip(":=");
-					map.emplace_back(x,get_term());
+					map.emplace_back( x, skips(":=") ? get_term() : x );
 					if( !skips(",") ) break;
 				}
 				skip(".");
@@ -926,7 +925,7 @@ DEB(imp->first << "  vs  " << *assm );
 			auto name = get(Lexer::Word);
 			skip("begin");
 			if MSG cout << "creating namespace " << name << endl;
-			auto loc = _thy.branch(name,"");
+			auto loc = _thy.scope(name);
 			local_thy(loc,true);
 			if MSG cout << "end namespace " << name << endl;
 		} else if( skips("context") ) {
@@ -1041,7 +1040,7 @@ DEB(imp->first << "  vs  " << *assm );
 		if( skips("none") ) return 0;
 		if( skips("stat") ) return FLAG_STA;
 		if( skips("system") ) return FLAG_STA | FLAG_SYS;
-		if( skips("log") ) return FLAG_STA | FLAG_SYS | FLAG_LOG;
+		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
@@ -1184,16 +1183,16 @@ DEB(imp->first << "  vs  " << *assm );
 				return;
 			} else if( !_final ) {
 				if( skips("fix") ) {
-					if LOG cout << "fixing";
+					if CTXT cout << "fixing";
 					for(;;) {
 						if ( auto sym = gets_sym() ) {
 							_thy.fix(*sym);
-							if LOG cout << ' ' << _thy.syntax().pretty_sym(*sym) << flush;
+							if CTXT cout << ' ' << _thy.syntax().pretty_sym(*sym) << flush;
 						} else {
 							break;
 						}
 					}
-					if LOG cout << '.' << endl;
+					if CTXT cout << '.' << endl;
 					skip(".");
 				} else if( skips("assume") ) {
 					auto cs = get_claim_status();
@@ -1218,7 +1217,7 @@ DEB(imp->first << "  vs  " << *assm );
 					assm = assm.lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
-					if LOG cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
+					if CTXT cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
 					skip(".");
 				} else if( skips("import") ) {
 					import(true);
@@ -1303,7 +1302,7 @@ void run( istream& is, string_view const& name, bool exit_on_error, char out ) {
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
 	Thy thy = root.branch(name,"");
-	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAGS_MIN);
+	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS);
 	try {
 		prover.loop();
 	} catch( Error const& e ) {

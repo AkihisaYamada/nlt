@@ -35,8 +35,11 @@ Thy Thy::branch( string_view const& name, string_view const& dir ) & {
 	// a bit tricky, emplace in the childs, and return a reference to it
 	return _ref->thys.emplace(name,_branch(name,dir,Ctxt::fork())).first->second;
 }
-Thy Thy::scope( string_view const& name ) const {
-	return _branch(name,"",Ctxt::self());
+Thy Thy::scope( string_view const& name ) & {
+	auto const& intp = Ctxt::self();
+	auto const& loc = _branch(name,"",intp);
+	add_import(name,Import(intp,loc));
+	return loc;
 }
 string const& Thy::name() const & {
 	return _ref->name;

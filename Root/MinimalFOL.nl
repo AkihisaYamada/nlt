@@ -6,23 +6,22 @@ Now the true proposition can be obtained using the universal quantifier.
 ---
 import Base.
 
-fix prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
+fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 
 import Prop.
 import TypedAll.
 import TypedEx.
 
-import MinimalPL;
-	obtain true where !true : prop, !true;
+interpret TypedTrue;
+	obtain true where ! true : prop, ! true;
 		- for thesis if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
 		.
-	obtain false where !false : prop;
-		- for thesis if assm;
-			apply assm[of (∀P:prop. P)].
-		.
+	instantiate true.
 	.
+
+import MinimalPL.
 
 begin
 

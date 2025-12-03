@@ -45,7 +45,7 @@ public:
 	/** Creates a named branch. */
 	Thy branch( std::string_view const& name, std::string_view const& dir ) &;
 	/** Creates a namespace. */
-	Thy scope( std::string_view const& name ) const;
+	Thy scope( std::string_view const& name ) &;
 	std::string const& name() const &;
 	auto name() && = delete;
 	/** Self import */
