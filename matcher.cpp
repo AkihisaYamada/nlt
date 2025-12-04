@@ -70,10 +70,9 @@ struct Matcher {
 	StrMap<unsigned int> linds;
 	vector<string> rbvars;
 	StrMap<unsigned int> rinds;
-	Intp lweaken;
 	unsigned int depth = 0;
-	Matcher( Ctxt const& patctxt, Ctxt const& valctxt, function<bool(string_view const&)> const& fvar ) : matcher(valctxt), fvar(fvar), lweaken(patctxt.self()) {}
-	Opt<Subst> matches( CTerm const& pat, CTerm const& val ) && {
+	Matcher( Ctxt const& valctxt, function<bool(string_view const&)> const& fvar ) : matcher(valctxt), fvar(fvar) {}
+	Opt<Subst> matches( Term const& pat, CTerm const& val ) && {
 		if( match(pat,val) ) {
 			return std::move(matcher);
 		}
@@ -129,7 +128,7 @@ struct Matcher {
 			if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
 				return *map_opt == val;// equal as term
 			}
-			if( fvar(*sym) ) {// free variable can be assigned, if val is does not contain bound variables
+			if( fvar(*sym) ) {// free variable can be assigned, if val does not contain bound variables
 				if( auto cval = matcher.ctxt().closed(val) ) {
 					matcher.assign(*sym,*cval);
 					return true;
@@ -229,8 +228,8 @@ struct Matcher {
 	}
 };
 
-Opt<Subst> match( CTerm const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
-	return Matcher(pat.ctxt(),val.ctxt(),fvar).matches(pat,val);
+Opt<Subst> match( Term const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
+	return Matcher(val.ctxt(),fvar).matches(pat,val);
 }
 pair<Thm,size_t> strip_all( Thm const& thm, Intp const& toChild, Renamer const& renamer ) {
 	pair<Thm,size_t> ret = {thm.subst(toChild),0};

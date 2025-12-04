@@ -120,7 +120,7 @@ Term Parser::get_term( int level ) & {
 	if( auto const& opt = gets_term(level) ) {
 		return *opt;
 	}
-	throw Error("\"expected a term\"");
+	throw Error("\"expected a term\"")(get());
 }
 
 Opt<string> Parser::gets_sym() & {
@@ -141,5 +141,5 @@ string Parser::get_sym() & {
 	if( auto o = gets_sym() ) {
 		return *o;
 	}
-	throw Error("\"expected a symbol\"");
+	throw Error("\"expected a symbol\"")(get());
 }

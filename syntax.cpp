@@ -11,7 +11,7 @@ Syntax::Syntax() {
 }
 
 ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
-	if( _prefixes.contains(sym) || _binders.contains(sym) || _infixes.contains(sym) ) {
+	if( _prefixes.contains(sym) || _binders.contains(sym) || _mid_binders.contains(sym) || _infixes.contains(sym) ) {
 		return os << '(' << sym << ')';
 	}
 	return os << sym;

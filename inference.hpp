@@ -157,6 +157,7 @@ private:
 	}
 	/** goal must be in a fresh context */
 	bool _apply( Intro const& intro, CTerm const& goal, Thy const& child ) &;
+	
 	bool _apply( std::set<Intro> const& intros, CTerm const& goal, Thy const& child ) & {
 		for( auto const& rule : intros ) {
 			if( _apply(rule,goal,child) ) return true;
@@ -164,10 +165,12 @@ private:
 		return false;
 	}
 	void _apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) &;
+	void _apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) &;
 	bool _apply_blast(
+		Subst const& matcher,
+		Intp const& rule2child,
 		size_t& fuel,
 		size_t trial,
-		CTerm const& goal,
 		Intro const& intro,
 		Ctrl const& ctrl
 	) &;

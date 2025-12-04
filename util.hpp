@@ -113,7 +113,7 @@ Opt<std::tuple<std::string,CTerm,CTerm>> strips_binary(CTerm const& t);
  * @param val 
  * @param fvar signifies free variables.
  */
-Opt<Subst> match( CTerm const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
+Opt<Subst> match( Term const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
 
 /**
  * @brief Unification.
@@ -147,10 +147,10 @@ class Thy;
 class Intro {
 	friend class Elim;
 	Thm _thm;// Γ ⊢ ∀x... φ... ⟹ ψ
-	Thm _conclusion;// Γ. fix x... assume φ... ⊢ ψ
+	Thm _pat;// Γ. fix x... assume φ... ⊢ ψ
 	size_t _vars, _conds;
 	explicit Intro( Thm const& thm, Thm const& conc, size_t vars, size_t conds ) :
-		_thm(thm), _conclusion(conc), _vars(vars), _conds(conds) {
+		_thm(thm), _pat(conc), _vars(vars), _conds(conds) {
 	}
 public:
 	size_t vars() const {
@@ -176,20 +176,20 @@ public:
 		return Intro(thm,conc,vars,0);
 	}
 	Thm const& conclusion() const& {
-		return _conclusion;
+		return _pat;
 	}
 	Thm const& thm() const& {
 		return _thm;
 	}
 	Opt<Subst> matches( CTerm const& goal ) const {
-		return match( _conclusion, goal, [&](auto v){ return _conclusion.ctxt().fixes(v); } );
+		return match( _pat, goal, [&](auto v){ return _pat.ctxt().fixes(v); } );
 	}
 	/** @brief instantiates the rule. */
 	Thm subst( Intp const& intp ) const {
-		return _conclusion.subst(intp);
+		return _pat.subst(intp);
 	}
 	bool operator<( Intro const& y ) const {
-		return _conclusion < y._conclusion;
+		return _pat < y._pat;
 	}
 };
 
@@ -204,7 +204,10 @@ public:
 	 * @param arg the theorem to eliminate
 	 * @param thy the theory arg belongs
 	 */
-	Opt<Intro> matches( Thm const& arg, Thy const& thy ) const;
+	Opt<Subst> matches( Thm const& arg, Thy const& thy ) const {
+		return match( _premise, arg, [&](auto v){ return _premise.ctxt().fixes(v); } );
+	}
+	Intro instantiate( Subst const& m, Thy const& thy ) const;
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();

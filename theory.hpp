@@ -5,10 +5,8 @@
 
 class AThm;
 class Import;
-struct ThmInfo {
-	Opt<Intro> intro;
-	Opt<Elim> elim;
-};
+using ThmInfo = Sum<int,Intro,Elim>;
+
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
 

@@ -22,7 +22,7 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, force = false, cong = false, followable = true;
+	bool weak = false, force = false, elim = false, cong = false, followable = true;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -242,7 +242,7 @@ public:
 	}
 	Thm _get_thm( Thy& loc ) {
 		auto ret = _gets_thm(loc);
-		if( !ret ) throw Parser::Error("\"expected a theorem\"");
+		if( !ret ) throw Parser::Error("\"expected a theorem\"")(get());
 		return *ret;
 	}
 
@@ -275,7 +275,7 @@ public:
 		if( auto const& term = gets_term_mod() ) {
 			return *term;
 		}
-		throw Error("\"expected a term\"");
+		throw Error("\"expected a term\"")(get());
 	}
 	void _prompt() & {
 		if MSG {
@@ -295,6 +295,8 @@ public:
 				cs.force = true;
 			} else if( skips("cong") ) {
 				cs.cong = true;
+			} else if( skips("elim") ) {
+				cs.elim = true;
 			} else {
 				throw Error("\"unknown #\"")(peek_token());
 			}
@@ -323,6 +325,9 @@ public:
 		if( cs.cong ) {
 			loc.add_thm(Rewriter::CONG,thm);
 			_thy.rewriter()->register_cong(thm);
+		}
+		if( cs.elim ) {
+			loc.add_thm(Inference::ELIM,thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -569,6 +574,9 @@ public:
 		for(;;) try {
 			_prompt();
 			if( _stats() || _note() ) {
+			} else if( skips("goal") ) {
+				skip(".");
+				_print_import_goal(intp,0,"\t");
 			} else if( skips("goals") ) {
 				skip(".");
 				_print_import_goals(intp);
@@ -601,10 +609,31 @@ public:
 					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( skips("-") ) {
-				auto pat = _get_goalpat();
+				for(;;) {
+					if( auto const& fix = intp.fixing() ) {
+						_auto_instantiate(org_thy,intp,*fix,change);
+					} else if( auto const& obtain = intp.obtaining() ) {
+						_auto_retain(org_thy,prefix,intp,*obtain);
+					} else {
+						break;
+					}
+				}
+				auto const& assume = intp.assuming();
+				if( !assume ) {
+					throw Error("\"unexpected subgoal\"");
+				}
+				auto loc = _thy.branch();
+				auto thesis = Inference::claim_exact(loc,loc.weaken(assume->first));
+				auto o = _prove(thesis);
+				if( o ) {
+					auto const& thm = o->intro();
+					intp.discharge(thm);
+					if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(thm) << endl;
+				}
+			} else if( auto pat = _gets_subgoal() ) {
 				for(;;) {
 					if( auto const& assume = intp.assuming() ) {
-						if( auto thm = goal_matches(pat,assume->first) ) {
+						if( auto thm = goal_matches(*pat,assume->first) ) {
 							intp.discharge(*thm);
 							if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							break;
@@ -736,7 +765,7 @@ public:
 			} else if( skips("force") ) {
 				ctrl.force_assms = true;
 			} else {
-				throw Error("\"unexpected\"")(peek_token());
+				throw Error("\"unexpected\"")(get());
 			}
 		}
 		skip(".");
@@ -794,18 +823,21 @@ public:
 		}
 		return false;
 	}
-	Opt<pair<ClaimStatus,Thm>> _state() {
-		auto cs = get_claim_status();
-		if MSG cout << "showing " << cs << flush;
-		auto thesis = get_statement();
+	Opt<Thm> _prove( Inference& thesis ) {
 		auto prev_thy = _thy;
 		_thy = thesis.thy();
 		_depth++;
 		_prompt();
-		auto o = proof_loop(thesis);
+		auto ret = proof_loop(thesis);
 		_thy = prev_thy;
 		_depth--;
-		if( o ) {
+		return ret;
+	}
+	Opt<pair<ClaimStatus,Thm>> _state() {
+		auto cs = get_claim_status();
+		if MSG cout << "showing " << cs << flush;
+		auto thesis = get_statement();
+		if( auto o = _prove(thesis) ) {
 			auto thm = o->intro();
 			add_claim(_thy,cs,thm);
 			return {{cs,thm}};
@@ -837,40 +869,70 @@ public:
 		swap(_final,finalized);
 		_depth--;
 	}
+	bool _proof_follows() {
+		if( skips(";") ) {
+			return true;
+		} else {
+			skip(".");
+			return false;
+		}
+	}
 	struct GoalPat {
+		ClaimStatus cs;
 		vector<string> vars;
 		vector<pair<ClaimStatus,Opt<Term>>> assms;
 		Opt<Term> concl;
 		bool proof;
 	};
-	GoalPat _get_goalpat() {
+	Opt<GoalPat> _gets_subgoal() {
 		auto ret = GoalPat();
 		bool concl;
+		if( skips("show") ) {
+			ret.cs = get_claim_status();
+			if( ret.cs.followable ) {
+				if( _gets_subgoal_for(ret) ) {
+					return {ret};
+				}
+				ret.concl = {get_term()};
+			}
+			ret.proof = _proof_follows();
+			return {ret};
+		}
+		if( _gets_subgoal_for(ret) ) {
+			return {ret};
+		}
+		return {};
+	}
+
+	bool _gets_subgoal_for( GoalPat& pat ) {
 		if( skips("for") ) {
 			while( auto o = gets_sym() ) {
-				ret.vars.emplace_back(*o);
+				pat.vars.emplace_back(*o);
 			}
-			skips(",");
+			if( !_gets_subgoal_if(pat) ) {
+				if( skips(",") ) {
+					pat.concl = {get_term()};
+				}
+				pat.proof = _proof_follows();
+			}
+			return true;
 		}
+		return _gets_subgoal_if(pat);
+	}
+	bool _gets_subgoal_if( GoalPat& pat ) {
 		if( skips("if") ) {
 			do {
 				auto const& cs = get_claim_status(false);
 				auto const& assm = gets_term();
-				ret.assms.emplace_back(cs,assm);
+				pat.assms.emplace_back(cs,assm);
 			} while( skips(",") );
 			if( skips("then") ) {
-				ret.concl = {get_term()};
+				pat.concl = {get_term()};
 			}
-		} else {
-			ret.concl = gets_term();
+			pat.proof = _proof_follows();
+			return true;
 		}
-		if( skips(";") ) {
-			ret.proof = true;
-		} else {
-			skip(".");
-			ret.proof = false;
-		}
-		return ret;
+		return false;
 	}
 	Opt<Thm> goal_matches( GoalPat& pat, CTerm const& goal ) {
 		auto loc = _thy.branch();
@@ -909,11 +971,15 @@ public:
 			swap(_thy,loc);
 			_depth--;
 			if( thm ) {
-				return {thm->intro()};
+				Thm ret = thm->intro();
+				add_claim(_thy,pat.cs,ret);
+				return {ret};
 			}
 			return {};
 		}
-		return {prove(loc_goal,loc)};
+		Thm ret = prove(loc_goal,loc).intro();
+		add_claim(_thy,pat.cs,ret);
+		return {ret};
 	}
 	bool _thy_decl() {
 		if( skips("theory") ) {
@@ -976,15 +1042,6 @@ public:
 			} else if( skips("have") ) {
 				_state();
 				if MSG print_goal(thesis);
-			} else if( skips("show") ) {
-				auto o = _state();
-				if( o ) {
-					while( thesis.goal() != o->second ) {
-						thesis.blast();
-					}
-					thesis.discharge(o->second);
-				}
-				if MSG print_goal(thesis);
 			} else if( skips("apply") ) {
 				int min, max;
 				bool safe, wide;
@@ -1012,11 +1069,18 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( skips("-") ) {
-				auto pat = _get_goalpat();
+				auto goal = thesis.has_goal();
+				if( !goal ) throw Error("\"unexpected subgoal\"");
+				auto loc = _thy.branch();
+				auto subthesis = Inference::claim_exact(loc,loc.weaken(*goal));
+				if( auto thm = _prove(subthesis) ) {
+					thesis.discharge(thm->intro());
+				}
+			} else if( auto pat = _gets_subgoal() ) {
 				for(;;) {
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");
-					if( auto thm = goal_matches(pat,*goal) ) {
+					if( auto thm = goal_matches(*pat,*goal) ) {
 						thesis.discharge(*thm);
 						break;
 					}
@@ -1036,6 +1100,8 @@ public:
 			} else if( skips(".") ) {
 				auto thm = thesis.blast_all();
 				return thm;
+			} else {
+				throw Error("\"unexpected\"")(get());
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {

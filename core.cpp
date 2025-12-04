@@ -257,7 +257,6 @@ CTerm Ctxt::enclose(Term const& t) {
 
 CTerm Ctxt::fix(string_view const& s) {
 	if( has_constant(s) ) {
-DEB(*this);
 		throw Error("#ctxt")("\"fixing fixed\"")(s);
 	}
 	_ref->modifiers.push_back(Fix(string(s)));

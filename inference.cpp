@@ -5,6 +5,14 @@ string const Inference::EXACT = "#exact";
 string const Inference::CONCL = "#concl";
 string const Inference::INTRO = "#intro";
 string const Inference::WEAK = "#weak";
+string const Inference::ELIM = "#elim";
+
+void cerr_proof_thms( Thy const& thy ) {
+	cerr << thy.pretty_ctxt();
+	for( auto const& name : { Inference::EXACT, Inference::CONCL, Inference::INTRO, Inference::WEAK, Inference::ELIM } ) {
+		cerr << name << ":" << thy.print_thms(name);
+	}
+}
 
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
@@ -96,22 +104,20 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 	if( suc < min ) throw Error("\"apply failed\"");
 }
 bool Inference::_apply_blast(
+	Subst const& matcher,
+	Intp const& rule2child,
 	size_t& fuel,
 	size_t trial,
-	CTerm const& goal,// belong to _thy
 	Intro const& rule,
 	Ctrl const& ctrl
 ) & {
-	auto const& m = rule.matches(goal);
-	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
 	auto rule_ctxt = rule.thm().ctxt();
-	auto rule_intp = _thy.interpret_ancestor(rule_ctxt);
 	// then interpret the context holding the pattern variables and premises.
-	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule_intp);
+	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
 	for(;;) {
 		if( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
-			if( auto const& val = m->get(*v) ) {
+			if( auto const& val = matcher.get(*v) ) {
 				pat_intp.instantiate(*val);
 			} else {
 				pat_intp.instantiate(dummy(_thy));
@@ -135,14 +141,18 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal, Thy const& child )
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
-	auto rule_ctxt = rule.thm().ctxt();
-	auto rule2child = child.interpret_ancestor(rule_ctxt);
+	auto rule2child = child.interpret_ancestor(rule.thm().ctxt());
+	_apply2(*m,rule,child,rule2child);
+	return true;
+}
+
+void Inference::_apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) & {
 	// then interpret the context holding the pattern variables and premises.
-	auto pat2child = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
-	auto ctxt = goal.ctxt();// collects new assumptions
+	auto pat2child = Intp::make(intro.conclusion().ctxt(),intro.thm().ctxt()).compose(rule2child);
+	auto ctxt = matcher.ctxt();
 	for(;;) {
 		if( auto const& v = pat2child.fixing() ) {// instantiate pattern variables
-			if( auto const& val = m->get(*v) ) {
+			if( auto const& val = matcher.get(*v) ) {
 				pat2child.instantiate(*val);
 			} else {
 				pat2child.instantiate(dummy(ctxt));
@@ -156,10 +166,18 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal, Thy const& child )
 		}
 		break;
 	}
-	_thm = child.weaken(_thm).discharge(rule.subst(pat2child)).intro();
+	_thm = child.weaken(_thm).discharge(intro.conclusion().subst(pat2child)).intro();
 	_goals--;
-	return true;
 }
+
+struct BlastError : public Error {
+	inline static Error const RT = Error("#blast");
+	BlastError( Error const& err ) : Error(err) {}
+	BlastError( Term const& msg ) : Error(RT(msg)) {}
+	BlastError operator()( Term const& msg ) const {
+		return BlastError(((Error)*this)(msg));
+	}
+};
 
 bool Inference::_blast(
 	size_t& fuel,
@@ -170,11 +188,11 @@ bool Inference::_blast(
 	size_t elim_res_ind
 ) & {
 	if( _goals == 0 ) {// no goal to blast
-		throw Error("\"no goal to blast\"");
+		throw BlastError("\"no goal to blast\"");
 	}
 	if( fuel == 0 ) {
 		if( fail ) return false;
-		throw Error("\"blast limit exceeded\"");
+		throw BlastError("\"blast limit exceeded\"");
 	}
 	auto const& imp = _thm.cbinary(IMP);
 	assert(imp);
@@ -217,45 +235,46 @@ bool Inference::_blast(
 	} ) ) {
 		fuel--;
 		auto thesis = claim_exact(subthy,goal);
-		auto subgoal_child = subthy.branch();
+		auto const& subgoal_child = subthy.branch();
+		auto const& sub2subsub = *subgoal_child.parent();
 		auto const& g = subgoal_child.weaken(thesis._claim);
-		if( !subthy.find_thm( CONCL, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-			auto thm2 = thm.subst(import);
-			if( thesis._apply(Intro::axiom(thm2),g,subgoal_child) ) {
-				return {thm2};
+		auto intro_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto const& rule = info.ref<Intro>();
+			assert(rule);
+			auto const& m = rule->matches(g);
+			if( !m ) return {};
+			thesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
+			return {thm};
+		};
+		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto const& rule = info.ref<Intro>();
+			assert(rule);
+			auto const& m = rule->matches(goal);
+			if( m && thesis._apply_blast(*m,import,fuel,trial,*rule,ctrl) ) {
+				return {thm};
 			}
 			return {};
-		} ) ) {
+		};
+		if( !subthy.find_thm(CONCL,intro_tester) ) {
 			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g,subgoal_child) &&
-				!subthy.find_thm( INTRO, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-					auto thm2 = thm.subst(import);
-					if( thesis._apply(Intro::rule(thm2),g,subgoal_child) ) {
-						return {thm2};
-					}
-					return {};
-				} )
+				!subthy.find_thm(INTRO,intro_tester)
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
 						if( trial == 0 ||
 							( trial--,
-							 !subthy.find_thm( WEAK, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-								auto thm2 = thm.subst(import);
-								if( thesis._apply_blast(fuel,trial,goal,Intro::rule(thm2),ctrl) ) {
-									return {thm2};
-								}
-								return {};
-							} ) )
+							 !subthy.find_thm(WEAK,weak_tester) )
 						) {
 							if( fail ) return false;
-							throw Error("\"failed to blast\"")(goal);
+cerr_proof_thms(subgoal_child);
+							throw BlastError("\"failed to blast\"")(goal);
 						}
 						break;
 					}
 // apply elimination result
 					if( !thesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
-						add_forced(subthy,elim_res[elim_res_ind].thm(),true);
+						add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
 					}
 					elim_res_ind++;
 					break;
