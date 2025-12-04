@@ -5,7 +5,7 @@ import Base.
 
 fix false (¬) (∧) (⟺) (∨) (∃).
 
-assume and_intro: P ⟹ Q ⟹ P ∧ Q.
+assume and_intro! P ⟹ Q ⟹ P ∧ Q.
 assume and_elim1: P ∧ Q ⟹ P.
 assume and_elim2: P ∧ Q ⟹ Q.
 
@@ -53,6 +53,11 @@ note! iff.refl.
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
 set dual iff.sym.
 
+lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
+	for R if imp;
+		by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
+	.
+
 lemma iff_cong_imp#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
 	if PR: P ⟹ R, !Q then S;
@@ -82,30 +87,16 @@ lemma iff_cong_all#cong: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ 
 	.
 
 interpret iff_iff: MetaCommutative (⟺) (⟺);
-	by iff_intro[OF iff.sym iff.sym].
+	by iff_intro #elim iff_elim.
 
 lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
-	apply iff_intro;
-	if PQ: P ⟹ Q;
-		by PQ.
-	.
+	by iff_intro.
 
 lemma imp_iff_iff: if !P then (P ⟺ Q) ⟺ Q;
-	apply iff_intro;
-	if PQ: P ⟺ Q;
-		by iff_elim1[OF PQ].
-	- by iff_intro.
-	.
+	by iff_intro #elim iff_elim.
 
 lemma all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
-	apply iff_intro;
-	if all: ∀Q. (P ⟹ Q) ⟹ Q;
-		apply all.
-	if !P;
-		for Q if PQ: P ⟹ Q;
-			by PQ.
-		.
-	.
+	by iff_intro.
 
 lemma imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
 	apply iff_intro[OF imp2_imp_imp];
@@ -120,16 +111,13 @@ lemma imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]);
 	.
 
 lemma imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q;
-	apply iff_intro;
-	if PQ: P ⟺ Q;
-		by iff_elim1[OF PQ].
-	by iff_intro.
+	by iff_intro #elim iff_elim.
 
 lemma iff_true: P ⟹ P ⟺ true;
 	by iff_intro.
 
 lemma true_imp_iff: (true ⟹ P) ⟺ P;
-	by imp_imp_iff[OF true_intro].
+	by imp_imp_iff.
 
 lemma imp_true_iff: (P ⟹ true) ⟺ true;
 	by iff_intro.
@@ -139,7 +127,7 @@ lemma true_iff_iff: (true ⟺ P) ⟺ P;
 	if P1: true ⟺ P;
 		fold P1.
 	if P: P;
-		by #unfold iff_true[OF P].
+		unfold iff_true[OF P].
 	.
 
 lemma iff_true_iff: (P ⟺ true) ⟺ P;
@@ -147,88 +135,45 @@ lemma iff_true_iff: (P ⟺ true) ⟺ P;
 	by true_iff_iff.
 
 lemma imp_refl_iff: (P ⟹ P) ⟺ true;
-	by #unfold iff_true_iff.
-
-lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
-	for R;
-		unfold+ PQ imp_refl_iff true_imp_iff.
-	.
+	unfold iff_true_iff.
 
 ---
 ### Conjunction
 ---
 
-interpret and: MetaSymmetric (∧);
-	for P Q if PQ: P ∧ Q then Q ∧ P;
-		by and_intro and_elim2[OF PQ] and_elim1[OF PQ].
-	.
-
-lemma and_elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
+lemma and_elim#elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 	for R if PQR: P ⟹ Q ⟹ R;
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 	.
 
+interpret and: MetaSymmetric (∧).
+
 lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
-	apply iff_intro[OF and_elim];
-	if all: ∀R. (P ⟹ Q ⟹ R) ⟹ R;
-		apply all;
-		by and_intro.
-	.
+	by iff_intro.
 
 lemma iff_cong_and#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
-	apply iff_intro;
-	if PR: P ∧ R;
-		by and_intro and_elim1[OF PR] and_elim2[OF PR] #fold PQ RS.
-	if QS: Q ∧ S;
-		by and_intro and_elim1[OF QS] and_elim2[OF QS] #unfold PQ RS.
-	.
+	by iff_intro #unfold PQ RS.
 
 interpret and_iff: MetaCommutative (∧) (⟺);
-	by iff_intro[OF and.sym and.sym].
+	by iff_intro.
 
 interpret and_iff: MetaAssociative (∧) (⟺);
-	for P Q R, P ∧ Q ∧ R ⟺ P ∧ (Q ∧ R);
-		apply iff_intro;
-		if PQR: P ∧ Q ∧ R;
-			by and_intro
-				and_elim1[OF and_elim1[OF PQR]]
-				and_elim2[OF and_elim1[OF PQR]]
-				and_elim2[OF PQR].
-		if PQR: P ∧ (Q ∧ R);
-			by and_intro
-				and_elim1[OF PQR]
-				and_elim1[OF and_elim2[OF PQR]]
-				and_elim2[OF and_elim2[OF PQR]].
-		.
-	.
+	by iff_intro.
 
 lemma and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
-	apply iff_intro;
-	if imp: P ∧ Q ⟹ R, !P, !Q then R;
-		by imp and_intro.
-	if imp: P ⟹ Q ⟹ R, and: P ∧ Q then R;
-		by imp and_elim1[OF and] and_elim2[OF and].
-	.
+	by iff_intro.
 
 lemma true_and_iff: true ∧ P ⟺ P;
-	apply iff_intro[OF and_elim2];
-	by and_intro[OF true_intro].
+	by iff_intro.
 
 lemma true_and_true: true ∧ true;
-	unfold true_and_iff;
-	by true_intro.
+	.
 
 lemma and_true_iff: P ∧ true ⟺ P;
-	unfold and_iff.commute;
-	unfold true_and_iff.
+	by iff_intro.
 
 lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	apply iff_intro;
-	if PQ: P ⟺ Q;
-		by and_intro[OF iff_elim1[OF PQ] iff_elim2[OF PQ]].
-	if and: (P ⟹ Q) ∧ (Q ⟹ P);
-		by and_elim[OF and iff_intro].
-	.
+	by iff_intro #elim iff_elim.
 
 lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]);
 	apply iff_intro;
@@ -240,8 +185,7 @@ lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x
 			by and_elim2[OF ab].
 		.
 	unfold and_imp_iff;
-	if ! ∀x. α.[x], ! ∀x. β.[x];
-		by and_intro.
+	if ! ∀x. α.[x], ! ∀x. β.[x].
 	.
 
 ---
@@ -330,20 +274,13 @@ lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
 	by iff_true[OF imp.refl].
 
 lemma false_and_false_iff: false ∧ false ⟺ false;
-	apply iff_intro[OF and_elim1];
-	by and_intro.
+	by iff_intro.
 
 lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q);
-	apply not_intro;
-	if PQ: P ∧ Q then false;
-		by not_imp_false[OF nP and_elim1[OF PQ]].
-	.
+	by not_intro not_imp_false[OF nP].
 
 lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
-	apply not_intro;
-	if PQ: P ∧ Q then false;
-		by not_imp_false[OF nQ and_elim2[OF PQ]].
-	.
+	by not_intro not_imp_false[OF nQ].
 
 lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
 	unfold+ not_iff_imp_false and_imp_iff.
@@ -372,8 +309,7 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q);
 	.
 
 lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
-	unfold+ nand_iff_imp_not;
-	unfold nnnot_iff.
+	unfold nand_iff_imp_not nnnot_iff.
 
 lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
 	unfold and_iff.commute;
@@ -382,19 +318,8 @@ lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
 
 lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
-	if or_imp: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R;
-		apply and_intro;
-		if !P;
-			apply or_imp;
-			for S if PS: P ⟹ S, QS: Q ⟹ S then S;
-				by PS.
-			.
-		if !Q;
-			apply or_imp;
-			for S if PS: P ⟹ S, QS: Q ⟹ S then S;
-				by QS.
-			.
-		.
+	if or_imp;
+		by or_imp.
 	if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S);
 		by or[OF and_elim1[OF and] and_elim2[OF and]].
 	.
@@ -418,41 +343,16 @@ lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	by assm[OF or_intro1 or_intro2].
 
 interpret or: MetaSymmetric (∨);
-	for P Q if PQ: P ∨ Q then Q ∨ P;
-		by or_elim[OF PQ or_intro2 or_intro1].
-	.
+	by or_intro #elim or_elim.
 
 lemma iff_cong_or#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
-	apply iff_intro;
-	if PR: P ∨ R;
-		apply or_elim[OF PR];
-		- by or_intro1 iff_elim1[OF PQ].
-		- by or_intro2 iff_elim1[OF RS].
-		.
-	if QS: Q ∨ S;
-		apply or_elim[OF QS];
-		- by or_intro1 iff_elim2[OF PQ].
-		- by or_intro2 iff_elim2[OF RS].
-		.
-	.
+	by iff_intro or_intro #elim or_elim #unfold PQ RS.
 
 interpret or: MetaSymmetric (∨);
-	for P Q if or: P ∨ Q then Q ∨ P;
-		apply or_elim[OF or];
-		- by or_intro2.
-		- by or_intro1.
-		.
-	.
+	by or_intro #elim or_elim.
 
 interpret or_iff: MetaCommutative (∨) (⟺);
-	for P Q, P ∨ Q ⟺ Q ∨ P;
-		apply iff_intro;
-		if PQ: P ∨ Q;
-			by or.sym[OF PQ].
-		if QP: Q ∨ P;
-			by or.sym[OF QP].
-		.
-	.
+	by iff_intro[OF or.sym or.sym].
 
 interpret or_iff: MetaAssociative (∨) (⟺);
 	for P Q R, P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
@@ -490,17 +390,9 @@ lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R;
 
 lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
-	if nor: P ∨ Q ⟹ R;
-		apply and_intro;
-		- by nor or_intro1.
-		- by nor or_intro2.
-		.
-	if and: (P ⟹ R) ∧ (Q ⟹ R), or: P ∨ Q;
-		apply or_elim[OF or];
-		- by and_elim1[OF and].
-		- by and_elim2[OF and].
-		.
-	.
+	if !;
+		by or_intro.
+	by #elim or_elim.
 
 lemma nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 	unfold+ not_iff_imp_false;
@@ -530,10 +422,7 @@ lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 	.
 
 lemma false_or_false_iff: false ∨ false ⟺ false;
-	apply iff_intro;
-	if or: false ∨ false then false;
-		apply or_elim[OF or].
-	by or_intro1.
+	by iff_intro or_intro #elim or_elim.
 
 lemma true_or: true ∨ P;
 	by or_intro1[OF true_intro].

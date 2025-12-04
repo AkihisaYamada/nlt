@@ -199,11 +199,12 @@ bool Inference::_blast(
 				assm = subthy.rewrite(assm,rew->first,rew->second);
 			}
 			// checks if an elimination rule matches
-			if( !subthy.find_thm(Thy::ELIM,[&](Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 				auto elim = info.ref<Elim>();
 				assert(elim);
 				if( auto m = elim->matches(assm) ) {
-					elim_res.push_back(elim->instantiate(*m,assm,import));
+					auto const& res = elim->instantiate(*m,assm,import);
+					elim_res.emplace_back(res);
 					n_elim_res++;
 					return {thm};
 				}

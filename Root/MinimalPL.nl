@@ -189,49 +189,23 @@ lemma iff_cong_and#cong: for P Q
 	.
 
 interpret and_iff: Commutative prop (∧) (:) (⟺);
-	for P Q if !P : prop, !Q : prop then P ∧ Q ⟺ Q ∧ P;
-		apply iff_intro;
-		if !P ∧ Q;
-			apply and.sym.
-		if !Q ∧ P;
-			apply and.sym.
-		.
-	.
+	by iff_intro and_intro #elim and_elim.
 
 interpret and_iff: Associative prop (∧) (:) (⟺);
 	by iff_intro and_intro #elim and_elim.
 
-lemma iff_imp_and: if PQ: P ⟺ Q, [P : prop, Q : prop] then
-	(P ⟹ Q) ∧ (Q ⟹ P);
+lemma iff_imp_and: if PQ: P ⟺ Q, [P : prop, Q : prop] then (P ⟹ Q) ∧ (Q ⟹ P);
 	by and_intro #unfold PQ.
 
-lemma iff_iff_and: if [P : prop, Q : prop] then
-	(P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	apply iff_intro;
-	if iff: P ⟺ Q;
-		by iff_imp_and[OF iff].
-	if and: (P ⟹ Q) ∧ (Q ⟹ P);
-		apply iff_intro;
-		- by and_elim1[OF and].
-		- by and_elim2[OF and].
-		.
-	.
+lemma iff_iff_and: if [P : prop, Q : prop] then (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
+	by iff_intro and_intro #elim iff_elim and_elim.
 
 lemma and_imp_iff: if [P : prop, Q : prop, R : prop] then
 	(P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
-	apply iff_intro;
-	if imp: P ∧ Q ⟹ R;
-		by imp and_intro.
-	if imp: P ⟹ Q ⟹ R;
-		by imp #elim and_elim.
-	.
+	by iff_intro and_intro #elim and_elim.
 
 lemma true_and_iff: if [P : prop] then true ∧ P ⟺ P;
-	apply iff_intro;
-	if and: true ∧ P;
-		by and_elim2[OF and].
-	- by and_intro[OF true_intro].
-	.
+	by iff_intro and_intro #elim and_elim.
 
 lemma true_and_true: true ∧ true;
 	unfold true_and_iff.
@@ -242,19 +216,7 @@ lemma and_true_iff: if [P : prop] then P ∧ true ⟺ P;
 
 lemma iff_iff_and: if [P : prop, Q : prop] then
 	(P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	apply iff_intro;
-	if PQ: P ⟺ Q;
-		unfold PQ;
-		by and_intro.
-	if and: (P ⟹ Q) ∧ (Q ⟹ P);
-		apply and_elim[OF and];
-		if PQ: P ⟹ Q, QP: Q ⟹ P;
-			apply iff_intro;
-			- by PQ.
-			- by QP.
-			.
-		.
-	.
+	by iff_intro and_intro #elim iff_elim and_elim.
 
 lemma nand_intro1: if nP: ¬P, [P : prop, Q : prop] then ¬(P ∧ Q);
 	apply not_intro;
@@ -370,8 +332,7 @@ lemma or_imp_nand: if PQ: P ∨ Q, [P : prop, Q : prop] then ¬(¬P ∧ ¬Q);
 	.
 
 lemma false_or_false_iff: false ∨ false ⟺ false;
-	apply iff_intro;
-	by or_intro1 #elim or_elim.
+	by iff_intro or_intro1 #elim or_elim.
 
 lemma true_or: if [P : prop] then true ∨ P;
 	by or_intro1.

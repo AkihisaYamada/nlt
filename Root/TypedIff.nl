@@ -17,13 +17,17 @@ interpret iff: Reflexive prop (⟺);
 
 note ! iff.refl.
 
-interpret iff: Symmetric prop (⟺);
-	for P Q if PQ: P ⟺ Q, !P : prop, !Q : prop then Q ⟺ P;
-		apply iff_intro;
-		- by iff_elim2[OF PQ].
+lemma iff_elim:
+	if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
+	for R if assm, !, !;
+		apply assm;
 		- by iff_elim1[OF PQ].
+		- by iff_elim2[OF PQ].
 		.
 	.
+
+interpret iff: Symmetric prop (⟺);
+	by iff_intro #elim iff_elim.
 
 interpret iff: Transitive prop (⟺);
 	for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R, !P : prop, !Q : prop, !R : prop then P ⟺ R;
@@ -45,22 +49,16 @@ lemma iff_cong_imp: for P Q
 	if PP': P ⟺ P', QQ': P' ⟹ Q ⟺ Q', [P : prop, P' : prop, Q : prop, Q' : prop]
 	then (P ⟹ Q) ⟺ (P' ⟹ Q');
 	apply iff_intro;
-	if PQ: P ⟹ Q;
-		by PQ #fold QQ' PP'[dual].
-	if P'Q': P' ⟹ Q', P: P;
-		have P': P';
-			by P[unfolded PP'].
-		by P'Q'[OF P'] #unfold QQ'[OF P'].
+	- by #unfold QQ'[dual] PP'.
+	- by #unfold QQ' PP'.
 	.
 
 lemma iff_cong_imp_weak#cong: for P Q
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [P : prop, Q : prop, P' : prop, Q' : prop]
 	then (P ⟹ Q) ⟺ (P' ⟹ Q');
 	apply iff_intro;
-	if PQ: P ⟹ Q;
-		by PQ #fold QQ' PP'[dual].
-	if P'Q': P' ⟹ Q';
-		by P'Q' #unfold QQ' PP'[dual].
+	- by #unfold QQ'[dual] PP'.
+	- by #unfold QQ' PP'.
 	.
 
 lemma iff_cong_iff#cong: for P Q

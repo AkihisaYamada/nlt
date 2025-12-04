@@ -160,9 +160,7 @@ set set_comprehension Collect (λ) ∅ Singleton (∪).
 define decided := {x. x ∨ ¬x}.
 
 lemma in_decided_iff: P : decided ⟺ P ∨ ¬P;
-	unfold decided_def;
-	unfold in_Collect_iff;
-	unfold beta.
+	unfold decided_def in_Collect_iff beta.
 
 interpret decided: ..ClassicalPL;
 	instantiate prop := decided.
@@ -216,18 +214,18 @@ interpret decided: ..ClassicalPL;
 	for x y, x : decided ⟹ y : decided ⟹ (x ⟺ y) : decided;
 		unfold iff_def;
 		by and_type imp_type.
-	- .
-	- by not_intro.
+	note! not_intro.
 	note! and_intro.
 	note! or_intro.
 	note! iff_intro.
-	note #elim: not_imp_false.
 	note #elim: and_elim.
 	note #elim: or_elim.
 	note #elim: iff_elim.
 	note #elim: false_elim.
-	show: if P : decided then P ∨ ¬ P;
-		by #unfold in_decided_iff.
+	for P, ¬ P ⟹ P ⟹ P : decided ⟹ false;
+		by #elim not_imp_false.
+	for P, P : decided ⟹ P ∨ ¬ P;
+		unfold in_decided_iff.
 	.
 
 thm decided.pierce_law.

@@ -975,7 +975,7 @@ public:
 				add_claim(_thy,pat.cs,ret);
 				return {ret};
 			}
-			return {};
+			throw Error("proof failed")(goal);
 		}
 		Thm ret = prove(loc_goal,loc).intro();
 		add_claim(_thy,pat.cs,ret);
