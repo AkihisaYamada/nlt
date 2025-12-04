@@ -1,15 +1,9 @@
 #include "inference.hpp"
 using namespace std;
 
-string const Inference::EXACT = "#exact";
-string const Inference::CONCL = "#concl";
-string const Inference::INTRO = "#intro";
-string const Inference::WEAK = "#weak";
-string const Inference::ELIM = "#elim";
-
 void cerr_proof_thms( Thy const& thy ) {
 	cerr << thy.pretty_ctxt();
-	for( auto const& name : { Inference::EXACT, Inference::CONCL, Inference::INTRO, Inference::WEAK, Inference::ELIM } ) {
+	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM } ) {
 		cerr << name << ":" << thy.print_thms(name);
 	}
 }
@@ -58,14 +52,11 @@ Elim Elim::rule( Thm const& thm ) {
 	body = body.discharge(premise);
 	return Elim(thm,premise,body);
 }
-Opt<Intro> Elim::matches( Thm const& arg, Thy const& thy ) const {
+Intro Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp ) const {
 	auto pat_ctxt = _premise.ctxt();
 	auto thm_ctxt = _thm.ctxt();
-	auto thm2loc = thy.interpret_ancestor(thm_ctxt);
-	auto m = match( _premise, arg, [&](auto v){ return pat_ctxt.fixes(v); } );
-	if( !m ) return {};
-	auto pat2loc = Intp::make(pat_ctxt,thm_ctxt).compose(thm2loc);
-	subst_intp(pat2loc,*m);
+	auto pat2loc = Intp::make(pat_ctxt,thm_ctxt).compose(intp);
+	subst_intp(pat2loc,m);
 	pat2loc.discharge(arg);
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
 	return Intro::rule(thm);
@@ -74,11 +65,11 @@ Opt<Intro> Elim::matches( Thm const& arg, Thy const& thy ) const {
 void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
 	auto intro = Intro::rule(thm);
 	if( intro.conds() > 0 ) {
-		thy.add_thm( allow_intro ? Inference::INTRO : Inference::WEAK, thm, {intro} );
+		thy.add_thm( allow_intro ? Thy::INTRO : Thy::WEAK, thm, {intro} );
 	} else if( intro.vars() > 0 ) {
-		thy.add_thm(Inference::CONCL,thm,{intro});
+		thy.add_thm(Thy::CONCL,thm,{intro});
 	} else {
-		thy.add_thm(Inference::EXACT,thm);
+		thy.add_thm(Thy::EXACT,thm);
 	}
 }
 void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
@@ -207,25 +198,26 @@ bool Inference::_blast(
 			if( auto rew = ctrl.rewrite ) {// rewrite the assumption
 				assm = subthy.rewrite(assm,rew->first,rew->second);
 			}
-			for( auto elim = ctrl.elims.begin();; elim++ ) {// checks if an elimination rule matches
-				if( elim == ctrl.elims.end() ) {
-					// no elimination matches, so just declare the assumption as forced
-					add_forced(subthy,assm,ctrl.force_assms);
-					break;
-				}
-				if( auto o = elim->matches(assm,subthy) ) {
-					// goal: φθ ⟹ χ, elim_res: ∀thesis. ψθ... ⟹ thesis
-					elim_res.push_back(*o);
+			// checks if an elimination rule matches
+			if( !subthy.find_thm(Thy::ELIM,[&](Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+				auto elim = info.ref<Elim>();
+				assert(elim);
+				if( auto m = elim->matches(assm) ) {
+					elim_res.push_back(elim->instantiate(*m,assm,import));
 					n_elim_res++;
-					break;
+					return {thm};
 				}
+				return {};
+			}) ) {
+				// no elimination matches, so just declare the assumption as forced
+				add_forced(subthy,assm,ctrl.force_assms);
 			}
 			continue;
 		}
 		break;
 	}
 	// try exact conclusions
-	if( !subthy.find_thm( EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto thm2 = thm.subst(import);
 		if( thm2 == goal ) {
 			_thm = _thm.discharge(thm2.intro());
@@ -255,16 +247,16 @@ bool Inference::_blast(
 			}
 			return {};
 		};
-		if( !subthy.find_thm(CONCL,intro_tester) ) {
+		if( !subthy.find_thm(Thy::CONCL,intro_tester) ) {
 			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
 				!thesis._apply(ctrl.intros,g,subgoal_child) &&
-				!subthy.find_thm(INTRO,intro_tester)
+				!subthy.find_thm(Thy::INTRO,intro_tester)
 			) {
 				for(;;) {
 					if( elim_res_ind == elim_res.size() ) {
 						if( trial == 0 ||
 							( trial--,
-							 !subthy.find_thm(WEAK,weak_tester) )
+							 !subthy.find_thm(Thy::WEAK,weak_tester) )
 						) {
 							if( fail ) return false;
 cerr_proof_thms(subgoal_child);

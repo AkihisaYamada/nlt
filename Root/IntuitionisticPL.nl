@@ -18,7 +18,7 @@ lemma false_imp_iff: if [P : prop] then (false ⟹ P) ⟺ true;
 
 lemma false_and_iff: if [P : prop] then false ∧ P ⟺ false;
 	apply iff_intro;
-	- if and: false ∧ P;
+	if and: false ∧ P;
 		by and_elim1[OF and].
 	by #elim false_elim.
 

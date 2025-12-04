@@ -35,6 +35,16 @@ public:
 		static inline Term const RT = "#thy";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
+	/** name for exact concluder */
+	static std::string const EXACT;
+	/** name for introduction rules */
+	static std::string const INTRO;
+	/** name for weak introduction rules */
+	static std::string const WEAK;
+	/** name for schematic concluders */
+	static std::string const CONCL;
+	/** name for elimination rules */
+	static std::string const ELIM;
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -73,7 +83,11 @@ public:
 	/** @brief Adds a named theorem in the theory.
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
-	AThm add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
+	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
+	void add_elim( Thm const& thm ) & {
+		add_thm(ELIM,thm,Elim::rule(thm));
+	}
+
 	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */

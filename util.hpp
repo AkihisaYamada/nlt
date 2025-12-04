@@ -204,10 +204,10 @@ public:
 	 * @param arg the theorem to eliminate
 	 * @param thy the theory arg belongs
 	 */
-	Opt<Subst> matches( Thm const& arg, Thy const& thy ) const {
+	Opt<Subst> matches( Thm const& arg ) const {
 		return match( _premise, arg, [&](auto v){ return _premise.ctxt().fixes(v); } );
 	}
-	Intro instantiate( Subst const& m, Thy const& thy ) const;
+	Intro instantiate( Subst& m, Thm const& arg, Intp const& intp ) const;
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();

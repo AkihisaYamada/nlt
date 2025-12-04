@@ -1,6 +1,7 @@
 import IntuitionisticFOL.
-import MinimalHOL;
-	goals.
-	.
+import MinimalHOL.
 
 begin
+
+ctxt.
+exit

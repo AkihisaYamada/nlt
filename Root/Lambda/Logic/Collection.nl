@@ -1,9 +1,18 @@
-base Lambda.Logic.
-
-fix Collect (∈).
-assume in_Collect_iff: x ∈ Collect P ⟺ P x.
+fix (:) Collect.
+assume in_Collect_iff: x : Collect P ⟺ P x.
+assume Collect_eq: (∀x. P x ⟺ Q x) ⟹ Collect P = Collect Q.
 
 begin
+
+lemma Collect_eq_iff: Collect P = Collect Q ⟺ (∀x. P x ⟺ Q x);
+	apply iff_intro;
+	- if eq;
+		- for x;
+			have 1: P x ⟺ x : Collect P;
+				unfold(⟺) in_Collect_iff.
+			by 1[unfolded eq, unfolded(⟺) in_Collect_iff].
+		.
+	by Collect_eq.
 
 define[empty_def] ∅ := Collect (λx. false).
 

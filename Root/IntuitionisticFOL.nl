@@ -10,10 +10,10 @@ fix (:) prop (¬) (∧) (∨) (⟺) (∀:) (∃:).
 import TypedAll.
 
 obtain false where false_type! false : prop, false_elim: false ⟹ ∀P. P : prop ⟹ P;
-	- for thesis if assm;
+	for thesis if assm;
 		apply assm[of (∀P:prop. P)];
 		- .
-		- if all: ∀P : prop. P;
+		if all: ∀P : prop. P;
 			by all_elim1[of P prop, OF all].
 		.
 	.

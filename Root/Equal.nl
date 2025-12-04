@@ -6,7 +6,7 @@ import Base.
 
 fix (=).
 
-assume eq_refl! x = y.
+assume eq_refl! x = x.
 assume eq_imp_meta: for X, if y = z, X.[y] then X.[z].
 
 begin -- Above are the all axioms.
@@ -14,12 +14,12 @@ begin -- Above are the all axioms.
 interpret eq: MetaReflexive (=).
 
 interpret eq: MetaSymmetric (=);
-	- for x y if xy: x = y then y = x;
+	for x y if xy: x = y then y = x;
 		by eq_imp_meta[of (z. z = x), OF xy eq.refl].
 	.
 
 interpret eq: MetaTransitive (=);
-	- for x y z if xy: x = y, yz: y = z then x = z;
+	for x y z if xy: x = y, yz: y = z then x = z;
 		by eq_imp_meta[of (w. x = w), OF yz xy].
 	.
 
@@ -67,13 +67,12 @@ begin
 		by 1[unfolded+ const_arg].
 end
 
-
 theory TwoValued:
 	assume imp_imp_eq: if P, Q then P = Q.
 	assume imp_eq: if P then (P ⟹ Q) = Q.
 begin
 	obtain true where true_intro: true;
-		- for thesis if assm;
+		for thesis if assm;
 			apply assm[of (∀P. P ⟹ P)].
 		.
 	lemma eq_true: if P: P then P = true;
@@ -89,11 +88,11 @@ begin
 	lemma true_imp_eq: (true ⟹ P) = P;
 		by imp_eq[OF true_intro].
 	interpret imp: MetaLeftNeutral (⟹) true (=);
-		- for P;
+		for P;
 			apply+ imp_eq true_intro.
 		.
 	interpret imp: MetaRightAbsorb (⟹) true (=);
-		- for P;
+		for P;
 			by eq_true true_intro.
 		.
 	end
@@ -118,7 +117,7 @@ theory MetaInverse:
 	assume inverse: f⁻ (f x) = x.
 begin
 	interpret MetaInjective;
-		- for x x' if eq: f x = f x';
+		for x x' if eq: f x = f x';
 			have 1: f⁻ (f x) = f⁻ (f x');
 				unfold eq.
 			by 1[unfolded inverse].
@@ -131,7 +130,7 @@ theory Pair:
 	assume snd: snd (Pair x y) = y.
 begin
 	interpret Pair: MetaInjective Pair;
-		- for x x', if eq: Pair x = Pair x' then x = x';
+		for x x', if eq: Pair x = Pair x' then x = x';
 			have 1: fst (Pair x x) = fst (Pair x' x);
 				unfold eq.
 			by 1[unfolded fst].

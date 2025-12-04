@@ -4,6 +4,12 @@
 
 using namespace std;
 
+string const Thy::EXACT = "#exact";
+string const Thy::CONCL = "#concl";
+string const Thy::INTRO = "#intro";
+string const Thy::WEAK = "#weak";
+string const Thy::ELIM = "#elim";
+
 struct Thy::_Body {
 	string name;
 	string dir;
@@ -134,12 +140,11 @@ Thm Thy::add_assm(string_view const& name, CTerm const& assm) {
 	return assume(assm);
 }
 
-AThm Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) {
+void Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) {
 	if( thm.ctxt() != *this ) {
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
 	_ref->thms.emplace(name,pair(thm,info));
-	return AThm(thm,info);
 }
 
 pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name ) {

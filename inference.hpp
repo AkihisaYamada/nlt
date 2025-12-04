@@ -24,16 +24,6 @@ public:
 		Opt<std::pair<Rewriter::Rules,Rewriter::Ctrl>> rewrite;
 	};
 	static const Ctrl DEFAULT_CTRL;
-	/** name for exact concluder */
-	static std::string const EXACT;
-	/** name for introduction rules */
-	static std::string const INTRO;
-	/** name for weak introduction rules */
-	static std::string const WEAK;
-	/** name for schematic concluders */
-	static std::string const CONCL;
-	/** name for elimination rules */
-	static std::string const ELIM;
 	static Error const NoGoal;
 	static Error const Unapplicable;
 	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {

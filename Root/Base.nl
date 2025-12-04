@@ -125,7 +125,7 @@ theory MetaUnitalCommutative (+) (0) (=):
 ---
 interpret imp: MetaPreorder;
 	instantiate (≤) := (⟹).
-	- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+	for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 		by QR PQ.
 	.
 
@@ -137,12 +137,12 @@ lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;
 
 lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
 	apply PQQR;
-	- if PQ: P ⟹ Q then Q;
+	if PQ: P ⟹ Q then Q;
 		by PQ.
 	.
 
 lemma imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
-	- for x if P: P;
+	for x if P: P;
 		by imp[OF P].
 	.
 
@@ -155,8 +155,8 @@ lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β
 lemma make_elim:
 	if imp: ∀x. P.[x] ⟹ Q.[x]
 	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
-	- for x if Px;
-		- for thesis if assm;
+	for x if Px;
+		for thesis if assm;
 			by assm imp Px.
 		.
 	.
@@ -278,14 +278,14 @@ begin
 	lemma all_elim:
 		if all: ∀x:ι. α.[x]
 		then ∀P. ((∀x. x: ι ⟹ α.[x]) ⟹ P) ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ P;
-		- for P if assm, !;
+		for P if assm, !;
 			apply assm;
-			- for x if !;
+			for x if !;
 				apply all_elim1[OF all, of x].
 			.
 		.
 	obtain true where true_type! true : prop, true_intro! true;
-		- for thesis if assm;
+		for thesis if assm;
 			apply assm[of (∀P:prop. P ⟹ P)];
 			by all_intro.
 		.
@@ -298,12 +298,3 @@ theory FunType:
 begin
 	note fun_type_elim: make_elim[of (f. f : σ → τ) (f. ∀a. a : σ ⟹ f a : τ), OF fun_type_elim1].
 end
-
-theory Collect:
-	fix Collect (∈).
-	assume Collect_elim1: x ∈ Collect P ⟹ P x.
-	assume Collect_intro: P x ⟹ x ∈ Collect P.
-begin
-	note Collect_elim: make_elim[of (x. x ∈ Collect P) (x. P x), OF Collect_elim1].
-end
-

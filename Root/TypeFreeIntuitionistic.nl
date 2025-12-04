@@ -5,7 +5,7 @@ import Base.
 
 -- Obtains false, which derives everything, including non-propositions.
 obtain false where false_elim: false ⟹ ∀P. P;
-	- for thesis if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
+	for thesis if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
 		by assm[of (∀P. P)].
 	.
 
@@ -15,7 +15,7 @@ begin
 
 lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
 	apply iff_intro;
-	-; by not_imp_false[OF nP].
+	- by not_imp_false[OF nP].
 	by #elim false_elim.
 
 lemma false_imp_iff: (false ⟹ P) ⟺ true;

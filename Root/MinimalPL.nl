@@ -44,7 +44,7 @@ lemma not_false: ¬false;
 
 lemma and_elim: if and: P ∧ Q then
 	∀R. (P ⟹ Q ⟹ R) ⟹ P : prop ⟹ Q : prop ⟹ R;
-	- for R if PQR: P ⟹ Q ⟹ R;
+	for R if PQR: P ⟹ Q ⟹ R;
 		by PQR and_elim1[OF and] and_elim2[OF and].
 	.
 
@@ -56,8 +56,8 @@ lemma or_intro:
 	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
 	then P ∨ Q;
 	apply PQR;
-	-; by or_intro1.
-	-; by or_intro2.
+	- by or_intro1.
+	- by or_intro2.
 	.
 
 interpret or: Magma prop (∨).
@@ -82,19 +82,19 @@ lemma imp_true_iff: if [P : prop] then (P ⟹ true) ⟺ true;
 
 lemma iff_cong_not#cong: if PP': P ⟺ P', [P : prop, P' : prop] then ¬P ⟺ ¬P';
 	apply iff_intro;
-	- if nP: ¬P;
+	if nP: ¬P;
 		apply not_intro;
 		by not_imp_false[OF nP] iff_elim2[OF PP'].
-	- if nP': ¬P';
+	if nP': ¬P';
 		apply not_intro;
 		by not_imp_false[OF nP'] iff_elim1[OF PP'].
 	.
 
 lemma not_iff_imp_false: if [P : prop] then ¬P ⟺ (P ⟹ false);
 	apply iff_intro;
-	- if nP: ¬P;
+	if nP: ¬P;
 		by not_imp_false[OF nP].
-	- if Pf: P ⟹ false;
+	if Pf: P ⟹ false;
 		by not_intro Pf.
 	.
 
@@ -106,7 +106,7 @@ lemma not_false_iff: ¬false ⟺ true;
 
 lemma nnot_intro: if [P, P : prop] then ¬¬P;
 	apply not_intro;
-	- if nP: ¬P;
+	if nP: ¬P;
 		by not_imp_false[OF nP].
 	.
 
@@ -115,7 +115,7 @@ lemma nnot_imp: if imp: ¬¬P ⟹ Q, [P, P : prop] then Q;
 
 lemma imp_not: if [P], nQ: ¬Q, [P : prop, Q : prop] then ¬(P ⟹ Q);
 	apply not_intro;
-	- if PQ: P ⟹ Q;
+	if PQ: P ⟹ Q;
 		by not_imp_false[OF nQ] PQ.
 	.
 
@@ -125,7 +125,7 @@ lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, [P : prop, Q : prop] then ¬P;
 
 lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q, P : prop, Q : prop] then ¬P;
 	apply not_intro;
-	- if !P;
+	if !P;
 		have nQ: ¬Q;
 			by PnQ.
 		by not_imp_false[OF nQ].
@@ -133,7 +133,7 @@ lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q, P : prop, Q : prop] then ¬P;
 
 lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, [P : prop, Q : prop] then ¬¬Q;
 	apply not_intro;
-	- if nQ: ¬Q;
+	if nQ: ¬Q;
 		have nP: ¬P;
 			by imp_not_imp[OF PQ nQ].
 		by not_imp_false[OF nnP] nP.
@@ -141,16 +141,16 @@ lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, [P : prop, Q : prop] then ¬¬Q
 
 lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P, P : prop, Q : prop] then ¬¬Q;
 	apply not_intro;
-	- if nQ: ¬Q;
+	if nQ: ¬Q;
 		apply+ not_imp_false[OF nnPQ] not_intro;
-		- if PQ: P ⟹ Q;
+		if PQ: P ⟹ Q;
 			by not_imp_false[OF nQ] PQ.
 		.
 	.
 
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [P : prop, Q : prop] then ¬(P ⟹ Q);
 	apply not_intro;
-	- if PQ: P ⟹ Q;
+	if PQ: P ⟹ Q;
 		have nnQ: ¬¬Q;
 			by nnot_imp_nnot[OF nnP] PQ.
 		by not_imp_false[OF nnQ nQ].
@@ -171,7 +171,7 @@ lemma nnot_imp_not_iff: if [P : prop, Q : prop] then
 lemma nnimp_not_iff: if [P : prop, Q : prop] then
 	¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
-	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
+	if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
 		fold nnnot_iff;
 		by nnimp_imp_nnot[OF nnimp P].
 	by nnot_intro.
@@ -184,16 +184,16 @@ lemma iff_cong_and#cong: for P Q
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [P : prop, Q : prop, P' : prop, Q' : prop]
 	then P ∧ Q ⟺ P' ∧ Q';
 	apply iff_intro;
-	-; by and_intro #fold PP' QQ' #elim and_elim.
-	-; by and_intro #unfold PP' QQ' #elim and_elim.
+	- by and_intro #fold PP' QQ' #elim and_elim.
+	- by and_intro #unfold PP' QQ' #elim and_elim.
 	.
 
 interpret and_iff: Commutative prop (∧) (:) (⟺);
-	- for P Q if !P : prop, !Q : prop then P ∧ Q ⟺ Q ∧ P;
+	for P Q if !P : prop, !Q : prop then P ∧ Q ⟺ Q ∧ P;
 		apply iff_intro;
-		- if !P ∧ Q;
+		if !P ∧ Q;
 			apply and.sym.
-		- if !Q ∧ P;
+		if !Q ∧ P;
 			apply and.sym.
 		.
 	.
@@ -208,29 +208,29 @@ lemma iff_imp_and: if PQ: P ⟺ Q, [P : prop, Q : prop] then
 lemma iff_iff_and: if [P : prop, Q : prop] then
 	(P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	apply iff_intro;
-	- if iff: P ⟺ Q;
+	if iff: P ⟺ Q;
 		by iff_imp_and[OF iff].
-	- if and: (P ⟹ Q) ∧ (Q ⟹ P);
+	if and: (P ⟹ Q) ∧ (Q ⟹ P);
 		apply iff_intro;
-		-; by and_elim1[OF and].
-		-; by and_elim2[OF and].
+		- by and_elim1[OF and].
+		- by and_elim2[OF and].
 		.
 	.
 
 lemma and_imp_iff: if [P : prop, Q : prop, R : prop] then
 	(P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	apply iff_intro;
-	- if imp: P ∧ Q ⟹ R;
+	if imp: P ∧ Q ⟹ R;
 		by imp and_intro.
-	- if imp: P ⟹ Q ⟹ R;
+	if imp: P ⟹ Q ⟹ R;
 		by imp #elim and_elim.
 	.
 
 lemma true_and_iff: if [P : prop] then true ∧ P ⟺ P;
 	apply iff_intro;
-	- if and: true ∧ P;
+	if and: true ∧ P;
 		by and_elim2[OF and].
-	-; by and_intro[OF true_intro].
+	- by and_intro[OF true_intro].
 	.
 
 lemma true_and_true: true ∧ true;
@@ -243,28 +243,28 @@ lemma and_true_iff: if [P : prop] then P ∧ true ⟺ P;
 lemma iff_iff_and: if [P : prop, Q : prop] then
 	(P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	apply iff_intro;
-	- if PQ: P ⟺ Q;
+	if PQ: P ⟺ Q;
 		unfold PQ;
 		by and_intro.
-	- if and: (P ⟹ Q) ∧ (Q ⟹ P);
+	if and: (P ⟹ Q) ∧ (Q ⟹ P);
 		apply and_elim[OF and];
-		- if PQ: P ⟹ Q, QP: Q ⟹ P;
+		if PQ: P ⟹ Q, QP: Q ⟹ P;
 			apply iff_intro;
-			-; by PQ.
-			-; by QP.
+			- by PQ.
+			- by QP.
 			.
 		.
 	.
 
 lemma nand_intro1: if nP: ¬P, [P : prop, Q : prop] then ¬(P ∧ Q);
 	apply not_intro;
-	- if PQ: P ∧ Q then false;
+	if PQ: P ∧ Q then false;
 		by not_imp_false[OF nP] and_elim1[OF PQ].
 	.
 
 lemma nand_intro2: for P Q if nQ: ¬Q, [P : prop, Q : prop] then ¬(P ∧ Q);
 	apply not_intro;
-	- if PQ: P ∧ Q then false;
+	if PQ: P ∧ Q then false;
 		by not_imp_false[OF nQ] and_elim2[OF PQ].
 	.
 
@@ -293,15 +293,15 @@ lemma iff_cong_or#cong: for P Q
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [P : prop, Q : prop, P' : prop, Q' : prop]
 	then P ∨ Q ⟺ P' ∨ Q';
 	apply iff_intro;
-	- if PQ: P ∨ Q;
+	if PQ: P ∨ Q;
 		apply or_elim[OF PQ];
-		-; by or_intro1 #fold PP'.
-		-; by or_intro2 #fold QQ'.
+		- by or_intro1 #fold PP'.
+		- by or_intro2 #fold QQ'.
 		.
-	- if P'Q': P' ∨ Q';
+	if P'Q': P' ∨ Q';
 		apply or_elim[OF P'Q'];
-		-; by or_intro1 #unfold PP'.
-		-; by or_intro2 #unfold QQ'.
+		- by or_intro1 #unfold PP'.
+		- by or_intro2 #unfold QQ'.
 		.
 	.
 
@@ -309,29 +309,29 @@ interpret or_iff: Commutative prop (∨) (:) (⟺);
 	by iff_intro or_intro #elim or_elim.
 
 interpret or_iff: Associative prop (∨) (:) (⟺);
-	- for P Q R if !P : prop, !Q : prop, !R : prop then P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
+	for P Q R if !P : prop, !Q : prop, !R : prop then P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
 		apply iff_intro;
-		- if PQR: P ∨ Q ∨ R;
+		if PQR: P ∨ Q ∨ R;
 			apply or_elim[OF PQR];
-			- if PQ: P ∨ Q;
+			if PQ: P ∨ Q;
 				apply or_elim[OF PQ];
-				-; by or_intro1.
-				- if !Q;
+				- by or_intro1.
+				if !Q;
 					apply or_intro2;
 					apply or_intro1.
 				.
-			- if !R;
+			if !R;
 				apply or_intro2;
 				apply or_intro2.
 			.
-		- if PQR: P ∨ (Q ∨ R);
+		if PQR: P ∨ (Q ∨ R);
 			apply or_elim[OF PQR];
-			- if !P;
+			if !P;
 				apply or_intro1;
 				apply or_intro1.
-			- if QR: Q ∨ R;
+			if QR: Q ∨ R;
 				apply or_elim[OF QR];
-				- if !Q;
+				if !Q;
 					apply or_intro1;
 					apply or_intro2.
 				by or_intro2.
@@ -343,9 +343,9 @@ lemma or_imp_iff:
 	if [P : prop, Q : prop, R : prop]
 	then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
-	- if nor: P ∨ Q ⟹ R;
+	if nor: P ∨ Q ⟹ R;
 		by and_intro nor or_intro.
-	-; by #elim or_elim and_elim.
+	- by #elim or_elim and_elim.
 	.
 
 lemma nor_iff: if [P : prop, Q : prop] then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
@@ -365,8 +365,8 @@ lemma nnot_excluded_middle: if [P : prop] then ¬¬(P ∨ ¬P);
 lemma or_imp_nand: if PQ: P ∨ Q, [P : prop, Q : prop] then ¬(¬P ∧ ¬Q);
 	apply not_intro;
 	apply or_elim[OF PQ];
-	-; by not_imp_false[of P] #elim and_elim.
-	-; by not_imp_false[of Q] #elim and_elim.
+	- by not_imp_false[of P] #elim and_elim.
+	- by not_imp_false[of Q] #elim and_elim.
 	.
 
 lemma false_or_false_iff: false ∨ false ⟺ false;

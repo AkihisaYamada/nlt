@@ -327,7 +327,7 @@ public:
 			_thy.rewriter()->register_cong(thm);
 		}
 		if( cs.elim ) {
-			loc.add_thm(Inference::ELIM,thm);
+			loc.add_elim(thm);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -756,7 +756,7 @@ public:
 		while( skips("#") ) {
 			if( skips("elim") ) {
 				while( auto elim = gets_thm() ) {
-					ctrl.elims.emplace(Elim::rule(*elim));
+					_thy.add_elim(*elim);
 				}
 			} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
 				auto [rrules,rctrl] = _get_rewrite(_thy,dir);
