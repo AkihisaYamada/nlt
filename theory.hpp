@@ -132,7 +132,10 @@ public:
 		return rewriter()->rewrite(*this,thm,rules,ctrl);
 	}
 	Thm dualize( Thm const& thm ) const& {
-		return rewriter()->dualize(*this,thm);
+		return rewriter()->dualize(thm,*this);
+	}
+	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& thm ) {
+		return rewriter()->add_rule(rules,thm,*this);
 	}
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;

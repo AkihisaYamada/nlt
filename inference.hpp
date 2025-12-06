@@ -19,8 +19,7 @@ public:
 		size_t fuel = 255;
 		size_t trial = 1;
 		bool force_assms = false;
-		std::set<Intro> intros;
-		std::set<Elim> elims;
+		char log = 0;
 		Opt<std::pair<Rewriter::Rules,Rewriter::Ctrl>> rewrite;
 	};
 	static const Ctrl DEFAULT_CTRL;
@@ -222,7 +221,5 @@ inline Thm blast(
 	if( !imp ) throw Error("nothing to blast");
 	return thesis.discharge(prove(imp->first,thy,ctrl));
 }
-
-std::ostream& operator<<( std::ostream& os, Inference::Ctrl const& ctrl );
 
 #endif

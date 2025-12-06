@@ -34,19 +34,23 @@ class Rewriter {
 		Thm thm;// s = t ⟹ conditions ... ⟹ s ⟹ t
 		size_t conds;// number of conditions
 	};
-	std::vector<std::vector<Cong>> _congs;
 	/** relation symbols, e.g., ⟺ or = */
-	StrMap<size_t const> _rels;
+	std::vector<std::string> _rels;
+	StrMap<size_t const> _rel2ind;
 	/** reflexivity theorems, e.g., ∀x. x = x */
 	std::vector<Thm> _refls;
 	/** symmetry theorems, e.g., ∀x y. x = y ⟹ y = x */
 	Map<size_t,Dual> _duals;
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
 	Map<size_t,Thm> _trans;
-	/** ∀P Q. P ⟺ Q ⟹ P ⟹ Q */
+	/** ∀P Q. P = Q ⟹ P ⟹ Q */
 	Map<size_t,Imp> _imps;
-	/** ∀P Q. P ⟺ Q ⟹ Q ⟹ P */
+	/** ∀P Q. P = Q ⟹ Q ⟹ P */
 	Map<size_t,Imp> _revimps;
+	/** ∀x y x' y'. x = x' ⟹ y = y' ⟹ x + y = x' + y' */
+	std::vector<std::vector<Cong>> _congs;
+	/** ∀P. P ⟹ P = true */
+	Opt<std::pair<Thm,size_t>> _to_true;
 	size_t _default_ind;
 public:
 	static std::string const CONG;
@@ -54,6 +58,7 @@ public:
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
+	char log;
 	class Rules : std::vector<std::vector<Rule>> {
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewriter;
@@ -71,7 +76,7 @@ public:
 		return Rules(_rels.size());
 	}
 	Opt<size_t> gets_rel_ind( std::string_view const& rel ) const {
-		if( auto const& ind = _rels.finds(rel) ) {
+		if( auto const& ind = _rel2ind.finds(rel) ) {
 			return ind->second;
 		}
 		return {};
@@ -80,13 +85,14 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	void add_rule( Rules& rules, Thm const& thm ) const;
-	Thm dualize( Thy const& thy, Thm const& thm ) const;
+	void add_rule( Rules& rules, Thm const& thm, Thy const& thy ) const;
+	Thm dualize( Thm const& thm, Thy const& thy ) const;
 	Rewriter& register_imp( Thm const& thm, bool dir ) &;
 	Rewriter& register_refl( Thm const& thm, bool def ) &;
-	Rewriter& register_trans(Thm const& thm) &;
-	Rewriter& register_cong(Thm const& thm) &;
-	Rewriter& register_dual(Thm const& thm) &;
+	Rewriter& register_trans( Thm const& thm ) &;
+	Rewriter& register_cong( Thm const& thm ) &;
+	Rewriter& register_dual( Thm const& thm ) &;
+	Rewriter& register_to_true( Thm const& thm ) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term.
 	 * 

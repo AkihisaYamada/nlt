@@ -23,46 +23,33 @@ interpret TypeFreeIntuitionistic;
 		if f: false;
 			by f[unfolded false_def].
 		.
-	for P Q if !P, !Q then P ∧ Q;
-		apply eq_imp_rev[OF and_def];
-		for R if PQR: P ⟹ Q ⟹ R;
-			by PQR.
-		.
-	for P Q if PQ: P ∧ Q then P;
-		by eq_imp[OF and_def PQ].
-	for P Q if PQ: P ∧ Q then Q;
-		by eq_imp[OF and_def PQ].
+	- by #unfold and_def.
+	- by #unfold and_def.
+	- by #unfold and_def.
 
-	for P if nP: ¬P, !P then false;
-		by nP[unfolded not_def].
-	for P if nP: P ⟹ false then ¬P;
-		by nP[folded not_def].
+	- by #unfold not_def.
+	- by #unfold not_def.
 
 	for P Q if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
-		apply eq_imp_rev[OF iff_def];
-		unfold and_def;
+		unfold iff_def and_def;
 		for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
 			by imp[OF PQ QP].
 		.
 	for P Q if PQ: P ⟺ Q then P ⟹ Q;
-		apply PQ[unfolded iff_def and_def];
-		if PQ: P ⟹ Q;
-			by PQ.
-		.
+		apply PQ[unfolded iff_def and_def].
 	for P Q if PQ: P ⟺ Q then Q ⟹ P;
-		apply PQ[unfolded iff_def and_def];
-		if PQ: P ⟹ Q, QP: Q ⟹ P;
-			by QP.
-		.
+		apply PQ[unfolded iff_def and_def].
 
 	for P Q if P: P then P ∨ Q;
-		have 1: if PR: P ⟹ R, QR: Q ⟹ R then R;
+		unfold or_def;
+		for R if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by PR[OF P].
-		by eq_imp_rev[OF or_def 1].
+		.
 	for P Q if Q: Q then P ∨ Q;
-		have 1: if PR: P ⟹ R, QR: Q ⟹ R then R;
+		unfold or_def;
+		for R if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by QR[OF Q].
-		by eq_imp_rev[OF or_def 1].
+		.
 	for P Q, P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		unfold or_def;
 		apply imp.refl=.
@@ -86,19 +73,13 @@ So rewriting by (⟺) is actually more essential.
 
 set rewrite! iff_elim1 iff_elim2 iff.refl iff.trans.
 set dual iff.sym.
+set to_true iff_true.
 
 lemma eq_imp_iff#cong: if PQ: P = Q then P ⟺ Q;
 	unfold(=) PQ.
 
 interpret eq_iff: MetaCommutative (=) (⟺);
-	for x y, x = y ⟺ y = x;
-		apply iff_intro;
-		if xy: x = y;
-			unfold xy.
-		if yx: y = x;
-			unfold yx.
-		.
-	.
+	by iff_intro[OF eq.sym eq.sym].
 
 theorem russel_paradox: ¬(∀P. P ∨ ¬P);
 	apply not_intro;

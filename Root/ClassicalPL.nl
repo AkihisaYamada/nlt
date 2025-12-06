@@ -13,17 +13,13 @@ lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P : prop, [Q : prop] then 
 lemma nnot_iff: if [P : prop] then ¬¬P ⟺ P;
 	apply prop_cases[of P];
 	if P: P;
-		unfold+ iff_true[OF P] not_true_iff not_false_iff.
+		unfold+ P not_true_iff not_false.
 	if nP: ¬P;
-		apply iff_intro;
-		if nnP: ¬¬P;
-			apply not_elim[OF nnP nP].
-		by nnot_intro.
+		unfold not_imp_iff_false[OF nP] not_false not_true_iff.
 	.
 
 lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [P : prop, Q : prop] then P;
 	apply prop_cases[of P];
-	- .
 	if nP: ¬P;
 		have f: false;
 			by PQP[unfolded+ not_imp_iff_false[OF nP] false_imp_iff true_imp_iff].

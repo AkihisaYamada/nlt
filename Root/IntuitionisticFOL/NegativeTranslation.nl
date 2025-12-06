@@ -1,7 +1,6 @@
 ------
 # Gödel―Gentzen Negative Translation
 ------
-base QuantifiedIntuitionistic.
 
 ----
 The intuitionistic logic can prove theorems of the classical logic after a double-negation translation.

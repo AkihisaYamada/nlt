@@ -42,7 +42,7 @@ theory StrictOrder σ (<):
 	import Irreflexive σ (<).
 	import Transitive σ (<).
 begin
-	note! type.
+	note! closed.
 	lemma refl_iff: if ! x : σ then x < x ⟺ false;
 		by not_imp_iff_false irrefl.
 end

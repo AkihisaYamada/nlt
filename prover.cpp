@@ -5,14 +5,16 @@
 #include"parser.hpp"
 #include"definer.hpp"
 
-#define FLAG_SYS (1 << 0)
-#define FLAG_STA (1 << 1)
-#define FLAG_CTXT (1 << 2)
-#define FLAG_MSG (1 << 3)
+#define FLAG_ERR (1 << 0)
+#define FLAG_SYS (1 << 1)
+#define FLAG_STA (1 << 2)
+#define FLAG_CTXT (1 << 3)
+#define FLAG_MSG (1 << 4)
 
 #define FLAGS_MIN (FLAG_SYS | FLAG_STA)
 #define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_MSG)
 
+#define ERR ( _out & FLAG_ERR )
 #define SYS ( _out & FLAG_SYS )
 #define STA ( _out & FLAG_STA )
 #define CTXT ( _out & FLAG_CTXT )
@@ -86,6 +88,7 @@ class Prover : public Parser {
 	bool _through_error;
 	char _out;
 	char _out_load;
+	char _out_blast;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
@@ -154,11 +157,7 @@ public:
 		}
 		size_t n = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			if( rev ) {
-				rew->add_rule(rules,rew->dualize(loc,*arg));
-			} else {
-				rew->add_rule(rules,*arg);
-			}
+			loc.add_rewrite_rule( rules, rev ? loc.dualize(*arg) : *arg );
 			n++;
 		}
 		if( ctrl.max < n ) {
@@ -370,7 +369,7 @@ public:
 					if MSG cout << "[ ";
 					for(;;) {
 						auto t = get_term();
-						if MSG cout << t;
+						if MSG cout << _thy.pretty(t);
 						assms.push_back({{"",true},assm_thy.enclose(t)});
 						if( !skips(",") ) break;
 						if MSG cout << ", ";
@@ -624,11 +623,16 @@ public:
 				}
 				auto loc = _thy.branch();
 				auto thesis = Inference::claim_exact(loc,loc.weaken(assume->first));
-				auto o = _prove(thesis);
-				if( o ) {
-					auto const& thm = o->intro();
-					intp.discharge(thm);
-					if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(thm) << endl;
+				try {
+					auto o = _prove(thesis);
+					if( o ) {
+						auto const& thm = o->intro();
+						intp.discharge(thm);
+						if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(thm) << endl;
+					}
+				} catch( ::Error const& e ) {
+					if ERR cerr << "failed to discharge" << assume->second << ": " << _thy.pretty(assume->first) << endl;
+					throw e;
 				}
 			} else if( auto pat = _gets_subgoal() ) {
 				for(;;) {
@@ -657,28 +661,24 @@ public:
 			} else if( skips("oops") ) {
 				if MSG cout << "oops" << endl;
 				return false;
-			} else if( skips("") ) {
-				cerr << location() << ": Unexpected EOF" << endl;
-				exit(0);
-			} else {
-				Inference::Ctrl ctrl;
-				if( skips("by") ) {
-					get_ctrl(ctrl);
-				} else {
-					skip(".");
-				}
+			} else if( auto ctrl = gets_concluder() ) {
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(org_thy,prefix,intp,*assume,change,ctrl);
+						_auto_discharge(org_thy,prefix,intp,*assume,change,*ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain,ctrl);
+						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl);
 					} else {
 						break;
 					}
 				}
 				break;
+			} else if( skips("") ) {
+				cerr << location() << ": Unexpected EOF" << endl;
+				exit(0);
+			} else {
+				throw Error("\"Unexpected\"")(get());
 			}
 		} catch( ::Error const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
@@ -717,20 +717,22 @@ public:
 					thesis.apply(rule);// prop[sym:=term]... ⟹ var
 					if( skips(";") ) {
 						if MSG print_goal(thesis);
-						swap(_thy,thesis_loc);
-						deepen();
-						auto prf = proof_loop(thesis);
+						_depth++;
+						_prompt();
+						auto prf = _prove(thesis);
 						_depth--;
-						swap(_thy,thesis_loc);
 						if( prf ) {
 							auto const& spec = prf->intro();
 							// ∀var. (props[sym:=term]... ⟹ var) ⟹ var
 							intp.retain(term,spec);
+						} else {
+							if ERR cerr << "failed to retain " << _thy.pretty_sym(sym) << " " << _thy.pretty(t) << endl;
 						}
 					} else {
 						skip(".");
 						intp.retain(term,thesis.blast_all().intro());
 					}
+					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
 				_auto_retain(org_thy,prefix,intp,*obtain);
@@ -739,36 +741,42 @@ public:
 			}
 		}
 	}
-	void get_rules( set<Intro>& rules ) {
-		while( auto thm = gets_thm() ) {
-			if( skips("!") ) {
-				size_t n = get_nat();
-				rules.emplace(Intro::imp(*thm,n));
-			} else if( skips("=") ) {
-				rules.emplace(Intro::axiom(*thm));
-			} else {
-				rules.emplace(Intro::rule(*thm));
-			}
+	Intro make_rule( Thm const& thm ) {
+		if( skips("!") ) {
+			size_t n = get_nat();
+			return Intro::imp(thm,n);
+		} else if( skips("=") ) {
+			return Intro::axiom(thm);
+		} else {
+			return Intro::rule(thm);
 		}
 	}
-	void get_ctrl( Inference::Ctrl& ctrl ) {
-		get_rules(ctrl.intros);
-		while( skips("#") ) {
-			if( skips("elim") ) {
-				while( auto elim = gets_thm() ) {
-					_thy.add_elim(*elim);
-				}
-			} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
-				auto [rrules,rctrl] = _get_rewrite(_thy,dir);
-				rctrl.min = 0;// returns false when not applicable
-				ctrl.rewrite = {{rrules,rctrl}};
-			} else if( skips("force") ) {
-				ctrl.force_assms = true;
-			} else {
-				throw Error("\"unexpected\"")(get());
+	Opt<Inference::Ctrl> gets_concluder() {
+		if( skips("by") ) {
+			Inference::Ctrl ctrl;
+			while( auto thm = gets_thm() ) {
+				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
 			}
+			while( skips("#") ) {
+				if( skips("elim") ) {
+					while( auto elim = gets_thm() ) {
+						_thy.add_elim(*elim);
+					}
+				} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
+					auto [rrules,rctrl] = _get_rewrite(_thy,dir);
+					rctrl.min = 0;// returns false when not applicable
+					ctrl.rewrite = {{rrules,rctrl}};
+				} else {
+					throw Error("\"unexpected\"")(get());
+				}
+			}
+			skip(".");
+			return {ctrl};
+		} else if( skips(".") ) {
+			return {Inference::DEFAULT_CTRL};
+		} else {
+			return {};
 		}
-		skip(".");
 	}
 
 	bool _stats() {
@@ -826,23 +834,26 @@ public:
 	Opt<Thm> _prove( Inference& thesis ) {
 		auto prev_thy = _thy;
 		_thy = thesis.thy();
-		_depth++;
-		_prompt();
 		auto ret = proof_loop(thesis);
 		_thy = prev_thy;
-		_depth--;
 		return ret;
 	}
 	Opt<pair<ClaimStatus,Thm>> _state() {
 		auto cs = get_claim_status();
 		if MSG cout << "showing " << cs << flush;
 		auto thesis = get_statement();
-		if( auto o = _prove(thesis) ) {
+		_depth++;
+		_prompt();
+		auto o = _prove(thesis);
+		_depth--;
+		if( o ) {
 			auto thm = o->intro();
 			add_claim(_thy,cs,thm);
 			return {{cs,thm}};
+		} else {
+			if ERR cerr << "failed to prove " << cs << thesis.goal();
+			return {};
 		}
-		return {};
 	}
 	void _define( Thy& thy ) {
 		Opt<string> name_op;
@@ -963,19 +974,15 @@ public:
 		}
 		if( pat.proof ) {
 			if MSG cout << "show " << _thy.pretty(loc_goal) << endl;
+			auto thesis = Inference::claim_exact(loc,loc_goal);
 			_depth++;
 			_prompt();
-			auto thesis = Inference::claim_exact(loc,loc_goal);
-			swap(_thy,loc);
-			auto thm = proof_loop(thesis);
-			swap(_thy,loc);
+			auto thm = _prove(thesis);
 			_depth--;
-			if( thm ) {
-				Thm ret = thm->intro();
-				add_claim(_thy,pat.cs,ret);
-				return {ret};
-			}
-			throw Error("proof failed")(goal);
+			if( !thm ) throw Error("proof failed")(goal);
+			Thm ret = thm->intro();
+			add_claim(_thy,pat.cs,ret);
+			return {ret};
 		}
 		Thm ret = prove(loc_goal,loc).intro();
 		add_claim(_thy,pat.cs,ret);
@@ -1046,26 +1053,30 @@ public:
 				int min, max;
 				bool safe, wide;
 				if( skips("+") ) {
-					min = 1; max = 255; safe = false; wide = true;
+					max = 255; safe = false; wide = true;
 				} else {
-					min = max = 1; safe = true; wide = false;
+					max = 0; safe = true; wide = false;
 				}
 				auto rules = set<Intro>();
-				get_rules(rules);
+				while( auto thm = gets_thm() ) {
+					rules.emplace(make_rule(*thm));
+				}
+				min = rules.size();
+				if( max == 0 ) max = min;
+				bool more = _proof_follows();
 				thesis.apply(rules,min,max,safe,wide);
-				if( skips(";") ) {
+				if( more ) {
 					if MSG print_goal(thesis,"applied goals:\n\t");
 				} else {
-					skip(".");
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
 				auto [rules,ctrl] = _get_rewrite(_thy,dir);
+				bool more = _proof_follows();
 				_thy.rewriter()->apply(rules,thesis,ctrl);
-				if( skips(";") ) {
+				if( more ) {
 					if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 				} else {
-					skip(".");
 					return thesis.blast_all();
 				}
 			} else if( skips("-") ) {
@@ -1073,8 +1084,14 @@ public:
 				if( !goal ) throw Error("\"unexpected subgoal\"");
 				auto loc = _thy.branch();
 				auto subthesis = Inference::claim_exact(loc,loc.weaken(*goal));
-				if( auto thm = _prove(subthesis) ) {
-					thesis.discharge(thm->intro());
+				try {
+					auto thm = _prove(subthesis);
+					if( thm ) {
+						thesis.discharge(thm->intro());
+					}
+				} catch( ::Error const& e ) {
+					if ERR cerr << "failed to prove subgoal " << _thy.pretty(*goal);
+					throw e;
 				}
 			} else if( auto pat = _gets_subgoal() ) {
 				for(;;) {
@@ -1087,26 +1104,21 @@ public:
 					thesis.blast();
 				}
 				if MSG print_goal(thesis,"next goal ");
-			} else if( skips("by") ) {
-				Inference::Ctrl ctrl;
-				get_ctrl(ctrl);
-				return thesis.blast_all(ctrl);
+			} else if( auto ctrl = gets_concluder() ) {
+				return thesis.blast_all(*ctrl);
 			} else if( skips("oops") ) {
 				if MSG cout << "oops" << endl;
 				return {};
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
 				exit(0);
-			} else if( skips(".") ) {
-				auto thm = thesis.blast_all();
-				return thm;
 			} else {
 				throw Error("\"unexpected\"")(get());
 			}
 			_prompt();
 		} catch ( ::Error const& e ) {
+			if( _through_error ) throw e;
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
-			if( _through_error ) throw THROUGH;
 			_prompt();
 		}
 	}
@@ -1161,6 +1173,10 @@ public:
 						if MSG cout << _thy.pretty(*thm);
 					};
 					if MSG cout << endl;
+				} else if( skips("to_true") ) {
+					auto thm = get_thm();
+					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
+					_thy.rewriter()->register_to_true(thm);
 				} else if( skips("define") ) {
 					Thm const& beta = get_thm();
 					if MSG cout << " beta: " << _thy.pretty(beta) << endl;
@@ -1200,6 +1216,8 @@ public:
 					} else if( skips("load") ) {
 						_out_load = get_print_level();
 						if MSG cout << "set print load level " << _out_load << endl;
+					} else if( skips("blast") ) {
+						_out_blast = gets_int().value_or(3);
 					} else {
 						_out = get_print_level();
 						if MSG cout << "set print level " << _out << endl;
@@ -1339,13 +1357,11 @@ public:
 		}
 		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
 		goal = goal.lift(org_thy.cterm(ALL));
-		_prompt();
-		if MSG cout << "prove " << _thy.pretty(goal) << endl;
 		auto thesis = Inference::claim_exact(org_thy,goal);
-		swap(_thy,org_thy);
-		auto const& thm = deepen().proof_loop(thesis);
+		_depth++;
+		_prompt();
+		auto const& thm = _prove(thesis);
 		_depth--;
-		swap(_thy,org_thy);
 		if( thm ) {
 			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)));
 			// deriver: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
@@ -1355,6 +1371,8 @@ public:
 				add_claim(_thy,cs,prop);
 			}
 			if MSG cout << "obtained " << sym << endl;
+		} else {
+			if ERR cout << "failed to obtain " << sym << endl;
 		}
 	}
 	void move_to_thy( Thy const& thy ) {

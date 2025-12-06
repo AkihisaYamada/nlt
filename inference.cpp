@@ -2,7 +2,6 @@
 using namespace std;
 
 void cerr_proof_thms( Thy const& thy ) {
-	cerr << thy.pretty_ctxt();
 	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM } ) {
 		cerr << name << ":" << thy.print_thms(name);
 	}
@@ -178,6 +177,7 @@ bool Inference::_blast(
 	vector<Intro>& elim_res,
 	size_t elim_res_ind
 ) & {
+	if( ctrl.log > 1 ) cout << _thy.pretty(goal()) << endl;
 	if( _goals == 0 ) {// no goal to blast
 		throw BlastError("\"no goal to blast\"");
 	}
@@ -190,32 +190,30 @@ bool Inference::_blast(
 	auto subthy = _thy.branch();
 	auto goal = subthy.weaken(imp->first);
 	size_t n_elim_res = 0;
-	for(;;) {
+	for(;;) {// strip all assumptions
 		goal = strip_all(goal,subthy.self());
-		if( auto imp = goal.cbinary(IMP) ) {// make assumptions
-			auto assm = subthy.assume(imp->first);
-			goal = imp->second;
-			if( auto rew = ctrl.rewrite ) {// rewrite the assumption
-				assm = subthy.rewrite(assm,rew->first,rew->second);
-			}
-			// checks if an elimination rule matches
-			if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-				auto elim = info.ref<Elim>();
-				assert(elim);
-				if( auto m = elim->matches(assm) ) {
-					auto const& res = elim->instantiate(*m,assm,import);
-					elim_res.emplace_back(res);
-					n_elim_res++;
-					return {thm};
-				}
-				return {};
-			}) ) {
-				// no elimination matches, so just declare the assumption as forced
-				add_forced(subthy,assm,ctrl.force_assms);
-			}
-			continue;
+		auto imp = goal.cbinary(IMP);
+		if( !imp ) break;// no more assumption
+		auto assm = subthy.assume(imp->first);// make the assumption
+		goal = imp->second;
+		if( auto const& rew = ctrl.rewrite ) {// rewrite the assumption
+			assm = subthy.rewrite(assm,rew->first,rew->second);
 		}
-		break;
+		// checks if an elimination rule matches
+		if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto elim = info.ref<Elim>();
+			assert(elim);
+			if( auto m = elim->matches(assm) ) {
+				auto const& res = elim->instantiate(*m,assm,import);
+				elim_res.emplace_back(res);
+				n_elim_res++;
+				return {thm};
+			}
+			return {};
+		}) ) {
+			// no elimination matches, so just declare the assumption as forced
+			add_forced(subthy,assm,ctrl.force_assms);
+		}
 	}
 	// try exact conclusions
 	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -248,36 +246,37 @@ bool Inference::_blast(
 			}
 			return {};
 		};
-		if( !subthy.find_thm(Thy::CONCL,intro_tester) ) {
-			if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
-				!thesis._apply(ctrl.intros,g,subgoal_child) &&
-				!subthy.find_thm(Thy::INTRO,intro_tester)
-			) {
-				for(;;) {
-					if( elim_res_ind == elim_res.size() ) {
-						if( trial == 0 ||
-							( trial--,
-							 !subthy.find_thm(Thy::WEAK,weak_tester) )
-						) {
-							if( fail ) return false;
-cerr_proof_thms(subgoal_child);
-							throw BlastError("\"failed to blast\"")(goal);
-						}
-						break;
+		if( !subthy.find_thm(Thy::CONCL,intro_tester) &&
+			!subthy.find_thm(Thy::INTRO,intro_tester)
+		) {
+			for(;;) {
+				if( elim_res_ind < elim_res.size() ) {// process elimination result
+					if( thesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
+						elim_res_ind++;
+						break;// move on to the new thesis
 					}
-// apply elimination result
-					if( !thesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
-						add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
-					}
+					// the elimination result was not applicable, mark it as a forced rule and process more elimination results
+					add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
 					elim_res_ind++;
+					continue;
+				} else {// no more elimination result
+					if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
+						!(trial > 0 && ( trial--, subthy.find_thm(Thy::WEAK,weak_tester) )
+					) ) {
+						if( fail ) return false;
+						if( ctrl.log > 1 ) {
+							cerr_proof_thms(subgoal_child);
+						}
+						throw BlastError("\"failed to blast\"")(g);
+					}
 					break;
 				}
 			}
-			// blast all new subgoals:
-			while( thesis._goals > 0 ) {
-				if( !thesis._blast(fuel,trial,ctrl,fail,elim_res,elim_res_ind) ) {
-					return false;
-				}
+		}
+		// blast all new subgoals:
+		while( thesis._goals > 0 ) {
+			if( !thesis._blast(fuel,trial,ctrl,fail,elim_res,elim_res_ind) ) {
+				return false;
 			}
 		}
 		_thm = _thm.discharge(thesis._thm.intro());
@@ -297,14 +296,3 @@ Thm prove( CTerm const& claim, Thy const& thy ) {
 	return prove(claim,thy,Inference::DEFAULT_CTRL);
 }
 
-ostream& operator<<( ostream& os, Inference::Ctrl const& ctrl ) {
-	os << "intros:" << endl;
-	for( auto const& intro : ctrl.intros ) {
-		os << '\t' << intro.thm() << endl;
-	}
-	os << "elims:" << endl;
-	for( auto const& elim : ctrl.elims ) {
-		os << '\t' << elim.thm() << endl;
-	}
-	return os;
-}

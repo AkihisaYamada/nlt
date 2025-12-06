@@ -31,7 +31,8 @@ Opt<string const&> gets_binary_sym( Term const& term ) {
 	return {};
 }
 Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
-Thm Rewriter::dualize( Thy const& thy, Thm const& thm ) const {
+
+Thm Rewriter::dualize( Thm const& thm, Thy const& thy ) const {
 	Thy subthy = thy.branch();
 	Thm body = strip_all(thm,*subthy.parent()).first;
 	while( auto imp = body.cbinary(IMP) ) {
@@ -51,13 +52,14 @@ Thm Rewriter::dualize( Thy const& thy, Thm const& thm ) const {
 	}
 	throw Error("\"not dualizable\"")(thm);
 }
-void Rewriter::add_rule( Rules& rules, Thm const& thm ) const {
+void Rewriter::add_rule( Rules& rules, Thm const& thm, Thy const& thy ) const {
 	// checking well-formedness and extracting the lhs of the rewrite rule
-	Intp toSub = thm.ctxt().fork();
-	Ctxt sub = toSub.ctxt();
+	auto sub = thy.branch();
+	auto toSub = *sub.parent();
 	Thm body = strip_all(thm,toSub,fresh_maker()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = sub.assume(imp->first);
+		sub.add_thm(Thy::EXACT,assm);
 		body = body.discharge(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
@@ -65,7 +67,17 @@ void Rewriter::add_rule( Rules& rules, Thm const& thm ) const {
 		rules[*ind].emplace_back(get<1>(*bin),body,thm.ctxt());
 		return;
 	}
-	throw Error("\"malformed rule\"")(thm);
+	// The conclusion is not a rewrite relation. Turn it into a rewriting to true.
+	if( !_to_true ) throw Error("\"malformed rule\"")(thm);
+	body = sub.weaken(_to_true->first) << body;
+	while( auto o = blasts(body,sub) ) {
+		body = *o;
+	}
+	auto ind = _to_true->second;
+	auto iff = body.cbinary(_rels[ind]);
+	if( !iff ) throw Error("\"failed to make a rewrite rule\"")(body)(thm);
+	rules[ind].emplace_back(iff->first,body,thm.ctxt());
+	return;
 }
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	auto rule = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
@@ -90,7 +102,8 @@ Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw Error("\"malformed refl\"")(thm);
 	size_t ind = _rels.size();
-	_rels.emplace(*rel,ind);
+	_rels.emplace_back(*rel);
+	_rel2ind.emplace(*rel,ind);
 	_refls.emplace_back(thm);
 	_congs.emplace_back();
 	if( def ) {
@@ -166,6 +179,15 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 	}
 	throw Error("\"malformed dual rule\"")(thm);
 }
+Rewriter& Rewriter::register_to_true( Thm const& thm ) & {
+	auto rule = Intro::rule(thm);
+	auto const& rel = gets_binary_sym(rule.conclusion());
+	if( !rel ) throw Error("\"malformed rewrite-to-true\"")(thm);
+	auto ind = gets_rel_ind(*rel);
+	if( !ind ) throw Error("\"unregistered rewrite relation\"")(*rel)(thm);
+	_to_true = {{thm,*ind}};
+	return *this;
+}
 
 Opt<Thm> Rewriter::_step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const {
 	auto const& abs = source.bind();
@@ -204,14 +226,18 @@ Opt<Thm> Rewriter::_step( Rules const& rules, Thy const& thy, CTerm const& sourc
 					} else {
 						intp.instantiate(thy.cterm(DUMMY));
 					}
-				} else if( auto assume = intp.assuming() ) {
+				} else if( auto assm = intp.assuming() ) {
 					// discharge conditions
-					intp.discharge(prove(*assume,thy));
+					auto prem = proves(*assm,thy);
+					if( !prem ) {// condition couldn't be discharged
+						if( log > 1 ) cerr << "failed to discharge rewrite condition: " << thy.pretty(*assm);
+						break;// try other rules
+					}
+					intp.discharge(*prem);
 				} else {
-					break;
+					return {rule.rule.subst(intp)}; // l[m] = r[m]
 				}
 			}
-			return {rule.rule.subst(intp)}; // l[m] = r[m]
 		}
 	}
 	bool success = false;
@@ -437,6 +463,9 @@ Rewriter Rewriter::subst( Intp const& intp ) const {
 	}
 	for( auto const& [i,imp] : _revimps ) {
 		ret.register_imp(imp.thm.subst(intp),false);
+	}
+	if( _to_true ) {
+		ret.register_to_true(_to_true->first.subst(intp));
 	}
 	return ret;
 }

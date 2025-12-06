@@ -104,6 +104,15 @@ theory MetaRightNeutral:
 	assume right_neutral: x + 0 = x.
 end
 
+theory MetaUnitalCommutative:
+	fix (+) (0) (=).
+	import MetaEquivalence.
+	import MetaCommutative.
+	import MetaLeftNeutral.
+	interpret MetaRightNeutral;
+		by trans[OF commute left_neutral].
+end
+
 theory MetaLeftAbsorb:
 	fix (*) (0) (=).
 	assume left_absorb: 0 * x = 0.
@@ -114,15 +123,6 @@ theory MetaRightAbsorb:
 	assume right_absorb: x * 0 = 0.
 end
 
----
-theory MetaUnitalCommutative (+) (0) (=):
-	import MetaEquivalence;
-	import MetaCommutative;
-	import MetaLeftNeutral;
-	interpret right: MetaNeutral;
-		discharge x + 0 = x;
-			
----
 interpret imp: MetaPreorder;
 	instantiate (≤) := (⟹).
 	for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
@@ -160,141 +160,3 @@ lemma make_elim:
 			by assm imp Px.
 		.
 	.
-
------
-## For typed logic
------
-
-theory Member:
-	fix σ x (:).
-	assume type: x : σ.
-end
-
-theory Unary:
-	fix σ τ f (:).
-	assume type: x : σ ⟹ f x : τ.
-end
-
-theory Binary:
-	fix σ τ ρ f (:).
-	assume type: x : σ ⟹ y : τ ⟹ f x y : ρ.
-end
-
-theory Relation:
-	fix σ (≤) (:) prop.
-	import Binary σ σ prop (≤) (:).
-end
-
-theory Reflexive:
-	fix σ (≤) (:).
-	assume refl: x : σ ⟹ x ≤ x.
-end
-
-theory Symmetric:
-	fix σ (≤) (:).
-	assume sym: x ≤ y ⟹ x : σ ⟹ y : σ ⟹ y ≤ x.
-end
-
-theory Transitive:
-	fix σ (≤) (:).
-	assume trans: x ≤ y ⟹ y ≤ z ⟹ x : σ ⟹ y : σ ⟹ z : σ ⟹ x ≤ z.
-end
-
-theory Irreflexive:
-	fix σ (<) (:) (¬).
-	assume irrefl: x : σ ⟹ ¬ (x < x).
-end
-
-theory TypedBinder:
-	fix σ ξ (:).
-	assume type: (∀x. x : ι ⟹ α.[x] : σ) ⟹ ξ ι (x. α.[x]) : σ.
-end
-
-theory Magma:
-	fix σ (+) (:).
-	import Binary σ σ σ (+).
-end
-
-theory Commutative:
-	fix σ (+) (:) (=).
-	assume commute: x : σ ⟹ y : σ ⟹ x + y = y + x.
-end
-
-theory Associative:
-	fix σ (+) (:) (=).
-	assume assoc: x : σ ⟹ y : σ ⟹ z : σ ⟹ x + y + z = x + (y + z).
-end
-
-theory LeftNeutral:
-	fix σ (+) (0) (:) (=).
-	assume left_neutral: x : σ ⟹ 0 + x = x.
-end
-
-theory RightNeutral:
-	fix σ (+) (0) (:) (=).
-	assume right_neutral: x : σ ⟹ x + 0 = x.
-end
-
-theory UnitalMagma:
-	import Magma.
-	import LeftNeutral.
-	import RightNeutral.
-end
-
-theory Semigroup:
-	import Magma.
-	import Associative.
-end
-
-theory Monoid:
-	import Semigroup.
-	import UnitalMagma.
-end
-
-theory LeftAbsorb:
-	fix σ (*) (0) (:) (=).
-	assume left_absorb: x : σ ⟹ 0 * x = 0.
-end
-
-theory RightAbsorb:
-	fix σ (*) (0) (:) (=).
-	assume right_absorb: x : σ ⟹ x * 0 = 0.
-end
-
-theory AbsorbMagma:
-	fix σ (*) (0) (:) (=).
-	import Magma σ (*).
-	import LeftAbsorb.
-	import RightAbsorb.
-end
-
-theory TypedAll:
-	fix (∀:) prop (:).
-	assume imp_type! P : prop ⟹ Q : prop ⟹ (P ⟹ Q) : prop.
-	assume all_type! (∀x. x : ι ⟹ α.[x] : prop) ⟹ (∀x : ι. α.[x]) : prop.
-	assume all_intro: (∀x. x : ι ⟹ α.[x]) ⟹ (∀x. x : ι ⟹ α.[x] : prop) ⟹ ∀x:ι. α.[x].
-	assume all_elim1: for x, (∀y:ι. α.[y]) ⟹ x : ι ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ α.[x].
-begin
-	lemma all_elim:
-		if all: ∀x:ι. α.[x]
-		then ∀P. ((∀x. x: ι ⟹ α.[x]) ⟹ P) ⟹ (∀y. y : ι ⟹ α.[y] : prop) ⟹ P;
-		for P if assm, !;
-			apply assm;
-			for x if !;
-				apply all_elim1[OF all, of x].
-			.
-		.
-	obtain true where true_type! true : prop, true_intro! true;
-		for thesis if assm;
-			apply assm[of (∀P:prop. P ⟹ P)];
-			by all_intro.
-		.
-end
-
-theory FunType:
-	fix (:) (→).
-	assume fun_type_elim1: f : σ → τ ⟹ ∀a. a : σ ⟹ f a : τ.
-	assume fun_type_intro! for f σ τ, (∀a. a : σ ⟹ f a : τ) ⟹ f : σ → τ.
-begin
-	note fun_type_elim: make_elim[of (f. f : σ → τ) (f. ∀a. a : σ ⟹ f a : τ), OF fun_type_elim1].
-end
