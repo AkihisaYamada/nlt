@@ -3,41 +3,34 @@
 
 #include "theory.hpp"
 
+class Inference;
+
 /** @brief Add concluder theorem to theory */
 void add_forced( Thy&, Thm const& thm, bool allow_intro = false );
 
 /** Class for inference */
-class Inference {
+class Thesis {
 	Thy _thy;
 	Thm _thm;
 	CTerm _claim;
 	size_t _goals;
-	Inference( Thy const& thy, Thm const& thesis, CTerm const& claim, size_t goals ) :
+	Thesis( Thy const& thy, Thm const& thesis, CTerm const& claim, size_t goals ) :
 		_thy(thy), _thm(thesis), _claim(claim), _goals(goals) {}
+	friend Inference;
 public:
-	struct Ctrl {
-		size_t fuel = 255;
-		size_t trial = 1;
-		bool force_assms = false;
-		char log = 0;
-		Opt<std::pair<Rewriter::Rules,Rewriter::Ctrl>> rewrite;
-	};
-	static const Ctrl DEFAULT_CTRL;
-	static Error const NoGoal;
-	static Error const Unapplicable;
-	static Inference claim_exact( Thy const& thy, CTerm const& claim ) {
+	static Thesis claim_exact( Thy const& thy, CTerm const& claim ) {
 		auto intp = claim.ctxt().fork();
 		auto thesis = intp.ctxt().assume(claim.subst(intp)).intro();// claim ⟹ claim
-		return Inference( thy, thesis, claim, 1 );
+		return Thesis( thy, thesis, claim, 1 );
 	}
-	static Inference make( Thy const& thy, Thm const& thesis ) {
+	static Thesis make( Thy const& thy, Thm const& thesis ) {
 		CTerm claim = thesis;
 		size_t goals = 0;
 		while( auto imp = claim.cbinary(IMP) ) {
 			claim = imp->second;
 			goals++;
 		}
-		return Inference(thy,thesis,claim,goals);
+		return Thesis(thy,thesis,claim,goals);
 	}
 	Thy const& thy() const& {
 		return _thy;
@@ -60,7 +53,7 @@ public:
 		return {};
 	}
 	CTerm goal() const& {
-		if( _goals == 0 ) throw NoGoal;
+		if( _goals == 0 ) throw Error("\"no goal\"");
 		auto imp = _thm.cbinary(IMP);
 		assert(imp);
 		return imp->first;
@@ -69,54 +62,35 @@ public:
 		if( _goals == 0 ) return _thm;
 		return {};
 	}
+	/** @brief Discharge a subgoal by identical theorem */
+	void discharge( Thm const& thm ) & {
+		if( _goals == 0 ) throw Error("\"no goal\"");;
+		_thm = _thm.discharge(thm);
+		_goals--;
+	}
 	/** @brief Tries to apply a rule once */
 	bool applies( Intro const& rule ) & {
 		auto child = _thy.branch();
 		return _apply(rule,child.weaken(goal()),child);
 	}
 	void apply( Intro const& rule ) & {
-		if( !applies(rule) ) throw Unapplicable(goal())(rule.conclusion());
+		if( !applies(rule) ) throw Error("\"not applicable\"")(goal())(rule.conclusion());
 	}
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
 		auto child = _thy.branch();
 		auto g = strip_all(goal(),*child.parent());
-		if( !_apply(rules,g,child) ) throw Unapplicable(g);
+		if( !_apply(rules,g,child) ) throw Error("\"not applicable\"")(g);
 	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool wide ) & {
 		size_t suc = 0;
 		_apply(rules,suc,min,max,safe,wide);
 	}
-	/** @brief Discharge goal by identical theorem */
-	void discharge( Thm const& thm ) & {
-		if( _goals == 0 ) throw NoGoal;
-		_thm = _thm.discharge(thm);
-		_goals--;
-	}
-	void elim( std::set<Elim> const& elims ) &;
-	bool blasts( Ctrl const& ctrl = DEFAULT_CTRL ) & {
-		std::vector<Intro> elim_res;
-		size_t fuel = ctrl.fuel;
-		return _blast(fuel,1,ctrl,true,elim_res,0);
-	}
-	void blast( Ctrl const& ctrl = DEFAULT_CTRL ) & {
-		std::vector<Intro> elim_res;
-		size_t fuel = ctrl.fuel;
-		_blast(fuel,1,ctrl,false,elim_res,0);
-	}
-	Thm blast_all( Ctrl const& ctrl = DEFAULT_CTRL ) & {
-		while( _goals > 0 ) {
-			blast(ctrl);
-		}
-		return _thm;
-	}
-	/** @brief applies rewriting */
-	bool rewrites( Rewriter::Rules const& rules ) &;
-	/** @brief applies rewriting with control */
-	bool rewrites( Rewriter::Rules const& rules, Ctrl const& ctrl ) &;
-	/** @brief pushes the top subgoal into assumption.
-	 * @return false if there will be no further subgoal */
+	/** Automatically discharge a subgoal */
+	void blast() &;
+	/** Automatically discharge all subgoals */
+	Thm blast_all() &;
 	bool push() & {
 		if( _goals < 2 ) return false;
 		_thy = _thy.branch();
@@ -134,7 +108,6 @@ public:
 		_thm = _thm.intro();
 		_goals++;
 	}
-
 private:
 	bool _discharges( Thm const& thm ) & {
 		if( auto o = _thm.discharges(thm) ) {
@@ -155,71 +128,117 @@ private:
 	}
 	void _apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) &;
 	void _apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) &;
+};
+
+class Inference {
+	size_t fuel;
+	Opt<Rewriter const&> rew;
+	friend Rewriter;
+public:
+	Rewriter::Rules rules;
+	Rewriter::Ctrl ctrl;
+	Inference( Opt<Rewriter const&> const& rew, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), fuel(fuel) {}
+	bool blasts( Thesis& thesis ) & {
+		std::vector<Intro> elim_res;
+		return _blast(thesis,1,true,elim_res,0);
+	}
+	void blast( Thesis& thesis ) & {
+		std::vector<Intro> elim_res;
+		_blast(thesis,1,false,elim_res,0);
+	}
+	Thm blast_all( Thesis& thesis ) & {
+		while( thesis._goals > 0 ) {
+			blast(thesis);
+		}
+		return thesis._thm;
+	}
+	Opt<Thm> proves( Thy const& thy, CTerm const& claim ) & {
+		auto x = Thesis::claim_exact(thy,claim);
+		if( blasts(x) ) {
+			return *x.concluding();
+		}
+		return {};
+	}
+	Thm prove( Thy const& thy, CTerm const& claim ) & {
+		auto x = Thesis::claim_exact(thy,claim);
+		blast(x);
+		return *x.concluding();
+	}
+	/**
+	* @brief Blasts first assumption of implication.
+	* 
+	* @return Thm the conclusion
+	*/
+	Opt<Thm> blasts( Thy const& thy, Thm const& thesis ) & {
+		if( auto imp = thesis.cbinary(IMP) )
+		if( auto prem = proves(thy,imp->first) ) {
+			return thesis.discharge(*prem);
+		}
+		return {};
+	}
+	Thm blast( Thy const& thy, Thm const& thesis ) & {
+		auto imp = thesis.cbinary(IMP);
+		if( !imp ) throw Error("nothing to blast");
+		return thesis.discharge(prove(thy,imp->first));
+	}
+	/**
+	 * @brief returns a rewrite step equation for the given source term at given position.
+	 * 
+	 * @param source the term to be rewritten
+	 * @return Opt<Thm> 
+	 */
+	Opt<Thm> step( Thy const& thy, CTerm const& source, std::vector<char> const& pos ) & {
+		return _step(thy,source,rew->_default_ind,pos.begin(),pos.end());
+	}
+	/** @brief applies rewriting */
+	bool rewrites( Thesis& thesis ) &;
+	/** @brief Rewrites a theorem */
+	Thm rewrite( Thy const& thy, Thm const& source ) & {
+		return rewrites(thy,source,ctrl.min);
+	}
+	Thm rewrites( Thy const& thy, Thm const& source, size_t min = 0 ) &;
+	/** @brief returns a rewriting theorem */
+	Thm steps( Thy const& thy, CTerm const& source ) & {
+		size_t ind = rew->_get_ind(ctrl.rel);
+		if( auto ret = _steps(thy,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
+			return *ret;
+		}
+		return _make_refl(thy,source,ind);
+	}
+	Thm dualize( Thy const& thy, Thm const& thm ) &;
+private:
 	bool _apply_blast(
+		Thesis& thesis,
 		Subst const& matcher,
 		Intp const& rule2child,
-		size_t& fuel,
 		size_t trial,
-		Intro const& intro,
-		Ctrl const& ctrl
+		Intro const& intro
 	) &;
 	bool _blast(
-		size_t& fuel,
+		Thesis& thesis,
 		size_t trial,
-		Ctrl const& ctrl,
 		bool fail,
 		std::vector<Intro>& elim_res,
 		size_t elim_res_ind
 	) &;
+	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) &;
+	Opt<Thm> _step( Thy const& thy, CTerm const& source, size_t ind ) &;
+	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) &;
+	Opt<Thm> _step( Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) &;
 };
 
-inline const Inference::Ctrl Inference::DEFAULT_CTRL;
-
-inline Opt<Thm> proves(
-	CTerm const& claim,
-	Thy const& thy,
-	Inference::Ctrl const& ctrl
-) {
-	auto x = Inference::claim_exact(thy,claim);
-	if( x.blasts(ctrl) ) {
-		return *x.concluding();
-	}
-	return {};
+inline void Thesis::blast() & {
+	auto inf = Inference(_thy.rewriter());
+	inf.blast(*this);
 }
-inline Thm prove(
-	CTerm const& claim,
-	Thy const& thy,
-	Inference::Ctrl const& ctrl
-) {
-	auto x = Inference::claim_exact(thy,claim);
-	x.blast(ctrl);
-	return *x.concluding();
+inline Thm Thesis::blast_all() & {
+	while( _goals > 0 ) blast();
+	return _thm;
 }
-/**
- * @brief Blasts first assumption of implication.
- * 
- * @param thy the theory which tells blast the lemmas to use
- * @return Thm the conclusion
- */
-inline Opt<Thm> blasts(
-	Thm const& thesis,
-	Thy const& thy,
-	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
-) {
-	if( auto imp = thesis.cbinary(IMP) )
-	if( auto prem = proves(imp->first,thy,ctrl) ) {
-		return thesis.discharge(*prem);
-	}
-	return {};
-}
-inline Thm blast(
-	Thm const& thesis,
-	Thy const& thy,
-	Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL
-) {
-	auto imp = thesis.cbinary(IMP);
-	if( !imp ) throw Error("nothing to blast");
-	return thesis.discharge(prove(imp->first,thy,ctrl));
+inline Inference Thy::infer() const& {
+	return Inference(rewriter());
 }
 
 #endif

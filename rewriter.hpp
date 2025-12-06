@@ -52,23 +52,30 @@ class Rewriter {
 	/** ∀P. P ⟹ P = true */
 	Opt<std::pair<Thm,size_t>> _to_true;
 	size_t _default_ind;
+	friend Inference;
+	friend Thy;
 public:
 	static std::string const CONG;
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	char log;
 	class Rules : std::vector<std::vector<Rule>> {
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewriter;
+		friend Thy;
+		friend Inference;
 	};
 	struct Ctrl {
 		Opt<std::string> rel;
 		std::vector<char> pos;
 		size_t min, max;
 		bool safe;
+		size_t fuel = 255;
+		size_t trial = 1;
 	};
+	static Ctrl const DEFAULT_CTRL;
+	char log = 5;
 	bool empty() const {
 		return _rels.empty();
 	}
@@ -85,55 +92,16 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	void add_rule( Rules& rules, Thm const& thm, Thy const& thy ) const;
-	Thm dualize( Thm const& thm, Thy const& thy ) const;
 	Rewriter& register_imp( Thm const& thm, bool dir ) &;
 	Rewriter& register_refl( Thm const& thm, bool def ) &;
 	Rewriter& register_trans( Thm const& thm ) &;
 	Rewriter& register_cong( Thm const& thm ) &;
 	Rewriter& register_dual( Thm const& thm ) &;
 	Rewriter& register_to_true( Thm const& thm ) &;
-	/**
-	 * @brief returns a rewrite step equation for the given source term.
-	 * 
-	 * @param source the term to be rewritten
-	 * @return Opt<Thm> 
-	 */
-	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source ) const {
-		return _step(rules,thy,source,_default_ind);
-	}
-	/**
-	 * @brief returns a rewrite step equation for the given source term at given position.
-	 * 
-	 * @param source the term to be rewritten
-	 * @return Opt<Thm> 
-	 */
-	Opt<Thm> step( Rules const& rules, Thy const& thy, CTerm const& source, std::vector<char> const& pos ) const {
-		return _step(rules,thy,source,_default_ind,pos.begin(),pos.end());
-	}
-	/** @brief applies rewriting */
-	bool apply( Rules const& rules, Inference& thesis) const;
-	/** @brief applies rewriting with control */
-	bool apply( Rules const& rules, Inference& thesis, Ctrl const& ctrl ) const;
-	/** @brief Rewrites a theorem */
-	Thm rewrite( Thy const& thy, Thm const& source, Rules const& rules, Ctrl const& ctrl ) const;
-	/** @brief returns a rewriting theorem */
-	Thm steps( Rules const& rules, Thy const& thy, CTerm const& source, Ctrl const& ctrl ) const {
-		size_t ind = _get_ind(ctrl.rel);
-		if( auto ret = _steps(rules,thy,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
-			return *ret;
-		}
-		return _make_refl(thy,source,ind);
-	}
 	Rewriter subst( Intp const& intp ) const;
+	void add_rule( Rules& rules, Thm const& thm, Thy const& thy ) const&;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
-	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) const;
-	Opt<Thm> _step( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _step_abs( Rules const& rules, Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) const;
-	Opt<Thm> _steps( Rules const& rules, Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) const;
-	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 

@@ -125,18 +125,12 @@ public:
 	auto pretty_ctxt() const {
 		return syntax().pretty_ctxt(*this);
 	}
-	OptRef<Rewriter> rewriter() && = delete;
-	OptRef<Rewriter> const& rewriter() const &;
-	OptRef<Rewriter>& rewriter() &;
-	Thm rewrite( Thm const& thm, Rewriter::Rules const& rules, Rewriter::Ctrl const& ctrl ) const& {
-		return rewriter()->rewrite(*this,thm,rules,ctrl);
-	}
-	Thm dualize( Thm const& thm ) const& {
-		return rewriter()->dualize(thm,*this);
-	}
-	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& thm ) {
-		return rewriter()->add_rule(rules,thm,*this);
-	}
+	Opt<Rewriter&> rewriter() && = delete;
+	Opt<Rewriter const&> rewriter() const &;
+	OptRef<Rewriter>& set_rewriter() &;
+	Thm dualize( Thm const& thm ) const &;
+	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const &;
+	Inference infer() const &;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */
@@ -235,9 +229,6 @@ public:
 	AThm( Thm const& thm, ThmInfo const& info = {} ) : Thm(thm), info(info) {}
 	ThmInfo info;
 };
-
-Opt<Thm> proves( CTerm const& claim, Thy const& thy );
-Thm prove( CTerm const& claim, Thy const& thy );
 
 inline Import Thy::self() const& {
 	return Import(Ctxt::self(),*this);

@@ -9,7 +9,7 @@ class Definer {
 	std::string const EQ;
 	Term const LAM;
 	Thm const refl;// ∀P. P = P
-	Rewriter::Rules beta;
+	Thm beta;
 	struct _Init {
 		Thy thy;
 		std::string EQ;
@@ -18,9 +18,7 @@ class Definer {
 		Thm refl;
 	};
 	Definer( _Init && init ) :
-		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(_thy.rewriter()->make_rules()), refl(std::move(init.refl)) {
-		_thy.add_rewrite_rule(this->beta,std::move(init.beta));
-	}
+		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(std::move(init.beta)), refl(std::move(init.refl)) {}
 	static _Init _init( Thy const& thy, Thm const& beta );
 public:
 	Definer( Thy const& thy, Thm const& beta ) : Definer(_init(thy,beta)) {}

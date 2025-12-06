@@ -134,36 +134,31 @@ public:
 		if( !ret ) throw Parser::Error("\"expects a theorem\"");
 		return *ret;
 	}
-	pair<Rewriter::Rules,Rewriter::Ctrl> _get_rewrite( Thy& loc, bool rev ) {
+	void _get_rewrite( Inference& inf, Thy& loc, bool rev ) {
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
-		pair<Rewriter::Rules,Rewriter::Ctrl> ret = {rew->make_rules(),{}};
-		auto& [rules,ctrl] = ret;
 		if( skips("(") ) {
-			ctrl.rel = get();
+			inf.ctrl.rel = get();
 			skip(")");
 		}
 		if( skips("[") ) {// parse position
 			while( !skips("]") ) {
-				ctrl.pos.push_back(get_int());
+				inf.ctrl.pos.push_back(get_int());
 			}
 		}
-		if( skips("*") ) {
-			ctrl.min = 0; ctrl.max = 255; ctrl.safe = false;
-		} else if( skips("+") ) {
-			ctrl.min = 1; ctrl.max = 255; ctrl.safe = false;
+		if( skips("+") ) {
+			inf.ctrl.max = 255; inf.ctrl.safe = false;
 		} else {
-			ctrl.min = 1; ctrl.max = 1; ctrl.safe = true;
+			inf.ctrl.max = 0; inf.ctrl.safe = true;
 		}
-		size_t n = 0;
+		inf.ctrl.min = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
-			loc.add_rewrite_rule( rules, rev ? loc.dualize(*arg) : *arg );
-			n++;
+			loc.add_rewrite_rule( inf.rules, rev ? loc.dualize(*arg) : *arg );
+			inf.ctrl.min++;
 		}
-		if( ctrl.max < n ) {
-			ctrl.max = n;
+		if( inf.ctrl.max < inf.ctrl.min ) {
+			inf.ctrl.max = inf.ctrl.min;
 		}
-		return ret;
 	}
 	Opt<Thm> _gets_thm( Thy& loc ) {
 		auto const& opt = gets_thm_name();
@@ -179,9 +174,7 @@ public:
 					}
 				} else if( skips("OF") ) {
 					for(;;) {
-						if( skips("!") ) {
-							ret = blast(ret,loc);
-						} else if( skips("_") ) {
+						if( skips("_") ) {
 							auto imp = ret.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
 							ret = discharge(ret,loc.assume(imp->first));
@@ -228,8 +221,9 @@ public:
 						loc.fix(*x);
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
-					auto [rules,ctrl] = _get_rewrite(loc,dir);
-					ret = loc.rewrite(ret,rules,ctrl);
+					auto inf = loc.infer();
+					_get_rewrite(inf,loc,dir);
+					ret = inf.rewrite(loc,ret);
 				} else if( skips("dual") ) {
 					ret = loc.dualize(ret);
 				} else break;
@@ -323,7 +317,7 @@ public:
 		}
 		if( cs.cong ) {
 			loc.add_thm(Rewriter::CONG,thm);
-			_thy.rewriter()->register_cong(thm);
+			_thy.set_rewriter()->register_cong(thm);
 		}
 		if( cs.elim ) {
 			loc.add_elim(thm);
@@ -332,7 +326,7 @@ public:
 			loc.add_thm(*cs.name,thm);
 		}
 	}
-	void print_goal( Inference const& thesis, string pre = "goal " ) {
+	void print_goal( Thesis const& thesis, string pre = "goal " ) {
 		Term acc = thesis.thm();
 		size_t i = 0;
 		while( i < thesis.goal_count() ) {
@@ -358,7 +352,7 @@ public:
 	/** Creates a nested theory, where outer one fixes free variables, and 
 	 * inner theory collects assumptions.
 	 */
-	Inference get_statement() {
+	Thesis get_statement() {
 		auto assm_thy = _thy.branch();
 		for_variables([&](auto const& v){ assm_thy.fix(v); });
 		auto assms = vector<pair<ClaimStatus,CTerm>>();
@@ -393,7 +387,7 @@ public:
 			add_claim(assm_thy,cs,assm_thy.assume(t));
 		}
 		if MSG cout << _thy.pretty(goal) << endl;
-		return Inference::claim_exact(assm_thy,goal);
+		return Thesis::claim_exact(assm_thy,goal);
 	}
 	void _auto_instantiate( Thy& org_thy, Import& intp, string const& sym, bool change ) {
 		if( auto const& c = org_thy.constant(sym) ) {
@@ -404,7 +398,7 @@ public:
 			if CTXT cout << "fixed " << _thy.pretty_sym(sym) << endl;
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, auto const& assume, bool change, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
+	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Inference& infer ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
@@ -426,11 +420,11 @@ public:
 			if CTXT cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
 		} else {
 			if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
-			Thm ret = prove(assm,_thy,ctrl);
+			Thm ret = infer.prove(_thy,assm);
 			intp.discharge(ret);
 		}
 	}
-	void _auto_retain( Thy& thy, string const& prefix, Import& intp, auto const& obtain, Inference::Ctrl const& ctrl = Inference::DEFAULT_CTRL ) {
+	void _auto_retain( Thy& thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Inference& infer ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
@@ -443,7 +437,7 @@ public:
 				return {};
 			} ) ) {
 			if MSG cout << "blasting " << name << ": " << _thy.pretty(stmt) << endl;
-			Thm thm = prove(stmt,_thy,ctrl);
+			Thm thm = infer.prove(thy,stmt);
 			intp.retain(*csym,thm);
 			}
 		} else {
@@ -478,9 +472,11 @@ public:
 					intp.instantiate(_thy.cterm(*t));
 					break;
 				} else if( auto const& assume = intp.assuming() ) {
-					_auto_discharge(_thy,prefix,intp,*assume,change);
+					auto infer = _thy.infer();
+					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					_auto_retain(_thy,prefix,intp,*obtain);
+					auto infer = _thy.infer();
+					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					throw Error("\"unexpected instantiation\"")(*t);
 				}
@@ -499,9 +495,11 @@ public:
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(_thy,intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					_auto_discharge(_thy,prefix,intp,*assume,change);
+					auto infer = _thy.infer();
+					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					_auto_retain(_thy,prefix,intp,*obtain);
+					auto infer = _thy.infer();
+					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -512,7 +510,7 @@ public:
 			}
 		}
 		if( !_thy.rewriter() && src.rewriter() ) {
-			_thy.rewriter() = OptRef<Rewriter>::make(src.rewriter()->subst(intp));
+			_thy.set_rewriter() = OptRef<Rewriter>::make(src.rewriter()->subst(intp));
 		}
 		if( success ) {
 			_thy.add_import(prefix,std::move(intp));
@@ -594,9 +592,11 @@ public:
 				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							_auto_discharge(org_thy,prefix,intp,*assume,change);
+							auto infer = _thy.infer();
+							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							_auto_retain(org_thy,prefix,intp,*obtain);
+							auto infer = _thy.infer();
+							_auto_retain(org_thy,prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(org_thy,intp,*fix,change);
@@ -612,7 +612,8 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain);
+						auto infer = _thy.infer();
+						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
 					}
@@ -622,7 +623,7 @@ public:
 					throw Error("\"unexpected subgoal\"");
 				}
 				auto loc = _thy.branch();
-				auto thesis = Inference::claim_exact(loc,loc.weaken(assume->first));
+				auto thesis = Thesis::claim_exact(loc,loc.weaken(assume->first));
 				try {
 					auto o = _prove(thesis);
 					if( o ) {
@@ -642,12 +643,14 @@ public:
 							if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							break;
 						} else {
-							_auto_discharge(org_thy,prefix,intp,*assume,change);
+							auto infer = _thy.infer();
+							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain);
+						auto infer = _thy.infer();
+						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
 					}
@@ -695,7 +698,8 @@ public:
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(org_thy,intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
-				_auto_discharge(org_thy,prefix,intp,*assume,change);
+				auto infer = _thy.infer();
+				_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
 				Thy thesis_loc = _thy.branch();
@@ -713,7 +717,7 @@ public:
 					// props[sym:=term]... ⟹ var
 					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
 					// assume this and prove var, i.e., prove props[sym:=term]...
-					auto thesis = Inference::claim_exact(thesis_loc,var);// var ⟹ var
+					auto thesis = Thesis::claim_exact(thesis_loc,var);// var ⟹ var
 					thesis.apply(rule);// prop[sym:=term]... ⟹ var
 					if( skips(";") ) {
 						if MSG print_goal(thesis);
@@ -735,7 +739,8 @@ public:
 					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
-				_auto_retain(org_thy,prefix,intp,*obtain);
+				auto infer = _thy.infer();
+				_auto_retain(org_thy,prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
 			}
@@ -751,9 +756,9 @@ public:
 			return Intro::rule(thm);
 		}
 	}
-	Opt<Inference::Ctrl> gets_concluder() {
+	Opt<Inference> gets_concluder() {
 		if( skips("by") ) {
-			Inference::Ctrl ctrl;
+			auto inf = _thy.infer();
 			while( auto thm = gets_thm() ) {
 				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
 			}
@@ -763,17 +768,16 @@ public:
 						_thy.add_elim(*elim);
 					}
 				} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
-					auto [rrules,rctrl] = _get_rewrite(_thy,dir);
-					rctrl.min = 0;// returns false when not applicable
-					ctrl.rewrite = {{rrules,rctrl}};
+					_get_rewrite(inf,_thy,dir);
+					inf.ctrl.min = 0;// returns false when not applicable
 				} else {
 					throw Error("\"unexpected\"")(get());
 				}
 			}
 			skip(".");
-			return {ctrl};
+			return {inf};
 		} else if( skips(".") ) {
-			return {Inference::DEFAULT_CTRL};
+			return {_thy.infer()};
 		} else {
 			return {};
 		}
@@ -831,7 +835,7 @@ public:
 		}
 		return false;
 	}
-	Opt<Thm> _prove( Inference& thesis ) {
+	Opt<Thm> _prove( Thesis& thesis ) {
 		auto prev_thy = _thy;
 		_thy = thesis.thy();
 		auto ret = proof_loop(thesis);
@@ -973,8 +977,22 @@ public:
 			add_claim(loc,cs,thm);
 		}
 		if( pat.proof ) {
-			if MSG cout << "show " << _thy.pretty(loc_goal) << endl;
-			auto thesis = Inference::claim_exact(loc,loc_goal);
+			if MSG {
+				if( !pat.vars.empty() ) {
+					cout << "for ";
+					for( auto const& v : pat.vars ) {
+						cout << _thy.pretty_sym(v) << ' ';
+					}
+				}
+				if( !pat.assms.empty() ) {
+					cout << "if ";
+					for( auto const& [cs,assm] : assms ) {
+						cout << cs << _thy.pretty(assm) << ", ";
+					}
+				}
+				cout << "show " << _thy.pretty(loc_goal) << endl;
+			}
+			auto thesis = Thesis::claim_exact(loc,loc_goal);
 			_depth++;
 			_prompt();
 			auto thm = _prove(thesis);
@@ -984,7 +1002,8 @@ public:
 			add_claim(_thy,pat.cs,ret);
 			return {ret};
 		}
-		Thm ret = prove(loc_goal,loc).intro();
+		auto infer = loc.infer();
+		Thm ret = infer.prove(loc,loc_goal).intro();
 		add_claim(_thy,pat.cs,ret);
 		return {ret};
 	}
@@ -1040,7 +1059,7 @@ public:
 		}
 		return true;
 	}
-	Opt<Thm> proof_loop( Inference& thesis ) {
+	Opt<Thm> proof_loop( Thesis& thesis ) {
 		for(;;) try {
 			if( _stats() || _note() || _shared_decl() ) {
 			} else if( skips("goal") ) {
@@ -1071,9 +1090,10 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
-				auto [rules,ctrl] = _get_rewrite(_thy,dir);
+				auto inf = _thy.infer();
+				_get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
-				_thy.rewriter()->apply(rules,thesis,ctrl);
+				inf.rewrites(thesis);
 				if( more ) {
 					if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 				} else {
@@ -1083,7 +1103,7 @@ public:
 				auto goal = thesis.has_goal();
 				if( !goal ) throw Error("\"unexpected subgoal\"");
 				auto loc = _thy.branch();
-				auto subthesis = Inference::claim_exact(loc,loc.weaken(*goal));
+				auto subthesis = Thesis::claim_exact(loc,loc.weaken(*goal));
 				try {
 					auto thm = _prove(subthesis);
 					if( thm ) {
@@ -1104,8 +1124,8 @@ public:
 					thesis.blast();
 				}
 				if MSG print_goal(thesis,"next goal ");
-			} else if( auto ctrl = gets_concluder() ) {
-				return thesis.blast_all(*ctrl);
+			} else if( auto infer = gets_concluder() ) {
+				return infer->blast_all(thesis);
 			} else if( skips("oops") ) {
 				if MSG cout << "oops" << endl;
 				return {};
@@ -1145,16 +1165,16 @@ public:
 						"\n\trefl: " << _thy.pretty(refl) <<
 						"\n\ttrans: " << _thy.pretty(trans);
 					if( !_thy.rewriter() ) {
-						_thy.rewriter() = OptRef<Rewriter>::make();
+						_thy.set_rewriter() = OptRef<Rewriter>::make();
 					}
 					
-					_thy.rewriter()->register_refl(refl,def).
+					_thy.set_rewriter()->register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
 					_thy.find_thm( Rewriter::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 					auto thm2 = thm.subst(import);
-						_thy.rewriter()->register_cong(thm2);
+						_thy.set_rewriter()->register_cong(thm2);
 						if MSG cout << "\n\tcong: " << _thy.pretty(thm2);
 						return {};
 					} );
@@ -1162,21 +1182,21 @@ public:
 				} else if( skips("trans") ) {
 					if MSG cout << "registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.rewriter()->register_trans(*thm);
+						_thy.set_rewriter()->register_trans(*thm);
 						if MSG cout << _thy.pretty(*thm);
 					}
 					if MSG cout << endl;
 				} else if( skips("dual") ) {
 					if MSG cout << "registering dual: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.rewriter()->register_dual(*thm);
+						_thy.set_rewriter()->register_dual(*thm);
 						if MSG cout << _thy.pretty(*thm);
 					};
 					if MSG cout << endl;
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
-					_thy.rewriter()->register_to_true(thm);
+					_thy.set_rewriter()->register_to_true(thm);
 				} else if( skips("define") ) {
 					Thm const& beta = get_thm();
 					if MSG cout << " beta: " << _thy.pretty(beta) << endl;
@@ -1357,7 +1377,7 @@ public:
 		}
 		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
 		goal = goal.lift(org_thy.cterm(ALL));
-		auto thesis = Inference::claim_exact(org_thy,goal);
+		auto thesis = Thesis::claim_exact(org_thy,goal);
 		_depth++;
 		_prompt();
 		auto const& thm = _prove(thesis);

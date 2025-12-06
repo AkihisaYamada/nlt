@@ -65,10 +65,13 @@ Syntax const& Thy::syntax() const& {
 Syntax& Thy::modify_syntax() & {
 	return *_ref->syntax;
 }
-OptRef<Rewriter> const& Thy::rewriter() const& {
-	return _ref->rewriter;
+Opt<Rewriter const&> Thy::rewriter() const& {
+	if( _ref->rewriter ) {
+		return {*_ref->rewriter};
+	}
+	return {};
 }
-OptRef<Rewriter>& Thy::rewriter() & {
+OptRef<Rewriter>& Thy::set_rewriter() & {
 	return _ref->rewriter;
 }
 

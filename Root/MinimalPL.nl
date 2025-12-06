@@ -51,18 +51,6 @@ interpret and: Magma prop (∧).
 interpret and: Symmetric prop (∧);
 	by and_intro #elim and_elim.
 
-lemma or_intro:
-	if PQR: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R : prop ⟹ R, ! P : prop, ! Q : prop
-	then P ∨ Q;
-	apply PQR;
-	- by or_intro1.
-	- by or_intro2.
-	.
-
-interpret or: Magma prop (∨).
-interpret or: Symmetric prop (∨);
-	by or_intro #elim or_elim.
-
 ----
 ### True, False, and Negation
 ----
@@ -230,25 +218,32 @@ lemma nnot_nand_iff: if [P : prop, Q : prop] then ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q
 ### Disjunction
 ---
 
+lemma or_intro:
+	if PQR: ∀R. R : prop ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P : prop, ! Q : prop
+	then P ∨ Q;
+	apply PQR;
+	-.
+	- by or_intro1.
+	- by or_intro2.
+	.
+
+lemma or_iff_true1: if !P, !P : prop, !Q : prop then P ∨ Q ⟺ true;
+	by iff_intro or_intro1.
+
+lemma or_iff_true2: if !Q, !P : prop, !Q : prop then P ∨ Q ⟺ true;
+	by iff_intro or_intro2.
+
 interpret or: Magma prop (∨).
 
 interpret or: Relation prop (∨).
 
+interpret or: Symmetric prop (∨);
+	by #elim or_elim #unfold or_iff_true1 or_iff_true2.
+
 lemma iff_cong_or#cong: for P Q
 	if PP': P ⟺ P', QQ': Q ⟺ Q', [P : prop, Q : prop, P' : prop, Q' : prop]
 	then P ∨ Q ⟺ P' ∨ Q';
-	apply iff_intro;
-	if PQ: P ∨ Q;
-		apply or_elim[OF PQ];
-		- by or_intro1 #fold PP'.
-		- by or_intro2 #fold QQ'.
-		.
-	if P'Q': P' ∨ Q';
-		apply or_elim[OF P'Q'];
-		- by or_intro1 #unfold PP'.
-		- by or_intro2 #unfold QQ'.
-		.
-	.
+	by iff_intro #elim or_elim #unfold PP' QQ' or_iff_true1 or_iff_true2.
 
 lemma false_or_false_iff: false ∨ false ⟺ false;
 	by iff_intro or_intro1 #elim or_elim.
@@ -259,17 +254,11 @@ lemma true_or: if [P : prop] then true ∨ P;
 lemma or_true: if [P : prop] then P ∨ true;
 	by or_intro2.
 
-lemma or_iff1: if !P, !P : prop, !Q : prop then P ∨ Q ⟺ P;
-	by iff_intro or_intro1.
-
-lemma or_iff2: if !Q, !P : prop, !Q : prop then P ∨ Q ⟺ Q;
-	by iff_intro or_intro2.
-
 interpret or_iff: Commutative prop (∨) (⟺);
-	by iff_intro or_intro #elim or_elim.
+	by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
 interpret or_iff: Associative prop (∨) (⟺);
-	by iff_intro #elim or_elim #unfold or_iff1 or_iff2.
+	by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
 lemma or_imp_iff:
 	if [P : prop, Q : prop, R : prop]

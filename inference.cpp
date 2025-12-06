@@ -10,9 +10,6 @@ void cerr_proof_thms( Thy const& thy ) {
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
-Error const Inference::NoGoal = Error("\"no goal to apply\"");
-Error const Inference::Unapplicable = Error("\"apply failed\"");
-
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
@@ -71,7 +68,7 @@ void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
 		thy.add_thm(Thy::EXACT,thm);
 	}
 }
-void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
+void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
 	for(;;) {
 		if( _goals == 0 ) {
 			if( suc < min ) throw Error("\"no more goal to apply on\"");
@@ -93,41 +90,8 @@ void Inference::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, s
 	}
 	if( suc < min ) throw Error("\"apply failed\"");
 }
-bool Inference::_apply_blast(
-	Subst const& matcher,
-	Intp const& rule2child,
-	size_t& fuel,
-	size_t trial,
-	Intro const& rule,
-	Ctrl const& ctrl
-) & {
-	// interpret the context where the theorem to apply is proved.
-	auto rule_ctxt = rule.thm().ctxt();
-	// then interpret the context holding the pattern variables and premises.
-	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
-	for(;;) {
-		if( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
-			if( auto const& val = matcher.get(*v) ) {
-				pat_intp.instantiate(*val);
-			} else {
-				pat_intp.instantiate(dummy(_thy));
-			}
-		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
-			Inference thesis = claim_exact(_thy,*assm);
-			vector<Intro> elim_res;
-			if( !thesis._blast(fuel,trial,ctrl,true,elim_res,0) ) return false;
-			pat_intp.discharge(thesis._thm);
-		} else {
-			break;
-		}
-	}
-	auto claim = rule.subst(pat_intp);
-	_thm = _thm.discharge(claim);
-	_goals--;
-	return true;
-}
 
-bool Inference::_apply( Intro const& rule, CTerm const& goal, Thy const& child ) & {
+bool Thesis::_apply( Intro const& rule, CTerm const& goal, Thy const& child ) & {
 	auto const& m = rule.matches(goal);
 	if( !m ) return false;
 	// interpret the context where the theorem to apply is proved.
@@ -136,7 +100,7 @@ bool Inference::_apply( Intro const& rule, CTerm const& goal, Thy const& child )
 	return true;
 }
 
-void Inference::_apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) & {
+void Thesis::_apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) & {
 	// then interpret the context holding the pattern variables and premises.
 	auto pat2child = Intp::make(intro.conclusion().ctxt(),intro.thm().ctxt()).compose(rule2child);
 	auto ctxt = matcher.ctxt();
@@ -168,27 +132,52 @@ struct BlastError : public Error {
 		return BlastError(((Error)*this)(msg));
 	}
 };
+bool Inference::_apply_blast(
+	Thesis& thesis,
+	Subst const& matcher,
+	Intp const& rule2child,
+	size_t trial,
+	Intro const& rule
+) & {
+	// interpret the context where the theorem to apply is proved.
+	auto rule_ctxt = rule.thm().ctxt();
+	// then interpret the context holding the pattern variables and premises.
+	auto pat_intp = Intp::make(rule.conclusion().ctxt(),rule_ctxt).compose(rule2child);
+	for(;;) {
+		if( auto const& v = pat_intp.fixing() ) {// instantiate pattern variables
+			if( auto const& val = matcher.get(*v) ) {
+				pat_intp.instantiate(*val);
+			} else {
+				pat_intp.instantiate(dummy(thesis.thy()));
+			}
+		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
+			auto condthesis = Thesis::claim_exact(thesis.thy(),*assm);
+			vector<Intro> elim_res;
+			if( !_blast(condthesis,trial,true,elim_res,0) ) return false;
+			pat_intp.discharge(condthesis._thm);
+		} else {
+			break;
+		}
+	}
+	auto claim = rule.subst(pat_intp);
+	thesis.discharge(claim);
+	return true;
+}
 
 bool Inference::_blast(
-	size_t& fuel,
+	Thesis& thesis,
 	size_t trial,
-	Ctrl const& ctrl,
 	bool fail,
 	vector<Intro>& elim_res,
 	size_t elim_res_ind
 ) & {
-	if( ctrl.log > 1 ) cout << _thy.pretty(goal()) << endl;
-	if( _goals == 0 ) {// no goal to blast
-		throw BlastError("\"no goal to blast\"");
-	}
 	if( fuel == 0 ) {
 		if( fail ) return false;
 		throw BlastError("\"blast limit exceeded\"");
 	}
-	auto const& imp = _thm.cbinary(IMP);
-	assert(imp);
-	auto subthy = _thy.branch();
-	auto goal = subthy.weaken(imp->first);
+	auto subthy = thesis.thy().branch();
+	auto goal = subthy.weaken(thesis.goal());
+	if( 1 ) cout << "blasting " << subthy.pretty(goal) << endl;
 	size_t n_elim_res = 0;
 	for(;;) {// strip all assumptions
 		goal = strip_all(goal,subthy.self());
@@ -196,14 +185,15 @@ bool Inference::_blast(
 		if( !imp ) break;// no more assumption
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
-		if( auto const& rew = ctrl.rewrite ) {// rewrite the assumption
-			assm = subthy.rewrite(assm,rew->first,rew->second);
+		if( rew ) {// rewrite the assumption
+			assm = rewrites(subthy,assm);
 		}
 		// checks if an elimination rule matches
 		if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm) ) {
+				if( 2 ) cerr << "eliminating: " << subthy.pretty(assm) << endl;
 				auto const& res = elim->instantiate(*m,assm,import);
 				elim_res.emplace_back(res);
 				n_elim_res++;
@@ -212,87 +202,85 @@ bool Inference::_blast(
 			return {};
 		}) ) {
 			// no elimination matches, so just declare the assumption as forced
-			add_forced(subthy,assm,ctrl.force_assms);
+			add_forced(subthy,assm);
+			if( 2 ) cerr << "declared assumption: " << subthy.pretty(assm) << endl;
 		}
 	}
 	// try exact conclusions
 	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto thm2 = thm.subst(import);
 		if( thm2 == goal ) {
-			_thm = _thm.discharge(thm2.intro());
+			thesis.discharge(thm2.intro());
 			return {thm2};
 		}
 		return {};
 	} ) ) {
 		fuel--;
-		auto thesis = claim_exact(subthy,goal);
+		auto subthesis = Thesis::claim_exact(subthy,goal);
 		auto const& subgoal_child = subthy.branch();
 		auto const& sub2subsub = *subgoal_child.parent();
-		auto const& g = subgoal_child.weaken(thesis._claim);
+		auto const& g = subgoal_child.weaken(subthesis._claim);
 		auto intro_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
 			auto const& m = rule->matches(g);
 			if( !m ) return {};
-			thesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
+			if( 2 ) cerr << "applying: " << subthy.pretty(thm) << endl;
+			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
+			fuel--;
 			return {thm};
 		};
 		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
 			auto const& m = rule->matches(goal);
-			if( m && thesis._apply_blast(*m,import,fuel,trial,*rule,ctrl) ) {
+			if( m && _apply_blast(subthesis,*m,import,trial,*rule) ) {
+				if( 2 ) cerr << "applied: " << subthy.pretty(thm) << endl;
+				fuel--;
 				return {thm};
 			}
 			return {};
 		};
-		if( !subthy.find_thm(Thy::CONCL,intro_tester) &&
-			!subthy.find_thm(Thy::INTRO,intro_tester)
-		) {
-			for(;;) {
-				if( elim_res_ind < elim_res.size() ) {// process elimination result
-					if( thesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
-						elim_res_ind++;
-						break;// move on to the new thesis
-					}
-					// the elimination result was not applicable, mark it as a forced rule and process more elimination results
-					add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
+		if( !subthy.find_thm(Thy::CONCL,intro_tester) )
+		if( !subthy.find_thm(Thy::INTRO,intro_tester) )
+		for(;;) {
+			if( elim_res_ind < elim_res.size() ) {// process elimination result
+				if( subthesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
+					if( 2 ) cerr << "applied elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
 					elim_res_ind++;
-					continue;
-				} else {// no more elimination result
-					if( !(ctrl.rewrite && [&]( auto rew ){ return _thy.rewriter()->apply(rew.first,thesis,rew.second); }) &&
-						!(trial > 0 && ( trial--, subthy.find_thm(Thy::WEAK,weak_tester) )
-					) ) {
-						if( fail ) return false;
-						if( ctrl.log > 1 ) {
-							cerr_proof_thms(subgoal_child);
-						}
-						throw BlastError("\"failed to blast\"")(g);
-					}
-					break;
+					break;// move on to the new thesis
 				}
+				// the elimination result was not applicable, mark it as a forced rule and process more elimination results
+				add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
+				if( 2 ) cerr << "declared elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
+				elim_res_ind++;
+				continue;
+			}// no elimination result matched
+			if( rewrites(subthesis) ) {// try rewriting
+				if( 2 ) cerr << "rewritten: " << subthesis.goal() << endl;
+				break;
 			}
+			if( trial > 0 ) {
+				trial--;
+				if( subthy.find_thm(Thy::WEAK,weak_tester) ) break;
+			}
+			if( fail ) return false;
+			if( 1 ) {
+				cerr_proof_thms(subgoal_child);
+			}
+			throw BlastError("\"failed to blast\"")(g);
 		}
 		// blast all new subgoals:
-		while( thesis._goals > 0 ) {
-			if( !thesis._blast(fuel,trial,ctrl,fail,elim_res,elim_res_ind) ) {
+		while( subthesis._goals > 0 ) {
+			if( !_blast(subthesis,trial,fail,elim_res,elim_res_ind) ) {
 				return false;
 			}
 		}
-		_thm = _thm.discharge(thesis._thm.intro());
+		thesis.discharge(subthesis._thm.intro());
 	}
-	_goals--;
 	for( int i = 0; i < n_elim_res; i++ ) {// clean up elim results
 		elim_res.pop_back();
 	}
 	return true;
-}
-
-Opt<Thm> proves( CTerm const& claim, Thy const& thy ) {
-	return proves(claim,thy,Inference::DEFAULT_CTRL);
-}
-
-Thm prove( CTerm const& claim, Thy const& thy ) {
-	return prove(claim,thy,Inference::DEFAULT_CTRL);
 }
 
