@@ -78,8 +78,14 @@ set to_true iff_true.
 lemma eq_imp_iff#cong: if PQ: P = Q then P ⟺ Q;
 	unfold(=) PQ.
 
-interpret eq_iff: MetaCommutative (=) (⟺);
-	by iff_intro[OF eq.sym eq.sym].
+namespace iff begin
+
+	interpret iff.
+
+	interpret eq: MetaCommutative (=);
+		by iff_intro[OF eq.sym eq.sym].
+
+end
 
 theorem russel_paradox: ¬(∀P. P ∨ ¬P);
 	apply not_intro;

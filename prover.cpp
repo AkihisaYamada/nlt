@@ -88,7 +88,7 @@ class Prover : public Parser {
 	bool _through_error;
 	char _out;
 	char _out_load;
-	char _out_blast;
+	char _out_blast = 0;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
@@ -221,7 +221,7 @@ public:
 						loc.fix(*x);
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
-					auto inf = loc.infer();
+					auto inf = loc.infer(_out_blast);
 					_get_rewrite(inf,loc,dir);
 					ret = inf.rewrite(loc,ret);
 				} else if( skips("dual") ) {
@@ -472,10 +472,10 @@ public:
 					intp.instantiate(_thy.cterm(*t));
 					break;
 				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.infer();
+					auto infer = _thy.infer(_out_blast);
 					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.infer();
+					auto infer = _thy.infer(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					throw Error("\"unexpected instantiation\"")(*t);
@@ -495,10 +495,10 @@ public:
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(_thy,intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.infer();
+					auto infer = _thy.infer(_out_blast);
 					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.infer();
+					auto infer = _thy.infer(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					break;
@@ -567,7 +567,7 @@ public:
 	}
 	bool _import_loop( string const& prefix, Import& intp, bool change ) {
 		auto org_thy = _thy;
-		_thy = org_thy.scope("#import");// namespace
+		_thy = org_thy.scope_temp("#import");// namespace
 		for(;;) try {
 			_prompt();
 			if( _stats() || _note() ) {
@@ -592,10 +592,10 @@ public:
 				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							auto infer = _thy.infer();
+							auto infer = _thy.infer(_out_blast);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							auto infer = _thy.infer();
+							auto infer = _thy.infer(_out_blast);
 							_auto_retain(org_thy,prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
@@ -612,7 +612,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.infer();
+						auto infer = _thy.infer(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
@@ -643,13 +643,13 @@ public:
 							if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							break;
 						} else {
-							auto infer = _thy.infer();
+							auto infer = _thy.infer(_out_blast);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.infer();
+						auto infer = _thy.infer(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
@@ -698,7 +698,7 @@ public:
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(org_thy,intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
-				auto infer = _thy.infer();
+				auto infer = _thy.infer(_out_blast);
 				_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
@@ -739,7 +739,7 @@ public:
 					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
-				auto infer = _thy.infer();
+				auto infer = _thy.infer(_out_blast);
 				_auto_retain(org_thy,prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
@@ -758,7 +758,7 @@ public:
 	}
 	Opt<Inference> gets_concluder() {
 		if( skips("by") ) {
-			auto inf = _thy.infer();
+			auto inf = _thy.infer(_out_blast);
 			while( auto thm = gets_thm() ) {
 				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
 			}
@@ -777,7 +777,7 @@ public:
 			skip(".");
 			return {inf};
 		} else if( skips(".") ) {
-			return {_thy.infer()};
+			return {_thy.infer(_out_blast)};
 		} else {
 			return {};
 		}
@@ -1002,7 +1002,7 @@ public:
 			add_claim(_thy,pat.cs,ret);
 			return {ret};
 		}
-		auto infer = loc.infer();
+		auto infer = loc.infer(_out_blast);
 		Thm ret = infer.prove(loc,loc_goal).intro();
 		add_claim(_thy,pat.cs,ret);
 		return {ret};
@@ -1090,7 +1090,7 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
-				auto inf = _thy.infer();
+				auto inf = _thy.infer(_out_blast);
 				_get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
 				inf.rewrites(thesis);

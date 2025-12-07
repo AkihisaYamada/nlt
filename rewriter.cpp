@@ -236,7 +236,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
 					// discharge conditions
 					auto prem = proves(thy,*assm);
 					if( !prem ) {// condition couldn't be discharged
-						if( rew->log > 1 ) cerr << "failed to discharge rewrite condition: " << thy.pretty(*assm);
+						if( log > 0 ) _log() << "failed to discharge rewrite condition: " << thy.pretty(*assm) << endl;
 						break;// try other rules
 					}
 					intp.discharge(*prem);
@@ -396,7 +396,7 @@ Opt<Thm> Inference::_steps(
 		t = app->second;
 	}
 }
-bool Inference::rewrites( Thesis& thesis ) & {
+bool Inference::rewrites( Thesis& thesis, bool failable ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -405,7 +405,7 @@ bool Inference::rewrites( Thesis& thesis ) & {
 	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
-	auto steps = _steps(thy,*goal,0,ctrl.max,ctrl.safe,ctrl.pos,ind);// s = t
+	auto steps = _steps( thy, *goal, failable ? 0 : ctrl.min, ctrl.max, ctrl.safe, ctrl.pos, ind );// s = t
 	if( !steps ) return false;
 	auto imp = thy.weaken(o->second.thm);// x = y ⟹ conds... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s

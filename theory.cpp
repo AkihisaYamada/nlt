@@ -41,12 +41,16 @@ Thy Thy::branch( string_view const& name, string_view const& dir ) & {
 	// a bit tricky, emplace in the childs, and return a reference to it
 	return _ref->thys.emplace(name,_branch(name,dir,Ctxt::fork())).first->second;
 }
+Thy Thy::scope_temp( string_view const& name ) const & {
+	return _branch(name,"",Ctxt::self());
+}
 Thy Thy::scope( string_view const& name ) & {
 	auto const& intp = Ctxt::self();
 	auto const& loc = _branch(name,"",intp);
 	add_import(name,Import(intp,loc));
-	return loc;
+	return _ref->thys.emplace(name,loc).first->second;
 }
+
 string const& Thy::name() const & {
 	return _ref->name;
 }
@@ -84,7 +88,7 @@ pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&>
 	return _ref->definer->define(*this,fxs,r,name);
 }
 
-AThm Thy::thm(string_view const& name) const {
+Thm Thy::thm(string_view const& name) const {
 	auto opt = find_thm(name);
 	if( !opt ) throw Error("\"theorem not found\"")(name);
 	return *opt;
@@ -237,7 +241,7 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto& im = it->second;
 		if( im.ready() )
-		if( auto o = im._src.find_thy(name.substr(sep+1),reader,false) ) {
+		if( auto o = im._src.find_thy(name,reader,false) ) {
 			return {o->compose(im)};
 		}
 	}
@@ -259,64 +263,74 @@ static ostream& mk_indent(ostream& os, size_t n) {
 	}
 	return os;
 }
-function<ostream&(ostream&)> const Thy::print_name() const& {
-	return [&](ostream& os)->ostream& {
-		list<Thy const*> path;
-		auto p = parent();
-		while(p) {
-			auto const& thy = p->source();
-			path.push_front(&thy);
-			p = thy.parent();
-		}
-		for( auto& pre : path ) {
-			if( pre->name() == "" ) {
-				os << '@' << pre->id();
-			} else {
-				os << pre->name();
+function<ostream&(ostream&)> Thy::print_name( bool ancestors ) const& {
+	if( ancestors ) {
+		return [&](ostream& os)->ostream& {
+			list<Thy const*> path;
+			auto p = parent();
+			while(p) {
+				auto const& thy = p->source();
+				path.push_front(&thy);
+				p = thy.parent();
 			}
-			os << '/';
-		}
-		os << _ref->name;
-		if( syntax().prints_ctxt() || _ref->name == "" ) {
-			os << '@' << id();
-		}
-		return os;
-	};
+			for( auto& pre : path ) {
+				if( pre->name() == "" ) {
+					os << '@' << pre->id();
+				} else {
+					os << pre->name();
+				}
+				os << '/';
+			}
+			os << _ref->name;
+			if( syntax().prints_ctxt() || _ref->name == "" ) {
+				os << '@' << id();
+			}
+			return os;
+		};
+	} else {
+		return [&](ostream& os)->ostream& {
+			return os << _ref->name;
+		};
+	}
 }
 
-function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
-	return [&](ostream& os)->ostream& {
-		os << "theory " << print_name() << ':' << endl;
+function<ostream&(ostream&)> Thy::pretty( size_t n, bool scope, bool path ) const & {
+	return [&n,scope,path,this](ostream& os)->ostream& {
 		n++;
-		for( size_t i = 0; i < revision(); ) {
-			if( auto str = fixed(i) ) {
-				mk_indent(os,n) << "fixes";
-				do {
-					os << ' ' << *str;
+		if( scope ) {
+			os << "namespace " << print_name(path) << ':' << endl;
+		} else {
+			os << "theory " << print_name(path) << ':' << endl;
+			for( size_t i = 0; i < revision(); ) {
+				if( auto str = fixed(i) ) {
+					mk_indent(os,n) << "fixes";
+					do {
+						os << ' ' << *str;
+						i++;
+					} while( str = fixed(i) );
+					os << '.' << endl;
+				}
+				if( auto assm = assumed(i) ) {
+					mk_indent(os,n) << "assumes ";
+					if( auto name = find_assm_name(i) ) {
+						os << *name << ": ";
+					}
+					os << pretty(*assm) << '.' << endl;
 					i++;
-				} while( str = fixed(i) );
-				os << '.' << endl;
-			}
-			if( auto assm = assumed(i) ) {
-				mk_indent(os,n) << "assumes ";
-				if( auto name = find_assm_name(i) ) {
-					os << *name << ": ";
+					continue;
 				}
-				os << pretty(*assm) << '.' << endl;
-				i++;
-				continue;
-			}
-			if( auto obt = obtained(i) ) {
-				auto [sym,ex,spec] = *obt;
-				mk_indent(os,n) << "obtains ";
-				if( auto name = find_assm_name(i) ) {
-					os << *name;
+				if( auto obt = obtained(i) ) {
+					auto [sym,ex,spec] = *obt;
+					mk_indent(os,n) << "obtains ";
+					if( auto name = find_assm_name(i) ) {
+						os << *name;
+					}
+					os << ": " << pretty(spec) << '.' << endl;
+					i++;
+					continue;
 				}
-				os << ": " << pretty(spec) << '.' << endl;
-				i++;
-				continue;
+				break;
 			}
-			break;
 		}
 		for( auto& [name,imp] : _ref->imports ) {
 			mk_indent(os,n) << "interprets " << name << ": " << imp.pretty() << endl;
@@ -325,7 +339,7 @@ function<ostream&(ostream&)> const Thy::pretty( size_t n ) const & {
 			mk_indent(os,n) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
 		}
 		for( auto& [name,thy] : _ref->thys ) {
-			mk_indent(os,n) << thy.pretty(n) << endl;
+			mk_indent(os,n) << thy.pretty( n, (Ctxt const&)thy == *this, false ) << endl;
 		}
 		n--;
 		return mk_indent(os,n) << "end";

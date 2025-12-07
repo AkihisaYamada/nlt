@@ -177,7 +177,10 @@ bool Inference::_blast(
 	}
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
-	if( 1 ) cout << "blasting " << subthy.pretty(goal) << endl;
+	if( log > 0 ) {
+		_log() << "blasting " << subthy.pretty(goal) << endl;
+		indent++;
+	}
 	size_t n_elim_res = 0;
 	for(;;) {// strip all assumptions
 		goal = strip_all(goal,subthy.self());
@@ -193,7 +196,7 @@ bool Inference::_blast(
 			auto elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm) ) {
-				if( 2 ) cerr << "eliminating: " << subthy.pretty(assm) << endl;
+				if( log > 2 ) _log() << "eliminating: " << subthy.pretty(assm) << endl;
 				auto const& res = elim->instantiate(*m,assm,import);
 				elim_res.emplace_back(res);
 				n_elim_res++;
@@ -203,7 +206,7 @@ bool Inference::_blast(
 		}) ) {
 			// no elimination matches, so just declare the assumption as forced
 			add_forced(subthy,assm);
-			if( 2 ) cerr << "declared assumption: " << subthy.pretty(assm) << endl;
+			if( log > 2 ) _log() << "declared assumption: " << subthy.pretty(assm) << endl;
 		}
 	}
 	// try exact conclusions
@@ -225,7 +228,7 @@ bool Inference::_blast(
 			assert(rule);
 			auto const& m = rule->matches(g);
 			if( !m ) return {};
-			if( 2 ) cerr << "applying: " << subthy.pretty(thm) << endl;
+			if( log > 2 ) _log() << "applying: " << subthy.pretty(thm) << endl;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
 			fuel--;
 			return {thm};
@@ -235,7 +238,7 @@ bool Inference::_blast(
 			assert(rule);
 			auto const& m = rule->matches(goal);
 			if( m && _apply_blast(subthesis,*m,import,trial,*rule) ) {
-				if( 2 ) cerr << "applied: " << subthy.pretty(thm) << endl;
+				if( log > 2 ) _log() << "applied: " << subthy.pretty(thm) << endl;
 				fuel--;
 				return {thm};
 			}
@@ -246,40 +249,53 @@ bool Inference::_blast(
 		for(;;) {
 			if( elim_res_ind < elim_res.size() ) {// process elimination result
 				if( subthesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
-					if( 2 ) cerr << "applied elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
+					if( log > 2 ) _log() << "applied elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
 					elim_res_ind++;
 					break;// move on to the new thesis
 				}
 				// the elimination result was not applicable, mark it as a forced rule and process more elimination results
 				add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
-				if( 2 ) cerr << "declared elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
+				if( log > 2 ) _log() << "declared elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
 				elim_res_ind++;
 				continue;
 			}// no elimination result matched
-			if( rewrites(subthesis) ) {// try rewriting
-				if( 2 ) cerr << "rewritten: " << subthesis.goal() << endl;
+			if( rewrites(subthesis,true) ) {// try rewriting
+				if( log > 2 ) _log() << "rewritten: " << subthesis.goal() << endl;
 				break;
 			}
 			if( trial > 0 ) {
 				trial--;
 				if( subthy.find_thm(Thy::WEAK,weak_tester) ) break;
+			}// nothing could be applied
+			if( log > 0 ) {
+				_log() << "failed to blast: " << subthy.pretty(goal) << endl;
+				indent--;
 			}
 			if( fail ) return false;
-			if( 1 ) {
+			if( log > 1 ) {
 				cerr_proof_thms(subgoal_child);
 			}
-			throw BlastError("\"failed to blast\"")(g);
+			throw BlastError("\"failed to blast\"")(goal);
 		}
 		// blast all new subgoals:
+		if( log > 0 ) indent++;
 		while( subthesis._goals > 0 ) {
 			if( !_blast(subthesis,trial,fail,elim_res,elim_res_ind) ) {
+				if( log > 0 ) {
+					indent -= 2;
+				}
 				return false;
 			}
 		}
 		thesis.discharge(subthesis._thm.intro());
+		if( log > 0 ) indent--;
 	}
 	for( int i = 0; i < n_elim_res; i++ ) {// clean up elim results
 		elim_res.pop_back();
+	}
+	if( log > 0 ) {
+		indent--;
+		_log() << "blasted: " << thesis.thy().pretty(goal) << endl;
 	}
 	return true;
 }

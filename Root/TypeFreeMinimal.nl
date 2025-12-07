@@ -31,32 +31,42 @@ begin
 -- Obtains true, which is provable.
 obtain true where true_intro! true;
 	for thesis if assm: ∀true. true ⟹ thesis;
-		by assm[of (∀x. x ⟹ x)].
+		by assm[of (false ⟹ false)].
 	.
 
 ---
 ### If-and-only-if
 ---
 
-interpret iff: MetaEquivalence (⟺);
-	for P Q if PQ: P ⟺ Q then Q ⟺ P;
-		by iff_intro[OF iff_elim2[OF PQ] iff_elim1[OF PQ]].
-	- by iff_intro[OF imp.refl imp.refl].
-	for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
-		note PR: imp.trans[OF iff_elim1[OF PQ] iff_elim1[OF QR]].
-		note RP: imp.trans[OF iff_elim2[OF QR] iff_elim2[OF PQ]].
-		by iff_intro[OF PR RP].
+lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
+	for R if imp;
+		by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
 	.
+
+namespace iff begin
+
+	interpret MetaBinRel (⟺).
+	interpret Equivalence;
+		- by iff_intro.
+		- by iff_intro #elim iff_elim.
+		for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
+			apply iff_intro;
+			- by iff_elim1[OF QR] iff_elim1[OF PQ].
+			- by iff_elim2[OF PQ] iff_elim2[OF QR].
+			.
+		.
+-- TODO
+	note! refl.
+
+	set rewrite iff_elim1 iff_elim2 refl trans.
+	set dual sym.
+
+end
 
 note! iff.refl.
 
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
 set dual iff.sym.
-
-lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
-	for R if imp;
-		by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
-	.
 
 lemma iff_cong_imp#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
@@ -85,9 +95,6 @@ lemma iff_cong_all#cong: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ 
 	if ! ∀x. β.[x] then ∀x. α.[x];
 		by iff_elim2[OF ab].
 	.
-
-interpret iff_iff: MetaCommutative (⟺) (⟺);
-	by iff_intro #elim iff_elim.
 
 lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
 	by iff_intro.
@@ -123,16 +130,10 @@ lemma imp_true_iff: (P ⟹ true) ⟺ true;
 	by iff_intro.
 
 lemma true_iff_iff: (true ⟺ P) ⟺ P;
-	apply iff_intro;
-	if P1: true ⟺ P;
-		fold P1.
-	if P: P;
-		unfold iff_true[OF P].
-	.
+	by iff_intro #elim iff_elim.
 
 lemma iff_true_iff: (P ⟺ true) ⟺ P;
-	unfold[0] iff_iff.commute;
-	by true_iff_iff.
+	by iff_intro #elim iff_elim.
 
 lemma imp_refl_iff: (P ⟹ P) ⟺ true;
 	unfold iff_true_iff.
@@ -146,31 +147,38 @@ lemma and_elim#elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 	.
 
-interpret and: MetaSymmetric (∧).
+namespace and begin
+	interpret MetaBinRel (∧).
+	interpret PartialEquivalence.
+end
 
 lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
 	by iff_intro.
 
-lemma iff_cong_and#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
-	by iff_intro #unfold PQ RS.
+thy.
 
-interpret and_iff: MetaCommutative (∧) (⟺);
-	by iff_intro.
+context iff begin
 
-interpret and_iff: MetaAssociative (∧) (⟺);
-	by iff_intro.
+	interpret and: MetaCompatible (∧);
+		for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
+			by iff_intro #unfold PQ RS.
+		.
+	note #cong: and.cong.--TODO
+
+	interpret and: MetaCommMonoid (∧) true;
+		by iff_intro.
+
+end
+
+note #cong: iff.and.cong.
+thm iff.and.commute.
+thy.
 
 lemma and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
 
-lemma true_and_iff: true ∧ P ⟺ P;
-	by iff_intro.
-
 lemma true_and_true: true ∧ true;
 	.
-
-lemma and_true_iff: P ∧ true ⟺ P;
-	by iff_intro.
 
 lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	by iff_intro #elim iff_elim.
@@ -312,9 +320,9 @@ lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
 	unfold nand_iff_imp_not nnnot_iff.
 
 lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
-	unfold and_iff.commute;
+	unfold iff.and.commute;
 	unfold nand_nnot_iff;
-	unfold and_iff.commute.
+	unfold iff.and.commute.
 
 lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
@@ -342,48 +350,44 @@ lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	by assm[OF or_intro1 or_intro2].
 
-interpret or: MetaSymmetric (∨);
-	by or_intro #elim or_elim.
+namespace or begin
 
-lemma iff_cong_or#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
-	by iff_intro or_intro #elim or_elim #unfold PQ RS.
+	interpret MetaBinRel (∨).
 
-interpret or: MetaSymmetric (∨);
-	by or_intro #elim or_elim.
+	interpret Symmetric;
+		by or_intro #elim or_elim.
 
-interpret or_iff: MetaCommutative (∨) (⟺);
-	by iff_intro[OF or.sym or.sym].
+end
 
-interpret or_iff: MetaAssociative (∨) (⟺);
-	for P Q R, P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
-		apply iff_intro;
-		if PQR: P ∨ Q ∨ R;
-			apply or_elim[OF PQR];
-			if PQ: P ∨ Q;
-				apply or_elim[OF PQ];
-				- by or_intro1.
-				if !Q;
-					apply or_intro2;
-					apply or_intro1.
-				.
-			if !R;
-				apply or_intro2;
-				apply or_intro2.
+lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
+	by iff_intro or_intro1.
+
+lemma or_iff_true2: for P Q if ! Q then P ∨ Q ⟺ true;
+	by iff_intro or_intro2.
+
+context iff begin
+
+	namespace or begin
+
+		interpret MetaCompatible (∨);
+			for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+				by iff_intro or_intro #elim or_elim #unfold PQ RS.
 			.
-		if PQR: P ∨ (Q ∨ R);
-			apply or_elim[OF PQR];
-			if !P;
-				apply or_intro1;
-				apply or_intro1.
-			if QR: Q ∨ R;
-				apply or_elim[OF QR];
-				if !Q;
-					apply or_intro1;
-					apply or_intro2.
-				by or_intro2.
+		note #cong: cong.
+
+		interpret MetaCommAbsorb (∨) true;
+			- by iff_intro or_intro.
+			- by iff_intro[OF or.sym or.sym].
 			.
-		.
-	.
+
+		interpret MetaAssociative (∨);
+			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
+
+	end
+
+end
+
+note #cong: iff.or.cong.
 
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R;
 	by or[unfolded imp_imp_iff].
@@ -423,12 +427,6 @@ lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 
 lemma false_or_false_iff: false ∨ false ⟺ false;
 	by iff_intro or_intro #elim or_elim.
-
-lemma true_or: true ∨ P;
-	by or_intro1[OF true_intro].
-
-lemma or_true: P ∨ true;
-	by or_intro2[OF true_intro].
 
 
 ---

@@ -25,7 +25,7 @@ lemma false_and_iff: false ∧ P ⟺ false;
 	by iff_intro #elim and_elim false_elim.
 
 lemma and_false_iff: P ∧ false ⟺ false;
-	unfold and_iff.commute;
+	unfold iff.and.commute;
 	by false_and_iff.
 
 lemma not_elim: if nP: ¬P, P: P then Q;

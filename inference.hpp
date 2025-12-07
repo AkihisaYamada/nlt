@@ -132,12 +132,21 @@ private:
 
 class Inference {
 	size_t fuel;
+	char log;
+	unsigned short int indent;
 	Opt<Rewriter const&> rew;
 	friend Rewriter;
+	std::ostream& _log() const& {
+		int n = indent < 16 ? indent : 16;
+		for( int i = 0; i < n; i++ ) {
+			std::cerr << ' ';
+		}
+		return std::cerr;
+	}
 public:
 	Rewriter::Rules rules;
 	Rewriter::Ctrl ctrl;
-	Inference( Opt<Rewriter const&> const& rew, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), fuel(fuel) {}
+	Inference( Opt<Rewriter const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool blasts( Thesis& thesis ) & {
 		std::vector<Intro> elim_res;
 		return _blast(thesis,1,true,elim_res,0);
@@ -191,7 +200,7 @@ public:
 		return _step(thy,source,rew->_default_ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis ) &;
+	bool rewrites( Thesis& thesis, bool failable = false ) &;
 	/** @brief Rewrites a theorem */
 	Thm rewrite( Thy const& thy, Thm const& source ) & {
 		return rewrites(thy,source,ctrl.min);
@@ -237,8 +246,8 @@ inline Thm Thesis::blast_all() & {
 	while( _goals > 0 ) blast();
 	return _thm;
 }
-inline Inference Thy::infer() const& {
-	return Inference(rewriter());
+inline Inference Thy::infer( char log ) const& {
+	return Inference(rewriter(),log);
 }
 
 #endif

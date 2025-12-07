@@ -54,6 +54,7 @@ public:
 	Thy branch( std::string_view const& name, std::string_view const& dir ) &;
 	/** Creates a namespace. */
 	Thy scope( std::string_view const& name ) &;
+	Thy scope_temp( std::string_view const& name ) const &;
 	std::string const& name() const &;
 	auto name() && = delete;
 	/** Self import */
@@ -79,7 +80,7 @@ public:
 	) const;
 	/** @brief Obtains a named theorem from the theory.
 	 */
-	AThm thm(std::string_view const& name) const;
+	Thm thm(std::string_view const& name) const;
 	/** @brief Adds a named theorem in the theory.
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
@@ -130,12 +131,12 @@ public:
 	OptRef<Rewriter>& set_rewriter() &;
 	Thm dualize( Thm const& thm ) const &;
 	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const &;
-	Inference infer() const &;
+	Inference infer( char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */
-	std::function<std::ostream&(std::ostream&)> const pretty( size_t indent = 0 ) const &;
-	std::function<std::ostream&(std::ostream&)> const print_name() const&;
+	std::function<std::ostream&(std::ostream&)> pretty( size_t indent = 0, bool scope = false, bool path = true ) const &;
+	std::function<std::ostream&(std::ostream&)> print_name( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 };
 
@@ -153,6 +154,9 @@ public:
 	/** @brief Import a child theory into the parent.
 	 */
 	static Import make( Thy const& src, Thy const& tgt ) {
+		if( (Ctxt const&)src == tgt ) {// just a namespace
+			return Import(src.self(),src);
+		}
 		return Import(Intp::make(src,tgt),src);
 	}
 	Thy& source() const & {

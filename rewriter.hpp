@@ -75,7 +75,6 @@ public:
 		size_t trial = 1;
 	};
 	static Ctrl const DEFAULT_CTRL;
-	char log = 5;
 	bool empty() const {
 		return _rels.empty();
 	}

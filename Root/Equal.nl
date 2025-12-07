@@ -11,19 +11,19 @@ assume eq_imp_meta: for X, if y = z, X.[y] then X.[z].
 
 begin -- Above are the all axioms.
 
-interpret eq: MetaReflexive (=).
+namespace eq begin
 
-interpret eq: MetaSymmetric (=);
-	for x y if xy: x = y then y = x;
-		by eq_imp_meta[of (z. z = x), OF xy eq.refl].
-	.
+	interpret MetaBinRel (=).
 
-interpret eq: MetaTransitive (=);
-	for x y z if xy: x = y, yz: y = z then x = z;
-		by eq_imp_meta[of (w. x = w), OF yz xy].
-	.
+	interpret Equivalence;
+		-.
+		for x y if xy: x = y then y = x;
+			by eq_imp_meta[of (z. z = x), OF xy].
+		for x y z if xy: x = y, yz: y = z then x = z;
+			by eq_imp_meta[of (w. x = w), OF yz xy].
+		.
 
-interpret eq: MetaEquivalence (=).
+end
 
 lemma eq_imp: if PQ: P = Q, P: P then Q;
 	by eq_imp_meta[of (x. x), OF PQ P].
@@ -87,23 +87,15 @@ begin
 		by eq_true[OF weaken[OF true_intro]].
 	lemma true_imp_eq: (true ⟹ P) = P;
 		by imp_eq[OF true_intro].
-	interpret imp: MetaLeftNeutral (⟹) true (=);
-		for P;
-			apply+ imp_eq true_intro.
-		.
-	interpret imp: MetaRightAbsorb (⟹) true (=);
-		for P;
-			by eq_true true_intro.
-		.
 	end
 end
 
 theory Prop:
 	import ..Prop.
 begin
-	theory EqType:
-		fix ι.
-		import eq: Relation ι (=).
+	theory EqClass:
+		fix A.
+		import eq: Relation A (=).
 	end
 end
 

@@ -1,14 +1,17 @@
 ------
-# The Root File
+# Base
 ------
 
-begin -- Root doesn't have any axiom
+begin -- Base doesn't have any axiom
 
-symbol λ ∧ ∨ ∃ ≠ ≤ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ →.
-symbol solo ¬.
-
+---
+## Notations
+---
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
+
+symbol λ ∧ ∨ ∃ ≠ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ →.
+symbol solo ¬.
 
 prefix ¬ 40 40.
 infix ∧ 35 36 35.
@@ -18,8 +21,8 @@ binder ∃ 0 0.
 infix : 50 51 50.
 binder_middle ∀ : ∀:.
 binder_middle ∃ : ∃:.
-binder_middle ∀ ∈ ∀∈.
-binder_middle ∃ ∈ ∃∈.
+binder_middle ∀ ∈ ∀∋.
+binder_middle ∃ ∈ ∃∋.
 
 binder THE 0 0.
 binder SOME 0 0.
@@ -49,6 +52,63 @@ infix ≥ 51 51 50.
 infix + 100 101 100.
 infix * 110 111 110.
 
+---
+## Properties of Untyped Binary Relations
+---
+theory MetaBinRel:
+	fix (≤).
+begin
+
+	theory Reflexive:
+		assume refl: x ≤ x.
+	end
+
+	theory Transitive:
+		assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
+	end
+
+	theory Symmetric:
+		assume sym: x ≤ y ⟹ y ≤ x.
+	end
+
+	theory Preorder:
+		import Reflexive.
+		import Transitive.
+	end
+
+	theory Tolerance:
+		import Reflexive.
+		import Symmetric.
+	end
+
+	theory PartialEquivalence:
+		import Symmetric.
+		import Transitive.
+	end
+
+	theory Equivalence:
+		import Reflexive.
+		import Symmetric.
+		import Transitive.
+	begin
+		interpret Preorder.
+		interpret Tolerance.
+		interpret PartialEquivalence.
+	end
+
+end
+
+-- Implication is a meta-preorder.
+namespace imp begin
+	interpret MetaBinRel (⟹).
+	interpret Preorder;
+		for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+			by QR PQ.
+		.
+end
+
+thm imp.trans.
+
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
 	by PQ[OF P].
 
@@ -58,76 +118,76 @@ lemma weaken: if P: P, Q: Q then P;
 lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 	by PQR Q.
 
-theory MetaReflexive:
-	fix (≤).
-	assume refl: x ≤ x.
+---
+## Properties of Binary Operators and Relations
+---
+context MetaBinRel begin
+
+	theory MetaCompatible:
+		fix (*).
+		assume cong: for x y x' y', x ≤ x' ⟹ y ≤ y' ⟹ x * y ≤ x' * y'.
+	end
+
+	theory MetaCommutative:
+		fix (*).
+		assume commute: x * y ≤ y * x.
+	end
+
+	theory MetaAssociative:
+		fix (*).
+		assume assoc: x * y * z ≤ x * (y * z).
+	end
+
+	theory MetaLeftNeutral:
+		fix (*) (1).
+		assume left_neutral: 1 * x ≤ x.
+	end
+
+	theory MetaRightNeutral:
+		fix (*) (1).
+		assume right_neutral: x * 1 ≤ x.
+	end
+
+	theory MetaLeftAbsorb:
+		fix (*) (0).
+		assume left_absorb: 0 * x ≤ 0.
+	end
+
+	theory MetaRightAbsorb:
+		fix (*) (0).
+		assume right_absorb: x * 0 ≤ 0.
+	end
+
 end
 
-theory MetaTransitive:
-	fix (≤).
-	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
-end
+context MetaBinRel begin
+context Transitive begin
+	theory MetaCommNeutral:
+		import MetaLeftNeutral.
+		import MetaCommutative.
+	begin
+		interpret MetaRightNeutral;
+			by trans[OF commute left_neutral].
+	end
+	theory MetaCommAbsorb:
+		import MetaLeftAbsorb.
+		import MetaCommutative.
+	begin
+		interpret MetaRightAbsorb;
+			by trans[OF commute left_absorb].
+	end
+	theory MetaCommMonoid:
+		import MetaCommNeutral.
+		import MetaAssociative.
+	end
+	theory MetaCommMonoidAbsorb:
+		fix (*) (0) (1).
+		import MetaCommMonoid.
+		import MetaCommAbsorb.
+	end
 
-theory MetaPreorder:
-	import MetaReflexive.
-	import MetaTransitive.
 end
-
-theory MetaSymmetric:
-	fix (=).
-	assume sym: x = y ⟹ y = x.
 end
-
-theory MetaEquivalence:
-	fix (=).
-	import MetaSymmetric.
-	import MetaPreorder (=).
-end
-
-theory MetaCommutative:
-	fix (+) (=).
-	assume commute: x + y = y + x.
-end
-
-theory MetaAssociative:
-	fix (+) (=).
-	assume assoc: x + y + z = x + (y + z).
-end
-
-theory MetaLeftNeutral:
-	fix (+) (0) (=).
-	assume left_neutral: 0 + x = x.
-end
-
-theory MetaRightNeutral:
-	fix (+) (0) (=).
-	assume right_neutral: x + 0 = x.
-end
-
-theory MetaUnitalCommutative:
-	fix (+) (0) (=).
-	import MetaEquivalence.
-	import MetaCommutative.
-	import MetaLeftNeutral.
-	interpret MetaRightNeutral;
-		by trans[OF commute left_neutral].
-end
-
-theory MetaLeftAbsorb:
-	fix (*) (0) (=).
-	assume left_absorb: 0 * x = 0.
-end
-
-theory MetaRightAbsorb:
-	fix (*) (0) (=).
-	assume right_absorb: x * 0 = 0.
-end
-
-interpret imp: MetaPreorder;
-	instantiate (≤) := (⟹).
-	for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
-		by QR PQ.
-	.
 
 lemma imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 	by PQR.

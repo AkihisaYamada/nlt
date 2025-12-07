@@ -394,7 +394,7 @@ Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {
 Intp Intp::compose(Intp const& other) const {
 	if( !other.ready() ) throw Error(__func__)("\"not ready\"");
 	if( other._src != ctxt() ) throw Error(__func__)("\"wrong middle\"");
-	auto subst = Subst(other.ctxt());
+	auto subst = Subst(other);
 	for( auto [x,v] : _subst._map ) {
 		if( v ) {
 			subst.assign(x,v->subst(other));
