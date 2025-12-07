@@ -80,7 +80,7 @@ lemma eq_imp_iff#cong: if PQ: P = Q then P ⟺ Q;
 
 namespace iff begin
 
-	interpret iff.
+	interpret ..iff.
 
 	interpret eq: MetaCommutative (=);
 		by iff_intro[OF eq.sym eq.sym].

@@ -230,7 +230,6 @@ bool Inference::_blast(
 			if( !m ) return {};
 			if( log > 2 ) _log() << "applying: " << subthy.pretty(thm) << endl;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
-			fuel--;
 			return {thm};
 		};
 		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -239,7 +238,6 @@ bool Inference::_blast(
 			auto const& m = rule->matches(goal);
 			if( m && _apply_blast(subthesis,*m,import,trial,*rule) ) {
 				if( log > 2 ) _log() << "applied: " << subthy.pretty(thm) << endl;
-				fuel--;
 				return {thm};
 			}
 			return {};

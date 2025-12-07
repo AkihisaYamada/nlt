@@ -340,24 +340,27 @@ public:
 			cout << "no goal" << endl;
 		}
 	}
-	void for_variables( function<void( string const& v )> act ) {
+	Thesis get_statement() {
+		auto assm_thy = _thy.branch();
+		bool vars;
 		if( skips("for") ) {
+			vars = true;
 			if MSG cout << "for" << flush;
 			while( auto const& sym = gets_sym() ) {
 				if MSG cout << ' ' << *sym << flush;
-				act(*sym);
+				assm_thy.fix(*sym);
 			}
+		} else {
+			vars = false;
 		}
-	}
-	/** Creates a nested theory, where outer one fixes free variables, and 
-	 * inner theory collects assumptions.
-	 */
-	Thesis get_statement() {
-		auto assm_thy = _thy.branch();
-		for_variables([&](auto const& v){ assm_thy.fix(v); });
 		auto assms = vector<pair<ClaimStatus,CTerm>>();
 		if( skips("if") ) {
-			if MSG cout << "if " << flush;
+			if MSG {
+				if( vars ) {
+					cout << ' ';
+				}
+				cout << "if " << flush;
+			}
 			for(;;) {
 				if( skips("[") ) {
 					if MSG cout << "[ ";
@@ -366,25 +369,27 @@ public:
 						if MSG cout << _thy.pretty(t);
 						assms.push_back({{"",true},assm_thy.enclose(t)});
 						if( !skips(",") ) break;
-						if MSG cout << ", ";
+						if MSG cout << ", " << flush;
 					}
 					skip("]");
 					if MSG cout << " ] ";
 				} else {
-					auto [cs,t] = get_assm();
-					assms.push_back({cs,assm_thy.enclose(t)});
+					auto cs = get_claim_status();
+					auto t = get_term();
+					auto assm = assm_thy.enclose(t);
 					if MSG cout << cs << _thy.pretty(t) << ", " << flush;
+					assms.push_back({cs,assm});
 				}
 				if( !skips(",") ) break;
 			};
 			skip("then");
 			if MSG cout << "then ";
 		}
-		Term conc = get_term(0);
+		Term t = get_term(0);
 		skip(";");
-		CTerm goal = assm_thy.enclose(conc);
-		for( auto [cs,t] : assms ) {
-			add_claim(assm_thy,cs,assm_thy.assume(t));
+		CTerm goal = assm_thy.enclose(t);
+		for( auto [cs,assm] : assms ) {
+			add_claim(assm_thy,cs,assm_thy.assume(assm));
 		}
 		if MSG cout << _thy.pretty(goal) << endl;
 		return Thesis::claim_exact(assm_thy,goal);
@@ -467,20 +472,9 @@ public:
 		auto intp = _thy.thy(name,reader());
 		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
-			for(;;) {
-				if( auto const& fix = intp.fixing() ) {
-					intp.instantiate(_thy.cterm(*t));
-					break;
-				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.infer(_out_blast);
-					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
-				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.infer(_out_blast);
-					_auto_retain(_thy,prefix,intp,*obtain,infer);
-				} else {
-					throw Error("\"unexpected instantiation\"")(*t);
-				}
-			}
+			auto const& fix = intp.fixing();
+			if( !fix ) throw Error("\"unexpected instantiation\"")(*t);
+			intp.instantiate(_thy.cterm(*t));
 		}
 		auto path = src.print_name();
 		bool success = true;
@@ -1237,7 +1231,7 @@ public:
 						_out_load = get_print_level();
 						if MSG cout << "set print load level " << _out_load << endl;
 					} else if( skips("blast") ) {
-						_out_blast = gets_int().value_or(3);
+						_out_blast = gets_int().value_or(5);
 					} else {
 						_out = get_print_level();
 						if MSG cout << "set print level " << _out << endl;

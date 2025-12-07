@@ -40,3 +40,46 @@ begin
 	note fun_type_elim: make_elim[of (f. f ∈ A → B) (f. ∀a. a ∈ A ⟹ f a ∈ B), OF fun_type_elim1].
 end
 
+
+theory Reflexive:
+	fix A (≤).
+	assume refl: x ∈ A ⟹ x ≤ x.
+end
+
+theory Symmetric:
+	fix A (=).
+	assume sym: x = y ⟹ x ∈ A ⟹ y ∈ A ⟹ y = x.
+end
+
+theory Transitive:
+	fix A (≤).
+	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ∈ A ⟹ y ∈ A ⟹ z ∈ A ⟹ x ≤ z.
+end
+
+theory Preorder:
+	fix A (≤).
+	import Reflexive A (≤).
+	import Transitive A (≤).
+end
+
+theory Tolerance:
+	fix A (=).
+	import Reflexive A (=).
+	import Symmetric A (=).
+end
+
+theory PartialEquivalence:
+	fix A (=).
+	import Symmetric A (=).
+	import Transitive A (=).
+end
+
+theory Equivalence:
+	fix A (=).
+	import Reflexive A (=).
+	import Symmetric A (=).
+	import Transitive A (=).
+begin
+	interpret Tolerance.
+	interpret PartialEquivalence.
+end

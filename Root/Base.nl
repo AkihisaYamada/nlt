@@ -158,35 +158,37 @@ context MetaBinRel begin
 		assume right_absorb: x * 0 ≤ 0.
 	end
 
-end
+	context Transitive begin
 
-context MetaBinRel begin
-context Transitive begin
-	theory MetaCommNeutral:
-		import MetaLeftNeutral.
-		import MetaCommutative.
-	begin
-		interpret MetaRightNeutral;
-			by trans[OF commute left_neutral].
-	end
-	theory MetaCommAbsorb:
-		import MetaLeftAbsorb.
-		import MetaCommutative.
-	begin
-		interpret MetaRightAbsorb;
-			by trans[OF commute left_absorb].
-	end
-	theory MetaCommMonoid:
-		import MetaCommNeutral.
-		import MetaAssociative.
-	end
-	theory MetaCommMonoidAbsorb:
-		fix (*) (0) (1).
-		import MetaCommMonoid.
-		import MetaCommAbsorb.
+		theory MetaCommNeutral:
+			import MetaLeftNeutral.
+			import MetaCommutative.
+		begin
+			interpret MetaRightNeutral;
+				by trans[OF commute left_neutral].
+		end
+
+		theory MetaCommAbsorb:
+			import MetaLeftAbsorb.
+			import MetaCommutative.
+		begin
+			interpret MetaRightAbsorb;
+				by trans[OF commute left_absorb].
+		end
+
+		theory MetaCommMonoid:
+			import MetaCommNeutral.
+			import MetaAssociative.
+		end
+
+		theory MetaCommMonoidAbsorb:
+			fix (*) (0) (1).
+			import MetaCommMonoid.
+			import MetaCommAbsorb.
+		end
+
 	end
 
-end
 end
 
 lemma imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;

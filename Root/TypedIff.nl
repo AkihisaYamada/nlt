@@ -18,20 +18,15 @@ lemma iff_elim:
 		- by iff_elim2[OF PQ].
 		.
 	.
-ctxt.
-interpret iff: Equivalence PROP (⟺);
-ctxt.
 
+interpret iff: Equivalence PROP (⟺);
 	for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R, !P ∈ PROP, !Q ∈ PROP, !R ∈ PROP then P ⟺ R;
 		apply iff_intro;
 		- by iff_elim1[OF QR] iff_elim1[OF PQ].
 		by iff_elim2[OF PQ] iff_elim2[OF QR].
-ctxt.
 	by iff_intro #elim iff_elim.
-ctxt.
 
 note ! iff.refl.
-
 
 lemma iff_imp: if PQ: P ⟺ Q, [P ∈ PROP, Q ∈ PROP] then P ⟹ Q;
 	by iff_elim1[OF PQ].
@@ -74,7 +69,7 @@ lemma iff_cong_iff#cong: for P Q
 		.
 	.
 
-interpret iff: Magma prop (⟺).
+interpret iff: Magma PROP (⟺).
 
 lemma imp_imp_iff: if [P, P ∈ PROP, Q ∈ PROP] then (P ⟹ Q) ⟺ Q;
 	by iff_intro.

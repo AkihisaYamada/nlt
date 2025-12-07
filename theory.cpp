@@ -173,14 +173,12 @@ Opt<Thm> Thy::find_thm(
 		}
 	}
 	auto sep = name.find('.');
-	if( sep == 0 ) {// explicit parent
-		auto parent = _ref->parent;
-		if( !parent ) throw Error("\"parent theory not found\"");
-		return parent->source().find_thm(name.substr(1),parent->compose(import),test,ancestor);
-	}
 	if( sep != string::npos ) {// named imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),import,test) ) {
 			return ret;
+		}
+		if( sep == 0 && _ref->parent ) {// explicit parent
+			return _ref->parent->source().find_thm(name.substr(1),_ref->parent->compose(import),test,ancestor);
 		}
 	}
 	if( auto ret = _find_thm("",name,import,test) ) {// unnamed import
@@ -224,17 +222,18 @@ Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istr
 				return {Import::make(thy,*this)};
 			}
 		}
-	} else if( sep == 0 ) {// explicit parent
-		if( auto const& p = parent() )
-		if( auto o = p->_src.find_thy(name.substr(1),reader) ) {
-			return {o->compose(*p)};
-		}
 	} else {
 		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
 			auto& im = it->second;
 			if( im.ready() )
 			if( auto o = im._src.find_thy(name.substr(sep+1),reader,false) ) {
 				return {o->compose(im)};
+			}
+		}
+		if( sep == 0 ) {// explicit parent
+			if( auto const& p = parent() )
+			if( auto o = p->_src.find_thy(name.substr(1),reader) ) {
+				return {o->compose(*p)};
 			}
 		}
 	}
