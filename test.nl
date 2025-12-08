@@ -2,7 +2,7 @@ set print load.
 import Lambda.
 import Logic.
 
-ctxt.
+thy Logic.
 
 end
 

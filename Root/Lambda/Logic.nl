@@ -15,10 +15,10 @@ define[and] P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
 define[iff] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
 define[or] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 define[ex] (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
-
 define[neq] x ≠ y := ¬ x = y.
 
-interpret TypeFreeIntuitionistic;
+interpret TypeFree.
+interpret Intuitionistic;
 	retain false := false;
 		if f: false;
 			by f[unfolded false_def].
@@ -125,12 +125,13 @@ theory ChoiceOperator:
 end
 
 theory Collect:
-	fix (:) Collect.
-	assume in_Collect_iff: x : Collect P ⟺ P x.
+	fix (∈) Collect.
+	import Classes.
+	assume in_Collect_iff: x ∈ Collect P ⟺ P x.
 end
 
 -- TODO: should have mutual obtain
-define [in] x : σ := σ x.
+define [in] x ∈ σ := σ x.
 define Collect P := P.
 
 interpret Collect;
@@ -140,27 +141,28 @@ define[empty] ∅ := Collect (λx. false).
 
 define Singleton x := Collect (λy. y = x).
 
-define[cup] X ∪ Y := Collect (λx. x : X ∨ x : Y).
+define[cup] X ∪ Y := Collect (λx. x ∈ X ∨ x ∈ Y).
 
 set set_comprehension Collect (λ) ∅ Singleton (∪).
 
-define decided := {x. x ∨ ¬x}.
+define DECIDED := {x. x ∨ ¬x}.
 
-lemma in_decided_iff: P : decided ⟺ P ∨ ¬P;
-	unfold decided_def in_Collect_iff beta.
+lemma in_DECIDED_iff: P ∈ DECIDED ⟺ P ∨ ¬P;
+	unfold DECIDED_def in_Collect_iff beta.
 
-interpret decided: ..ClassicalPL;
-	instantiate prop := decided.
-	show: true : decided;
-		by or_intro #unfold in_decided_iff.
-	show: false : decided;
-		by or_intro not_false #unfold in_decided_iff.
-	show imp_type: for x y if x: x : decided, y: y : decided then (x ⟹ y) : decided;
-		unfold in_decided_iff;
-		apply or_elim[OF y[unfolded in_decided_iff]];
+namespace DECIDED begin
+
+interpret Prop (∈) DECIDED.
+
+interpret Classical;
+	show: false ∈ DECIDED;
+		by or_intro not_false #unfold in_DECIDED_iff.
+	show imp_type: for x y if x: x ∈ DECIDED, y: y ∈ DECIDED then (x ⟹ y) ∈ DECIDED;
+		unfold in_DECIDED_iff;
+		apply or_elim[OF y[unfolded in_DECIDED_iff]];
 		- by or_intro1.
 		if ny: ¬y;
-			apply or_elim[OF x[unfolded in_decided_iff]];
+			apply or_elim[OF x[unfolded in_DECIDED_iff]];
 			if !x;
 				apply+ or_intro2 not_intro;
 				by not_imp_false[OF ny].
@@ -168,11 +170,11 @@ interpret decided: ..ClassicalPL;
 				apply or_intro1[OF not_elim[OF nx]].
 			.
 		.
-	for x, x : decided ⟹ (¬ x) : decided;
-		unfold+ in_decided_iff;
+	for x, x ∈ DECIDED ⟹ (¬ x) ∈ DECIDED;
+		unfold+ in_DECIDED_iff;
 		by or_intro nnot_intro #elim or_elim.
-	show and_type: for x y, x : decided ⟹ y : decided ⟹ (x ∧ y) : decided;
-		unfold+ in_decided_iff;
+	show and_type: for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ∧ y) ∈ DECIDED;
+		unfold+ in_DECIDED_iff;
 		if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x];
 			if !x;
@@ -181,8 +183,8 @@ interpret decided: ..ClassicalPL;
 				by or_intro2 nand_intro2.
 			by or_intro2 nand_intro1.
 		.
-	for x y, x : decided ⟹ y : decided ⟹ (x ∨ y) : decided;
-		unfold+ in_decided_iff;
+	for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ∨ y) ∈ DECIDED;
+		unfold+ in_DECIDED_iff;
 		if x: x ∨ ¬x, y: y ∨ ¬y;
 			apply or_elim[OF x];
 			- by or_intro1.
@@ -198,7 +200,7 @@ interpret decided: ..ClassicalPL;
 				.
 			.
 		.
-	for x y, x : decided ⟹ y : decided ⟹ (x ⟺ y) : decided;
+	for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ⟺ y) ∈ DECIDED;
 		unfold iff_def;
 		by and_type imp_type.
 	note! not_intro.
@@ -209,74 +211,80 @@ interpret decided: ..ClassicalPL;
 	note #elim: or_elim.
 	note #elim: iff_elim.
 	note #elim: false_elim.
-	for P, ¬ P ⟹ P ⟹ P : decided ⟹ false;
+	for P if P0: P ⟹ false, ! P ∈ DECIDED then ¬ P;
+		apply not_intro;
+		by P0.
+	for P, ¬ P ⟹ P ⟹ P ∈ DECIDED ⟹ false;
 		by #elim not_imp_false.
-	for P, P : decided ⟹ P ∨ ¬ P;
-		unfold in_decided_iff.
+	retain true := true;
+		by or_intro #unfold in_DECIDED_iff.
+	for P, P ∈ DECIDED ⟹ P ∨ ¬ P;
+		unfold in_DECIDED_iff.
 	.
 
-thm decided.pierce_law.
+end
 
-lemma nnot_decided: ¬ ¬ x : decided;
-	unfold in_decided_iff;
+thm DECIDED.pierce_law.
+
+lemma nnot_DECIDED: ¬ ¬ x ∈ DECIDED;
+	unfold in_DECIDED_iff;
 	by nnot_excluded_middle.
 
 
 
-define [fun] (σ → τ) := {f. ∀x. x : σ ⟹ f x : τ}.
+define [fun] (σ → τ) := {f. ∀x. x ∈ σ ⟹ f x ∈ τ}.
 
 interpret FunType;
-	for f σ τ if f: f : σ → τ then ∀a. a : σ ⟹ f a : τ;
+	for f σ τ if f: f ∈ σ → τ then ∀a. a ∈ σ ⟹ f a ∈ τ;
 		by f[unfolded fun_def in_Collect_iff beta].
-	for f σ τ if assm: ∀x. x : σ ⟹ f x : τ then f : σ → τ;
+	for f σ τ if assm: ∀x. x ∈ σ ⟹ f x ∈ τ then f ∈ σ → τ;
 		unfold fun_def in_Collect_iff beta;
 		by assm.
 	.
 
 define UNIV := {x. true}.
 
-lemma in_UNIV! x : UNIV;
+lemma in_UNIV! x ∈ UNIV;
 	unfold UNIV_def in_Collect_iff beta.
 
-define[tall] (∀:) ι α := ∀x. x : ι ⟹ α.[x].
-define[tex] (∃:) ι α := ∀P. (∀x. α.[x] ⟹ x : ι ⟹ P) ⟹ P.
+define[ball] (∀∋) A P := ∀x. x ∈ A ⟹ P.[x].
+define[bex] (∃∋) A P := ∀Q. (∀x. P.[x] ⟹ x ∈ A ⟹ Q) ⟹ Q.
 
-interpret intuitionistic: ..IntuitionisticFOL;
-	instantiate prop := UNIV.
-	- .
-	- .
-	- by #unfold tall_def.
-	for x ι α if tall: ∀y:ι. α.[y];
-		by tall[unfolded tall_def].
-	retain true.
-	retain false;
-		by #elim false_elim.
-	show! ∀P. (P ⟹ false) ⟹ P : UNIV ⟹ ¬ P;
-		by not_intro.
-	for P, ¬ P ⟹ P ⟹ P : UNIV ⟹ false;
-		by not_imp_false[of P].
-	- by and_intro.
-	- by #elim and_elim.
-	- by #elim and_elim.
-	- by or_intro.
-	- by or_intro.
-	- by #elim or_elim.
-	- by iff_intro.
-	- by #elim iff_elim.
-	- by #elim iff_elim.
-	for x α ι if !α.[x], !x : ι, foo;
-		unfold tex_def;
-		for P if all: ∀z. α.[z] ⟹ z : ι ⟹ P;
-			by all[of x].
-		.
-	for ι α if ex: ∃x:ι. α.[x];
-		for P if imp: ∀x. α.[x] ⟹ x : ι ⟹ P;
-			apply ex[unfolded tex_def];
-			for x;
-				by imp[of x].
+namespace UNIV begin
+
+	interpret FOL (∈) UNIV.
+
+	interpret Intuitionistic;
+		for P if ! P ⟹ false, ! P ∈ UNIV then ¬ P;
+			by not_intro.
+		for P, ¬ P ⟹ P ⟹ P ∈ UNIV ⟹ false;
+			by not_imp_false[of P].
+		- .
+		- .
+		- .
+		- by or_intro.
+		- by or_intro.
+		- by #elim or_elim.
+		- by iff_intro.
+		- by #elim iff_elim.
+		- by #elim iff_elim.
+		retain true.
+		- by #elim false_elim.
+goals.
+		for x P A if !P.[x], !x ∈ A, foo;
+			unfold bex_def;
+			for Q if all: ∀z. P.[z] ⟹ z ∈ A ⟹ Q;
+				by all[of x].
+			.
+		for A P if ex: ∃x ∈ A. P.[x];
+			for Q if imp: ∀x. P.[x] ⟹ x ∈ A ⟹ Q;
+				apply ex[unfolded bex_def];
+				for x;
+					by imp[of x].
+				.
 			.
 		.
-	.
+end
 
 lemma neq_intro: if xyf: x = y ⟹ false then x ≠ y;
 	unfold neq_def;
@@ -307,24 +315,24 @@ lemma true_neq_false: true ≠ false;
 
 binder ∃! 0 0.
 
-define[ex1] (∃!) α := ∃x. α.[x] ∧ (∀y. α.[y] ⟹ x = y).
+define[ex1] (∃!) P := ∃x. P.[x] ∧ (∀y. P.[y] ⟹ x = y).
 
-lemma ex1_intro: for x if x: α.[x], 1: ∀y. α.[y] ⟹ x = y then ∃!x. α.[x];
+lemma ex1_intro: for x if x: P.[x], 1: ∀y. P.[y] ⟹ x = y then ∃!x. P.[x];
 	unfold ex1_def;
 	apply ex_intro1[of x];
 	apply and_intro;
 	by x 1.
 
 lemma ex1_elim:
-	if ex1: ∃!x. α.[x], body: ∀x. α.[x] ⟹ (∀y. α.[y] ⟹ x = y) ⟹ P
-	then P;
-	obtain x where and: (α.[x]) ∧ (∀y. α.[y] ⟹ x = y);
+	if ex1: ∃!x. P.[x], body: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ x = y) ⟹ Q
+	then Q;
+	obtain x where and: (P.[x]) ∧ (∀y. P.[y] ⟹ x = y);
 		for thesis;
 			apply ex1[unfolded+ ex1_def ex_def, of thesis]=.
 		.
-	have ax: α.[x];
+	have ax: P.[x];
 		by and_elim1[OF and].
-	have 1: ∀y. α.[y] ⟹ x = y;
+	have 1: ∀y. P.[y] ⟹ x = y;
 		by and_elim2[OF and].
 	by body[OF ax 1].
 

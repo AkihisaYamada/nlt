@@ -112,8 +112,9 @@ Opt<std::tuple<std::string,CTerm,CTerm>> strips_binary(CTerm const& t);
  * @param pat 
  * @param val 
  * @param fvar signifies free variables.
+ * @param subst applied to pattern
  */
-Opt<Subst> match( Term const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar );
+Opt<Subst> match( Term const& pat, CTerm const& val, std::function<bool(std::string_view const&)> const& fvar, Opt<Subst const&> subst = {} );
 
 /**
  * @brief Unification.
@@ -181,8 +182,8 @@ public:
 	Thm const& thm() const& {
 		return _thm;
 	}
-	Opt<Subst> matches( CTerm const& goal ) const {
-		return match( _pat, goal, [&](auto v){ return _pat.ctxt().fixes(v); } );
+	Opt<Subst> matches( CTerm const& goal, Opt<Subst const&> subst = {} ) const {
+		return match( _pat, goal, [&](auto v){ return _pat.ctxt().fixes(v); }, subst );
 	}
 	/** @brief instantiates the rule. */
 	Thm subst( Intp const& intp ) const {
@@ -204,8 +205,8 @@ public:
 	 * @param arg the theorem to eliminate
 	 * @param thy the theory arg belongs
 	 */
-	Opt<Subst> matches( Thm const& arg ) const {
-		return match( _premise, arg, [&](auto v){ return _premise.ctxt().fixes(v); } );
+	Opt<Subst> matches(Thm const& arg, Opt<Subst const&> subst ) const {
+		return match( _premise, arg, [&](auto v){ return _premise.ctxt().fixes(v); }, subst );
 	}
 	Intro instantiate( Subst& m, Thm const& arg, Intp const& intp ) const;
 	Ctxt ctxt() && = delete;

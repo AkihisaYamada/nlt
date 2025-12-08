@@ -72,8 +72,8 @@ struct Matcher {
 	StrMap<unsigned int> rinds;
 	unsigned int depth = 0;
 	Matcher( Ctxt const& valctxt, function<bool(string_view const&)> const& fvar ) : matcher(valctxt), fvar(fvar) {}
-	Opt<Subst> matches( Term const& pat, CTerm const& val ) && {
-		if( match(pat,val) ) {
+	Opt<Subst> matches( Term const& pat, CTerm const& val, Opt<Subst const&> subst ) && {
+		if( match(pat,val,subst) ) {
 			return std::move(matcher);
 		}
 		return {};
@@ -117,13 +117,16 @@ struct Matcher {
 		return false;
 	}
 
-	bool match(Term const& pat, Term const& val) {
+	bool match( Term const& pat, Term const& val, Opt<Subst const&> subst ) {
 		if( auto sym = pat.sym() ) {// pat is a symbol
 			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
 				if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
 					return rinds.finds(*rsym) == lind;
 				}
 				return false;
+			}
+			if( subst ) if( auto const& act = subst->get(*sym) ) {// actually substituted
+				return match(*act,val,{});
 			}
 			if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable
 				return *map_opt == val;// equal as term
@@ -139,8 +142,8 @@ struct Matcher {
 		}
 		if( auto lapp = pat.app() ) {
 			if( auto rapp = val.app() ) {
-				return match(lapp->first,rapp->first) &&
-					match(lapp->second,rapp->second);
+				return match(lapp->first,rapp->first,subst) &&
+					match(lapp->second,rapp->second,subst);
 			}
 			return false;
 		}
@@ -158,14 +161,14 @@ struct Matcher {
 							return false;
 						}
 						auto it = escaped_var.insert(x);// inside the body, X is escaping
-						bool ret = match(pat2,val2);
+						bool ret = match(pat2,val2,subst);
 						escaped_var.erase(it.first);
 						return ret;
 					}
 					if( auto const& bind = xval->bind() ) {// X is assigned to a binding
 						auto const& [y,vbody] = *bind;
 						auto it = escaped_var.insert(x);// inside the body, X is escaping
-						bool ret = eq_upto(vbody,val,y,pat2);// the body must be equal to val up to y
+						bool ret = eq_upto(subst,vbody,val,y,pat2);// the body must be equal to val up to y
 						escaped_var.erase(it.first);
 						return ret;
 					}
@@ -192,7 +195,7 @@ struct Matcher {
 						}
 						matcher.assign(x,*cy2);
 					}
-					return match(pat2,val2);
+					return match(pat2,val2,subst);
 				}
 			}
 			// otherwise, pat and val must have the same shape
@@ -204,32 +207,32 @@ struct Matcher {
 			if( x != y ) {
 				return false;
 			}
-			return match(pat2,val2);
+			return match(pat2,val2,subst);
 		}
-		return abs(pat, val, [this]( auto pat, auto val ){ return match(pat,val); } );
+		return abs(pat, val, [this,&subst]( auto pat, auto val ){ return match(pat,val,subst); } );
 	}
-	bool eq_upto( Term const& l, Term const& r, string const& var, Term const& pat ) {
+	bool eq_upto( Opt<Subst const&> subst, Term const& l, Term const& r, string const& var, Term const& pat ) {
 		if( auto const& sym = l.sym() ) {
 			if( *sym == var ) {// reached the unbound variable. Go back to matching
-				return match(pat,r);
+				return match(pat,r,subst);
 			}
 			return l == r;
 		}
 		if( auto const& lapp = l.app() ) {
 			auto const& rapp = r.app();
-			return rapp && eq_upto(lapp->first,rapp->first,var,pat) &&
-				eq_upto(lapp->second,rapp->second,var,pat);
+			return rapp && eq_upto(subst,lapp->first,rapp->first,var,pat) &&
+				eq_upto(subst,lapp->second,rapp->second,var,pat);
 		}
 		if( auto const& lfix = l.unbind() ) {
 			auto const& rfix = r.unbind();
-			return rfix && lfix->first == rfix->first && eq_upto(lfix->second,rfix->second,var,pat);
+			return rfix && lfix->first == rfix->first && eq_upto(subst,lfix->second,rfix->second,var,pat);
 		}
-		return abs(l, r, [&]( auto l, auto r ){ return eq_upto(l,r,var,pat); } );
+		return abs(l, r, [&]( auto l, auto r ){ return eq_upto(subst,l,r,var,pat); } );
 	}
 };
 
-Opt<Subst> match( Term const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar ) {
-	return Matcher(val.ctxt(),fvar).matches(pat,val);
+Opt<Subst> match( Term const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar, Opt<Subst const&> subst ) {
+	return Matcher(val.ctxt(),fvar).matches(pat,val,subst);
 }
 pair<Thm,size_t> strip_all( Thm const& thm, Intp const& toChild, Renamer const& renamer ) {
 	pair<Thm,size_t> ret = {thm.subst(toChild),0};

@@ -2,7 +2,7 @@
 # Intuitionistic Propositional Logic
 ---
 
-import MinimalPL.
+import Minimal.
 assume false_elim: false ⟹ ∀P. P ∈ PROP ⟹ P.
 
 begin
@@ -38,12 +38,9 @@ lemma not_elim: if nP: ¬P, P: P, [P ∈ PROP, Q ∈ PROP] then Q;
 		by not_imp_false[OF nP P].
 	apply false_elim[OF f].
 
-theory StrictOrder A (<):
-	import Relation A (<).
-	import Irreflexive.
-	import Transitive.
+theory Irreflexive:
+	import ..Irreflexive.
 begin
-	note! closed.
 	lemma refl_iff: if ! x ∈ A then x < x ⟺ false;
 		by not_imp_iff_false irrefl.
 end

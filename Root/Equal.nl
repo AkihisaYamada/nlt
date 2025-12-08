@@ -11,11 +11,11 @@ assume eq_imp_meta: for X, if y = z, X.[y] then X.[z].
 
 begin -- Above are the all axioms.
 
+interpret MetaMagmas (=).
+
 namespace eq begin
 
-	interpret MetaBinRel (=).
-
-	interpret Equivalence;
+	interpret MetaEquivalence (=);
 		-.
 		for x y if xy: x = y then y = x;
 			by eq_imp_meta[of (z. z = x), OF xy].

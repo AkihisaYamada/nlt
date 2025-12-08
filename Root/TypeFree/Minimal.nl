@@ -45,8 +45,7 @@ lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
 
 namespace iff begin
 
-	interpret MetaBinRel (⟺).
-	interpret Equivalence;
+	interpret MetaEquivalence (⟺);
 		- by iff_intro.
 		- by iff_intro #elim iff_elim.
 		for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
@@ -60,6 +59,9 @@ namespace iff begin
 
 	set rewrite iff_elim1 iff_elim2 refl trans.
 	set dual sym.
+
+	-- We can think of meta-magmas with respect to ⟺
+	interpret MetaMagmas (⟺).
 
 end
 
@@ -147,15 +149,10 @@ lemma and_elim#elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 	.
 
-namespace and begin
-	interpret MetaBinRel (∧).
-	interpret PartialEquivalence.
-end
+interpret and: MetaPartialEquivalence (∧).
 
 lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
 	by iff_intro.
-
-thy.
 
 context iff begin
 
@@ -183,9 +180,9 @@ lemma true_and_true: true ∧ true;
 lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	by iff_intro #elim iff_elim.
 
-lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x]);
+lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
 	apply iff_intro;
-	if ab: ∀x. α.[x] ∧ β.[x];
+	if ab: ∀x. P.[x] ∧ Q.[x];
 		apply and_intro;
 		for x;
 			by and_elim1[OF ab].
@@ -193,12 +190,40 @@ lemma all_and_iff: (∀x. α.[x] ∧ β.[x]) ⟺ (∀x. α.[x]) ∧ (∀x. β.[x
 			by and_elim2[OF ab].
 		.
 	unfold and_imp_iff;
-	if ! ∀x. α.[x], ! ∀x. β.[x].
+	if ! ∀x. P.[x], ! ∀x. Q.[x].
 	.
 
 ---
 ### Negation
+
+Negation defines some properties of binary relations.
+Note that antisymmetry is not yet definable, because it requires equality.
 ---
+
+theory MetaIrreflexive:
+	fix (<).
+	assume irrefl: ¬ x < x.
+end
+
+theory MetaAsymmetric:
+	fix (<).
+	assume asym: x < y ⟹ ¬ y < x.
+end
+
+theory MetaOrder:
+	import MetaIrreflexive.
+	import MetaTransitive (<).
+begin
+	interpret MetaAsymmetric;
+		for x y if xy: x < y then ¬ y < x;
+			apply not_intro;
+			if yx: y < x;
+				have xx: x < x;
+					by trans[OF xy yx].
+				by not_imp_false[OF irrefl xx].
+			.
+		.
+end
 
 lemma imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q);
 	apply not_intro;
@@ -352,9 +377,7 @@ lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 
 namespace or begin
 
-	interpret MetaBinRel (∨).
-
-	interpret Symmetric;
+	interpret MetaSymmetric (∨);
 		by or_intro #elim or_elim.
 
 end
@@ -490,4 +513,50 @@ lemma nnall_not_iff: ¬¬(∀x. ¬α.[x]) ⟺ (∀x. ¬α.[x]);
 	fold+ nex_iff_all_not;
 	by nnnot_iff.
 
+
+
+
+
+theory Classes:
+
+	import ..Classes.
+
+	theory Connex:
+		fix A (≤).
+		assume connex: x ∈ A ⟹ y ∈ A ⟹ x ≤ y ∨ y ≤ x.
+	begin
+
+		interpret Reflexive;
+			for x if x! x ∈ A then x ≤ x;
+				apply or_elim[OF connex[OF x x]].
+			.
+
+	end
+
+	theory Irreflexive:
+		fix A (<).
+		assume irrefl: x ∈ A ⟹ ¬ x < x.
+	end
+
+	theory Asymmetric:
+		fix A (<).
+		assume asym: x < y ⟹ x ∈ A ⟹ y ∈ A ⟹ ¬ y < x.
+	end
+
+	theory StrictOrder:
+		import Irreflexive.
+		import Transitive A (<).
+	begin
+		interpret Asymmetric;
+			for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
+				apply not_intro;
+				if yx: y < x;
+					have xx: x < x;
+						by trans[OF xy yx].
+					by not_imp_false[OF irrefl[OF x] xx].
+				.
+			.
+	end
+
+end
 

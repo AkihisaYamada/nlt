@@ -1,13 +1,12 @@
 ---
 # Minimal Propositional Logic
 ---
-import Base.
 
 ---
 ## Axiomatization
 ---
 
-fix (∈) PROP false (¬) (∧) (∨) (⟺).
+fix false (¬) (∧) (∨) (⟺).
 
 assume false_type! false ∈ PROP.
 assume imp_type! P ∈ PROP ⟹ Q ∈ PROP ⟹ (P ⟹ Q) ∈ PROP.
@@ -34,11 +33,13 @@ begin
 ## Theorems
 ---
 
-interpret Prop.
+interpret imp: Magma PROP (⟹).
 
 namespace iff begin
 
 	interpret Relation PROP (⟺).
+	interpret Magma PROP (⟺).
+	interpret Magmas (⟺).
 
 	lemma elim:
 		if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ P ∈ PROP ⟹ Q ∈ PROP ⟹ R;
@@ -48,7 +49,7 @@ namespace iff begin
 			- by iff_elim2[OF PQ].
 			.
 		.
-set print blast.
+
 	interpret Equivalence PROP (⟺);
 		- by iff_intro.
 		- by iff_intro #elim elim.
@@ -77,7 +78,7 @@ set print blast.
 		- by #unfold QQ' PP'.
 		.
 
-	interpret imp: Compatible (⟹);
+	interpret imp: Compatible PROP (⟹);
 		for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP
 		then (P ⟹ Q) ⟺ (P' ⟹ Q');
 			apply iff_intro;
@@ -86,8 +87,7 @@ set print blast.
 			.
 		.
 
-	interpret Magma PROP (⟺).
-	interpret Compatible (⟺);
+	interpret Compatible PROP (⟺);
 		for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP
 		then (P ⟺ Q) ⟺ (P' ⟺ Q');
 			apply iff_intro;
@@ -135,13 +135,13 @@ obtain true where true_type! true ∈ PROP, true_intro! true;
 		apply assm[of (false ⟹ false)].
 	.
 
-lemma not_false: ¬false;
-	apply not_intro.
-
 lemma iff_true: if [P, P ∈ PROP] then P ⟺ true;
 	by iff_intro.
 
 set to_true iff_true.
+
+lemma not_false: ¬false;
+	apply not_intro.
 
 lemma true_imp_iff: if [P ∈ PROP] then (true ⟹ P) ⟺ P;
 	by imp_imp_iff.
@@ -208,17 +208,17 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [P ∈ PROP, Q ∈ PROP] then �
 theorem nnnot_iff: if [P ∈ PROP] then ¬¬¬P ⟺ ¬P;
 	unfold+ not_iff_imp_false imp3_iff.
 
-lemma imp_not_commute: if [P ∈ PROP, Q ∈ PROP] then
-	(P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
+lemma imp_not_commute:
+if [P ∈ PROP, Q ∈ PROP] then (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
 	by iff_intro #elim imp_not_sym.
 
-lemma nnot_imp_not_iff: if [P ∈ PROP, Q ∈ PROP] then
-	(¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
+lemma nnot_imp_not_iff:
+if [P ∈ PROP, Q ∈ PROP] then (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	unfold imp_not_commute;
 	unfold nnnot_iff.
 
-lemma nnimp_not_iff: if [P ∈ PROP, Q ∈ PROP] then
-	¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
+lemma nnimp_not_iff:
+if [P ∈ PROP, Q ∈ PROP] then ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
 	if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
 		by nnimp[unfolded P true_imp_iff nnnot_iff].
@@ -236,7 +236,9 @@ namespace and begin
 			by PQR and_elim1[OF and] and_elim2[OF and].
 		.
 
-	interpret Relation PROP (∧).
+	interpret PartialEquivalence PROP (∧);
+		by and_intro #elim and.elim.
+
 	interpret Magma PROP (∧).
 
 end
@@ -245,13 +247,7 @@ context iff begin
 
 	namespace and begin
 
-		interpret PartialEquivalence PROP (⟺);
-			by and_intro #elim elim.
-
-		interpret CommMonoid (∧) true;
-			by iff_intro and_intro #elim and.elim.
-
-		interpret Compatible (∧);
+		interpret Compatible PROP (∧);
 			for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP
 			then P ∧ Q ⟺ P' ∧ Q';
 				apply iff_intro;
@@ -259,6 +255,10 @@ context iff begin
 				- by and_intro #unfold PP' QQ' #elim and.elim.
 				.
 			.
+
+		interpret CommMonoid (∧) true;
+			by iff_intro and_intro #elim and.elim.
+
 	end
 
 	note #cong: and.cong.
@@ -273,8 +273,8 @@ lemma iff_imp_and: if PQ: P ⟺ Q, [P ∈ PROP, Q ∈ PROP] then (P ⟹ Q) ∧ (
 lemma iff_iff_and: if [P ∈ PROP, Q ∈ PROP] then (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	by iff_intro and_intro #elim iff.elim and.elim.
 
-lemma and_imp_iff: if [P ∈ PROP, Q ∈ PROP, R ∈ PROP] then
-	(P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+lemma and_imp_iff:
+if [P ∈ PROP, Q ∈ PROP, R ∈ PROP] then (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro and_intro #elim and.elim.
 
 lemma nand_intro1: if nP: ¬P, [P ∈ PROP, Q ∈ PROP] then ¬(P ∧ Q);
@@ -316,14 +316,13 @@ lemma or_iff_true2: if !Q, !P ∈ PROP, !Q ∈ PROP then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
 lemma or_intro:
-	if PQR: ∀R. R ∈ PROP ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P ∈ PROP, ! Q ∈ PROP
-	then P ∨ Q;
+if PQR: ∀R. R ∈ PROP ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P ∈ PROP, ! Q ∈ PROP
+then P ∨ Q;
 	apply PQR;
 	by #unfold or_iff_true1 or_iff_true2.
 
 namespace or begin
 
-	interpret Relation PROP (∨).
 	interpret Symmetric PROP (∨);
 		by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
@@ -334,14 +333,15 @@ end
 context iff begin
 
 	namespace or begin
-		interpret CommSemigroupAbsorb (∨) true;
-			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
-		interpret Compatible (∨);
+		interpret Compatible PROP (∨);
 			for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP
 			then P ∨ Q ⟺ P' ∨ Q';
 				by iff_intro #elim or_elim #unfold PP' QQ' or_iff_true1 or_iff_true2.
 			.
+
+		interpret CommSemigroupAbsorb (∨) true;
+			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
 	end
 
@@ -396,9 +396,43 @@ lemma nniff_iff: if [P ∈ PROP, Q ∈ PROP] then ¬¬(¬P ⟺ ¬Q) ⟺ ¬P ⟺ 
 	unfold[0]+ iff_iff_and nnand_iff nnimp_not_iff;
 	fold[0] iff_iff_and.
 
+
+theory Connex:
+	import Relation.
+	assume connex: x ∈ A ⟹ y ∈ A ⟹ x ≤ y ∨ y ≤ x.
+begin
+
+	interpret Reflexive;
+		for x if x! x ∈ A then x ≤ x;
+			apply or_elim[OF connex[OF x x]].
+		.
+
+end
+
 theory Irreflexive:
 	fix A (<).
 	import Relation A (<).
 	assume irrefl: x ∈ A ⟹ ¬ x < x.
 end
 
+theory Asymmetric:
+	fix A (<).
+	import Relation A (<).
+	assume asym: x < y ⟹ x ∈ A ⟹ y ∈ A ⟹ ¬ y < x.
+end
+
+theory StrictOrder:
+	import Irreflexive.
+	import Transitive A (<).
+begin
+set print blast.
+	interpret Asymmetric;
+		for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
+			apply not_intro;
+			if yx: y < x;
+				have xx: x < x;
+					by trans[OF xy yx].
+				by not_imp_false[OF irrefl[OF x] xx].
+			.
+		.
+end

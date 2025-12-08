@@ -304,7 +304,7 @@ function<ostream&(ostream&)> Thy::pretty( size_t n, bool scope, bool path ) cons
 				if( auto str = fixed(i) ) {
 					mk_indent(os,n) << "fixes";
 					do {
-						os << ' ' << *str;
+						os << ' ' << pretty_sym(*str);
 						i++;
 					} while( str = fixed(i) );
 					os << '.' << endl;
@@ -366,7 +366,7 @@ function<ostream&(ostream&)> const Import::pretty( size_t indent ) const & {
 		string punc = "; ";
 		for( auto [sym,term] : Intp::subst().map() ) {
 			if( term ) {
-				os << punc << sym << " := " << _src.pretty(*term);
+				os << punc << _src.pretty(sym) << " := " << _src.pretty(*term);
 				punc = ", ";
 			}
 		}

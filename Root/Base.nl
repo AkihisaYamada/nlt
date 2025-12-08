@@ -29,6 +29,7 @@ binder SOME 0 0.
 
 infix = 51 51 50.
 infix ≠ 51 51 50.
+infix ~ 51 51 50.
 
 binder λ 0 0.
 
@@ -50,58 +51,59 @@ infix ≤ 51 51 50.
 infix ≥ 51 51 50.
 
 infix + 100 101 100.
+infix - 100 101 100.
 infix * 110 111 110.
+infix / 110 111 110.
+infix \ 111 110 110.
 
 ---
 ## Properties of Untyped Binary Relations
 ---
-theory MetaBinRel:
+theory MetaReflexive:
 	fix (≤).
+	assume refl: x ≤ x.
+end
+
+theory MetaTransitive:
+	fix (≤).
+	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
+end
+
+theory MetaSymmetric:
+	fix (~).
+	assume sym: x ~ y ⟹ y ~ x.
+end
+
+theory MetaPreorder:
+	import MetaReflexive.
+	import MetaTransitive.
+end
+
+theory MetaTolerance:
+	fix (~).
+	import MetaReflexive (~).
+	import MetaSymmetric.
+end
+
+theory MetaPartialEquivalence:
+	import MetaSymmetric.
+	import MetaTransitive (~).
+end
+
+theory MetaEquivalence:
+	fix (~).
+	import MetaReflexive (~).
+	import MetaSymmetric.
+	import MetaTransitive (~).
 begin
-
-	theory Reflexive:
-		assume refl: x ≤ x.
-	end
-
-	theory Transitive:
-		assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
-	end
-
-	theory Symmetric:
-		assume sym: x ≤ y ⟹ y ≤ x.
-	end
-
-	theory Preorder:
-		import Reflexive.
-		import Transitive.
-	end
-
-	theory Tolerance:
-		import Reflexive.
-		import Symmetric.
-	end
-
-	theory PartialEquivalence:
-		import Symmetric.
-		import Transitive.
-	end
-
-	theory Equivalence:
-		import Reflexive.
-		import Symmetric.
-		import Transitive.
-	begin
-		interpret Preorder.
-		interpret Tolerance.
-		interpret PartialEquivalence.
-	end
-
+	interpret MetaPreorder (~).
+	interpret MetaTolerance.
+	interpret MetaPartialEquivalence.
 end
 
 -- Implication is a meta-preorder.
 namespace imp begin
-	interpret MetaBinRel (⟹).
-	interpret Preorder;
+	interpret MetaPreorder (⟹);
 		for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 			by QR PQ.
 		.
@@ -121,72 +123,76 @@ lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 ---
 ## Properties of Binary Operators and Relations
 ---
-context MetaBinRel begin
+theory MetaMagmas:
+	fix (=).
+begin
 
 	theory MetaCompatible:
 		fix (*).
-		assume cong: for x y x' y', x ≤ x' ⟹ y ≤ y' ⟹ x * y ≤ x' * y'.
+		assume cong: for x y x' y', x = x' ⟹ y = y' ⟹ x * y = x' * y'.
 	end
 
 	theory MetaCommutative:
 		fix (*).
-		assume commute: x * y ≤ y * x.
+		assume commute: x * y = y * x.
 	end
 
 	theory MetaAssociative:
 		fix (*).
-		assume assoc: x * y * z ≤ x * (y * z).
+		assume assoc: x * y * z = x * (y * z).
 	end
 
 	theory MetaLeftNeutral:
 		fix (*) (1).
-		assume left_neutral: 1 * x ≤ x.
+		assume left_neutral: 1 * x = x.
 	end
 
 	theory MetaRightNeutral:
 		fix (*) (1).
-		assume right_neutral: x * 1 ≤ x.
+		assume right_neutral: x * 1 = x.
 	end
 
 	theory MetaLeftAbsorb:
 		fix (*) (0).
-		assume left_absorb: 0 * x ≤ 0.
+		assume left_absorb: 0 * x = 0.
 	end
 
 	theory MetaRightAbsorb:
 		fix (*) (0).
-		assume right_absorb: x * 0 ≤ 0.
+		assume right_absorb: x * 0 = 0.
 	end
 
-	context Transitive begin
+end
 
-		theory MetaCommNeutral:
-			import MetaLeftNeutral.
-			import MetaCommutative.
-		begin
-			interpret MetaRightNeutral;
-				by trans[OF commute left_neutral].
-		end
+context MetaTransitive begin
 
-		theory MetaCommAbsorb:
-			import MetaLeftAbsorb.
-			import MetaCommutative.
-		begin
-			interpret MetaRightAbsorb;
-				by trans[OF commute left_absorb].
-		end
+	interpret MetaMagmas (≤).
 
-		theory MetaCommMonoid:
-			import MetaCommNeutral.
-			import MetaAssociative.
-		end
+	theory MetaCommNeutral:
+		import MetaLeftNeutral.
+		import MetaCommutative.
+	begin
+		interpret MetaRightNeutral;
+			by trans[OF commute left_neutral].
+	end
 
-		theory MetaCommMonoidAbsorb:
-			fix (*) (0) (1).
-			import MetaCommMonoid.
-			import MetaCommAbsorb.
-		end
+	theory MetaCommAbsorb:
+		import MetaLeftAbsorb.
+		import MetaCommutative.
+	begin
+		interpret MetaRightAbsorb;
+			by trans[OF commute left_absorb].
+	end
 
+	theory MetaCommMonoid:
+		import MetaCommNeutral.
+		import MetaAssociative.
+	end
+
+	theory MetaCommMonoidAbsorb:
+		fix (*) (0) (1).
+		import MetaCommMonoid.
+		import MetaCommAbsorb.
 	end
 
 end
@@ -215,10 +221,9 @@ lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β
 	by imp.
 
 lemma make_elim:
-	if imp: ∀x. P.[x] ⟹ Q.[x]
-	then ∀x. P.[x] ⟹ ∀thesis. (Q.[x] ⟹ thesis) ⟹ thesis;
+if imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. P.[x] ⟹ ∀R. (Q.[x] ⟹ R) ⟹ R;
 	for x if Px;
-		for thesis if assm;
+		for R if assm;
 			by assm imp Px.
 		.
 	.

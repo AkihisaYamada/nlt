@@ -1,41 +1,63 @@
 ----
 ### Properties for Binary Operators with respect to Binary Relations
 ----
-context Relation begin
+fix (=).
+begin
 
 theory Compatible:
-	fix (*).
-	assume cong: for x y, x ≤ x' ⟹ y ≤ y' ⟹ x ∈ A ⟹ y ∈ A ⟹ x' ∈ A ⟹ y' ∈ A ⟹ x * y ≤ x' * y'.
+	fix A (*).
+	assume cong: for x y, x = x' ⟹ y = y' ⟹ x ∈ A ⟹ y ∈ A ⟹ x' ∈ A ⟹ y' ∈ A ⟹ x * y = x' * y'.
 end
 
 theory Associative:
-	fix (*).
-	assume assoc: x ∈ A ⟹ y ∈ A ⟹ z ∈ A ⟹ x * y * z ≤ x * (y * z).
+	fix A (*).
+	assume assoc: x ∈ A ⟹ y ∈ A ⟹ z ∈ A ⟹ x * y * z = x * (y * z).
 end
 
 theory Commutative:
-	fix (*).
-	assume commute: x ∈ A ⟹ y ∈ A ⟹ x * y ≤ y * x.
+	fix A (*).
+	assume commute: x ∈ A ⟹ y ∈ A ⟹ x * y = y * x.
 end
 
 theory LeftNeutral:
-	fix (*) (1).
-	assume left_neutral: x ∈ A ⟹ 1 * x ≤ x.
+	fix A (*) (1).
+	assume left_neutral: x ∈ A ⟹ 1 * x = x.
 end
 
 theory RightNeutral:
-	fix (*) (1).
-	assume right_neutral: x ∈ A ⟹ x * 1 ≤ x.
+	fix A (*) (1).
+	assume right_neutral: x ∈ A ⟹ x * 1 = x.
 end
 
+theory LeftCancel:
+	fix A (*) (\).
+	assume left_cancel: x ∈ A ⟹ y ∈ A ⟹ x \ (x * y) = y.
+end
+
+theory RightCancel:
+	fix A (*) (/).
+	assume right_cancel: x ∈ A ⟹ y ∈ A ⟹ (x * y) / y = x.
+end
+
+theory LeftQuasiGroup:
+	import LeftCancel.
+	import cancel: RightCancel A (\) (*).
+end
+
+theory RightQuasiGroup:
+	import RightCancel.
+	import cancel: LeftCancel A (/) (*).
+end
+
+
 theory LeftAbsorb:
-	fix (*) (0).
-	assume left_absorb: x ∈ A ⟹ 0 * x ≤ 0.
+	fix A (*) (0).
+	assume left_absorb: x ∈ A ⟹ 0 * x = 0.
 end
 
 theory RightAbsorb:
-	fix (*) (0).
-	assume right_absorb: x ∈ A ⟹ x * 0 ≤ 0.
+	fix A (*) (0).
+	assume right_absorb: x ∈ A ⟹ x * 0 = 0.
 end
 
 theory Semigroup:
@@ -54,7 +76,7 @@ theory CommSemigroup:
 end
 
 theory MagmaLeftNeutral:
-	fix (*) (1).
+	fix A (*) (1).
 	import Magma.
 	import neutral: Member (1) A.
 	import LeftNeutral.
@@ -63,7 +85,7 @@ begin
 end
 
 theory MagmaRightNeutral:
-	fix (*) (1).
+	fix A (*) (1).
 	import Magma.
 	import neutral: Member (1) A.
 	import RightNeutral.
@@ -82,7 +104,7 @@ theory Monoid:
 end
 
 theory MagmaLeftAbsorb:
-	fix (*) (0).
+	fix A (*) (0).
 	import Magma.
 	import absorb: Member (0) A.
 	import LeftAbsorb.
@@ -91,7 +113,7 @@ begin
 end
 
 theory MagmaRightAbsorb:
-	fix (*) (0).
+	fix A (*) (0).
 	import Magma.
 	import absorb: Member (0) A.
 	import RightAbsorb.
@@ -110,12 +132,13 @@ theory SemigroupAbsorb:
 end
 
 theory MonoidAbsorb:
-	fix (*) (0) (1).
+	fix A (*) (0) (1).
 	import SemigroupAbsorb.
 	import Monoid.
 end
 
 context Transitive begin
+	interpret Magmas (≤).
 
 	theory CommMagmaNeutral:
 		import MagmaLeftNeutral.
@@ -133,6 +156,8 @@ context Transitive begin
 	theory CommMonoid:
 		import CommMagmaNeutral.
 		import CommSemigroup.
+	begin
+		interpret Monoid.
 	end
 
 	theory CommMagmaAbsorb:
@@ -151,14 +176,15 @@ context Transitive begin
 	theory CommSemigroupAbsorb:
 		import CommMagmaAbsorb.
 		import CommSemigroup.
+	begin
+		interpret SemigroupAbsorb.
 	end
 
 	theory CommMonoidAbsorb:
 		fix (*) (0) (1).
 		import CommMonoid.
 		import CommMagmaAbsorb.
+	begin
+		interpret MonoidAbsorb.
 	end
-
-end
-
 end

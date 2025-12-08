@@ -178,7 +178,7 @@ bool Inference::_blast(
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
 	if( log > 0 ) {
-		_log() << "blasting " << subthy.pretty(goal) << endl;
+		_log() << "blasting: " << subthy.pretty(goal) << endl;
 		indent++;
 	}
 	size_t n_elim_res = 0;
@@ -195,7 +195,7 @@ bool Inference::_blast(
 		if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto elim = info.ref<Elim>();
 			assert(elim);
-			if( auto m = elim->matches(assm) ) {
+			if( auto m = elim->matches(assm,{import}) ) {
 				if( log > 2 ) _log() << "eliminating: " << subthy.pretty(assm) << endl;
 				auto const& res = elim->instantiate(*m,assm,import);
 				elim_res.emplace_back(res);
@@ -226,8 +226,11 @@ bool Inference::_blast(
 		auto intro_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
-			auto const& m = rule->matches(g);
-			if( !m ) return {};
+			auto const& m = rule->matches(g,{import});
+			if( !m ) {
+				if( log > 3 ) _log() << "intro didn't match: " << subthy.pretty(thm) << endl;
+				return {};
+			}
 			if( log > 2 ) _log() << "applying: " << subthy.pretty(thm) << endl;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
 			return {thm};
@@ -235,9 +238,10 @@ bool Inference::_blast(
 		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
-			auto const& m = rule->matches(goal);
-			if( m && _apply_blast(subthesis,*m,import,trial,*rule) ) {
-				if( log > 2 ) _log() << "applied: " << subthy.pretty(thm) << endl;
+			auto const& m = rule->matches(goal,{import});
+			if( !m ) return {};
+			if( log > 2 ) _log() << "trying: " << subthy.pretty(thm) << endl;
+			if( _apply_blast(subthesis,*m,import,trial,*rule) ) {
 				return {thm};
 			}
 			return {};

@@ -1,7 +1,6 @@
 -------
 # Type-Free Intuitionistic Logic
 -------
-import Base.
 
 -- Obtains false, which derives everything, including non-propositions.
 obtain false where false_elim: false ⟹ ∀P. P;
@@ -9,7 +8,7 @@ obtain false where false_elim: false ⟹ ∀P. P;
 		by assm[of (∀P. P)].
 	.
 
-import TypeFreeMinimal.
+import Minimal.
 
 begin
 

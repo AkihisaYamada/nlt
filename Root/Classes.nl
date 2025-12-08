@@ -1,6 +1,7 @@
 -----
 ## Notions for Sets or Types
 -----
+import Base.
 fix (∈).
 
 begin
@@ -83,3 +84,6 @@ begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
 end
+
+end
+

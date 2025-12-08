@@ -1,65 +1,79 @@
 theory Root
+- theory Base
+- theory Classes
+  * fix `∈`
+  - theory Fun
+    * fix `→`. assume `f ∈ A → B ⟹ x ∈ A ⟹ f x ∈ B`
 - theory Prop
-  * fix `:` `prop` `∧` `∨` `¬` `⟺`. assume ...
-  * theory Intuitionistic
-    - assume `false ⟹ P : prop ⟹ P`
-  * theory Classical
-    - import Intuitionistic
-    - assume `P : prop ⟹ P ∨ ¬P`
-- theory Fun
-  * fix →. assume `f : ι → τ ⟹ x : ι ⟹ f x : τ`
+  * import Classes
+  * fix `PROP`
+  - theory Minimal
+    * fix `false` `∧` `∨` `¬` `⟺`. assume ...
+    * obtain `true` as `false ⟹ false`
+  - theory Intuitionistic
+    * import Minimal
+    * assume `false ⟹ P ∈ PROP ⟹ P`
+  - theory Classical
+    * import Intuitionistic
+    * assume `P ∈ PROP ⟹ P ∨ ¬P`
 - theory FO
   * import Prop
-  * fix `(∀:)` `(∃:)`. assume...
-  * theory Choice
-    - assume `(∃x:ι. P[x]) ⟹ (∀x. x : ι ⟹ P[x] : prop) ⟹ P[SOME x:ι. Y[x]]`
+  * fix `TYPE`
+  - theory Choice
+    * assume `(∃x ∈ A. P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[SOME x ∈ A. Y[x]]`
+  - theory Minimal
+    * import ..Minimal
+    * fix `(∀∈)` `(∃∈)`.
+  　  assume ball_elim: `∀x ∈ A. P[x] ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[x]`
+      assume ball_intro: `(∀x. x ∈ A ⟹ P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ ∀x ∈ A. P[x]`
   - theory Intuitionistic
-    * import Prop.Intuitionistic
+    * import Minimal, ..Intuitionistic
   - theory Classical
-    * import Intuitionistic, Prop.Classical
+    * import Intuitionistic, ..Classical
 - theory HO
   * import FO, Fun
-  * theory Intuitionistic
-    - import FO.Intuitionistic
-  * theory Classical
-    - import Intuitionistic, FO.Classical
+  * assume `A ∈ TYPE ⟹ B ∈ TYPE ⟹ A → B ∈ TYPE`
+  - theory Minimal
+    * import ..Minimal
+  - theory Intuitionistic
+    * import Minimal, ..Intuitionistic
+  - theory Classical
+    * import Intuitionistic, ..Classical
 - theory Eq
   * fix `=`. assume `x = x`, `x = y ⟹ C[x] = C[y]`
-  * theory Prop
-    - import Root.Prop
+  - theory Prop
+    * import ..Prop
     - theory TwoValued
-      * assume `(p ⟺ q) ⟹ p : prop ⟹ q : prop ⟹ p = q`
-  * theory FO
-    - import Root.FO
-    - import Prop
-    - fix `(∃!:)`. assume `(∀x. x : ι ⟹ P[x] : prop) ⟹ (∃!x:ι. P[x]) ⟺ (∃x:ι. P[x]) ∧ (∀x:ι. ∀y:ι. P[x] ⟹ P[y] ⟹ x = y)`
+      * assume `(p ⟺ q) ⟹ p ∈ PROP ⟹ q ∈ PROP ⟹ p = q`
+  - theory FO
+    - import ..FO, Prop
+    - fix `(∃!∈)`. assume `(∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ (∃!x ∈ A. P[x]) ⟺ (∃x ∈ A. P[x]) ∧ (∀x ∈ A. ∀y ∈ A. P[x] ⟹ P[y] ⟹ x = y)`
     - theory UniqueChoice
-      * assume `(∃!x:ι. Y[x]) ⟹ (∀x. x : ι ⟹ P[x] : prop) ⟹ Y[SOME x:ι. Y[x]]`
+      * assume `(∃!x ∈ A. Y[x]) ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ Y[SOME x ∈ ι. Y[x]]`
     - theory Choice
-      * import FO.Choice
+      * import ..Choice
       * interpret UniqueChoice
-  * theory HO
-    - import Prop
-    - import Root.HO
+  - theory HO
+    * import FO, ..HO
     - theory Extensional
-      * assume ext: `(∀x:ι. f x = g x) ⟹ f : ι → τ ⟹ g : ι → τ ⟹ f = g`
+      * assume ext: `(∀x ∈ A. f x = g x) ⟹ f ∈ A → B ⟹ g ∈ A → B ⟹ f = g`
 - theory TypeFree
   * fix `∧` `∨` `¬` `⟺`. assume ...
-  * theory Intuitionistic
-    - assume `false ⟹ P`
+  - theory Intuitionistic
+    * assume `false ⟹ P`
 - theory Lambda
   * import Eq
   * fix `λ`. assume `(λx. C[x]) y = C[y]`
-  * theory Nat
-    - fix `nat` `0` `Suc`.
-  * theory Logic
+  - theory Nat
+    * fix `nat` `0` `Suc`.
+  - theory Logic
     - define `x ∧ y := ∀P. x ⟹ y ⟹ P`
     - define `x ∨ y := ∀P. (x ⟹ P) ⟹ (y ⟹ P) ⟹ P`
     - interpret decided: Prop.Classical
     - interpret TypeFree.Intuitionistic
-    - theory Nat
-      * import Lambda.Nat
-      * interpret HeytingArith
+    * theory Nat
+      - import ..Nat
+      - interpret HeytingArith
 - theory HeytingArith
   * import FO.Intuitionistic
   * import Lambda

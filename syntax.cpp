@@ -40,10 +40,10 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 				if( level > op.llevel ) {
 					os << '(';
 				}
-				os << *sym << ' ' << abs->first;
+				os << *sym << ' ' << pretty_sym(abs->first);
 				Term cur = abs->second;
 				while( auto abs2 = cur.binder(*sym) ) {
-					os << ' ' << abs2->first;
+					os << ' ' << pretty_sym(abs2->first);
 					cur = abs2->second;
 				}
 				os << ". " << pretty(cur,op.rlevel);

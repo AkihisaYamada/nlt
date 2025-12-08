@@ -249,7 +249,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
 	bool success = false;
 	for( auto const& cong : rew->_congs[ind] ) {
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
-		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
+		if( auto const& m = match( cong.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
 			Thm ret = thy.weaken(cong);
 			// ret: ∀x... x'.... (φ ⟹ x = x') ⟹ ... ⟹ C[x...] = C[x'...]
 			for( size_t i = 0; i<cong.conds.size(); i++ ) {
@@ -302,7 +302,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind, vect
 	}
 	for( auto const& cong : rew->_congs[ind] ) {
 		auto const& pat_ctxt = cong.pat.ctxt();// C[x...]
-		if( auto const& m = match(cong.pat,source,[&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
+		if( auto const& m = match( cong.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
 			Thm ret = thy.weaken(cong);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
 			size_t i = 0;
 			auto var_end = cong.conds.size();
