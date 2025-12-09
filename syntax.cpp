@@ -107,7 +107,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 		if( level > 0 ) {
 			os << '(';
 		}
-		os << abs->first << ". " << pretty(abs->second, 0);
+		os << pretty_sym(abs->first) << ". " << pretty(abs->second, 0);
 		if( level > 0 ) {
 			os << ')';
 		}

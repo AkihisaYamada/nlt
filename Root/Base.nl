@@ -54,7 +54,7 @@ infix + 100 101 100.
 infix - 100 101 100.
 infix * 110 111 110.
 infix / 110 111 110.
-infix \ 111 110 110.
+infix \ 111 111 110.
 
 ---
 ## Properties of Untyped Binary Relations

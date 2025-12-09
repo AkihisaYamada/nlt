@@ -33,12 +33,11 @@ begin
 	note! closed.
 end
 
-theory FunType:
+theory Fun:
 	fix (→).
-	assume fun_type_elim1: f ∈ A → B ⟹ ∀a. a ∈ A ⟹ f a ∈ B.
-	assume fun_type_intro! for f A B, (∀a. a ∈ A ⟹ f a ∈ B) ⟹ f ∈ A → B.
+	assume fun_elim1: f ∈ A → B ⟹ ∀a. a ∈ A ⟹ f a ∈ B.
 begin
-	note fun_type_elim: make_elim[of (f. f ∈ A → B) (f. ∀a. a ∈ A ⟹ f a ∈ B), OF fun_type_elim1].
+	note fun_elim: make_elim[of (f. f ∈ A → B) (f. ∀a. a ∈ A ⟹ f a ∈ B), OF fun_elim1].
 end
 
 

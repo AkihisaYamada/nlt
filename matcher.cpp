@@ -21,8 +21,11 @@ public:
 		return "?" + std::to_string(i);
 	}
 };
-Renamer fresh_maker() {
+Renamer patvar_maker() {
 	return FreshMaker();
+}
+bool is_patvar( std::string_view const& sym ) {
+	return !sym.empty() && sym[0] == '?';
 }
 
 

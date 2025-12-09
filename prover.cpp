@@ -81,11 +81,11 @@ void init_syntax( Syntax& syntax ) {
 static Error const ProofMismatch = Error("#proof-mismatch");
 
 class Prover : public Parser {
-	unsigned int _depth;
 	Thy _thy;
 	Lex& lex;
 	bool _final = false;
 	bool _through_error;
+	unsigned char _depth;
 	char _out;
 	char _out_load;
 	char _out_blast = 0;
@@ -97,26 +97,21 @@ public:
 		}
 	};
 	static inline Error const THROUGH = Error("\"from here\"");
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, char out, char out_load ) :
-		_depth(0),
+	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, char out, char out_load, unsigned char depth ) :
+		_depth(depth),
 		_thy(thy),
 		lex(lex),
 		Parser(is,filename,lex),
 		_through_error(through_error),
 		_out(out),
 		_out_load(out_load) {
-		_prompt();
+		if MSG cout << _indent();
 	}
 	Syntax const& syntax() const {
 		return _thy.syntax();
 	}
 	Thy& thy() & {
 		return _thy;
-	}
-	Prover& deepen() & {
-		_depth++;
-		_prompt();
-		return *this;
 	}
 	void enter_branch( string_view const& name, string_view const& dirname ) {
 		_thy = _thy.branch(name,dirname);
@@ -270,13 +265,13 @@ public:
 		}
 		throw Error("\"expected a term\"")(get());
 	}
-	void _prompt() & {
-		if MSG {
+	function<ostream&(ostream&)> _indent( char c = '>' ) const & {
+		return [c,this]( ostream& os )->ostream& {
 			for( int i = 0; i <= _depth; i++ ) {
-				cout << '>';
+				os << c;
 			}
-			cout << ' ' << flush;
-		}
+			return os << ' ' << flush;
+		};
 	}
 	ClaimStatus get_claim_status( bool needsep = true ) {
 		ClaimStatus cs;
@@ -326,7 +321,7 @@ public:
 			loc.add_thm(*cs.name,thm);
 		}
 	}
-	void print_goal( Thesis const& thesis, string pre = "goal " ) {
+	void print_goal( Thesis const& thesis, string pre = "goals " ) {
 		Term acc = thesis.thm();
 		size_t i = 0;
 		while( i < thesis.goal_count() ) {
@@ -452,9 +447,15 @@ public:
 	}
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, string_view const& filename ){
-			if( SYS && _out_load & FLAG_CTXT ) cout << "loading " << filename << endl;
-			Prover(thy,fis,filename,lex,true,_out_load,_out_load).loop();
-			if SYS cout << "loaded " << filename << endl;
+			if SYS {
+				if( !MSG ) cout << _indent(' ');
+				cout << "loading " << filename << endl;
+			}
+			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
+			if ( SYS && _out_load & FLAG_CTXT ) {
+				if( !MSG ) cout << _indent(' ');
+				cout << "loaded " << filename << endl;
+			}
 		};
 	}
 	static void _print_prefix( string_view const& prefix ) {
@@ -563,7 +564,7 @@ public:
 		auto org_thy = _thy;
 		_thy = org_thy.scope_temp("#import");// namespace
 		for(;;) try {
-			_prompt();
+			if MSG cout << _indent();
 			if( _stats() || _note() ) {
 			} else if( skips("goal") ) {
 				skip(".");
@@ -623,7 +624,7 @@ public:
 					if( o ) {
 						auto const& thm = o->intro();
 						intp.discharge(thm);
-						if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(thm) << endl;
+						if MSG cout << "discharged: " << assume->second << ": " << _thy.pretty(thm) << endl;
 					}
 				} catch( ::Error const& e ) {
 					if ERR cerr << "failed to discharge" << assume->second << ": " << _thy.pretty(assume->first) << endl;
@@ -680,7 +681,7 @@ public:
 		} catch( ::Error const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
-			_prompt();
+			if MSG cout << _indent();
 		}
 		_thy = org_thy;
 		return true;
@@ -714,9 +715,11 @@ public:
 					auto thesis = Thesis::claim_exact(thesis_loc,var);// var ⟹ var
 					thesis.apply(rule);// prop[sym:=term]... ⟹ var
 					if( skips(";") ) {
-						if MSG print_goal(thesis);
 						_depth++;
-						_prompt();
+						if MSG {
+							print_goal(thesis);
+							_indent();
+						}
 						auto prf = _prove(thesis);
 						_depth--;
 						if( prf ) {
@@ -841,7 +844,7 @@ public:
 		if MSG cout << "showing " << cs << flush;
 		auto thesis = get_statement();
 		_depth++;
-		_prompt();
+		if MSG cout << _indent();
 		auto o = _prove(thesis);
 		_depth--;
 		if( o ) {
@@ -870,7 +873,8 @@ public:
 		if MSG cout << "defined " << name << ": " << _thy.pretty(l) << " := " << _thy.pretty(r) << endl;
 	}
 	void local_thy( Thy& loc, bool finalized ) {
-		deepen();
+		_depth++;
+		if MSG cout << _indent();
 		swap(_thy,loc);
 		swap(_final,finalized);
 		loop();
@@ -988,7 +992,7 @@ public:
 			}
 			auto thesis = Thesis::claim_exact(loc,loc_goal);
 			_depth++;
-			_prompt();
+			if MSG cout << _indent();
 			auto thm = _prove(thesis);
 			_depth--;
 			if( !thm ) throw Error("proof failed")(goal);
@@ -1102,9 +1106,10 @@ public:
 					auto thm = _prove(subthesis);
 					if( thm ) {
 						thesis.discharge(thm->intro());
+						if MSG cout << "discharged subgoal: " << _thy.pretty(*thm) << endl;
 					}
 				} catch( ::Error const& e ) {
-					if ERR cerr << "failed to prove subgoal " << _thy.pretty(*goal);
+					if ERR cerr << "failed to prove subgoal: " << _thy.pretty(*goal) << endl;
 					throw e;
 				}
 			} else if( auto pat = _gets_subgoal() ) {
@@ -1117,7 +1122,7 @@ public:
 					}
 					thesis.blast();
 				}
-				if MSG print_goal(thesis,"next goal ");
+				if MSG print_goal(thesis,"next goals ");
 			} else if( auto infer = gets_concluder() ) {
 				return infer->blast_all(thesis);
 			} else if( skips("oops") ) {
@@ -1129,11 +1134,11 @@ public:
 			} else {
 				throw Error("\"unexpected\"")(get());
 			}
-			_prompt();
+			if MSG cout << _indent();
 		} catch ( ::Error const& e ) {
 			if( _through_error ) throw e;
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
-			_prompt();
+			if MSG cout << _indent();
 		}
 	}
 	char get_print_level() {
@@ -1336,11 +1341,11 @@ public:
 			} else {
 				throw Error("\"unexpected\"")(get());
 			}
-			_prompt();
+			if MSG cout << _indent();
 		} catch ( ::Error const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
-			_prompt();
+			if MSG cout << _indent();
 		}
 	}
 	void _obtain( Thy& org_thy ) {
@@ -1350,7 +1355,7 @@ public:
 		vector<CTerm> props;
 		vector<pair<ClaimStatus,Thm>> prop_thms;
 		Thy thesis_thy = org_thy.branch();
-		CTerm var = thesis_thy.fix("?thesis");
+		CTerm var = thesis_thy.fix("_thesis");
 		Thy goal_thy = thesis_thy.branch();
 		goal_thy.fix(sym);
 		auto props_thy = org_thy.branch();
@@ -1373,7 +1378,7 @@ public:
 		goal = goal.lift(org_thy.cterm(ALL));
 		auto thesis = Thesis::claim_exact(org_thy,goal);
 		_depth++;
-		_prompt();
+		if MSG cout << _indent();
 		auto const& thm = _prove(thesis);
 		_depth--;
 		if( thm ) {
@@ -1407,7 +1412,7 @@ void run( istream& is, string_view const& name, bool exit_on_error, char out ) {
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
 	Thy thy = root.branch(name,"");
-	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS);
+	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	try {
 		prover.loop();
 	} catch( Error const& e ) {

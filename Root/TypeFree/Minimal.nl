@@ -168,8 +168,6 @@ context iff begin
 end
 
 note #cong: iff.and.cong.
-thm iff.and.commute.
-thy.
 
 lemma and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.

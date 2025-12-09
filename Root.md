@@ -16,22 +16,22 @@ theory Root
   - theory Classical
     * import Intuitionistic
     * assume `P ∈ PROP ⟹ P ∨ ¬P`
-- theory FO
+- theory FOL
   * import Prop
   * fix `TYPE`
-  - theory Choice
-    * assume `(∃x ∈ A. P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[SOME x ∈ A. Y[x]]`
   - theory Minimal
     * import ..Minimal
     * fix `(∀∈)` `(∃∈)`.
   　  assume ball_elim: `∀x ∈ A. P[x] ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[x]`
       assume ball_intro: `(∀x. x ∈ A ⟹ P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ ∀x ∈ A. P[x]`
+    - theory Choice
+      * assume `(∃x ∈ A. P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[SOME x ∈ A. Y[x]]`
   - theory Intuitionistic
     * import Minimal, ..Intuitionistic
   - theory Classical
     * import Intuitionistic, ..Classical
-- theory HO
-  * import FO, Fun
+- theory HOL
+  * import FOL, Fun
   * assume `A ∈ TYPE ⟹ B ∈ TYPE ⟹ A → B ∈ TYPE`
   - theory Minimal
     * import ..Minimal

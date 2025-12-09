@@ -9,7 +9,6 @@
 fix false (¬) (∧) (∨) (⟺).
 
 assume false_type! false ∈ PROP.
-assume imp_type! P ∈ PROP ⟹ Q ∈ PROP ⟹ (P ⟹ Q) ∈ PROP.
 assume not_type! P ∈ PROP ⟹ (¬ P) ∈ PROP.
 assume and_type! P ∈ PROP ⟹ Q ∈ PROP ⟹ (P ∧ Q) ∈ PROP.
 assume  or_type! P ∈ PROP ⟹ Q ∈ PROP ⟹ (P ∨ Q) ∈ PROP.
@@ -42,7 +41,7 @@ namespace iff begin
 	interpret Magmas (⟺).
 
 	lemma elim:
-		if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ P ∈ PROP ⟹ Q ∈ PROP ⟹ R;
+	if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ P ∈ PROP ⟹ Q ∈ PROP ⟹ R;
 		for R if assm, !, !;
 			apply assm;
 			- by iff_elim1[OF PQ].
@@ -230,8 +229,8 @@ if [P ∈ PROP, Q ∈ PROP] then ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 
 namespace and begin
 
-	lemma elim: if and: P ∧ Q then
-		∀R. (P ⟹ Q ⟹ R) ⟹ P ∈ PROP ⟹ Q ∈ PROP ⟹ R;
+	lemma elim:
+	if and: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ P ∈ PROP ⟹ Q ∈ PROP ⟹ R;
 		for R if PQR: P ⟹ Q ⟹ R;
 			by PQR and_elim1[OF and] and_elim2[OF and].
 		.
@@ -425,7 +424,7 @@ theory StrictOrder:
 	import Irreflexive.
 	import Transitive A (<).
 begin
-set print blast.
+
 	interpret Asymmetric;
 		for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
 			apply not_intro;
@@ -435,4 +434,5 @@ set print blast.
 				by not_imp_false[OF irrefl[OF x] xx].
 			.
 		.
+
 end

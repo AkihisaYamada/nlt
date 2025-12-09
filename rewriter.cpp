@@ -59,7 +59,7 @@ void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const & {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	auto sub = branch();
 	auto toSub = *sub.parent();
-	Thm body = strip_all(rule,toSub,fresh_maker()).first;
+	Thm body = strip_all(rule,toSub,patvar_maker()).first;
 	while( auto imp = body.cbinary(IMP) ) {
 		Thm assm = sub.assume(imp->first);
 		sub.add_thm(Thy::EXACT,assm);
@@ -86,7 +86,7 @@ void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const & {
 }
 
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
-	auto rule = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
+	auto rule = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
@@ -118,7 +118,7 @@ Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
 	return *this;
 }
 Rewriter& Rewriter::register_trans( Thm const& thm ) & {
-	if( auto const& imp1 = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first.cbinary(IMP) )
+	if( auto const& imp1 = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first.cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
 		auto const& ind = gets_rel_ind(*rel);
@@ -169,7 +169,7 @@ Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 }
 
 Rewriter& Rewriter::register_dual( Thm const& thm ) & {
-	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),fresh_maker()).first;
+	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
 	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) ) {
@@ -221,7 +221,7 @@ Thm Inference::_make_refl( Thy const& thy, CTerm const& source, size_t ind ) & {
 Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
 	for( auto const& rule : rules[ind] ) {
 		Ctxt const& pat_ctxt = rule.pat.ctxt();
-		if( auto const& m = match( rule.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {
+		if( auto const& m = match(rule.pat,source,is_patvar) ) {
 			// source: l[m]
 			Intp intp = Intp::make(pat_ctxt,rule.ctxt).compose(thy.interpret_ancestor(rule.ctxt));
 			for(;;) {
@@ -249,7 +249,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
 	bool success = false;
 	for( auto const& cong : rew->_congs[ind] ) {
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
-		if( auto const& m = match( cong.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
+		if( auto const& m = match(cong.pat,source,is_patvar) ) {// source: C[s...]
 			Thm ret = thy.weaken(cong);
 			// ret: ∀x... x'.... (φ ⟹ x = x') ⟹ ... ⟹ C[x...] = C[x'...]
 			for( size_t i = 0; i<cong.conds.size(); i++ ) {
@@ -302,7 +302,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind, vect
 	}
 	for( auto const& cong : rew->_congs[ind] ) {
 		auto const& pat_ctxt = cong.pat.ctxt();// C[x...]
-		if( auto const& m = match( cong.pat, source, [&](auto v){ return pat_ctxt.fixes(v); }) ) {// source: C[s...]
+		if( auto const& m = match(cong.pat,source,is_patvar) ) {// source: C[s...]
 			Thm ret = thy.weaken(cong);// ret: ∀x. ∀y. x = y ⟹ ... ⟹ C[x...] = C[y...]
 			size_t i = 0;
 			auto var_end = cong.conds.size();

@@ -7,7 +7,7 @@ static Error const MalformedBeta = Error("#malformed-beta");
 static Error const UnknownEq = Error("#unknown-equality");
 
 Definer::_Init Definer::_init( Thy const& thy, Thm const& beta ) {
-	auto const& [beta2,i] = strip_all(beta,thy.fork(),fresh_maker());// (λ α) x = α.[x]
+	auto const& [beta2,i] = strip_all(beta,thy.fork(),patvar_maker());// (λ α) x = α.[x]
 	auto const& bin = strips_binary(beta2);// (λ _) _ = _
 	if( !bin ) throw MalformedBeta(beta);
 	auto const& [EQ,l,r] = *bin;

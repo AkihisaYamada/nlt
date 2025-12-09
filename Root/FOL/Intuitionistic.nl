@@ -2,10 +2,8 @@
 # Quantified Intuitionistic Logic
 ------
 
-fix (¬) (∧) (∨) (⟺) (∀∋) (∃∋).
-
-import ..Intuitionistic.
 import Minimal.
+import ..Intuitionistic.
 
 begin
 

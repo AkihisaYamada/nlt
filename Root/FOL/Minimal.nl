@@ -4,46 +4,13 @@
 In addition to Propositional minimal logic, this theory axiomatizes typed quantifiers.
 ---
 
-fix false (¬) (∧) (∨) (⟺) (∀∋) (∃∋).
-
 import ..Minimal.
-
-assume all_type!
-if A ∈ TYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP then (∀x ∈ A. P.[x]) ∈ PROP.
-
-assume all_intro:
-if ∀x. x ∈ A ⟹ P.[x], A ∈ TYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-then ∀x ∈ A. P.[x].
-
-assume all_elim1: for x
-if ∀y ∈ A. P.[y], A ∈ TYPE, ∀y. y ∈ A ⟹ P.[y] ∈ PROP, x ∈ A
-then P.[x].
-
-assume ex_type!
-if A ∈ TYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP then (∃x ∈ A. P.[x]) ∈ PROP.
-
-assume ex_intro1: for x,
-if P.[x], A ∈ TYPE, x ∈ A, ∀y. y ∈ A ⟹ P.[y] ∈ PROP
-then ∃y ∈ A. P.[y].
-
-assume ex_elim:
-if ∃x ∈ A. P.[x]
-then ∀Q. (∀x. P.[x] ⟹ x ∈ A ⟹ Q) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P.[x] ∈ PROP) ⟹ Q ∈ PROP ⟹ Q.
 
 begin
 
 ---
 ## Universal Quantifier
 ---
-lemma all_elim:
-	if all: ∀x ∈ A. P.[x]
-	then ∀Q. ((∀x. x ∈ A ⟹ P.[x]) ⟹ Q) ⟹ A ∈ TYPE ⟹ (∀y. y ∈ A ⟹ P.[y] ∈ PROP) ⟹ Q;
-	for Q if assm, !, !;
-		apply assm;
-		for x if !;
-			apply all_elim1[OF all, of x].
-		.
-	.
 
 lemma not_imp_not_all: if nax: ¬ P.[x], ! A ∈ TYPE, ! x ∈ A, ! ∀y. y ∈ A ⟹ P.[y] ∈ PROP
 then ¬(∀y ∈ A. P.[y]);
@@ -54,68 +21,59 @@ then ¬(∀y ∈ A. P.[y]);
 		by not_imp_false[OF nax ax].
 	.
 
-lemma tall_cong#cong: for P
-	if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
-		! A ∈ TYPE,
-		! ∀x. x ∈ A ⟹ P.[x] ∈ PROP,
-		! ∀x. x ∈ A ⟹ P'.[x] ∈ PROP
-	then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ A. P'.[x]);
-	apply iff_intro;
-	- by all_intro #fold aa' #elim all_elim.
-	- by all_intro #unfold aa' #elim all_elim.
-	.
+namespace iff begin
+	interpret ..iff.
+	lemma ball_cong#cong: for P
+		if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
+			! A ∈ TYPE,
+			! ∀x. x ∈ A ⟹ P.[x] ∈ PROP,
+			! ∀x. x ∈ A ⟹ P'.[x] ∈ PROP
+		then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ A. P'.[x]);
+		apply iff_intro;
+		- by all_intro #fold aa' #elim all_elim.
+		- by all_intro #unfold aa' #elim all_elim.
+		.
+end
+
+note #cong: iff.ball_cong.
 
 ---
 ## Existence
 ---
 
-lemma ex_intro:
-if assm: ∀Q. (∀x. P.[x] ⟹ x ∈ A ⟹ Q) ⟹ Q ∈ PROP ⟹ Q,
-	! A ∈ TYPE,
-	! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-then ∃x ∈ A. P.[x];
-	apply assm;
-	for x;
-		by ex_intro1[of x].
-	.
-
-lemma ex_iff:
-if ! A ∈ TYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-then (∃x ∈ A. P.[x]) ⟺ (∀Q ∈ PROP. (∀x ∈ A. P.[x] ⟹ Q) ⟹ Q);
-	apply iff_intro;
-	if ex: ∃x ∈ A. P.[x];
-		apply ex_elim[OF ex];
-		for x if !P.[x], !;
-			apply all_intro;
-			for Q if !, all: ∀x ∈ A. P.[x] ⟹ Q;
-				by all_elim1[of x, OF all].
+context iff begin
+	lemma ex_cong#cong: for P
+	if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
+		! A ∈ TYPE,
+		! ∀x. x ∈ A ⟹ P.[x] ∈ PROP,
+		! ∀x. x ∈ A ⟹ P'.[x] ∈ PROP
+	then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
+		apply iff_intro;
+		if ex;
+			apply ex_intro;
+			for Q if assm, !;
+				apply ex_elim[OF ex];
+				for x if !;
+					unfold aa';
+					apply assm!1.
+				.
+			.
+		if ex;
+			apply ex_intro;
+			for Q if assm, !;
+				apply ex_elim[OF ex];
+				for x if !;
+					fold aa';
+					apply assm!1.
+				.
 			.
 		.
-	if all: ∀Q ∈ PROP. (∀x ∈ A. (P.[x] ⟹ Q)) ⟹ Q;
-		apply all_elim1[OF all];
-		- .
-		- .
-		apply all_intro;
-		for x; by ex_intro1[of x].
-		.
-	.
+end
 
-lemma ex_cong#cong: for P
-if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
-	! A ∈ TYPE,
-	! ∀x. x ∈ A ⟹ P.[x] ∈ PROP,
-	! ∀x. x ∈ A ⟹ P'.[x] ∈ PROP
-then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
-	unfold ex_iff aa'.
+note #cong: iff.ex_cong.
 
-lemma ex_imp_all_imp:
-if ex: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
-	! A ∈ TYPE, ! Q ∈ PROP, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-then Q;
-	apply ex_elim[OF ex];
-	for x if imp: P.[x] ⟹ Q, ! x ∈ A;
-		by imp all_elim1[OF all].
-	.
+lemma nex_false: if ! A ∈ TYPE then ¬(∃x ∈ A. false);
+	by not_intro #elim ex_elim.
 
 lemma all_imp_iff_ex:
 if ! A ∈ TYPE, ! Q ∈ PROP, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
@@ -123,7 +81,7 @@ then (∀x ∈ A. P.[x] ⟹ Q) ⟺ (∃x ∈ A. P.[x]) ⟹ Q;
 	apply iff_intro;
 	if imp: ∀x ∈ A. P.[x] ⟹ Q, ex: ∃x ∈ A. P.[x];
 		apply ex_elim[OF ex];
-		for x if ax: P.[x], ! x ∈ A;
+		for x if ! x ∈ A, ax: P.[x];
 			by all_elim1[OF imp, of x] ax.
 		.
 	if imp: (∃x ∈ A. P.[x]) ⟹ Q;
@@ -132,9 +90,6 @@ then (∀x ∈ A. P.[x] ⟹ Q) ⟺ (∃x ∈ A. P.[x]) ⟹ Q;
 			by imp ex_intro1[OF ax].
 		.
 	.
-
-lemma nex_false: if ! A ∈ TYPE then ¬(∃x ∈ A. false);
-	by not_intro #elim ex_elim.
 
 
 ---
@@ -158,13 +113,13 @@ The other direction is provable if inside the quantification has negation.
 ---
 
 lemma nex_iff_all_not:
-if ! A ∈ PROP, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
+if ! A ∈ TYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
 	unfold+ not_iff_imp_false;
 	fold all_imp_iff_ex.
 
 lemma nnall_not_iff:
-if ! A ∈ PROP, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
+if ! A ∈ TYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then ¬¬(∀x ∈ A. ¬P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
 	fold+ nex_iff_all_not;
 	by nnnot_iff.

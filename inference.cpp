@@ -13,7 +13,7 @@ CTerm dummy( Ctxt const& ctxt ) {
 Intro Intro::imp( Thm const& thm, size_t n ) {
 	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
-	auto f = fresh_maker();
+	auto f = patvar_maker();
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
@@ -28,7 +28,7 @@ Intro Intro::imp( Thm const& thm, size_t n ) {
 
 Intro Intro::rule( Thm const& thm ) {
 	auto intp = thm.ctxt().fork();
-	auto f = fresh_maker();
+	auto f = patvar_maker();
 	auto [conc,vars] = strip_all(thm,intp,f);
 	auto ctxt = intp.ctxt();
 	size_t conds = 0;
@@ -41,7 +41,7 @@ Intro Intro::rule( Thm const& thm ) {
 }
 Elim Elim::rule( Thm const& thm ) {
 	auto child = thm.ctxt().fork();
-	Thm body = strip_all(thm,child,fresh_maker()).first;
+	Thm body = strip_all(thm,child,patvar_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);

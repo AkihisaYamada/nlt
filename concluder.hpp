@@ -17,7 +17,7 @@ class Concluder {
 public:
 	void insert(Thm const& thm) {
 		auto pat_ctxt = thm.ctxt().fork();
-		auto const& pat = strip_all(thm,pat_ctxt,fresh_maker());
+		auto const& pat = strip_all(thm,pat_ctxt,patvar_maker());
 		_rules.emplace_back(pat,pat.intro());
 	}
 	/** Discharge assumption that matches one of the rules. */

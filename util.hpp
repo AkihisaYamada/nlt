@@ -42,7 +42,9 @@ using Renamer = std::function<Opt<std::string>(std::string_view const&)>;
 Renamer avoider(Ctxt const& ctxt);
 
 /** Fresh variable maker */
-Renamer fresh_maker();
+Renamer patvar_maker();
+
+bool is_patvar( std::string_view const& sym );
 
 /**
  * @brief strips universal quantifiers.
@@ -173,7 +175,7 @@ public:
      */
 	static Intro axiom( Thm const& thm ) {
 		auto intp = thm.ctxt().fork();
-		auto [conc,vars] = strip_all(thm,intp,fresh_maker());
+		auto [conc,vars] = strip_all(thm,intp,patvar_maker());
 		return Intro(thm,conc,vars,0);
 	}
 	Thm const& conclusion() const& {
@@ -183,7 +185,7 @@ public:
 		return _thm;
 	}
 	Opt<Subst> matches( CTerm const& goal, Opt<Subst const&> subst = {} ) const {
-		return match( _pat, goal, [&](auto v){ return _pat.ctxt().fixes(v); }, subst );
+		return match(_pat,goal,is_patvar,subst);
 	}
 	/** @brief instantiates the rule. */
 	Thm subst( Intp const& intp ) const {
@@ -206,7 +208,7 @@ public:
 	 * @param thy the theory arg belongs
 	 */
 	Opt<Subst> matches(Thm const& arg, Opt<Subst const&> subst ) const {
-		return match( _premise, arg, [&](auto v){ return _premise.ctxt().fixes(v); }, subst );
+		return match(_premise,arg,is_patvar,subst);
 	}
 	Intro instantiate( Subst& m, Thm const& arg, Intp const& intp ) const;
 	Ctxt ctxt() && = delete;
