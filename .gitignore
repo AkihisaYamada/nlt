@@ -9,4 +9,5 @@ _debug/*
 *.log
 *.out
 *.vtc
+vscode/*.vsix
 paper/prover.pdf

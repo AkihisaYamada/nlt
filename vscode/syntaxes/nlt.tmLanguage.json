@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "nlt",
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#block-comments"},
+    {"include": "#commands"},
+    {"include": "#structures"},
+    {"include": "#proof-steps"},
+    {"include": "#proof-structures"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [{
+        "name": "comment.line.double-dash",
+        "match": "(^|[^-])--[^-].*\\n"
+      }]
+    },
+    "block-comments": {
+      "name": "comment.block",
+      "begin": "---+",
+      "end": "---+"
+    },
+    "commands": {
+      "patterns": [{
+        "name": "storage.nlt",
+        "match": ":\\=?|\\b(thm|ctxt|goal(s)?|base|assume|fix|obtain|import|interpret|note|lemma|theorem|proposition|have|show|theory|context|namespace|define|instantiate|retain|set|prefix|infix|binder(_middle)?)\\b"
+      }]
+    },
+    "structures": {
+      "patterns": [{
+        "name": "keyword.control.nlt",
+        "match": "\\b(begin|end)\\b"
+      }]
+    },
+    "proof-steps": {
+      "patterns": [{
+        "name": "keyword.control.nlt",
+        "match": ";|\\b(by|done|apply|(un)?fold)\\b"
+      }]
+    },
+    "proof-structures": {
+      "patterns": [{
+        "name": "support.class.nlt",
+        "match": "[-,]|\\.(\\s|$)|\\b(for|if|then|else|where)\\b"
+      }]
+    }
+  },
+  "scopeName": "source.nlt"
+}

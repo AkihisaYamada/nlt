@@ -1,0 +1,27 @@
+{
+  "name": "nlt-syntax-highlighting",
+  "displayName": "nlt syntax highlighting",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.93.1"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "nlt",
+      "extensions": [".nl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "nlt",
+      "scopeName": "source.nlt",
+      "path": "./syntaxes/nlt.tmLanguage.json"
+    }]
+  },
+  "repository": {
+    "url": "https://github.com/AkihisaYamada/Logic"
+  }
+}
