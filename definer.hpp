@@ -2,7 +2,7 @@
 #define _DEFINER_HPP_
 
 #include "theory.hpp"
-#include "rewriter.hpp"
+#include "rewrite.hpp"
 
 class Definer {
 	Thy _thy;

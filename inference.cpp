@@ -132,7 +132,7 @@ struct BlastError : public Error {
 		return BlastError(((Error)*this)(msg));
 	}
 };
-bool Inference::_apply_blast(
+bool Blaster::_apply_blast(
 	Thesis& thesis,
 	Subst const& matcher,
 	Intp const& rule2child,
@@ -164,7 +164,7 @@ bool Inference::_apply_blast(
 	return true;
 }
 
-bool Inference::_blast(
+bool Blaster::_blast(
 	Thesis& thesis,
 	size_t trial,
 	bool fail,

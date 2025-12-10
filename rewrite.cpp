@@ -3,8 +3,8 @@
 
 using namespace std;
 
-string const Rewriter::CONG = "#cong";
-Rewriter::Ctrl const Rewriter::DEFAULT_CTRL = {};
+string const Rewrite::CONG = "#cong";
+Rewrite::Ctrl const Rewrite::DEFAULT_CTRL = {};
 
 Opt<tuple<string,Term,Term>> strips_binary( Term const& term ) {
 	if( auto const& app = term.app() )
@@ -46,7 +46,7 @@ Thm Thy::dualize( Thm const& thm ) const & {
 		auto const& dual = rewriter()->_duals.finds(*ind);
 		if( !dual ) throw Error("\"no dual rule for\"")(get<0>(*bin));
 		Thm dual_thm = subthy.weaken(dual->second.thm) << body;
-		auto inf = Inference(subthy.rewriter());
+		auto inf = Blaster(subthy.rewriter());
 		while( auto o = inf.blasts(subthy,dual_thm) ) {
 			dual_thm = *o;
 		}
@@ -54,7 +54,7 @@ Thm Thy::dualize( Thm const& thm ) const & {
 	}
 	throw Error("\"not dualizable\"")(thm);
 }
-std::pair<char,Rewriter::Rule> Thy::make_rewrite_rule( Thm const& rule ) const & {
+std::pair<char,Rewrite::Rule> Thy::make_rewrite_rule( Thm const& rule ) const & {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	auto sub = branch();
 	auto toSub = *sub.parent();
@@ -67,27 +67,27 @@ std::pair<char,Rewriter::Rule> Thy::make_rewrite_rule( Thm const& rule ) const &
 	auto rew = *rewriter();
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = rew.gets_rel_ind(get<0>(*bin)) ) {
-		return {*ind,Rewriter::Rule(get<1>(*bin),body,rule.ctxt())};
+		return {*ind,Rewrite::Rule(get<1>(*bin),body,rule.ctxt())};
 	}
 	// The conclusion is not a rewrite relation. Turn it into a rewriting to true.
 	if( !rew._to_true ) throw Error("\"malformed rule\"")(rule);
 	auto const& [to_true,ind] = *rew._to_true;
 	body = sub.weaken(to_true) << body;
-	auto inf = Inference(sub.rewriter());
+	auto inf = Blaster(sub.rewriter());
 	while( auto o = inf.blasts(sub,body) ) {
 		body = *o;
 	}
 	auto iff = body.cbinary(rew._rels[ind]);
 	if( !iff ) throw Error("\"failed to make a rewrite rule\"")(body)(rule);
-	return {ind,Rewriter::Rule(iff->first,body,rule.ctxt())};
+	return {ind,Rewrite::Rule(iff->first,body,rule.ctxt())};
 }
 
-void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& thm ) const & {
+void Thy::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm ) const & {
 	auto const& [ind,rule] = make_rewrite_rule(thm);
 	rules[ind].emplace_back(std::move(rule));
 }
 
-Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
+Rewrite& Rewrite::register_imp( Thm const& thm, bool dir ) & {
 	auto rule = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )
@@ -105,7 +105,7 @@ Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
 	}
 	throw Error("\"malformed imp\"")(thm);
 }
-Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
+Rewrite& Rewrite::register_refl( Thm const& thm, bool def ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw Error("\"malformed refl\"")(thm);
@@ -119,7 +119,7 @@ Rewriter& Rewriter::register_refl( Thm const& thm, bool def ) & {
 	}
 	return *this;
 }
-Rewriter& Rewriter::register_trans( Thm const& thm ) & {
+Rewrite& Rewrite::register_trans( Thm const& thm ) & {
 	if( auto const& imp1 = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first.cbinary(IMP) )
 	if( auto const& imp2 = imp1->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp1->first) ) {
@@ -130,7 +130,7 @@ Rewriter& Rewriter::register_trans( Thm const& thm ) & {
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
-Rewriter& Rewriter::register_cong( Thm const& thm ) & {
+Rewrite& Rewrite::register_cong( Thm const& thm ) & {
 	// parsing congruence rule
 	auto rule = Intro::rule(thm);
 	Ctxt ctxt = rule.conclusion().ctxt();
@@ -170,7 +170,7 @@ Rewriter& Rewriter::register_cong( Thm const& thm ) & {
 	return *this;
 }
 
-Rewriter& Rewriter::register_dual( Thm const& thm ) & {
+Rewrite& Rewrite::register_dual( Thm const& thm ) & {
 	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin1 = strips_binary(imp->first) )
@@ -187,7 +187,7 @@ Rewriter& Rewriter::register_dual( Thm const& thm ) & {
 	}
 	throw Error("\"malformed dual rule\"")(thm);
 }
-Rewriter& Rewriter::register_to_true( Thm const& thm ) & {
+Rewrite& Rewrite::register_to_true( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw Error("\"malformed rewrite-to-true\"")(thm);
@@ -197,7 +197,7 @@ Rewriter& Rewriter::register_to_true( Thm const& thm ) & {
 	return *this;
 }
 
-Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst ) & {
+Opt<Thm> Blaster::_step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst ) & {
 	auto const& abs = source.bind();
 	assert(abs);
 	Thy subthy = thy.branch();
@@ -213,14 +213,14 @@ Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, CT
 	}
 	return {};
 }
-Thm Inference::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
+Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
 	while( auto imp = refl.cbinary(IMP) ) {
 		refl = refl.discharge(prove(thy,imp->first));
 	}
 	return refl;
 }
-Opt<Thm> Inference::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewriter::Rule const& rule, Subst const& matcher ) & {
+Opt<Thm> Blaster::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewrite::Rule const& rule, Subst const& matcher ) & {
 	// source: l[m]
 	Intp intp = Intp::make(pat_ctxt,rule.ctxt()).compose(thy.interpret_ancestor(rule.ctxt()));
 	for(;;) {
@@ -244,7 +244,7 @@ Opt<Thm> Inference::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, R
 		}
 	}
 }
-Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind ) & {
+Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind ) & {
 	for( auto const& rule : rules[ind] ) {
 		if( auto const& m = match(rule.pat(),source,is_patvar) )
 		if( auto const& ret = _apply_rewrite_rule(thy,rule.pat().ctxt(),rule,*m) ) {
@@ -252,7 +252,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind ) & {
 		}
 	}
 	if( auto ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-		auto const& rule = info.ref<Rewriter::Rule>();
+		auto const& rule = info.ref<Rewrite::Rule>();
 		assert(rule);
 		if( auto const& m = match(rule->pat(),source,is_patvar,{import}) )
 		if( auto const&	ret = _apply_rewrite_rule(thy,rule->pat().ctxt(),*rule,*m) ) {
@@ -300,7 +300,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind ) & {
 	return {};
 }
 
-Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<Thm> Blaster::_step_abs( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	auto const& abs = source.bind();
 	assert(abs);
 	Thy subthy = thy.branch();
@@ -312,7 +312,7 @@ Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, ve
 	return {};
 }
 
-Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( pos_it == pos_end ) {// rewritable position
 		return _step(thy,source,ind);
 	}
@@ -353,7 +353,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind, vector
 	return {};
 }
 
-size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
+size_t Rewrite::_get_ind( Opt<std::string> const& rel ) const {
 	if( rel ) {
 		auto const& o = gets_rel_ind(*rel);
 		if( !o ) throw Error("\"unregistered relation\"")(*rel);
@@ -363,7 +363,7 @@ size_t Rewriter::_get_ind( Opt<std::string> const& rel ) const {
 	}
 }
 
-Opt<Thm> Inference::_steps(
+Opt<Thm> Blaster::_steps(
 	Thy const& thy, 
 	CTerm const& s,
 	size_t min,
@@ -412,7 +412,7 @@ Opt<Thm> Inference::_steps(
 		t = app->second;
 	}
 }
-bool Inference::rewrites( Thesis& thesis, bool failable ) & {
+bool Blaster::rewrites( Thesis& thesis, bool failable ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -432,7 +432,7 @@ bool Inference::rewrites( Thesis& thesis, bool failable ) & {
 	}// t ⟹ s
 	return true;
 }
-Thm Inference::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
+Thm Blaster::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
 	size_t ind = rew->_get_ind(ctrl.rel);
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
@@ -447,8 +447,8 @@ Thm Inference::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
 	}// s ⟹ t
 	return tmp << source;
 }
-Rewriter Rewriter::subst( Intp const& intp ) const {
-	Rewriter ret;
+Rewrite Rewrite::subst( Intp const& intp ) const {
+	Rewrite ret;
 	int i = 0;
 	for( auto const& refl : _refls ) {
 		ret.register_refl(refl.subst(intp),i==_default_ind);

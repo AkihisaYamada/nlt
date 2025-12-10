@@ -3,7 +3,7 @@
 
 #include "theory.hpp"
 
-class Inference;
+class Blaster;
 
 /** @brief Add concluder theorem to theory */
 void add_forced( Thy&, Thm const& thm, bool allow_intro = false );
@@ -16,7 +16,7 @@ class Thesis {
 	size_t _goals;
 	Thesis( Thy const& thy, Thm const& thesis, CTerm const& claim, size_t goals ) :
 		_thy(thy), _thm(thesis), _claim(claim), _goals(goals) {}
-	friend Inference;
+	friend Blaster;
 public:
 	static Thesis claim_exact( Thy const& thy, CTerm const& claim ) {
 		auto intp = claim.ctxt().fork();
@@ -130,12 +130,12 @@ private:
 	void _apply2( Subst const& matcher, Intro const& intro, Thy const& child, Intp const& rule2child ) &;
 };
 
-class Inference {
+class Blaster {
 	size_t fuel;
 	char log;
 	unsigned short int indent;
-	Opt<Rewriter const&> rew;
-	friend Rewriter;
+	Opt<Rewrite const&> rew;
+	friend Rewrite;
 	std::ostream& _log() const& {
 		int n = indent < 16 ? indent : 16;
 		for( int i = 0; i < n; i++ ) {
@@ -144,9 +144,9 @@ class Inference {
 		return std::cerr;
 	}
 public:
-	Rewriter::Rules rules;
-	Rewriter::Ctrl ctrl;
-	Inference( Opt<Rewriter const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Rewrite::Rules rules;
+	Rewrite::Ctrl ctrl;
+	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool blasts( Thesis& thesis ) & {
 		std::vector<Intro> elim_res;
 		return _blast(thesis,1,true,elim_res,0);
@@ -190,7 +190,7 @@ public:
 		if( !imp ) throw Error("nothing to blast");
 		return thesis.discharge(prove(thy,imp->first));
 	}
-	Opt<Thm> _apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewriter::Rule const& rule, Subst const& matcher ) &;
+	Opt<Thm> _apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewrite::Rule const& rule, Subst const& matcher ) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
 	 * 
@@ -240,15 +240,15 @@ private:
 };
 
 inline void Thesis::blast() & {
-	auto inf = Inference(_thy.rewriter());
+	auto inf = Blaster(_thy.rewriter());
 	inf.blast(*this);
 }
 inline Thm Thesis::blast_all() & {
 	while( _goals > 0 ) blast();
 	return _thm;
 }
-inline Inference Thy::infer( char log ) const& {
-	return Inference(rewriter(),log);
+inline Blaster Thy::infer( char log ) const& {
+	return Blaster(rewriter(),log);
 }
 
 #endif

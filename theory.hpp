@@ -1,11 +1,11 @@
 #ifndef _THEORY_HPP
 #define _THEORY_HPP
 #include<map>
-#include"rewriter.hpp"
+#include"rewrite.hpp"
 
 class AThm;
 class Import;
-using ThmInfo = Sum<int,Intro,Elim,Rewriter::Rule>;
+using ThmInfo = Sum<int,Intro,Elim,Rewrite::Rule>;
 
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
@@ -128,13 +128,13 @@ public:
 	auto pretty_ctxt() const {
 		return syntax().pretty_ctxt(*this);
 	}
-	Opt<Rewriter&> rewriter() && = delete;
-	Opt<Rewriter const&> rewriter() const &;
-	OptRef<Rewriter>& set_rewriter() &;
+	Opt<Rewrite&> rewriter() && = delete;
+	Opt<Rewrite const&> rewriter() const &;
+	OptRef<Rewrite>& set_rewriter() &;
 	Thm dualize( Thm const& thm ) const &;
-	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const &;
-	std::pair<char,Rewriter::Rule> make_rewrite_rule( Thm const& thm ) const &;
-	Inference infer( char log = 0 ) const &;
+	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
+	std::pair<char,Rewrite::Rule> make_rewrite_rule( Thm const& thm ) const &;
+	Blaster infer( char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */

@@ -21,14 +21,14 @@ struct Thy::_Body {
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> imports;
 	Ref<Syntax> syntax;
-	OptRef<Rewriter> rewriter;
+	OptRef<Rewrite> rewriter;
 	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewriter> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
 	}
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewriter>(),OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewrite>(),OptRef<Definer>())) {};
 
 Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
 	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
@@ -70,13 +70,13 @@ Syntax const& Thy::syntax() const& {
 Syntax& Thy::modify_syntax() & {
 	return *_ref->syntax;
 }
-Opt<Rewriter const&> Thy::rewriter() const& {
+Opt<Rewrite const&> Thy::rewriter() const& {
 	if( _ref->rewriter ) {
 		return {*_ref->rewriter};
 	}
 	return {};
 }
-OptRef<Rewriter>& Thy::set_rewriter() & {
+OptRef<Rewrite>& Thy::set_rewriter() & {
 	return _ref->rewriter;
 }
 

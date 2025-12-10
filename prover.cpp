@@ -129,7 +129,7 @@ public:
 		if( !ret ) throw Parser::Error("\"expects a theorem\"");
 		return *ret;
 	}
-	void _get_rewrite( Inference& inf, Thy& loc, bool rev ) {
+	void _get_rewrite( Blaster& inf, Thy& loc, bool rev ) {
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
 		if( skips("(") ) {
@@ -315,7 +315,7 @@ public:
 			add_forced(loc,thm,true);
 		}
 		if( cs.cong ) {
-			loc.add_thm(Rewriter::CONG,thm);
+			loc.add_thm(Rewrite::CONG,thm);
 			_thy.set_rewriter()->register_cong(thm);
 		}
 		if( cs.elim ) {
@@ -411,7 +411,7 @@ public:
 			if CTXT cout << "fixed " << _thy.pretty_sym(sym) << endl;
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Inference& infer ) {
+	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Blaster& infer ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
@@ -437,7 +437,7 @@ public:
 			intp.discharge(ret);
 		}
 	}
-	void _auto_retain( Thy& thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Inference& infer ) {
+	void _auto_retain( Thy& thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
@@ -518,7 +518,7 @@ public:
 			}
 		}
 		if( !_thy.rewriter() && src.rewriter() ) {
-			_thy.set_rewriter() = OptRef<Rewriter>::make(src.rewriter()->subst(intp));
+			_thy.set_rewriter() = OptRef<Rewrite>::make(src.rewriter()->subst(intp));
 		}
 		if( success ) {
 			_thy.add_import(prefix,std::move(intp));
@@ -766,7 +766,7 @@ public:
 			return Intro::rule(thm);
 		}
 	}
-	Opt<Inference> gets_concluder() {
+	Opt<Blaster> gets_concluder() {
 		if( skips("by") ) {
 			auto inf = _thy.infer(_out_blast);
 			while( auto thm = gets_thm() ) {
@@ -1177,14 +1177,14 @@ public:
 						"\n\trefl: " << _thy.pretty(refl) <<
 						"\n\ttrans: " << _thy.pretty(trans);
 					if( !_thy.rewriter() ) {
-						_thy.set_rewriter() = OptRef<Rewriter>::make();
+						_thy.set_rewriter() = OptRef<Rewrite>::make();
 					}
 					
 					_thy.set_rewriter()->register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
-					_thy.find_thm( Rewriter::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+					_thy.find_thm( Rewrite::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 					auto thm2 = thm.subst(import);
 						_thy.set_rewriter()->register_cong(thm2);
 						if MSG cout << "\n\tcong: " << _thy.pretty(thm2);

@@ -1,22 +1,22 @@
-#ifndef _REWRITER_HPP_
-#define _REWRITER_HPP_
+#ifndef _REWRITE_HPP_
+#define _REWRITE_HPP_
 
 #include"util.hpp"
 
 class Thy;
 
-class Inference;
+class Blaster;
 /**
- * @brief Congruence prover.
+ * @brief Rewrite information
  * 
  */
-class Rewriter {
+class Rewrite {
 public:
 	class Rule {
 		CTerm _pat;// Γ.fix x... assume φ... ⊢ l
 		Thm _rule;//  Γ.fix x... assume φ... ⊢ l = r
 		Ctxt _ctxt;// Γ, holding ∀x... φ ⟹... l = r
-		friend Rewriter;
+		friend Rewrite;
 	public:
 		Rule( CTerm const& pat, Thm const& rule, Ctxt const& ctxt ) : _pat(pat), _rule(rule), _ctxt(ctxt) {}
 		CTerm const& pat() const& {
@@ -65,7 +65,7 @@ public:
 	/** ∀P. P ⟹ P = true */
 	Opt<std::pair<Thm,size_t>> _to_true;
 	size_t _default_ind;
-	friend Inference;
+	friend Blaster;
 	friend Thy;
 public:
 	static std::string const CONG;
@@ -75,9 +75,9 @@ public:
 	};
 	class Rules : std::vector<std::vector<Rule>> {
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
-		friend Rewriter;
+		friend Rewrite;
 		friend Thy;
-		friend Inference;
+		friend Blaster;
 	};
 	struct Ctrl {
 		Opt<std::string> rel;
@@ -104,19 +104,19 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	Rewriter& register_imp( Thm const& thm, bool dir ) &;
-	Rewriter& register_refl( Thm const& thm, bool def ) &;
-	Rewriter& register_trans( Thm const& thm ) &;
-	Rewriter& register_cong( Thm const& thm ) &;
-	Rewriter& register_dual( Thm const& thm ) &;
-	Rewriter& register_to_true( Thm const& thm ) &;
-	Rewriter subst( Intp const& intp ) const;
+	Rewrite& register_imp( Thm const& thm, bool dir ) &;
+	Rewrite& register_refl( Thm const& thm, bool def ) &;
+	Rewrite& register_trans( Thm const& thm ) &;
+	Rewrite& register_cong( Thm const& thm ) &;
+	Rewrite& register_dual( Thm const& thm ) &;
+	Rewrite& register_to_true( Thm const& thm ) &;
+	Rewrite subst( Intp const& intp ) const;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
-inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) {
+inline std::ostream& operator<<( std::ostream& os, Rewrite::Rule const& rule ) {
 	return os << '[' << rule.pat() << "] " << rule.thm();
 }
 #endif

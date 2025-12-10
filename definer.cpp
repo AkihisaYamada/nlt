@@ -47,8 +47,8 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	Ctxt thesis_ctxt = thesis_intp.ctxt();
 	thesis_ctxt.fix(thesis);
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis
-	auto inf = Inference(lthy.rewriter());
-	inf.ctrl = Rewriter::Ctrl{EQ,{},steps,steps,true};
+	auto inf = Blaster(lthy.rewriter());
+	inf.ctrl = Rewrite::Ctrl{EQ,{},steps,steps,true};
 	lthy.add_rewrite_rule(inf.rules,lthy.weaken(beta));
 	auto eq_thm = inf.steps(lthy,r_cabs_app);// (λx... r) x... = r
 	eq_thm = eq_thm.intro().subst(thesis_intp);// ∀x... (λx... r) x... = r

@@ -236,8 +236,6 @@ namespace UNIV begin
 	note #unfold: ball_def.
 
 	interpret HOL (∈) UNIV UNIV;
-		for f A B if f: f ∈ A → B, !, ! then ∀a. a ∈ A ⟹ f a ∈ B;
-			by f[unfolded fun_def in_Collect_iff beta].
 		for x P A if !P.[x], !, !, !;
 			unfold bex_def;
 			for Q if all: ∀z. z ∈ A ⟹ P.[z] ⟹ Q;
@@ -250,6 +248,8 @@ namespace UNIV begin
 					by imp[of x].
 				.
 			.
+		for f A B if f: f ∈ A → B, !, ! then ∀a. a ∈ A ⟹ f a ∈ B;
+			by f[unfolded fun_def in_Collect_iff beta].
 		.
 
 	interpret Intuitionistic;
