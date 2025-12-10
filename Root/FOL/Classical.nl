@@ -1,6 +1,6 @@
-import IntuitionisticFOL.
-import ClassicalPL.
+import ..Classical.
 
 begin
 
+interpret Intuitionistic.
 

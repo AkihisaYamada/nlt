@@ -54,8 +54,7 @@ Thm Thy::dualize( Thm const& thm ) const & {
 	}
 	throw Error("\"not dualizable\"")(thm);
 }
-
-void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const & {
+std::pair<char,Rewriter::Rule> Thy::make_rewrite_rule( Thm const& rule ) const & {
 	// checking well-formedness and extracting the lhs of the rewrite rule
 	auto sub = branch();
 	auto toSub = *sub.parent();
@@ -68,8 +67,7 @@ void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const & {
 	auto rew = *rewriter();
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = rew.gets_rel_ind(get<0>(*bin)) ) {
-		rules[*ind].emplace_back(get<1>(*bin),body,rule.ctxt());
-		return;
+		return {*ind,Rewriter::Rule(get<1>(*bin),body,rule.ctxt())};
 	}
 	// The conclusion is not a rewrite relation. Turn it into a rewriting to true.
 	if( !rew._to_true ) throw Error("\"malformed rule\"")(rule);
@@ -81,8 +79,12 @@ void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const & {
 	}
 	auto iff = body.cbinary(rew._rels[ind]);
 	if( !iff ) throw Error("\"failed to make a rewrite rule\"")(body)(rule);
-	rules[ind].emplace_back(iff->first,body,rule.ctxt());
-	return;
+	return {ind,Rewriter::Rule(iff->first,body,rule.ctxt())};
+}
+
+void Thy::add_rewrite_rule( Rewriter::Rules& rules, Thm const& thm ) const & {
+	auto const& [ind,rule] = make_rewrite_rule(thm);
+	rules[ind].emplace_back(std::move(rule));
 }
 
 Rewriter& Rewriter::register_imp( Thm const& thm, bool dir ) & {
@@ -195,7 +197,7 @@ Rewriter& Rewriter::register_to_true( Thm const& thm ) & {
 	return *this;
 }
 
-Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) & {
+Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst ) & {
 	auto const& abs = source.bind();
 	assert(abs);
 	Thy subthy = thy.branch();
@@ -211,40 +213,54 @@ Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, size_t ind, 
 	}
 	return {};
 }
-Thm Inference::_make_refl( Thy const& thy, CTerm const& source, size_t ind ) & {
+Thm Inference::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
 	while( auto imp = refl.cbinary(IMP) ) {
 		refl = refl.discharge(prove(thy,imp->first));
 	}
 	return refl;
 }
-Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
-	for( auto const& rule : rules[ind] ) {
-		Ctxt const& pat_ctxt = rule.pat.ctxt();
-		if( auto const& m = match(rule.pat,source,is_patvar) ) {
-			// source: l[m]
-			Intp intp = Intp::make(pat_ctxt,rule.ctxt).compose(thy.interpret_ancestor(rule.ctxt));
-			for(;;) {
-				if( auto fix = intp.fixing() ) {
-					// instantiate variables
-					if( auto t = m->get(*fix) ) {
-						intp.instantiate(*t);
-					} else {
-						intp.instantiate(thy.cterm(DUMMY));
-					}
-				} else if( auto assm = intp.assuming() ) {
-					// discharge conditions
-					auto prem = proves(thy,*assm);
-					if( !prem ) {// condition couldn't be discharged
-						if( log > 0 ) _log() << "failed to discharge rewrite condition: " << thy.pretty(*assm) << endl;
-						break;// try other rules
-					}
-					intp.discharge(*prem);
-				} else {
-					return {rule.rule.subst(intp)}; // l[m] = r[m]
-				}
+Opt<Thm> Inference::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewriter::Rule const& rule, Subst const& matcher ) & {
+	// source: l[m]
+	Intp intp = Intp::make(pat_ctxt,rule.ctxt()).compose(thy.interpret_ancestor(rule.ctxt()));
+	for(;;) {
+		if( auto fix = intp.fixing() ) {
+			// instantiate variables
+			if( auto t = matcher.get(*fix) ) {
+				intp.instantiate(*t);
+			} else {
+				intp.instantiate(thy.cterm(DUMMY));
 			}
+		} else if( auto assm = intp.assuming() ) {
+			// discharge conditions
+			auto prem = proves(thy,*assm);
+			if( !prem ) {// condition couldn't be discharged
+				if( log > 0 ) _log() << "failed to discharge rewrite condition: " << thy.pretty(*assm) << endl;
+				return {};// try other rules
+			}
+			intp.discharge(*prem);
+		} else {
+			return {rule.thm().subst(intp)}; // l[m] = r[m]
 		}
+	}
+}
+Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind ) & {
+	for( auto const& rule : rules[ind] ) {
+		if( auto const& m = match(rule.pat(),source,is_patvar) )
+		if( auto const& ret = _apply_rewrite_rule(thy,rule.pat().ctxt(),rule,*m) ) {
+			return ret;
+		}
+	}
+	if( auto ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		auto const& rule = info.ref<Rewriter::Rule>();
+		assert(rule);
+		if( auto const& m = match(rule->pat(),source,is_patvar,{import}) )
+		if( auto const&	ret = _apply_rewrite_rule(thy,rule->pat().ctxt(),*rule,*m) ) {
+			return ret;
+		}
+		return {};
+	}) ) {
+		return ret;
 	}
 	bool success = false;
 	for( auto const& cong : rew->_congs[ind] ) {
@@ -284,7 +300,7 @@ Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind ) & {
 	return {};
 }
 
-Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	auto const& abs = source.bind();
 	assert(abs);
 	Thy subthy = thy.branch();
@@ -296,7 +312,7 @@ Opt<Thm> Inference::_step_abs( Thy const& thy, CTerm const& source, size_t ind, 
 	return {};
 }
 
-Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, size_t ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<Thm> Inference::_step( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( pos_it == pos_end ) {// rewritable position
 		return _step(thy,source,ind);
 	}
@@ -354,7 +370,7 @@ Opt<Thm> Inference::_steps(
 	size_t max,
 	bool safe,
 	vector<char> const& pos,
-	size_t ind
+	char ind
 ) & {
 	auto begin = pos.begin(), end = pos.end();
 	auto const& init = _step(thy,s,ind,begin,end);

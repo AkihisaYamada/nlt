@@ -11,10 +11,23 @@ class Inference;
  * 
  */
 class Rewriter {
-	struct Rule {
-		CTerm pat;// Γ.fix x... assume φ... ⊢ l
-		Thm rule;//  Γ.fix x... assume φ... ⊢ l = r
-		Ctxt ctxt;// Γ, holding ∀x... φ ⟹... l = r
+public:
+	class Rule {
+		CTerm _pat;// Γ.fix x... assume φ... ⊢ l
+		Thm _rule;//  Γ.fix x... assume φ... ⊢ l = r
+		Ctxt _ctxt;// Γ, holding ∀x... φ ⟹... l = r
+		friend Rewriter;
+	public:
+		Rule( CTerm const& pat, Thm const& rule, Ctxt const& ctxt ) : _pat(pat), _rule(rule), _ctxt(ctxt) {}
+		CTerm const& pat() const& {
+			return _pat;
+		}
+		Thm const& thm() const& {
+			return _rule;
+		}
+		Ctxt const& ctxt() const& {
+			return _ctxt;
+		}
 	};
 	struct Cong : Thm {
 		struct Cond {
@@ -98,13 +111,12 @@ public:
 	Rewriter& register_dual( Thm const& thm ) &;
 	Rewriter& register_to_true( Thm const& thm ) &;
 	Rewriter subst( Intp const& intp ) const;
-	void add_rule( Rules& rules, Thm const& thm, Thy const& thy ) const&;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
 inline std::ostream& operator<<( std::ostream& os, Rewriter::Rule const& rule ) {
-	return os << '[' << rule.pat << "] " << rule.rule;
+	return os << '[' << rule.pat() << "] " << rule.thm();
 }
 #endif

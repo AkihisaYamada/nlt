@@ -13,11 +13,11 @@ Since we have not introduced convenient methods such as equality to specify such
 fix image_nnot nnot_or nnot_ex.
 
 -- `image_nnot` should turn a proposition into a proposition.
-assume prop_image_nnot! prop P ⟹ prop (image_nnot P).
+assume prop_image_nnot! P ∈ PROP ⟹ image_nnot P ∈ PROP.
 
-assume image_nnot_imp_prop: image_nnot P ⟹ prop P.
+assume image_nnot_imp_prop: image_nnot P ⟹ P ∈ PROP.
 
-assume image_nnot_iff_ex: prop P ⟹ image_nnot P ⟺ (∃P' : prop. P ⟺ ¬¬P').
+assume image_nnot_iff_ex: P ∈ PROP ⟹ image_nnot P ⟺ (∃P' ∈ PROP. P ⟺ ¬¬P').
 
 --The negative translation of disjunction is specified as follows.
 

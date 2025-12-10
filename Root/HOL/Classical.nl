@@ -1,4 +1,4 @@
-import ClassicalFOL.
-import IntuitionisticHOL.
+import Intuitionistic.
+import ...Classical.
 
 begin

@@ -280,8 +280,8 @@ context Equivalence begin
 		import MagmaLeftCancel.
 		import lcancel: LeftCancel A (\) (*).
 	begin
---		interpret lcancel: MagmaLeftCancel (\) (*).
-		thy.
+		interpret lcancel: MagmaLeftCancel (\) (*);
+oops
 	end
 
 	theory RightQuasiGroup:

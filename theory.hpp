@@ -5,7 +5,7 @@
 
 class AThm;
 class Import;
-using ThmInfo = Sum<int,Intro,Elim>;
+using ThmInfo = Sum<int,Intro,Elim,Rewriter::Rule>;
 
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
@@ -45,6 +45,8 @@ public:
 	static std::string const CONCL;
 	/** name for elimination rules */
 	static std::string const ELIM;
+	/** prefix for rewrite rules */
+	static std::string const REWRITE;
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -131,6 +133,7 @@ public:
 	OptRef<Rewriter>& set_rewriter() &;
 	Thm dualize( Thm const& thm ) const &;
 	void add_rewrite_rule( Rewriter::Rules& rules, Thm const& rule ) const &;
+	std::pair<char,Rewriter::Rule> make_rewrite_rule( Thm const& thm ) const &;
 	Inference infer( char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;

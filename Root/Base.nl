@@ -18,14 +18,18 @@ infix ∧ 35 36 35.
 infix ∨ 30 31 30.
 infix ⟺ 1 1 0.
 binder ∃ 0 0.
+binder ∃! 0 0.
 infix : 50 51 50.
 binder_middle ∀ : ∀:.
 binder_middle ∃ : ∃:.
-binder_middle ∀ ∈ ∀∋.
-binder_middle ∃ ∈ ∃∋.
+binder_middle ∀ ∈ ∀∈.
+binder_middle ∃ ∈ ∃∈.
+binder_middle ∃! ∈ ∃!∈.
 
 binder THE 0 0.
 binder SOME 0 0.
+binder_middle THE ∈ THE_IN.
+binder_middle SOME ∈ SOME_IN.
 
 infix = 51 51 50.
 infix ≠ 51 51 50.

@@ -190,6 +190,7 @@ public:
 		if( !imp ) throw Error("nothing to blast");
 		return thesis.discharge(prove(thy,imp->first));
 	}
+	Opt<Thm> _apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewriter::Rule const& rule, Subst const& matcher ) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
 	 * 
@@ -230,12 +231,12 @@ private:
 		std::vector<Intro>& elim_res,
 		size_t elim_res_ind
 	) &;
-	Thm _make_refl( Thy const& thy, CTerm const& source, size_t ind ) &;
-	Opt<Thm> _step( Thy const& thy, CTerm const& source, size_t ind ) &;
-	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, size_t ind, CTerm const& assm, Subst const& subst ) &;
-	Opt<Thm> _step( Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, size_t ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, size_t ind ) &;
+	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
+	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind ) &;
+	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst ) &;
+	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, char ind ) &;
 };
 
 inline void Thesis::blast() & {

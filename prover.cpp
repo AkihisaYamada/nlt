@@ -24,7 +24,7 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, force = false, elim = false, cong = false, followable = true;
+	bool weak = false, force = false, elim = false, cong = false, unfold = false, fold = false, followable = true;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -285,6 +285,10 @@ public:
 				cs.cong = true;
 			} else if( skips("elim") ) {
 				cs.elim = true;
+			} else if( skips("unfold") ) {
+				cs.unfold = true;
+			} else if( skips("fold") ) {
+				cs.fold = true;
 			} else {
 				throw Error("\"unknown #\"")(peek_token());
 			}
@@ -319,6 +323,15 @@ public:
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
+		}
+		if( cs.unfold ) {
+			auto [ind,rule] = _thy.make_rewrite_rule(thm);
+			_thy.add_thm(Thy::REWRITE+ind,thm,rule);
+		}
+		if( cs.fold ) {
+			auto const& dual = _thy.dualize(thm);
+			auto [ind,rule] = _thy.make_rewrite_rule(dual);
+			_thy.add_thm(Thy::REWRITE+ind,dual,rule);
 		}
 	}
 	void print_goal( Thesis const& thesis, string pre = "goals " ) {

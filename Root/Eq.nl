@@ -87,7 +87,6 @@ begin
 		by eq_true[OF weaken[OF true_intro]].
 	lemma true_imp_eq: (true ⟹ P) = P;
 		by imp_eq[OF true_intro].
-	end
 end
 
 theory Prop:
@@ -117,14 +116,35 @@ begin
 end
 
 theory Pair:
-	fix Pair fst snd.
-	assume fst: fst (Pair x y) = x.
-	assume snd: snd (Pair x y) = y.
+	fix (,) fst snd.
+	assume fst: fst (x,y) = x.
+	assume snd: snd (x,y) = y.
 begin
-	interpret Pair: MetaInjective Pair;
-		for x x', if eq: Pair x = Pair x' then x = x';
-			have 1: fst (Pair x x) = fst (Pair x' x);
+	interpret pair: MetaInjective (,);
+		for x x' if eq: (,) x = (,) x' then x = x';
+			have 1: fst (x,x) = fst (x',x);
 				unfold eq.
 			by 1[unfolded fst].
 		.
+	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
+		have 1: x = fst (x,y);
+			unfold fst.
+		apply eq.trans[OF 1];
+		have 2: fst (x,y) = fst (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: fst (x',y') = x';
+			unfold fst.
+		by eq.trans[OF 3].
+
+	lemma pair_eq_pair_imp2: if eq: (x,y) = (x',y') then y = y';
+		have 1: y = snd (x,y);
+			unfold snd.
+		apply eq.trans[OF 1];
+		have 2: snd (x,y) = snd (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: snd (x',y') = y';
+			unfold snd.
+		by eq.trans[OF 3].
 end

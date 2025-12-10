@@ -18,18 +18,13 @@ define[ex] (∃) α := ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
 define[neq] x ≠ y := ¬ x = y.
 
 interpret TypeFree.
+
 interpret Intuitionistic;
 	retain false := false;
 		if f: false;
 			by f[unfolded false_def].
 		.
-	- by #unfold and_def.
-	- by #unfold and_def.
-	- by #unfold and_def.
-
-	- by #unfold not_def.
-	- by #unfold not_def.
-
+	note #unfold: and_def not_def.
 	for P Q if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
 		unfold iff_def and_def;
 		for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
@@ -174,11 +169,13 @@ namespace DECIDED begin
 		.
 
 	interpret Classical;
+		note! not_intro and_intro or_intro iff_intro.
+		note #elim: and_elim or_elim iff_elim false_elim.
+
 		show: false ∈ DECIDED;
-			by or_intro not_false #unfold in_DECIDED_iff.
+			by not_false #unfold in_DECIDED_iff.
 		for x, x ∈ DECIDED ⟹ (¬ x) ∈ DECIDED;
-			unfold+ in_DECIDED_iff;
-			by or_intro nnot_intro #elim or_elim.
+			by nnot_intro #unfold in_DECIDED_iff.
 		show and_type: for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ∧ y) ∈ DECIDED;
 			unfold+ in_DECIDED_iff;
 			if x: x ∨ ¬x, y: y ∨ ¬y;
@@ -209,16 +206,7 @@ namespace DECIDED begin
 		for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ⟺ y) ∈ DECIDED;
 			unfold iff_def;
 			by and_type imp_type.
-		note! not_intro.
-		note! and_intro.
-		note! or_intro.
-		note! iff_intro.
-		note #elim: and_elim.
-		note #elim: or_elim.
-		note #elim: iff_elim.
-		note #elim: false_elim.
-		for P if P0: P ⟹ false, ! P ∈ DECIDED then ¬ P;
-			apply not_intro;
+		for P if P0: P ⟹ false, _ then ¬ P;
 			by P0.
 		for P, ¬ P ⟹ P ⟹ P ∈ DECIDED ⟹ false;
 			by #elim not_imp_false.
@@ -238,25 +226,18 @@ lemma nnot_DECIDED: ¬ ¬ x ∈ DECIDED;
 
 
 
-define[ball] (∀∋) A P := ∀x. x ∈ A ⟹ P.[x].
-define[bex] (∃∋) A P := ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q.
+define[ball] (∀∈) A P := ∀x. x ∈ A ⟹ P.[x].
+define[bex] (∃∈) A P := ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q.
 
 define [fun] (A → B) := {f. ∀x. x ∈ A ⟹ f x ∈ B}.
 
-interpret Fun;
-	for f A B if f: f ∈ A → B then ∀a. a ∈ A ⟹ f a ∈ B;
-		by f[unfolded fun_def in_Collect_iff beta].
-	.
-
 namespace UNIV begin
 
+	note #unfold: ball_def.
+
 	interpret HOL (∈) UNIV UNIV;
-		-.
-		-.
-		-.
-		- by #unfold ball_def.
-		- by #unfold ball_def.
-		- by #unfold ball_def.
+		for f A B if f: f ∈ A → B, !, ! then ∀a. a ∈ A ⟹ f a ∈ B;
+			by f[unfolded fun_def in_Collect_iff beta].
 		for x P A if !P.[x], !, !, !;
 			unfold bex_def;
 			for Q if all: ∀z. z ∈ A ⟹ P.[z] ⟹ Q;
@@ -272,22 +253,14 @@ namespace UNIV begin
 		.
 
 	interpret Intuitionistic;
+		note! or_intro iff_intro.
+		note #elim: or_elim iff_elim.
 		retain false;
 			by #elim false_elim.
 		for P if ! P ⟹ false, ! P ∈ UNIV then ¬ P;
 			by not_intro.
 		for P, ¬ P ⟹ P ⟹ P ∈ UNIV ⟹ false;
 			by not_imp_false[of P].
-		- .
-		- .
-		- .
-		- by or_intro.
-		- by or_intro.
-		- by #elim or_elim.
-		- by iff_intro.
-		- by #elim iff_elim.
-		- by #elim iff_elim.
-		retain true.
 		.
 end
 
@@ -318,8 +291,6 @@ lemma true_neq_false: true ≠ false;
 ### Unique Existence
 ---
 
-binder ∃! 0 0.
-
 define[ex1] (∃!) P := ∃x. P.[x] ∧ (∀y. P.[y] ⟹ x = y).
 
 lemma ex1_intro: for x if x: P.[x], 1: ∀y. P.[y] ⟹ x = y then ∃!x. P.[x];
@@ -331,7 +302,7 @@ lemma ex1_intro: for x if x: P.[x], 1: ∀y. P.[y] ⟹ x = y then ∃!x. P.[x];
 lemma ex1_elim:
 	if ex1: ∃!x. P.[x], body: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ x = y) ⟹ Q
 	then Q;
-	obtain x where and: (P.[x]) ∧ (∀y. P.[y] ⟹ x = y);
+	obtain x where and: P.[x] ∧ (∀y. P.[y] ⟹ x = y);
 		for thesis;
 			apply ex1[unfolded+ ex1_def ex_def, of thesis]=.
 		.

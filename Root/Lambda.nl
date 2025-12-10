@@ -1,7 +1,7 @@
 ------
 # Untyped Lambda Calculus
 ------
-import Equal.
+import Eq.
 
 fix (λ).
 

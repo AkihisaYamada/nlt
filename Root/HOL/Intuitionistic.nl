@@ -4,7 +4,8 @@ obtain false where false_type! false ∈ PROP, false_elim: false ⟹ ∀P. P ∈
 		by #elim all_elim.
 	.
 
-import ...Intuitionistic.
-import Minimal.
+import ..Intuitionistic.
 
 begin
+
+interpret Minimal.

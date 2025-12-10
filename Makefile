@@ -40,6 +40,9 @@ test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
 test: test.exe test.nl
 	./test.exe test.nl
 
+run: nlt.exe test.nl
+	./nlt.exe test.nl
+
 .PHONY: vscode
 
 vscode: vscode/language-configuration.json vscode/syntaxes
