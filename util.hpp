@@ -4,6 +4,8 @@
 #include<ostream>
 #include"syntax.hpp"
 
+class AThm;
+
 inline std::string operator+( std::string x, std::string_view const& y ) {
 	x+=y;
 	return x;
@@ -197,12 +199,13 @@ public:
 };
 
 class Elim {
-	Thm _thm;//  Γ ⊢ ∀x... φ ⟹ ∀thesis. ψ... ⟹ thesis
-	Thm _rule;// Γ. fix x... assume φ ⊢ ∀thesis. ψ... ⟹ thesis
+	Thm _thm;//  Γ ⊢ ∀x... φ ⟹ ψ
+	Thm _rule;// Γ. fix x... assume φ ⊢ ψ
 	Thm _premise;// Γ. fix x... assume φ ⊢ φ
-	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule ) : _thm(thm), _premise(premise), _rule(rule) {}
+	std::string _mode;// 
+	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule, std::string_view const& mode ) : _thm(thm), _premise(premise), _rule(rule), _mode(mode) {}
 public:
-	static Elim rule( Thm const& thm );
+	static Elim rule( Thm const& thm, std::string_view const& mode );
 	/** matches a theorem against the premise of elimination.
 	 * @param arg the theorem to eliminate
 	 * @param thy the theory arg belongs
@@ -210,10 +213,13 @@ public:
 	Opt<Subst> matches(Thm const& arg, Opt<Subst const&> subst ) const {
 		return match(_premise,arg,is_patvar,subst);
 	}
-	Intro instantiate( Subst& m, Thm const& arg, Intp const& intp ) const;
+	std::pair<std::string,AThm> instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const;
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();
+	}
+	std::string const& mode() const& {
+		return _mode;
 	}
 	Thm thm() const {
 		return _thm;

@@ -26,10 +26,14 @@ begin
 					by assm[of (If false)] not_false #unfold if_else.
 				.
 			by fst snd.
+set print blast.
 		lemma pair_eq_iff: (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
-			- by #elim pair_eq_pair_imp1.
-			- by #elim pair_eq_pair_imp2.
+			if eq;
+				apply and_intro;
+				- by pair_eq_pair_imp1[OF eq].
+				- by pair_eq_pair_imp2[OF eq].
+				.
 			.
 	end
 end

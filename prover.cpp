@@ -25,6 +25,7 @@ using namespace std;
 struct ClaimStatus {
 	Opt<string> name;
 	bool weak = false, force = false, elim = false, cong = false, unfold = false, fold = false, followable = true;
+	string elim_mode;
 };
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
@@ -284,7 +285,16 @@ public:
 			} else if( skips("cong") ) {
 				cs.cong = true;
 			} else if( skips("elim") ) {
+				auto mode = string();
+				for(;;) {
+					if( skips(">") ) {
+						mode+='e';
+					} else {
+						break;
+					}
+				}
 				cs.elim = true;
+				cs.elim_mode = mode;
 			} else if( skips("unfold") ) {
 				cs.unfold = true;
 			} else if( skips("fold") ) {
@@ -319,7 +329,7 @@ public:
 			_thy.set_rewriter()->register_cong(thm);
 		}
 		if( cs.elim ) {
-			loc.add_elim(thm);
+			loc.add_elim(thm,cs.elim_mode);
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -396,7 +406,7 @@ public:
 		Term t = get_term(0);
 		skip(";");
 		CTerm goal = assm_thy.enclose(t);
-		for( auto [cs,assm] : assms ) {
+		for( auto const& [cs,assm] : assms ) {
 			add_claim(assm_thy,cs,assm_thy.assume(assm));
 		}
 		if MSG cout << _thy.pretty(goal) << endl;
@@ -779,7 +789,7 @@ public:
 			while( skips("#") ) {
 				if( skips("elim") ) {
 					while( auto elim = gets_thm() ) {
-						_thy.add_elim(*elim);
+						_thy.add_elim(*elim,"");
 					}
 				} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
 					_get_rewrite(inf,_thy,dir);
@@ -1041,7 +1051,7 @@ public:
 			if MSG cout << "creating namespace " << name << endl;
 			auto loc = _thy.scope(name);
 			local_thy(loc,true);
-				_thy.add_thy(loc);
+			_thy.add_thy(loc);
 			if MSG cout << "created namespace " << name << endl;
 		} else if( skips("context") ) {
 			string name = get();

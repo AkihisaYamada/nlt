@@ -88,8 +88,8 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
-	void add_elim( Thm const& thm ) & {
-		add_thm(ELIM,thm,Elim::rule(thm));
+	void add_elim( Thm const& thm, std::string_view const& mode ) & {
+		add_thm(ELIM,thm,Elim::rule(thm,mode));
 	}
 
 	/** Finds the name of assumption made in the revision */

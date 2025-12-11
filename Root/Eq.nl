@@ -139,3 +139,8 @@ begin
 			unfold snd.
 		by eq.trans[OF 3].
 end
+
+theory Ext:
+	assume ext: if ∀x ∈ A. f x = g x, A ∈ TYPE, B ∈ TYPE, f ∈ A → B, g ∈ A → B
+	then f = g.
+end

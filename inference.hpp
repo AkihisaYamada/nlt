@@ -135,6 +135,7 @@ class Blaster {
 	char log;
 	unsigned short int indent;
 	Opt<Rewrite const&> rew;
+	std::vector<std::pair<std::string,AThm>> elim_res;
 	friend Rewrite;
 	std::ostream& _log() const& {
 		int n = indent < 16 ? indent : 16;
@@ -148,12 +149,10 @@ public:
 	Rewrite::Ctrl ctrl;
 	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool blasts( Thesis& thesis ) & {
-		std::vector<Intro> elim_res;
-		return _blast(thesis,1,true,elim_res,0);
+		return _blast(thesis,1,true,elim_res.size());
 	}
 	void blast( Thesis& thesis ) & {
-		std::vector<Intro> elim_res;
-		_blast(thesis,1,false,elim_res,0);
+		_blast(thesis,1,false,elim_res.size());
 	}
 	Thm blast_all( Thesis& thesis ) & {
 		while( thesis._goals > 0 ) {
@@ -215,7 +214,6 @@ public:
 		}
 		return _make_refl(thy,source,ind);
 	}
-	Thm dualize( Thy const& thy, Thm const& thm ) &;
 private:
 	bool _apply_blast(
 		Thesis& thesis,
@@ -228,7 +226,6 @@ private:
 		Thesis& thesis,
 		size_t trial,
 		bool fail,
-		std::vector<Intro>& elim_res,
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;

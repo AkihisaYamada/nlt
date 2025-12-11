@@ -39,23 +39,30 @@ Intro Intro::rule( Thm const& thm ) {
 	}
 	return Intro(thm,conc,vars,conds);
 }
-Elim Elim::rule( Thm const& thm ) {
+Elim Elim::rule( Thm const& thm, string_view const& mode ) {
 	auto child = thm.ctxt().fork();
 	Thm body = strip_all(thm,child,patvar_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);
 	body = body.discharge(premise);
-	return Elim(thm,premise,body);
+	return Elim(thm,premise,body,mode);
 }
-Intro Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp ) const {
+std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const {
 	auto pat_ctxt = _premise.ctxt();
 	auto thm_ctxt = _thm.ctxt();
 	auto pat2loc = Intp::make(pat_ctxt,thm_ctxt).compose(intp);
 	subst_intp(pat2loc,m);
 	pat2loc.discharge(arg);
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
-	return Intro::rule(thm);
+	if( _mode == "" ) {
+		return {"",{thm,Intro::rule(thm)}};
+	} else switch( _mode[0] ) {
+		case 'e': return {Thy::ELIM,{thm,Elim::rule(thm,_mode.substr(1))}};
+		case 'i': return {Thy::INTRO,{thm,Intro::rule(thm)}};
+		case 'r': return {Thy::REWRITE,{thm,thy.make_rewrite_rule(thm).second}};
+		default: assert(false);
+	}
 }
 
 void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
@@ -75,7 +82,9 @@ void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size
 			return;
 		}
 		if( suc == max ) {
-			if( !safe ) throw Error("\"apply limit exceeded\"")(to_string(max));
+			if( !safe ) {
+				throw Error("\"apply limit exceeded\"")(to_string(max));
+			}
 			return;
 		}
 		auto child = _thy.branch();
@@ -152,8 +161,7 @@ bool Blaster::_apply_blast(
 			}
 		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
 			auto condthesis = Thesis::claim_exact(thesis.thy(),*assm);
-			vector<Intro> elim_res;
-			if( !_blast(condthesis,trial,true,elim_res,0) ) return false;
+			if( !_blast(condthesis,trial,true,elim_res.size()) ) return false;
 			pat_intp.discharge(condthesis._thm);
 		} else {
 			break;
@@ -168,11 +176,11 @@ bool Blaster::_blast(
 	Thesis& thesis,
 	size_t trial,
 	bool fail,
-	vector<Intro>& elim_res,
 	size_t elim_res_ind
 ) & {
 	if( fuel == 0 ) {
 		if( fail ) return false;
+		if( log > 1 ) cerr_proof_thms(thesis.thy());
 		throw BlastError("\"blast limit exceeded\"");
 	}
 	auto subthy = thesis.thy().branch();
@@ -197,8 +205,7 @@ bool Blaster::_blast(
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
 				if( log > 2 ) _log() << "eliminating: " << subthy.pretty(assm) << endl;
-				auto const& res = elim->instantiate(*m,assm,import);
-				elim_res.emplace_back(res);
+				elim_res.emplace_back(elim->instantiate(*m,assm,import,subthy));
 				n_elim_res++;
 				return {thm};
 			}
@@ -250,16 +257,23 @@ bool Blaster::_blast(
 		if( !subthy.find_thm(Thy::INTRO,intro_tester) )
 		for(;;) {
 			if( elim_res_ind < elim_res.size() ) {// process elimination result
-				if( subthesis._apply(elim_res[elim_res_ind],g,subgoal_child) ) {
-					if( log > 2 ) _log() << "applied elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
+				auto const& [label,athm] = elim_res[elim_res_ind];
+				if( label == "" ) {
+					auto const& intro = *athm.info.ref<Intro>();
+					if( subthesis._apply(intro,g,subgoal_child) ) {
+						if( log > 2 ) _log() << "applied elimination result: " << subthy.pretty(athm) << endl;
+					} else {
+						if( log > 1 ) cerr_proof_thms(subgoal_child);
+						throw Error("\"unapplied elimination result\"")(athm);
+					}
 					elim_res_ind++;
 					break;// move on to the new thesis
+				} else {
+					subthy.add_thm(label,subthy.weaken(athm),athm.info);
+					if( log > 2 ) _log() << "declared elimination result " << label << ": " << subthy.pretty(athm) << endl;
+					elim_res_ind++;
+					continue;
 				}
-				// the elimination result was not applicable, mark it as a forced rule and process more elimination results
-				add_forced(subthy,subthy.weaken(elim_res[elim_res_ind].thm()),true);
-				if( log > 2 ) _log() << "declared elimination result: " << subthy.pretty(elim_res[elim_res_ind].thm()) << endl;
-				elim_res_ind++;
-				continue;
 			}// no elimination result matched
 			if( rewrites(subthesis,true) ) {// try rewriting
 				if( log > 2 ) _log() << "rewritten: " << subthesis.goal() << endl;
@@ -274,15 +288,13 @@ bool Blaster::_blast(
 				indent--;
 			}
 			if( fail ) return false;
-			if( log > 1 ) {
-				cerr_proof_thms(subgoal_child);
-			}
+			if( log > 1 ) cerr_proof_thms(subgoal_child);
 			throw BlastError("\"failed to blast\"")(goal);
 		}
 		// blast all new subgoals:
 		if( log > 0 ) indent++;
 		while( subthesis._goals > 0 ) {
-			if( !_blast(subthesis,trial,fail,elim_res,elim_res_ind) ) {
+			if( !_blast(subthesis,trial,fail,elim_res_ind) ) {
 				if( log > 0 ) {
 					indent -= 2;
 				}
