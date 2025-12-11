@@ -89,15 +89,6 @@ begin
 		by imp_eq[OF true_intro].
 end
 
-theory Prop:
-	import ..Prop.
-begin
-	theory EqClass:
-		fix A.
-		import eq: Relation A (=).
-	end
-end
-
 theory MetaInjective:
 	fix f.
 	assume inj: if f x = f x' then x = x'.

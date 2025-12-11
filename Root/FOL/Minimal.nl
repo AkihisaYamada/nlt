@@ -4,7 +4,7 @@
 In addition to Propositional minimal logic, this theory axiomatizes typed quantifiers.
 ---
 
-import ..Minimal.
+import Prop.Minimal.
 
 begin
 
@@ -22,7 +22,7 @@ then ¬(∀y ∈ A. P.[y]);
 	.
 
 namespace iff begin
-	interpret ..iff.
+	interpret iff.
 	lemma ball_cong#cong: for P
 		if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
 			! A ∈ TYPE,

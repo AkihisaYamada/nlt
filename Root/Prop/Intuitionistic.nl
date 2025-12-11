@@ -17,10 +17,10 @@ lemma false_imp_iff: if [P ∈ PROP] then (false ⟹ P) ⟺ true;
 	by iff_true #elim false_elim.
 
 namespace iff begin
-	interpret ..iff.
+	interpret iff.
 
 	namespace and begin
-		interpret ..and.
+		interpret and.
 
 		interpret CommMonoidAbsorb (∧) false true;
 			for P if !P ∈ PROP then false ∧ P ⟺ false;
@@ -39,7 +39,7 @@ lemma not_elim: if nP: ¬P, P: P, [P ∈ PROP, Q ∈ PROP] then Q;
 	apply false_elim[OF f].
 
 theory Irreflexive:
-	import ..Irreflexive.
+	import Irreflexive.
 begin
 	lemma refl_iff: if ! x ∈ A then x < x ⟺ false;
 		by not_imp_iff_false irrefl.

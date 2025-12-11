@@ -10,6 +10,12 @@ disjunction and existential quantifier by certain forms.
 Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
 ----
 
+import Lambda.
+
+import FOL.
+
+import Intuitionistic.
+
 fix image_nnot nnot_or nnot_ex.
 
 -- `image_nnot` should turn a proposition into a proposition.

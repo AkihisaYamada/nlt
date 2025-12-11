@@ -57,13 +57,3 @@ theory ChoiceOp:
 	fix (SOME_IN).
 	assume SOME: if ∃x ∈ A. P.[x], A ∈ TYPE then P.[SOME x ∈ A. P.[x]].
 end
-
-theory Fun:
-	fix (→).
-	assume fun_elim1: f ∈ A → B ⟹ A ∈ TYPE ⟹ B ∈ TYPE ⟹ ∀a. a ∈ A ⟹ f a ∈ B.
-begin
-	theory Ext:
-		assume ext: if ∀x ∈ A. f x = g x, A ∈ TYPE, B ∈ TYPE, f ∈ A → B, g ∈ A → B
-		then f = g.
-	end
-end

@@ -2,7 +2,7 @@
 # Quantified Intuitionistic Logic
 ------
 
-import ..Intuitionistic.
+import Prop.Intuitionistic.
 
 begin
 

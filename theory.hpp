@@ -27,6 +27,7 @@ class Thy : public Ctxt {
 		Import const& import,
 		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test
 	) const;
+	Opt<Import> _find_thy( std::string_view const& thyname, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) &;
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
 	friend Import;
@@ -110,6 +111,7 @@ public:
 	 * @return initial import of the theory into this theory.
 	 */
 	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor = true );
+	void add_thy( Thy const& thy ) &;
 	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
@@ -134,7 +136,8 @@ public:
 	Thm dualize( Thm const& thm ) const &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
 	std::pair<char,Rewrite::Rule> make_rewrite_rule( Thm const& thm ) const &;
-	Blaster infer( char log = 0 ) const &;
+	Blaster blaster( char log = 0 ) const &;
+	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */

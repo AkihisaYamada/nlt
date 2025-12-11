@@ -1,7 +1,7 @@
-import Lambda.
-import Logic.
+set print load.
+import ZF.
 
-thy Logic.
+thy.
 
 end
 

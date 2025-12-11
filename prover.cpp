@@ -113,10 +113,6 @@ public:
 	Thy& thy() & {
 		return _thy;
 	}
-	void enter_branch( string_view const& name, string_view const& dirname ) {
-		_thy = _thy.branch(name,dirname);
-		_final = false;
-	}
 	Opt<Thm> gets_thm() {
 		auto loc = _thy.branch();
 		if( auto const& thm = _gets_thm(loc) ) {
@@ -175,6 +171,10 @@ public:
 							ret = discharge(ret,loc.assume(imp->first));
 						} else if( auto const& arg = _gets_thm(loc) ) {
 							ret = discharge(ret,*arg);
+						} else if( skips("!") ) {
+							auto imp = ret.cbinary(IMP);
+							if( !imp ) throw Error("\"no premise to blast\"");
+							ret = ret.discharge( loc.prove(imp->first,_out_blast));
 						} else {
 							break;
 						}
@@ -216,7 +216,7 @@ public:
 						loc.fix(*x);
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
-					auto inf = loc.infer(_out_blast);
+					auto inf = loc.blaster(_out_blast);
 					_get_rewrite(inf,loc,dir);
 					ret = inf.rewrite(loc,ret);
 				} else if( skips("dual") ) {
@@ -503,10 +503,10 @@ public:
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(_thy,intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.infer(_out_blast);
+					auto infer = _thy.blaster(_out_blast);
 					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.infer(_out_blast);
+					auto infer = _thy.blaster(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					break;
@@ -600,10 +600,10 @@ public:
 				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							auto infer = _thy.infer(_out_blast);
+							auto infer = _thy.blaster(_out_blast);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							auto infer = _thy.infer(_out_blast);
+							auto infer = _thy.blaster(_out_blast);
 							_auto_retain(org_thy,prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
@@ -620,7 +620,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.infer(_out_blast);
+						auto infer = _thy.blaster(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
@@ -646,18 +646,23 @@ public:
 			} else if( auto pat = _gets_subgoal() ) {
 				for(;;) {
 					if( auto const& assume = intp.assuming() ) {
-						if( auto thm = goal_matches(*pat,assume->first) ) {
-							intp.discharge(*thm);
-							if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
+						auto [match,thm] = goal_matches(*pat,assume->first);
+						if( match ) {
+							if( thm ) {
+								intp.discharge(*thm);
+								if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
+							} else {
+								if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
+							}
 							break;
 						} else {
-							auto infer = _thy.infer(_out_blast);
+							auto infer = _thy.blaster(_out_blast);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(org_thy,intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.infer(_out_blast);
+						auto infer = _thy.blaster(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
@@ -670,7 +675,6 @@ public:
 			} else if( skips("retain") ) {
 				_retain(prefix,intp,change,org_thy);
 			} else if( skips("oops") ) {
-				if MSG cout << "oops" << endl;
 				return false;
 			} else if( auto ctrl = gets_concluder() ) {
 				for(;;) {
@@ -706,7 +710,7 @@ public:
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(org_thy,intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
-				auto infer = _thy.infer(_out_blast);
+				auto infer = _thy.blaster(_out_blast);
 				_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
@@ -749,7 +753,7 @@ public:
 					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
-				auto infer = _thy.infer(_out_blast);
+				auto infer = _thy.blaster(_out_blast);
 				_auto_retain(org_thy,prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
@@ -768,7 +772,7 @@ public:
 	}
 	Opt<Blaster> gets_concluder() {
 		if( skips("by") ) {
-			auto inf = _thy.infer(_out_blast);
+			auto inf = _thy.blaster(_out_blast);
 			while( auto thm = gets_thm() ) {
 				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
 			}
@@ -787,7 +791,7 @@ public:
 			skip(".");
 			return {inf};
 		} else if( skips(".") ) {
-			return {_thy.infer(_out_blast)};
+			return {_thy.blaster(_out_blast)};
 		} else {
 			return {};
 		}
@@ -960,7 +964,8 @@ public:
 		}
 		return false;
 	}
-	Opt<Thm> goal_matches( GoalPat& pat, CTerm const& goal ) {
+	/** @return first whether the goal pattern matches, and then the theorem if the proof was not aborted. */
+	pair<bool,Opt<Thm>> goal_matches( GoalPat& pat, CTerm const& goal ) {
 		auto loc = _thy.branch();
 		auto to_loc = *loc.parent();
 		auto loc_goal = goal.subst(to_loc);
@@ -972,15 +977,14 @@ public:
 		auto assms = vector<pair<ClaimStatus,CTerm>>();
 		for( auto const& [cs,assm] : pat.assms ) {
 			auto imp = loc_goal.cbinary(IMP);
-			if( !imp ) return {};
-			if( assm && *assm != imp->first ) {
-				return {};
+			if( !imp || assm && *assm != imp->first ) {
+				return {false,{}};
 			}
 			assms.push_back({cs,imp->first});
 			loc_goal = imp->second;
 		}
 		if( pat.concl ) {
-			if( *pat.concl != loc_goal ) return {};
+			if( *pat.concl != loc_goal ) return {false,{}};
 		}
 		// matched, making assumptions
 		for( auto const& [cs,assm] : assms ) {
@@ -1008,15 +1012,15 @@ public:
 			if MSG cout << _indent();
 			auto thm = _prove(thesis);
 			_depth--;
-			if( !thm ) throw Error("proof failed")(goal);
+			if( !thm ) return {true,{}};
 			Thm ret = thm->intro();
 			add_claim(_thy,pat.cs,ret);
-			return {ret};
+			return {true,{ret}};
 		}
-		auto infer = loc.infer(_out_blast);
+		auto infer = loc.blaster(_out_blast);
 		Thm ret = infer.prove(loc,loc_goal).intro();
 		add_claim(_thy,pat.cs,ret);
-		return {ret};
+		return {true,{ret}};
 	}
 	bool _thy_decl() {
 		if( skips("theory") ) {
@@ -1028,7 +1032,8 @@ public:
 			if( skips(":") ) {
 				if MSG cout << "creating theory " << name << endl;
 				local_thy(loc,false);
-				if MSG cout << "end theory " << name << endl;
+				_thy.add_thy(loc);
+				if MSG cout << "created theory " << name << endl;
 			}
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
@@ -1036,7 +1041,8 @@ public:
 			if MSG cout << "creating namespace " << name << endl;
 			auto loc = _thy.scope(name);
 			local_thy(loc,true);
-			if MSG cout << "end namespace " << name << endl;
+				_thy.add_thy(loc);
+			if MSG cout << "created namespace " << name << endl;
 		} else if( skips("context") ) {
 			string name = get();
 			skip("begin");
@@ -1101,7 +1107,7 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
-				auto inf = _thy.infer(_out_blast);
+				auto inf = _thy.blaster(_out_blast);
 				_get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
 				inf.rewrites(thesis);
@@ -1129,17 +1135,22 @@ public:
 				for(;;) {
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");
-					if( auto thm = goal_matches(*pat,*goal) ) {
-						thesis.discharge(*thm);
+					auto [match,thm] = goal_matches(*pat,*goal);
+					if( match ) {
+				 		if( thm ) {
+							thesis.discharge(*thm);
+						} else {
+							if MSG cout << "proof aborted: " << _thy.pretty(*goal) << endl;
+						}
 						break;
+					} else {
+						thesis.blast();
 					}
-					thesis.blast();
 				}
 				if MSG print_goal(thesis,"next goals ");
 			} else if( auto infer = gets_concluder() ) {
 				return infer->blast_all(thesis);
 			} else if( skips("oops") ) {
-				if MSG cout << "oops" << endl;
 				return {};
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;

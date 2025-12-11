@@ -247,8 +247,13 @@ inline Thm Thesis::blast_all() & {
 	while( _goals > 0 ) blast();
 	return _thm;
 }
-inline Blaster Thy::infer( char log ) const& {
+inline Blaster Thy::blaster( char log ) const& {
 	return Blaster(rewriter(),log);
+}
+inline Thm Thy::prove( CTerm const& claim, char log ) const& {
+	auto b = blaster(log);
+	auto thesis = Thesis::claim_exact(*this,claim);
+	return b.blast_all(thesis);
 }
 
 #endif

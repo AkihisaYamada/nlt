@@ -35,12 +35,14 @@ Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& i
 	child._ref->parent.emplace(Import(intp,*this));
 	return child;
 }
+void Thy::add_thy( Thy const& thy ) & {
+	_ref->thys.emplace(thy.name(),thy);
+}
 Thy Thy::branch() const {
 	return _branch("","",Ctxt::fork());
 }
 Thy Thy::branch( string_view const& name, string_view const& dir ) & {
-	// a bit tricky, emplace in the childs, and return a reference to it
-	return _ref->thys.emplace(name,_branch(name,dir,Ctxt::fork())).first->second;
+	return _branch(name,dir,Ctxt::fork());
 }
 Thy Thy::scope_temp( string_view const& name ) const & {
 	return _branch(name,"",Ctxt::self());
@@ -49,7 +51,7 @@ Thy Thy::scope( string_view const& name ) & {
 	auto const& intp = Ctxt::self();
 	auto const& loc = _branch(name,"",intp);
 	add_import(name,Import(intp,loc));
-	return _ref->thys.emplace(name,loc).first->second;
+	return loc;
 }
 
 string const& Thy::name() const & {
@@ -130,8 +132,10 @@ void Thy::_check_loop_import( Thy const& origin ) const {
 }
 Import& Thy::add_import( string_view const& name, Import const& import ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
-	if( name == "" ) {// check looping import
-		import.source()._check_loop_import(*this);
+	if( name == "" ) {
+		import.source()._check_loop_import(*this);// check looping import
+		auto realname = import.source().name();// canonical named import
+		_ref->imports.emplace(realname,import);
 	}
 	return _ref->imports.emplace(name,import)->second;
 };
@@ -208,46 +212,53 @@ Opt<Thm> Thy::_find_thm(
 	return {};
 }
 
-Opt<Import> Thy::find_thy( string_view const &name, function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor ) {
-	size_t sep = name.find('.');
-	if( sep == string::npos ) {
-		if( auto ret = _ref->thys.finds(name) ) {
-			return {Import::make(ret->second,*this)};
+Opt<Import> Thy::_find_thy( string_view const &thyname, function<void(Thy&,istream&,string_view const&)> reader ) & {
+	if( auto ret = _ref->thys.finds(thyname) ) {
+		return {Import::make(ret->second,*this)};
+	}
+	if( !_ref->dir.empty() ) {
+		auto filepath = _ref->dir+"/"+thyname;
+		auto fullpath = filepath + ".nl";
+		if( auto fis = fstream(fullpath) ) {
+			Thy thy = branch(thyname,filepath);
+			add_thy(thy);
+			reader(thy,fis,fullpath);
+			return {Import::make(thy,*this)};
 		}
-		if( !_ref->dir.empty() ) {
-			auto path = _ref->dir+"/"+name;
-			auto fullpath = path + ".nl";
-			if( auto fis = fstream(fullpath) ) {
-				Thy thy = branch(name,path);
-				reader(thy,fis,fullpath);
-				return {Import::make(thy,*this)};
-			}
+	}
+	return {};
+}
+Opt<Import> Thy::find_thy( string_view const &path, function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor ) {
+	size_t sep = path.find('.');
+	if( sep == string::npos ) {
+		if( auto ret = _find_thy(path,reader) ) {
+			return ret;
+		}
+	} else if( sep == 0 ) {// explicit parent
+		if( auto const& p = parent() )
+		if( auto o = p->_src.find_thy(path.substr(1),reader) ) {
+			return {o->compose(*p)};
 		}
 	} else {
-		for( auto [it,end] = _ref->imports.equal_range(name.substr(0,sep)); it != end; it++ ) {
+		auto prefix = path.substr(0,sep);
+		for( auto [it,end] = _ref->imports.equal_range(prefix); it != end; it++ ) {
 			auto& im = it->second;
 			if( im.ready() )
-			if( auto o = im._src.find_thy(name.substr(sep+1),reader,false) ) {
+			if( auto o = im._src.find_thy(path.substr(sep+1),reader,false) ) {
 				return {o->compose(im)};
-			}
-		}
-		if( sep == 0 ) {// explicit parent
-			if( auto const& p = parent() )
-			if( auto o = p->_src.find_thy(name.substr(1),reader) ) {
-				return {o->compose(*p)};
 			}
 		}
 	}
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto& im = it->second;
 		if( im.ready() )
-		if( auto o = im._src.find_thy(name,reader,false) ) {
+		if( auto o = im._src.find_thy(path,reader,false) ) {
 			return {o->compose(im)};
 		}
 	}
 	if( ancestor )
 	if( auto const& p = parent() )
-	if( auto o = p->_src.find_thy(name,reader) ) {
+	if( auto o = p->_src.find_thy(path,reader) ) {
 		return {o->compose(*p)};
 	}
 	return {};

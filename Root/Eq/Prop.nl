@@ -1,10 +1,15 @@
+fix (∈) PROP EQTYPE.
+
 import ..Prop.
+
+assume eq_prop: if A ∈ EQTYPE, x ∈ A, y ∈ A then x = y ∈ PROP.
+
 begin
 
-import Classes.
+interpret Membership.
 
 theory Minimal:
-	import ..Minimal.
+	import Minimal.
 begin
 	theory If:
 		fix (If) (,).
@@ -14,17 +19,17 @@ begin
 		interpret Pair;
 			obtain fst where fst: fst (x,y) = x;
 				for thesis if assm;
-					by assm[of (If true)].
+					by assm[of (If true)] #unfold if_then.
 				.
 			obtain snd where snd: snd (x,y) = y;
 				for thesis if assm;
-					by assm[of (If false)].
+					by assm[of (If false)] not_false #unfold if_else.
 				.
-			.
+			by fst snd.
 		lemma pair_eq_iff: (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
-			- by #elim pair_eq_imp1.
-			- by #elim pair_eq_imp2.
+			- by #elim pair_eq_pair_imp1.
+			- by #elim pair_eq_pair_imp2.
 			.
 	end
 end

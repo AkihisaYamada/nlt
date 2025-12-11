@@ -1,4 +1,4 @@
-import ..Classical.
+import Prop.Classical.
 
 begin
 
