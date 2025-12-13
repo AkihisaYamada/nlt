@@ -17,27 +17,22 @@ Intro Intro::imp( Thm const& thm, size_t n ) {
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
 	for( size_t i = 0;; i++ ) {
-		if( i == n ) return Intro(thm,rule,vars,i);
 		auto const& [rule2,vars2] = strip_all(rule,self,f);
+		rule = rule2;
 		vars += vars2;
-		auto imp = rule2.cbinary(IMP);
-		assert(imp);
-		rule = rule2.discharge(child.ctxt().assume(imp->first));
+		if( i < n ) {
+			if( auto imp = rule.cbinary(IMP) ) {
+				rule = rule.discharge(child.ctxt().assume(imp->first));
+				continue;
+			}
+			if( n != 255 ) throw Error("\"making intro rule failed\"")(thm);
+		}
+		return Intro(thm,rule,vars,i);
 	}
 }
 
 Intro Intro::rule( Thm const& thm ) {
-	auto intp = thm.ctxt().fork();
-	auto f = patvar_maker();
-	auto [conc,vars] = strip_all(thm,intp,f);
-	auto ctxt = intp.ctxt();
-	size_t conds = 0;
-	while( auto imp = conc.cbinary(IMP) ) {
-		conc = conc.discharge(ctxt.assume(imp->first));
-		conds++;
-		conc = strip_all(conc,ctxt.self(),f).first;
-	}
-	return Intro(thm,conc,vars,conds);
+	return imp(thm,255);
 }
 Elim Elim::rule( Thm const& thm, string_view const& mode ) {
 	auto child = thm.ctxt().fork();

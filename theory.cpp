@@ -371,7 +371,7 @@ function<ostream&(ostream&)> const Import::pretty( size_t indent ) const & {
 		if( _src.name() == "" ) {
 			return os << _src.pretty(indent+1);
 		}
-		os << _src.name();
+		os << _src.print_name(true);
 		if( !ready() ) {
 			os << "[not ready]";
 		}

@@ -13,3 +13,9 @@ theory Choice:
 	if ∀x ∈ A. ∃y ∈ B. P x y, A ∈ TYPE, B ∈ CHOICE
 	then ∃f ∈ A → B. ∀x ∈ A. P x (f x).
 end
+
+theory Eq:
+	import Eq.
+	assume eq_fun_type: if A ∈ EQTYPE then (=) ∈ A → A → PROP.
+end
+

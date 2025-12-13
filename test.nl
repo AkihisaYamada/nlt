@@ -1,4 +1,3 @@
-set print load.
 import ZF.
 
 thy.

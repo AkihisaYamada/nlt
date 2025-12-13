@@ -1,13 +1,17 @@
 theory Root
 - theory Base
-- theory Classes
-  * import Base.
+- theory Membership
+  * interpret Base.
   * fix `∈`
   - theory Fun
     * fix `→`. assume `f ∈ A → B ⟹ x ∈ A ⟹ f x ∈ B`
 - theory Prop
-  * import Classes
+  * interpret Membership.
   * fix `PROP`
+  - theory Eq
+    * fix `(=)` `EQTYPE`
+    * assume `A ∈ EQTYPE ⟹ a ∈ A ⟹ b ∈ A ⟹ (a = b) ∈ PROP`
+    * assume `A ∈ EQTYPE ⟹ x = y ⟹ P[x] ⟹ x ∈ A ⟹ (∀z. z ∈ A ⟹ P[z] ∈ PROP) ⟹ P[y]`
   - theory Minimal
     * fix `false` `∧` `∨` `¬` `⟺`. assume ...
     * obtain `true` as `false ⟹ false`
@@ -24,7 +28,18 @@ theory Root
     assume ball_intro: `(∀x. x ∈ A ⟹ P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ ∀x ∈ A. P[x]`
   - theory ChoiceOp:
     * fix `SOME`.
+      assume `A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ (SOME x ∈ A. P[x]) ∈ A`
       assume `(∃x ∈ A. P[x]) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[SOME x ∈ A. x]`
+  - theory Eq:
+    * import Prop.Eq.
+    - theory Ex1
+      * fix `(∃!)`
+        assume `(∃!x ∈ A. P[x]) ⟹ A ∈ EQTYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ ∀Q. (∀x ∈ A. P[x] ⟹ (∀y ∈ A. P[y] ⟹ y = x) ⟹ Q) ⟹ Q`
+        assume 
+    - theory UniqueChoice
+      * fix `(THE)`
+        assume `A ∈ EQTYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ (THE x ∈ A. P[x]) ∈ A`
+        assume `(∃!x ∈ A. P[x]) ⟹ A ∈ EQTYPE ⟹ (∀x. x ∈ A ⟹ P[x] ∈ PROP) ⟹ P[THE x ∈ A. P[x]]`
   - theory Minimal
     * import Prop.Minimal
   - theory Intuitionistic
