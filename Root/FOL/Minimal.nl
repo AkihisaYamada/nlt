@@ -40,7 +40,7 @@ note #cong: iff.ball_cong.
 ---
 ## Existence
 ---
-set print.
+
 context iff begin
 	lemma ex_cong#cong: for P
 	if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
@@ -79,7 +79,7 @@ then (∀x ∈ A. P.[x] ⟹ Q) ⟺ (∃x ∈ A. P.[x]) ⟹ Q;
 	apply iff_intro;
 	if imp: ∀x ∈ A. P.[x] ⟹ Q, ex: ∃x ∈ A. P.[x];
 		apply ex_elim[OF ex];
-		for x if ax: P.[x], ! x ∈ A;
+		for x if !x ∈ A, ax: P.[x];
 			by all_elim1[OF imp, of x] ax.
 		.
 	if imp: (∃x ∈ A. P.[x]) ⟹ Q;
@@ -113,13 +113,13 @@ The other direction is provable if inside the quantification has negation.
 lemma nex_iff_all_not:
 if ! A ∈ TYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
-	unfold+ not_iff_imp_false;
+	unfold not_iff_imp_false;
 	fold all_imp_iff_ex.
 
 lemma nnall_not_iff:
 if ! A ∈ TYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then ¬¬(∀x ∈ A. ¬P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
-	fold+ nex_iff_all_not;
+	fold nex_iff_all_not;
 	by nnnot_iff.
 
 theory Eq:
@@ -141,7 +141,7 @@ begin
 					apply and.elim[OF and];
 					if ex, unique;
 						apply ex_elim[OF ex];
-						for x if Px, x!;
+						for x if x!, Px;
 							apply ex1_intro[of x, OF Px];
 							apply all_intro;
 							for y if y!, Py;
@@ -152,11 +152,11 @@ begin
 				.
 
 			lemma ex1_cong: for P Q A
-				if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ Q.[x],
-				   A! A ∈ EQTYPE, P! ∀x. x ∈ A ⟹ P.[x] ∈ PROP, Q! ∀x. x ∈ A ⟹ Q.[x] ∈ PROP
-				then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. Q.[x]);
+			if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ Q.[x],
+			   A! A ∈ EQTYPE, P! ∀x. x ∈ A ⟹ P.[x] ∈ PROP, Q! ∀x. x ∈ A ⟹ Q.[x] ∈ PROP
+			then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. Q.[x]);
 				note! eq_type[OF A] eq_prop[OF A] ex1_type[OF A].
-				by #unfold ex1_iff[OF A] eq.
+				by #unfold^1 ex1_iff[OF A] eq.
 
 		end
 	end
@@ -165,4 +165,16 @@ begin
 	begin
 		interpret .Ex1.
 	end
+
+	theory Abbreviation:
+		import Pair.
+		-- One can obtain an abbreviation for a unary abstraction.
+		assume abs: for F A B if A ∈ TYPE, B ∈ EQTYPE, ∀x. x ∈ A ⟹ F.[x] ∈ B then
+			∀thesis. (∀f. f ∈ A → B ⟹ (∀x ∈ A. f x = F.[x]) ⟹ thesis) ⟹ thesis.
+	begin
+
+		-- but this doesn't extend to binary, because the kernel does not support non-unary unbinding.
+
+	end
+
 end

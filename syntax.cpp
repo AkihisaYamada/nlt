@@ -86,7 +86,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					if( level > op.llevel ) {
 						os << '(';
 					}
-					os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,level);
+					os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,op.rlevel);
 					if( level > op.llevel ) {
 						os << ')';
 					}

@@ -60,11 +60,11 @@ begin
 	lemma const_eq_fun: if ! const c, ! const d, cd: c x = d y then c = d;
 		have 1: const_fun (c x) = const_fun (d y);
 			unfold cd.
-		by 1[unfolded+ const_fun].
+		by 1[unfolded const_fun].
 	lemma const_eq_arg: if ! const c, ! const d, cd: c x = d y then x = y;
 		have 1: const_arg (c x) = const_arg (d y);
 			unfold cd.
-		by 1[unfolded+ const_arg].
+		by 1[unfolded const_arg].
 end
 
 theory TwoValued:

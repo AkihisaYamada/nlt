@@ -61,6 +61,7 @@ void init_lex( Lex& lex ) {
 	lex.register_multi_op('+');
 	lex.register_multi_op('-');
 	lex.register_multi_op('#');
+	lex.register_multi_op('^');
 }
 void init_syntax( Syntax& syntax ) {
 	syntax.opener("(",-1000,[&]( Parser& parser ){
@@ -138,18 +139,14 @@ public:
 				inf.ctrl.pos.push_back(get_int());
 			}
 		}
-		if( skips("+") ) {
-			inf.ctrl.max = 255; inf.ctrl.safe = false;
+		inf.ctrl.min = 1;
+		if( skips("^") ) {
+			inf.ctrl.max = get_nat(); inf.ctrl.safe = true;
 		} else {
-			inf.ctrl.max = 0; inf.ctrl.safe = true;
+			inf.ctrl.max = 255; inf.ctrl.safe = false;
 		}
-		inf.ctrl.min = 0;
 		while( auto const& arg = _gets_thm(loc) ) {
 			loc.add_rewrite_rule( inf.rules, rev ? loc.dualize(*arg) : *arg );
-			inf.ctrl.min++;
-		}
-		if( inf.ctrl.max < inf.ctrl.min ) {
-			inf.ctrl.max = inf.ctrl.min;
 		}
 	}
 	Opt<Thm> _gets_thm( Thy& loc ) {
@@ -161,34 +158,42 @@ public:
 		if( skips("[") ) {
 			for(;;) {
 				if( skips("of") ) {
+					auto sub = loc.fork();
+					auto tmp = ret.subst(sub);
 					while( auto t = gets_term(1000) ) {
-						ret = ret.instantiate(loc.enclose(*t));
+						tmp = tmp.instantiate(sub.ctxt().enclose(*t));
 					}
+					ret = tmp.intro();
 				} else if( skips("OF") ) {
+					auto sub = loc.branch();
+					auto tmp = sub.weaken(ret);
 					for(;;) {
 						if( skips("_") ) {
-							auto imp = ret.cbinary(IMP);
+							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							ret = discharge(ret,loc.assume(imp->first));
-						} else if( auto const& arg = _gets_thm(loc) ) {
-							ret = discharge(ret,*arg);
+							tmp = discharge(tmp,sub.assume(imp->first));
+						} else if( auto const& arg = _gets_thm(sub) ) {
+							tmp = discharge(tmp,*arg);
 						} else if( skips("!") ) {
-							auto imp = ret.cbinary(IMP);
+							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise to blast\"");
-							ret = ret.discharge( loc.prove(imp->first,_out_blast));
+							tmp = tmp.discharge(sub.prove(imp->first,_out_blast));
 						} else {
 							break;
 						}
 					}
+					ret = tmp.intro();
 				} else if( skips("THEN") ) {
-					auto thm = _get_thm(loc);
-					auto loc2strip = loc.fork();
-					auto [strip_thm,n] = strip_all(thm,loc2strip);
+					auto sub = loc.branch();
+					auto tmp = sub.weaken(ret);
+					auto thm = _get_thm(sub);
+					auto sub2strip = sub.fork();
+					auto [strip_thm,n] = strip_all(thm,sub2strip);
 					auto strip_ctxt = strip_thm.ctxt();
 					auto imp = strip_thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
 					auto cond = imp->first;
-					auto arg = ret.subst(loc2strip);
+					auto arg = tmp.subst(sub2strip);
 					for(;;){
 						arg = strip_all(arg,strip_ctxt.self()).first;
 						auto imp = arg.cbinary(IMP);
@@ -197,21 +202,21 @@ public:
 					}
 					auto u = unify(arg,cond,[&](auto v){ return strip_ctxt.fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
-					auto strip2loc = Intp::make(strip_ctxt,loc);
+					auto strip2sub = Intp::make(strip_ctxt,sub);
 					for(;;){
-						if( auto const& v = strip2loc.fixing() ) {
-							strip2loc.instantiate(loc.enclose( [&]()->Term{
+						if( auto const& v = strip2sub.fixing() ) {
+							strip2sub.instantiate(sub.enclose( [&]()->Term{
 								if( auto t = u->get(*v) ) return *t;
 								return *v;
 							}()));
-						} else if( auto const& assm = strip2loc.assuming() ) {
-							strip2loc.discharge(loc.assume(loc.cterm(*assm)));
+						} else if( auto const& assm = strip2sub.assuming() ) {
+							strip2sub.discharge(sub.assume(sub.cterm(*assm)));
 						} else {
 							break;
 						}
 					}
-					thm = strip_thm.subst(strip2loc);
-					ret = thm.discharge(arg.subst(strip2loc));
+					thm = strip_thm.subst(strip2sub);
+					ret = thm.discharge(arg.subst(strip2sub)).intro();
 				} else if( skips("for") ) {
 					while( auto x = gets(Lexer::Word) ) {
 						loc.fix(*x);
@@ -588,7 +593,9 @@ public:
 		_thy = org_thy.scope_temp("#import");// namespace
 		for(;;) try {
 			if MSG cout << _indent();
-			if( _stats() || _note() ) {
+			if( _stats() ) {
+			} else if( skips("note") ) {
+				_note();
 			} else if( skips("goal") ) {
 				skip(".");
 				_print_import_goal(intp,0,"\t");
@@ -844,20 +851,16 @@ public:
 		}
 		return false;
 	}
-	bool _note() {
-		if( skips("note") ) {
-			auto cs = get_claim_status();
-			auto thm = get_thm();
-			add_claim(_thy,cs,thm);
-			if MSG cout << "note " << cs << _thy.pretty(thm) << endl;
-			while( auto o = gets_thm() ) {
-				add_claim(_thy,cs,*o);
-				if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
-			}
-			skip(".");
-			return true;
+	void _note() {
+		auto cs = get_claim_status();
+		auto thm = get_thm();
+		add_claim(_thy,cs,thm);
+		if MSG cout << "note " << cs << _thy.pretty(thm) << endl;
+		while( auto o = gets_thm() ) {
+			add_claim(_thy,cs,*o);
+			if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
 		}
-		return false;
+		skip(".");
 	}
 	Opt<Thm> _prove( Thesis& thesis ) {
 		auto prev_thy = _thy;
@@ -1060,15 +1063,14 @@ public:
 			if MSG cout << "in context " << name << endl;
 			local_thy(loc,true);
 			if MSG cout << "left " << name << endl;
-		} else if ( skips("lemma") ||
-			skips("theorem") ||
-			skips("proposition")
-		) {
+		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
 			if MSG if( o ) {
 				auto const& [cs,thm] = *o;
 				cout << "proved " << cs << _thy.pretty(thm) << endl;
 			}
+		} else if( skips("note") ) {
+			_note();
 		} else {
 			return false;
 		}
@@ -1088,7 +1090,9 @@ public:
 	}
 	Opt<Thm> proof_loop( Thesis& thesis ) {
 		for(;;) try {
-			if( _stats() || _note() || _shared_decl() ) {
+			if( _stats() || _shared_decl() ) {
+			} else if( skips("note") ) {
+				_note();
 			} else if( skips("goal") ) {
 				skip(".");
 				if STA print_goal(thesis);
@@ -1185,7 +1189,7 @@ public:
 	}
 	void loop() {
 		for(;;) try {
-			if( _stats() || _thy_decl() || _note() || _shared_decl() ) {
+			if( _stats() || _thy_decl() || _shared_decl() ) {
 			} else if( skips("set") ) {
 				if( skips("rewrite") ) {
 					bool def = skips("!") || !_thy.rewriter();

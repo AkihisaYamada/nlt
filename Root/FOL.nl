@@ -22,7 +22,7 @@ then ∃y ∈ A. P.[y].
 
 assume ex_elim: for P A
 if ∃x ∈ A. P.[x]
-then ∀Q. (∀x. P.[x] ⟹ x ∈ A ⟹ Q) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P.[x] ∈ PROP) ⟹ Q ∈ PROP ⟹ Q.
+then ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ A ∈ TYPE ⟹ (∀x. x ∈ A ⟹ P.[x] ∈ PROP) ⟹ Q ∈ PROP ⟹ Q.
 
 begin
 
@@ -37,7 +37,7 @@ lemma all_elim:
 	.
 
 lemma ex_intro:
-if assm: ∀Q. (∀x. P.[x] ⟹ x ∈ A ⟹ Q) ⟹ Q ∈ PROP ⟹ Q,
+if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q ∈ PROP ⟹ Q,
 	! A ∈ TYPE,
 	! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then ∃x ∈ A. P.[x];
@@ -50,7 +50,7 @@ if ex_imp: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
 	! A ∈ TYPE, ! Q ∈ PROP, ! ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 then Q;
 	apply ex_elim[OF ex_imp];
-	for x if imp: P.[x] ⟹ Q, !x ∈ A;
+	for x if !x ∈ A, imp: P.[x] ⟹ Q;
 		by imp all_elim1[OF all].
 	.
 
@@ -95,6 +95,5 @@ begin
 			if ∃!x ∈ A. P.[x], A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
 			then P.[THE x ∈ A. P.[x]].
 	end
-
 
 end

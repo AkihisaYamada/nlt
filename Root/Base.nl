@@ -32,6 +32,7 @@ binder_middle THE ∈ THE_IN.
 binder_middle SOME ∈ SOME_IN.
 
 infix = 51 51 50.
+infix ≡ 51 51 50.
 infix ≠ 51 51 50.
 infix ~ 51 51 50.
 

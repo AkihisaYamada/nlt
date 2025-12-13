@@ -205,7 +205,7 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [P ∈ PROP, Q ∈ PROP] then �
 	.
 
 theorem nnnot_iff: if [P ∈ PROP] then ¬¬¬P ⟺ ¬P;
-	unfold+ not_iff_imp_false imp3_iff.
+	unfold not_iff_imp_false imp3_iff.
 
 lemma imp_not_commute:
 if [P ∈ PROP, Q ∈ PROP] then (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
@@ -213,7 +213,7 @@ if [P ∈ PROP, Q ∈ PROP] then (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
 
 lemma nnot_imp_not_iff:
 if [P ∈ PROP, Q ∈ PROP] then (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
-	unfold imp_not_commute;
+	unfold^1 imp_not_commute;
 	unfold nnnot_iff.
 
 lemma nnimp_not_iff:
@@ -289,20 +289,20 @@ lemma nand_intro2: for P Q if nQ: ¬Q, [P ∈ PROP, Q ∈ PROP] then ¬(P ∧ Q)
 	.
 
 lemma nand_iff_imp_not: if [P ∈ PROP, Q ∈ PROP] then ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	unfold+ not_iff_imp_false and_imp_iff.
+	unfold not_iff_imp_false and_imp_iff.
 
 lemma non_contradiction: if [P ∈ PROP] then ¬(P ∧ ¬P);
 	unfold nand_iff_imp_not;
 	by nnot_intro.
 
 lemma nand_nnot_iff: if [P ∈ PROP, Q ∈ PROP] then ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
-	unfold+ nand_iff_imp_not;
+	unfold nand_iff_imp_not;
 	unfold nnnot_iff.
 
 lemma nnot_nand_iff: if [P ∈ PROP, Q ∈ PROP] then ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
-	unfold iff.and.commute;
+	unfold^1 iff.and.commute;
 	unfold nand_nnot_iff;
-	unfold iff.and.commute.
+	unfold^1 iff.and.commute.
 
 ---
 ### Disjunction
@@ -339,6 +339,9 @@ context iff begin
 				by iff_intro #elim or_elim #unfold PP' QQ' or_iff_true1 or_iff_true2.
 			.
 
+		interpret Idempotent PROP (∨);
+			by iff_intro #elim or_elim #unfold or_iff_true1.
+
 		interpret CommSemigroupAbsorb (∨) true;
 			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
@@ -364,14 +367,14 @@ if [P ∈ PROP, Q ∈ PROP, R ∈ PROP] then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (
 	.
 
 lemma nor_iff: if [P ∈ PROP, Q ∈ PROP] then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
-	unfold+ not_iff_imp_false;
+	unfold not_iff_imp_false;
 	by or_imp_iff.
 
 lemma nnot_nor_iff: if [P ∈ PROP, Q ∈ PROP] then ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff.
+	unfold nor_iff nnnot_iff.
 
 lemma nor_nnot_iff: if [P ∈ PROP, Q ∈ PROP] then ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff.
+	unfold nor_iff nnnot_iff.
 
 lemma nnot_excluded_middle: if [P ∈ PROP] then ¬¬(P ∨ ¬P);
 	unfold nor_iff;
@@ -386,13 +389,13 @@ lemma or_imp_nand: if PQ: P ∨ Q, [P ∈ PROP, Q ∈ PROP] then ¬(¬P ∧ ¬Q)
 
 
 lemma nnand_iff: if [P ∈ PROP, Q ∈ PROP] then ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
-	fold nnot_nand_iff;
-	fold nand_nnot_iff;
+	fold^1 nnot_nand_iff;
+	fold^1 nand_nnot_iff;
 	fold nor_iff;
 	unfold nnnot_iff.
 
 lemma nniff_iff: if [P ∈ PROP, Q ∈ PROP] then ¬¬(¬P ⟺ ¬Q) ⟺ ¬P ⟺ ¬Q;
-	unfold[0]+ iff_iff_and nnand_iff nnimp_not_iff;
+	unfold[0] iff_iff_and nnand_iff nnimp_not_iff;
 	fold[0] iff_iff_and.
 
 

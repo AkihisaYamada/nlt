@@ -20,6 +20,11 @@ theory Commutative:
 	assume commute: if x ∈ A, y ∈ A then x * y = y * x.
 end
 
+theory Idempotent:
+	fix A (*).
+	assume idem: if x ∈ A then x * x = x.
+end
+
 theory LeftCancellative:
 	fix A (*).
 	assume left_cancels: if x * y = x * y', x ∈ A, y ∈ A, y' ∈ A then y = y'.
