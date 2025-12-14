@@ -332,14 +332,11 @@ end
 context iff begin
 
 	namespace or begin
-set print.
 set print blast.
 
 		interpret Compatible PROP (∨);
-			for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP
-			then P ∨ Q ⟺ P' ∨ Q';
-				by iff_intro #elim or_elim #unfold PP' QQ' or_iff_true1 or_iff_true2.
-			.
+			note #intro 1: iff_elim1 iff_elim2.
+			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
 		interpret Idempotent PROP (∨);
 			by iff_intro #elim or_elim #unfold or_iff_true1.

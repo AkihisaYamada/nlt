@@ -8,7 +8,7 @@ fix (∈) PROP EQTYPE.
 
 import ..Prop.
 
-assume eq_prop? ? if A ∈ EQTYPE then ∀x. x ∈ A ⟹ ∀y. y ∈ A ⟹ x = y ∈ PROP.
+assume eq_prop#intro 1: if A ∈ EQTYPE then ∀x. x ∈ A ⟹ ∀y. y ∈ A ⟹ x = y ∈ PROP.
 
 begin
 

@@ -91,7 +91,7 @@ public:
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
 	void add_elim( Thm const& thm ) & {
-		add_thm(ELIM,thm,Elim::rule(thm,""));
+		add_thm(ELIM,thm,Elim::rule(thm,0,'?'));
 	}
 
 	/** Finds the name of assumption made in the revision */

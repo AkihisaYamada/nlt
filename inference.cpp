@@ -34,14 +34,14 @@ Intro Intro::imp( Thm const& thm, size_t n ) {
 Intro Intro::rule( Thm const& thm ) {
 	return imp(thm,255);
 }
-Elim Elim::rule( Thm const& thm, string_view const& mode ) {
+Elim Elim::rule( Thm const& thm, short after, char mode ) {
 	auto child = thm.ctxt().fork();
 	Thm body = strip_all(thm,child,patvar_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);
 	body = body.discharge(premise);
-	return Elim(thm,premise,body,mode);
+	return Elim(thm,premise,body,after,mode);
 }
 std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const {
 	auto pat_ctxt = _premise.ctxt();
@@ -50,14 +50,14 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	subst_intp(pat2loc,m);
 	pat2loc.discharge(arg);
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
-	if( _mode == "" ) {
-		return {Thy::INTRO,{thm,Intro::rule(thm)}};
-	} else switch( _mode[0] ) {
-		case '?': return {Thy::INF,{thm,Elim::rule(thm,_mode.substr(1))}};
-		case '!': return {Thy::INTRO,{thm,Intro::rule(thm)}};
-		case '=': return {Thy::REWRITE,{thm,thy.make_rewrite_rule(thm).second}};
-		default: assert(false);
+	if( _after == 0 ) {
+		if( _mode == '=' ) {
+			return {Thy::REWRITE,{thm,thy.make_rewrite_rule(thm).second}};
+		} else {
+			return {Thy::INTRO,{thm,Intro::rule(thm)}};
+		}
 	}
+	return {Thy::INF,{thm,Elim::rule(thm,_after-1,_mode)}};
 }
 
 void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {

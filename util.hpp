@@ -202,10 +202,11 @@ class Elim {
 	Thm _thm;//  Γ ⊢ ∀x... φ ⟹ ψ
 	Thm _rule;// Γ. fix x... assume φ ⊢ ψ
 	Thm _premise;// Γ. fix x... assume φ ⊢ φ
-	std::string _mode;// 
-	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule, std::string_view const& mode ) : _thm(thm), _premise(premise), _rule(rule), _mode(mode) {}
+	short _after;// how many premises are remaining
+	char _mode;// intro or rewrite
+	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule, short const& after, char mode ) : _thm(thm), _premise(premise), _rule(rule), _after(after), _mode(mode) {}
 public:
-	static Elim rule( Thm const& thm, std::string_view const& mode );
+	static Elim rule( Thm const& thm, short after, char mode );
 	/** matches a theorem against the premise of elimination.
 	 * @param arg the theorem to eliminate
 	 * @param thy the theory arg belongs
@@ -217,9 +218,6 @@ public:
 	Ctxt ctxt() && = delete;
 	Ctxt const& ctxt() const& {
 		return _premise.ctxt();
-	}
-	std::string const& mode() const& {
-		return _mode;
 	}
 	Thm thm() const {
 		return _thm;

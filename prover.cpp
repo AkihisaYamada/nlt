@@ -11,6 +11,7 @@
 #define FLAG_CTXT (1 << 3)
 #define FLAG_THY (1 << 4)
 #define FLAG_MSG (1 << 5)
+#define FLAG_PRF (1 << 6)
 
 #define FLAGS_MIN (FLAG_SYS | FLAG_STA)
 #define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_THY | FLAG_MSG)
@@ -21,13 +22,14 @@
 #define CTXT ( _out & FLAG_CTXT )
 #define THY ( _out & FLAG_THY )
 #define MSG ( _out & FLAG_MSG )
+#define PRF ( _out & FLAG_PRF )
 
 using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, intro = false, elim = false, inflator = false, cong = false, unfold = false, fold = false, inflated = false, followable = true;
-	string inf_mode;
+	bool weak = false, intro = false, elim = false, cong = false, unfold = false, fold = false, inflated = false, followable = true;
+	short after = 0;
 	static ClaimStatus const INFLATED;
 };
 inline ClaimStatus const ClaimStatus::INFLATED =
@@ -287,7 +289,7 @@ public:
 	ClaimStatus get_claim_status( bool needsep = true ) {
 		ClaimStatus cs;
 		cs.name = gets_thm_name();
-		while( skips("#") ) {
+		if( skips("#") ) {
 			if( skips("weak") ) {
 				cs.weak = true;
 			} else if( skips("intro") ) {
@@ -303,20 +305,13 @@ public:
 			} else {
 				throw Error("\"unknown #\"")(peek_token());
 			}
+			if( auto n = gets_nat() ) {
+				cs.after = *n;
+			}
 		}
 		if( skips("!") ) {
 			cs.intro = true;
 			cs.inflated = true;
-		} else if( skips("?") ) {
-			string mode = "";
-			while( skips("?") ) {
-				mode+='?';
-			}
-			if( skips("=") ) {
-				mode+='=';
-			}
-			cs.inflator = true;
-			cs.inf_mode = mode;
 		} else if( skips(":") ) {
 		} else {
 			if( needsep ) throw Error("\"expected ':'\"")(get());
@@ -328,11 +323,12 @@ public:
 		return {get_claim_status(),get_term()};
 	}
 	void add_claim( Thy& loc, ClaimStatus cs, Thm const& thm ) {
-		if( cs.weak ) {
-			add_forced(loc,thm);
-		}
 		if( cs.intro ) {
-			add_forced(loc,thm,true);
+			if( cs.after > 0 ) {
+				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'i'));
+			} else {
+				add_forced(loc,thm,true);
+			}
 		}
 		if( cs.cong ) {
 			loc.add_thm(Rewrite::CONG,thm);
@@ -341,20 +337,25 @@ public:
 		if( cs.elim ) {
 			loc.add_elim(thm);
 		}
-		if( cs.inflator ) {
-			loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.inf_mode));
-		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
 		}
 		if( cs.unfold ) {
-			auto [ind,rule] = _thy.make_rewrite_rule(thm);
-			_thy.add_thm(Thy::REWRITE+ind,thm,rule);
+			if( cs.after > 0 ) {
+				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
+			} else {
+				auto [ind,rule] = _thy.make_rewrite_rule(thm);
+				_thy.add_thm(Thy::REWRITE+ind,thm,rule);
+			}
 		}
 		if( cs.fold ) {
 			auto const& dual = _thy.dualize(thm);
-			auto [ind,rule] = _thy.make_rewrite_rule(dual);
-			_thy.add_thm(Thy::REWRITE+ind,dual,rule);
+			if( cs.after > 0 ) {
+				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
+			} else {
+				auto [ind,rule] = _thy.make_rewrite_rule(dual);
+				_thy.add_thm(Thy::REWRITE+ind,dual,rule);
+			}
 		}
 		if( cs.inflated ) {
 			auto blaster = loc.blaster(_out_blast);
@@ -805,27 +806,30 @@ public:
 		if( skips("by") ) {
 			auto blaster = _thy.blaster(_out_blast);
 			while( auto thm = gets_thm() ) {
-				if( skips("?") ) {
-					string mode = "";
-					while( skips("?") ) {
-						mode += '?';
-					}
-					if( skips("=") ) {
-						mode += '=';
-					}
-					_thy.add_thm(Thy::INF,*thm,Elim::rule(*thm,mode));
-				} else {
-					blaster.inflate(_thy,*thm);
-					_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
-				}
+				blaster.inflate(_thy,*thm);
+				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
 			}
 			while( skips("#") ) {
 				if( skips("elim") ) {
 					while( auto elim = gets_thm() ) {
 						_thy.add_elim(*elim);
 					}
-				} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
-					_get_rewrite(blaster,_thy,dir);
+				} else if( bool rev = false; skips("unfold") || (rev = true, skips("fold") ) ) {
+					auto const& rew = _thy.rewriter();
+					if( !rew ) throw Error("\"rewriter not set\"");
+					if( skips("(") ) {
+						blaster.ctrl.rel = get();
+						skip(")");
+					}
+					while( auto const& thm = _gets_thm(_thy) ) {
+						auto rule = rev ? _thy.dualize(*thm) : *thm;
+						rule = blaster.rewrites(_thy,rule);// normalize added rule
+						if PRF {
+							if( !MSG ) cout << _indent(' ');
+							cout << "adding rewrite rule: " << _thy.pretty(rule) << endl;
+						}
+						_thy.add_rewrite_rule(blaster.rules,rule);
+					}
 					blaster.ctrl.min = 0;// returns false when not applicable
 				} else {
 					throw Error("\"unexpected\"")(get());
@@ -1220,6 +1224,7 @@ public:
 		if( skips("system") ) return FLAG_STA | FLAG_SYS;
 		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
 		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
+		if( skips("proof") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY | FLAG_PRF;
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
