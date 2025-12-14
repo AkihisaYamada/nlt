@@ -26,18 +26,18 @@ using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, force = false, elim = false, inflator = false, cong = false, unfold = false, fold = false, inflated = false, followable = true;
+	bool weak = false, intro = false, elim = false, inflator = false, cong = false, unfold = false, fold = false, inflated = false, followable = true;
 	string inf_mode;
 	static ClaimStatus const INFLATED;
 };
 inline ClaimStatus const ClaimStatus::INFLATED =
-	[](){ ClaimStatus ret; ret.force = true; ret.inflated = true; return ret; }();
+	[](){ ClaimStatus ret; ret.intro = true; ret.inflated = true; return ret; }();
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.name ) {
 		os << *cs.name;
 	}
-	if( cs.force ) {
+	if( cs.intro ) {
 		os << '!';
 	}
 	if( cs.weak ) {
@@ -290,8 +290,8 @@ public:
 		while( skips("#") ) {
 			if( skips("weak") ) {
 				cs.weak = true;
-			} else if( skips("force") ) {
-				cs.force = true;
+			} else if( skips("intro") ) {
+				cs.intro = true;
 			} else if( skips("cong") ) {
 				cs.cong = true;
 			} else if( skips("elim") ) {
@@ -305,7 +305,7 @@ public:
 			}
 		}
 		if( skips("!") ) {
-			cs.force = true;
+			cs.intro = true;
 			cs.inflated = true;
 		} else if( skips("?") ) {
 			string mode = "";
@@ -331,7 +331,7 @@ public:
 		if( cs.weak ) {
 			add_forced(loc,thm);
 		}
-		if( cs.force ) {
+		if( cs.intro ) {
 			add_forced(loc,thm,true);
 		}
 		if( cs.cong ) {
@@ -357,7 +357,7 @@ public:
 			_thy.add_thm(Thy::REWRITE+ind,dual,rule);
 		}
 		if( cs.inflated ) {
-			auto blaster = loc.blaster();
+			auto blaster = loc.blaster(_out_blast);
 			blaster.inflate(loc,thm);
 		}
 	}
@@ -466,7 +466,7 @@ public:
 			}
 		} else {
 			if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
-			Thm ret = infer.prove(_thy,assm);
+			Thm ret = infer.prove(_thy,assm,true);
 			intp.discharge(ret);
 		}
 	}
@@ -483,7 +483,7 @@ public:
 				return {};
 			} ) ) {
 			if MSG cout << "blasting " << name << ": " << _thy.pretty(stmt) << endl;
-			Thm thm = infer.prove(thy,stmt);
+			Thm thm = infer.prove(thy,stmt,true);
 			intp.retain(*csym,thm);
 			}
 		} else {
@@ -1057,7 +1057,7 @@ public:
 			return {true,{ret}};
 		}
 		auto infer = loc.blaster(_out_blast);
-		Thm ret = infer.prove(loc,loc_goal).intro();
+		Thm ret = infer.prove(loc,loc_goal,true).intro();
 		add_claim(_thy,pat.cs,ret);
 		return {true,{ret}};
 	}
@@ -1311,6 +1311,7 @@ public:
 						if MSG cout << "set print load level " << _out_load << endl;
 					} else if( skips("blast") ) {
 						_out_blast = gets_int().value_or(5);
+						if MSG cout << "set print blast level " << endl;
 					} else {
 						_out = get_print_level();
 						if MSG cout << "set print level " << _out << endl;

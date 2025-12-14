@@ -148,28 +148,28 @@ public:
 	Rewrite::Rules rules;
 	Rewrite::Ctrl ctrl;
 	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
-	bool blasts( Thesis& thesis ) & {
-		return _blast(thesis,1,true,elim_res.size());
+	bool blasts( Thesis& thesis, bool rewrite ) & {
+		return _blast(thesis,1,true,rewrite,elim_res.size());
 	}
-	void blast( Thesis& thesis ) & {
-		_blast(thesis,1,false,elim_res.size());
+	void blast( Thesis& thesis, bool rewrite ) & {
+		_blast(thesis,1,false,rewrite,elim_res.size());
 	}
 	Thm blast_all( Thesis& thesis ) & {
 		while( thesis._goals > 0 ) {
-			blast(thesis);
+			blast(thesis,true);
 		}
 		return thesis._thm;
 	}
-	Opt<Thm> proves( Thy const& thy, CTerm const& claim ) & {
+	Opt<Thm> proves( Thy const& thy, CTerm const& claim, bool rewrite ) & {
 		auto x = Thesis::claim_exact(thy,claim);
-		if( blasts(x) ) {
+		if( blasts(x,rewrite) ) {
 			return *x.concluding();
 		}
 		return {};
 	}
-	Thm prove( Thy const& thy, CTerm const& claim ) & {
+	Thm prove( Thy const& thy, CTerm const& claim, bool rewrite ) & {
 		auto x = Thesis::claim_exact(thy,claim);
-		blast(x);
+		blast(x,rewrite);
 		return *x.concluding();
 	}
 	/**
@@ -179,7 +179,7 @@ public:
 	*/
 	Opt<Thm> blasts( Thy const& thy, Thm const& thesis ) & {
 		if( auto imp = thesis.cbinary(IMP) )
-		if( auto prem = proves(thy,imp->first) ) {
+		if( auto prem = proves(thy,imp->first,true) ) {
 			return thesis.discharge(*prem);
 		}
 		return {};
@@ -187,7 +187,7 @@ public:
 	Thm blast( Thy const& thy, Thm const& thesis ) & {
 		auto imp = thesis.cbinary(IMP);
 		if( !imp ) throw Error("nothing to blast");
-		return thesis.discharge(prove(thy,imp->first));
+		return thesis.discharge(prove(thy,imp->first,true));
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
@@ -228,6 +228,7 @@ private:
 		Thesis& thesis,
 		size_t trial,
 		bool fail,
+		bool rewrite,
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
@@ -240,7 +241,7 @@ private:
 
 inline void Thesis::blast() & {
 	auto inf = Blaster(_thy.rewriter());
-	inf.blast(*this);
+	inf.blast(*this,true);
 }
 inline Thm Thesis::blast_all() & {
 	while( _goals > 0 ) blast();

@@ -48,6 +48,7 @@ namespace iff begin
 			- by iff_elim2[OF PQ].
 			.
 		.
+
 	interpret Equivalence PROP (⟺);
 		- by iff_intro.
 		- by iff_intro #elim elim.
@@ -331,6 +332,8 @@ end
 context iff begin
 
 	namespace or begin
+set print.
+set print blast.
 
 		interpret Compatible PROP (∨);
 			for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ PROP, !Q ∈ PROP, !P' ∈ PROP, !Q' ∈ PROP

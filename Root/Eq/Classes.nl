@@ -8,7 +8,7 @@ theory Image:
 	assume image_elim: if y ∈ f ` A then ∀P. (∀x. y = f x ⟹ x ∈ A ⟹ P) ⟹ P.
 end
 
-theory Prod:
+theory Pair:
 	fix (×) (,) fst snd.
 	assume pair_type! if x ∈ A, y ∈ B then (x,y) ∈ A × B.
 	import Pair.

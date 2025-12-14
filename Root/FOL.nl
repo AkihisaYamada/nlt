@@ -64,36 +64,3 @@ theory ChoiceOp:
 	fix (SOME_IN).
 	assume SOME: if ∃x ∈ A. P.[x], A ∈ TYPE then P.[SOME x ∈ A. P.[x]].
 end
-
-theory Eq:
-	import Eq.
-	assume eq_type: if A ∈ EQTYPE then A ∈ TYPE.
-begin
-
-	theory Ex1:
-		fix (∃!∈).
-		assume ex1_type: if A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP then (∃!x ∈ A. P.[x]) ∈ PROP.
-		assume ex1_imp_ex:
-			if ∃!x ∈ A. P.[x], A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-			then ∃x ∈ A. P.[x].
-		assume ex1_imp_unique:
-			if ∃!x ∈ A. P.[x], A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-			then ∀x ∈ A. ∀y ∈ A. P.[x] ⟹ P.[y] ⟹ x = y.
-		assume ex1_intro: for x
-			if P.[x], ∀y ∈ A. P.[y] ⟹ y = x,
-			   A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP, x ∈ A
-			then ∃!x ∈ A. P.[x].
-	end
-
-	theory UniqueChoiceOp:
-		fix (∃!∈) THE_IN.
-		import Ex1.
-		assume THE_type:
-			if A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-			then (THE x ∈ A. P.[x]) ∈ A.
-		assume ex1_imp_THE:
-			if ∃!x ∈ A. P.[x], A ∈ EQTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ PROP
-			then P.[THE x ∈ A. P.[x]].
-	end
-
-end

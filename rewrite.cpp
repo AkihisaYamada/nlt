@@ -137,9 +137,8 @@ Rewrite& Rewrite::register_cong( Thm const& thm ) & {
 	vector<Cong::Cond> conds;
 	size_t rev = 0;
 	while( ctxt.fixed(rev) ) rev++;
-	while( auto o = ctxt.assumed(rev) ) {
-		auto assm = *o;
-		Term body = assm;
+	while( auto assm = ctxt.assumed(rev) ) {
+		Term body = *assm;
 		bool abs;
 		if( auto all = body.binder(ALL) ) {
 			body = all->second;
@@ -158,7 +157,8 @@ Rewrite& Rewrite::register_cong( Thm const& thm ) & {
 			break;
 		}
 		if( !ind ) break;
-		conds.emplace_back(*ind,abs,assm.capp()->second);
+DEB(_rels[*ind]);
+		conds.emplace_back(*ind,abs,assm->capp()->second);
 		rev++;
 	}
 	auto const& bin = strips_binary(rule.conclusion());
@@ -216,7 +216,7 @@ Opt<Thm> Blaster::_step_abs( Thy const& thy, CTerm const& source, char ind, CTer
 Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
 	while( auto imp = refl.cbinary(IMP) ) {
-		refl = refl.discharge(prove(thy,imp->first));
+		refl = refl.discharge(prove(thy,imp->first,false));
 	}
 	return refl;
 }
@@ -233,7 +233,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rew
 			}
 		} else if( auto assm = intp.assuming() ) {
 			// discharge conditions
-			auto prem = proves(thy,*assm);
+			auto prem = proves(thy,*assm,false);
 			if( !prem ) {// condition couldn't be discharged
 				if( log > 0 ) _log() << "failed to discharge rewrite condition: " << thy.pretty(*assm) << endl;
 				return {};// try other rules
@@ -245,9 +245,12 @@ Opt<Thm> Blaster::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rew
 	}
 }
 Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind ) & {
+	if( log > 3 ) _log() << "trying to rewrite (" << rew->_rels[ind] << "): " << thy.pretty(source) << endl;
 	for( auto const& rule : rules[ind] ) {
+		if( log > 4 ) _log() << "testing rewrite rule: " << thy.pretty(rule.thm()) << endl;
 		if( auto const& m = match(rule.pat(),source,is_patvar) )
 		if( auto const& ret = _apply_rewrite_rule(thy,rule.pat().ctxt(),rule,*m) ) {
+			if( log > 3 ) _log() << "rewritten to: " << thy.pretty(*ret) << endl;
 			return ret;
 		}
 	}
@@ -401,7 +404,7 @@ Opt<Thm> Blaster::_steps(
 		eq = ltrans << eq;// ∀z. t = z ⟹ types... ⟹ s = z
 		eq = eq << *step;// types... ⟹ s = u
 		while( auto imp = eq.cbinary(IMP) ) {// discharge types
-			eq = eq.discharge(prove(thy,imp->first));
+			eq = eq.discharge(prove(thy,imp->first,false));
 		}
 		i++;
 		if( i == max ) {
@@ -428,7 +431,7 @@ bool Blaster::rewrites( Thesis& thesis, bool failable ) & {
 	auto conds = o->second.conds;
 	thesis.apply(Intro::imp(imp,conds+1));// conditions... ⟹ t ⟹ rest
 	for( size_t i = 0; i < conds; i++ ) {
-		blast(thesis);
+		blast(thesis,false);
 	}// t ⟹ s
 	return true;
 }

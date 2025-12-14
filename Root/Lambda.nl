@@ -17,10 +17,7 @@ end
 
 theory Prop:
 	import Prop.
-	assume 
+	import Eq.
 begin
-	interpret Prop.Eq;
-goals.
-exit
-
+	thy.
 end

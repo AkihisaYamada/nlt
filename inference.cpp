@@ -156,7 +156,7 @@ bool Blaster::_apply_blast(
 			}
 		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
 			auto condthesis = Thesis::claim_exact(thesis.thy(),*assm);
-			if( !_blast(condthesis,trial,true,elim_res.size()) ) return false;
+			if( !_blast(condthesis,trial,true,true,elim_res.size()) ) return false;
 			pat_intp.discharge(condthesis._thm);
 		} else {
 			break;
@@ -187,6 +187,7 @@ bool Blaster::_blast(
 	Thesis& thesis,
 	size_t trial,
 	bool fail,
+	bool rewrite,
 	size_t elim_res_ind
 ) & {
 	if( fuel == 0 ) {
@@ -207,7 +208,7 @@ bool Blaster::_blast(
 		if( !imp ) break;// no more assumption
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
-		if( rew ) {// rewrite the assumption
+		if( rewrite && rew ) {// rewrite the assumption
 			assm = rewrites(subthy,assm);
 		}
 		// checks if an elimination rule matches
@@ -279,7 +280,7 @@ bool Blaster::_blast(
 				elim_res_ind++;
 				break;// move on to the new thesis
 			}// no elimination result matched
-			if( rewrites(subthesis,true) ) {// try rewriting
+			if( rewrite && rewrites(subthesis,true) ) {// try rewriting
 				if( log > 2 ) _log() << "rewritten: " << subthesis.goal() << endl;
 				break;
 			}
@@ -298,7 +299,7 @@ bool Blaster::_blast(
 		// blast all new subgoals:
 		if( log > 0 ) indent++;
 		while( subthesis._goals > 0 ) {
-			if( !_blast(subthesis,trial,fail,elim_res_ind) ) {
+			if( !_blast(subthesis,trial,fail,rewrite,elim_res_ind) ) {
 				if( log > 0 ) {
 					indent -= 2;
 				}
