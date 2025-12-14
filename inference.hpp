@@ -189,6 +189,8 @@ public:
 		if( !imp ) throw Error("nothing to blast");
 		return thesis.discharge(prove(thy,imp->first));
 	}
+	/** declare derivable conclusions */
+	void inflate( Thy& thy, Thm const& assm ) &;
 	Opt<Thm> _apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewrite::Rule const& rule, Subst const& matcher ) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.

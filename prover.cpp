@@ -9,24 +9,29 @@
 #define FLAG_SYS (1 << 1)
 #define FLAG_STA (1 << 2)
 #define FLAG_CTXT (1 << 3)
-#define FLAG_MSG (1 << 4)
+#define FLAG_THY (1 << 4)
+#define FLAG_MSG (1 << 5)
 
 #define FLAGS_MIN (FLAG_SYS | FLAG_STA)
-#define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_MSG)
+#define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_THY | FLAG_MSG)
 
 #define ERR ( _out & FLAG_ERR )
 #define SYS ( _out & FLAG_SYS )
 #define STA ( _out & FLAG_STA )
 #define CTXT ( _out & FLAG_CTXT )
+#define THY ( _out & FLAG_THY )
 #define MSG ( _out & FLAG_MSG )
 
 using namespace std;
 
 struct ClaimStatus {
 	Opt<string> name;
-	bool weak = false, force = false, elim = false, cong = false, unfold = false, fold = false, followable = true;
-	string elim_mode;
+	bool weak = false, force = false, elim = false, inflator = false, cong = false, unfold = false, fold = false, inflated = false, followable = true;
+	string inf_mode;
+	static ClaimStatus const INFLATED;
 };
+inline ClaimStatus const ClaimStatus::INFLATED =
+	[](){ ClaimStatus ret; ret.force = true; ret.inflated = true; return ret; }();
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.name ) {
@@ -290,16 +295,7 @@ public:
 			} else if( skips("cong") ) {
 				cs.cong = true;
 			} else if( skips("elim") ) {
-				auto mode = string();
-				for(;;) {
-					if( skips(">") ) {
-						mode+='e';
-					} else {
-						break;
-					}
-				}
 				cs.elim = true;
-				cs.elim_mode = mode;
 			} else if( skips("unfold") ) {
 				cs.unfold = true;
 			} else if( skips("fold") ) {
@@ -310,8 +306,17 @@ public:
 		}
 		if( skips("!") ) {
 			cs.force = true;
+			cs.inflated = true;
 		} else if( skips("?") ) {
-			cs.weak = true;
+			string mode = "";
+			while( skips("?") ) {
+				mode+='?';
+			}
+			if( skips("=") ) {
+				mode+='=';
+			}
+			cs.inflator = true;
+			cs.inf_mode = mode;
 		} else if( skips(":") ) {
 		} else {
 			if( needsep ) throw Error("\"expected ':'\"")(get());
@@ -334,7 +339,10 @@ public:
 			_thy.set_rewriter()->register_cong(thm);
 		}
 		if( cs.elim ) {
-			loc.add_elim(thm,cs.elim_mode);
+			loc.add_elim(thm);
+		}
+		if( cs.inflator ) {
+			loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.inf_mode));
 		}
 		if( cs.name ) {
 			loc.add_thm(*cs.name,thm);
@@ -347,6 +355,10 @@ public:
 			auto const& dual = _thy.dualize(thm);
 			auto [ind,rule] = _thy.make_rewrite_rule(dual);
 			_thy.add_thm(Thy::REWRITE+ind,dual,rule);
+		}
+		if( cs.inflated ) {
+			auto blaster = loc.blaster();
+			blaster.inflate(loc,thm);
 		}
 	}
 	void print_goal( Thesis const& thesis, string pre = "goals " ) {
@@ -390,7 +402,7 @@ public:
 					for(;;) {
 						auto t = get_term();
 						if MSG cout << _thy.pretty(t);
-						assms.push_back({{"",true},assm_thy.enclose(t)});
+						assms.push_back({ClaimStatus::INFLATED,assm_thy.enclose(t)});
 						if( !skips(",") ) break;
 						if MSG cout << ", " << flush;
 					}
@@ -423,7 +435,10 @@ public:
 		} else if( change ) {
 			auto const& c = org_thy.fix(sym);
 			intp.instantiate(c);
-			if CTXT cout << "fixed " << _thy.pretty_sym(sym) << endl;
+			if CTXT {
+				if( !MSG ) cout << _indent(' ');
+				cout << "fixed " << _thy.pretty_sym(sym) << endl;
+			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
 	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Blaster& infer ) {
@@ -445,7 +460,10 @@ public:
 		} else if( change ) {
 			Thm ret = org_thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
-			if CTXT cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
+			if CTXT {
+				if( !MSG ) cout << _indent(' ');
+				cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
+			}
 		} else {
 			if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
 			Thm ret = infer.prove(_thy,assm);
@@ -480,7 +498,7 @@ public:
 				cout << "loading " << filename << endl;
 			}
 			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
-			if ( SYS && _out_load & FLAG_CTXT ) {
+			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
 				if( !MSG ) cout << _indent(' ');
 				cout << "loaded " << filename << endl;
 			}
@@ -537,14 +555,10 @@ public:
 		}
 		if( success ) {
 			_thy.add_import(prefix,std::move(intp));
-			if( change ) {
-				if CTXT {
-					cout << "imported ";
-					_print_prefix(prefix);
-					cout << path << endl;
-				}
-			} else if MSG {
-				cout << "interpreted ";
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				if( change ) cout << "imported ";
+				else cout << "interpreted ";
 				_print_prefix(prefix);
 				cout << path << endl;
 			}
@@ -789,24 +803,36 @@ public:
 	}
 	Opt<Blaster> gets_concluder() {
 		if( skips("by") ) {
-			auto inf = _thy.blaster(_out_blast);
+			auto blaster = _thy.blaster(_out_blast);
 			while( auto thm = gets_thm() ) {
-				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
+				if( skips("?") ) {
+					string mode = "";
+					while( skips("?") ) {
+						mode += '?';
+					}
+					if( skips("=") ) {
+						mode += '=';
+					}
+					_thy.add_thm(Thy::INF,*thm,Elim::rule(*thm,mode));
+				} else {
+					blaster.inflate(_thy,*thm);
+					_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
+				}
 			}
 			while( skips("#") ) {
 				if( skips("elim") ) {
 					while( auto elim = gets_thm() ) {
-						_thy.add_elim(*elim,"");
+						_thy.add_elim(*elim);
 					}
 				} else if( bool dir = false; skips("unfold") || (dir = true, skips("fold") ) ) {
-					_get_rewrite(inf,_thy,dir);
-					inf.ctrl.min = 0;// returns false when not applicable
+					_get_rewrite(blaster,_thy,dir);
+					blaster.ctrl.min = 0;// returns false when not applicable
 				} else {
 					throw Error("\"unexpected\"")(get());
 				}
 			}
 			skip(".");
-			return {inf};
+			return {blaster};
 		} else if( skips(".") ) {
 			return {_thy.blaster(_out_blast)};
 		} else {
@@ -1043,7 +1069,10 @@ public:
 				loc.fix(*sym);
 			}
 			if( skips(":") ) {
-				if MSG cout << "creating theory " << name << endl;
+				if THY {
+					if( !MSG ) cout << _indent(' ');
+					cout << "creating theory " << name << endl;
+				}
 				local_thy(loc,false);
 				_thy.add_thy(loc);
 				if MSG cout << "created theory " << name << endl;
@@ -1051,7 +1080,10 @@ public:
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
 			skip("begin");
-			if MSG cout << "creating namespace " << name << endl;
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "creating namespace " << name << endl;
+			}
 			auto loc = _thy.scope(name);
 			local_thy(loc,true);
 			_thy.add_thy(loc);
@@ -1060,7 +1092,10 @@ public:
 			string name = get();
 			skip("begin");
 			auto loc = _thy.thy(name,reader()).source();
-			if MSG cout << "in context " << name << endl;
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "in context " << name << endl;
+			}
 			local_thy(loc,true);
 			if MSG cout << "left " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
@@ -1184,6 +1219,7 @@ public:
 		if( skips("stat") ) return FLAG_STA;
 		if( skips("system") ) return FLAG_STA | FLAG_SYS;
 		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
+		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
@@ -1332,7 +1368,10 @@ public:
 				return;
 			} else if( !_final ) {
 				if( skips("fix") ) {
-					if CTXT cout << "fixing";
+					if CTXT {
+						if(!MSG) cout << _indent(' ');
+						cout << "fixing";
+					}
 					for(;;) {
 						if ( auto sym = gets_sym() ) {
 							_thy.fix(*sym);
@@ -1366,7 +1405,10 @@ public:
 					assm = assm.lift(_thy.cterm(ALL));
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
-					if CTXT cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
+					if CTXT {
+						if(!MSG) cout << _indent(' ');
+						cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
+					}
 					skip(".");
 				} else if( skips("import") ) {
 					import(true);

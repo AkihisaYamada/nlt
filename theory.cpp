@@ -9,6 +9,7 @@ string const Thy::CONCL = "#concl";
 string const Thy::INTRO = "#intro";
 string const Thy::WEAK = "#weak";
 string const Thy::ELIM = "#elim";
+string const Thy::INF = "#inf";
 string const Thy::REWRITE = "=";
 
 struct Thy::_Body {

@@ -48,6 +48,8 @@ public:
 	static std::string const ELIM;
 	/** prefix for rewrite rules */
 	static std::string const REWRITE;
+	/** name for inflation rules, φ ⟹ ψ */
+	static std::string const INF;
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -88,8 +90,8 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
-	void add_elim( Thm const& thm, std::string_view const& mode ) & {
-		add_thm(ELIM,thm,Elim::rule(thm,mode));
+	void add_elim( Thm const& thm ) & {
+		add_thm(ELIM,thm,Elim::rule(thm,""));
 	}
 
 	/** Finds the name of assumption made in the revision */

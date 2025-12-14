@@ -15,3 +15,12 @@ theory Ext:
 	assume ext: if ∀x. α.[x] = β.[x] then (λx. α.[x]) = (λx. β.[x]).
 end
 
+theory Prop:
+	import Prop.
+	assume 
+begin
+	interpret Prop.Eq;
+goals.
+exit
+
+end

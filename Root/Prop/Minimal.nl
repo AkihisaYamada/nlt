@@ -48,7 +48,6 @@ namespace iff begin
 			- by iff_elim2[OF PQ].
 			.
 		.
-
 	interpret Equivalence PROP (⟺);
 		- by iff_intro.
 		- by iff_intro #elim elim.

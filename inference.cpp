@@ -2,7 +2,7 @@
 using namespace std;
 
 void cerr_proof_thms( Thy const& thy ) {
-	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM } ) {
+	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM, Thy::INF } ) {
 		cerr << name << ":" << thy.print_thms(name);
 	}
 }
@@ -51,11 +51,11 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	pat2loc.discharge(arg);
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
 	if( _mode == "" ) {
-		return {"",{thm,Intro::rule(thm)}};
+		return {Thy::INTRO,{thm,Intro::rule(thm)}};
 	} else switch( _mode[0] ) {
-		case 'e': return {Thy::ELIM,{thm,Elim::rule(thm,_mode.substr(1))}};
-		case 'i': return {Thy::INTRO,{thm,Intro::rule(thm)}};
-		case 'r': return {Thy::REWRITE,{thm,thy.make_rewrite_rule(thm).second}};
+		case '?': return {Thy::INF,{thm,Elim::rule(thm,_mode.substr(1))}};
+		case '!': return {Thy::INTRO,{thm,Intro::rule(thm)}};
+		case '=': return {Thy::REWRITE,{thm,thy.make_rewrite_rule(thm).second}};
 		default: assert(false);
 	}
 }
@@ -167,6 +167,22 @@ bool Blaster::_apply_blast(
 	return true;
 }
 
+void Blaster::inflate( Thy& thy, Thm const& assm ) & {
+	// one cannot update the list while reading the list.
+	auto infs = vector<pair<string,AThm>>();
+	thy.find_thm( Thy::INF, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
+		auto elim = info.ref<Elim>();
+		assert(elim);
+		if( auto m = elim->matches(assm,{import}) ) {
+			infs.push_back(elim->instantiate(*m,assm,import,thy));
+		}
+		return {};
+	} );
+	for( auto const& [lbl,athm] : infs ) {
+		if( log > 2 ) _log() << "inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
+		thy.add_thm(lbl,athm,athm.info);
+	}
+}
 bool Blaster::_blast(
 	Thesis& thesis,
 	size_t trial,
@@ -195,7 +211,7 @@ bool Blaster::_blast(
 			assm = rewrites(subthy,assm);
 		}
 		// checks if an elimination rule matches
-		if( !subthy.find_thm(Thy::ELIM,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( subthy.find_thm( Thy::ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
@@ -205,11 +221,11 @@ bool Blaster::_blast(
 				return {thm};
 			}
 			return {};
-		}) ) {
-			// no elimination matches, so just declare the assumption as forced
-			add_forced(subthy,assm);
-			if( log > 2 ) _log() << "declared assumption: " << subthy.pretty(assm) << endl;
-		}
+		} ) ) continue;
+		// no elimination matches, declare what can be inferred from the assumption
+		inflate(subthy,assm);
+		add_forced(subthy,assm);
+		if( log > 2 ) _log() << "declared assumption: " << subthy.pretty(assm) << endl;
 	}
 	// try exact conclusions
 	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -253,22 +269,15 @@ bool Blaster::_blast(
 		for(;;) {
 			if( elim_res_ind < elim_res.size() ) {// process elimination result
 				auto const& [label,athm] = elim_res[elim_res_ind];
-				if( label == "" ) {
-					auto const& intro = *athm.info.ref<Intro>();
-					if( subthesis._apply(intro,g,subgoal_child) ) {
-						if( log > 2 ) _log() << "applied elimination result: " << subthy.pretty(athm) << endl;
-					} else {
-						if( log > 1 ) cerr_proof_thms(subgoal_child);
-						throw Error("\"unapplied elimination result\"")(athm);
-					}
-					elim_res_ind++;
-					break;// move on to the new thesis
+				auto const& intro = *athm.info.ref<Intro>();
+				if( subthesis._apply(intro,g,subgoal_child) ) {
+					if( log > 2 ) _log() << "applied elimination result: " << subthy.pretty(athm) << endl;
 				} else {
-					subthy.add_thm(label,subthy.weaken(athm),athm.info);
-					if( log > 2 ) _log() << "declared elimination result " << label << ": " << subthy.pretty(athm) << endl;
-					elim_res_ind++;
-					continue;
+					if( log > 1 ) cerr_proof_thms(subgoal_child);
+					throw Error("\"unapplied elimination result\"")(athm);
 				}
+				elim_res_ind++;
+				break;// move on to the new thesis
 			}// no elimination result matched
 			if( rewrites(subthesis,true) ) {// try rewriting
 				if( log > 2 ) _log() << "rewritten: " << subthesis.goal() << endl;

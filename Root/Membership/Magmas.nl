@@ -293,7 +293,6 @@ context Equivalence begin
 		import rcancel: RightCancel A (/) (*).
 	begin
 --		interpret rcancel: MagmaRightCancel (/) (*).
-		thy.
 	end
 
 	theory QuasiGroup:
