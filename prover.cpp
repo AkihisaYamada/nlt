@@ -286,10 +286,13 @@ public:
 			return os << ' ' << flush;
 		};
 	}
-	ClaimStatus get_claim_status( bool needsep = true ) {
+	ClaimStatus get_claim_status( bool need_claim = true, bool allow_claim = true ) {
 		ClaimStatus cs;
 		cs.name = gets_thm_name();
 		if( skips("#") ) {
+			if( auto n = gets_nat() ) {
+				cs.after = *n;
+			}
 			if( skips("weak") ) {
 				cs.weak = true;
 			} else if( skips("intro") ) {
@@ -305,16 +308,16 @@ public:
 			} else {
 				throw Error("\"unknown #\"")(peek_token());
 			}
-			if( auto n = gets_nat() ) {
-				cs.after = *n;
-			}
 		}
 		if( skips("!") ) {
 			cs.intro = true;
 			cs.inflated = true;
+		} else if( skips("?") ) {
+			cs.weak = true;
+			cs.inflated = true;
 		} else if( skips(":") ) {
 		} else {
-			if( needsep ) throw Error("\"expected ':'\"")(get());
+			if( need_claim ) throw Error("\"expected ':'\"")(get());
 			cs.followable = false;
 		}
 		return cs;
@@ -806,8 +809,9 @@ public:
 		if( skips("by") ) {
 			auto blaster = _thy.blaster(_out_blast);
 			while( auto thm = gets_thm() ) {
+				bool weak = skips("?");
 				blaster.inflate(_thy,*thm);
-				_thy.add_thm(Thy::INTRO,*thm,make_rule(*thm));
+				_thy.add_thm( weak ? Thy::WEAK : Thy::INTRO, *thm, make_rule(*thm) );
 			}
 			while( skips("#") ) {
 				if( skips("elim") ) {

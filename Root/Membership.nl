@@ -6,6 +6,12 @@ fix (∈).
 
 begin
 
+theory Fun:
+	fix (→).
+	assume fun_elim1: f ∈ A → B ⟹ ∀a. a ∈ A ⟹ f a ∈ B.
+begin
+end
+
 theory Member:
 	fix x A.
 	assume closed: x ∈ A.
@@ -75,6 +81,3 @@ begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
 end
-
-end
-

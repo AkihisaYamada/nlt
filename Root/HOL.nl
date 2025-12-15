@@ -1,21 +1,19 @@
-fix (∈) PROP TYPE (→).
+---
+# Higher-Order Logic
 
-assume PROP_TYPE! PROP ∈ TYPE.
-assume FUN_TYPE! if A ∈ TYPE, B ∈ TYPE then A → B ∈ TYPE.
-import FOL.
-import Fun.
+Higher-order logic (HOL) allows quantification over arbitrary functions.
+In other words, it is SOL where the classes for individuals and quantifiable are the same.
+---
+
+import SOL;
+	instantiate IND := QTYPE.
+	.
 
 begin
 
 theory Choice:
 	fix CHOICE.
 	assume choice:
-	if ∀x ∈ A. ∃y ∈ B. P x y, A ∈ TYPE, B ∈ CHOICE
-	then ∃f ∈ A → B. ∀x ∈ A. P x (f x).
+		if ∀x ∈ A. ∃y ∈ B. P x y, A ∈ QTYPE, B ∈ CHOICE
+		then ∃f ∈ A → B. ∀x ∈ A. P x (f x).
 end
-
-theory Eq:
-	import Eq.
-	assume eq_fun_type: if A ∈ EQTYPE then (=) ∈ A → A → PROP.
-end
-

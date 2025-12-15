@@ -1,7 +1,7 @@
 import Base.
 
-fix (∈) PROP.
-assume imp_type! P ∈ PROP ⟹ Q ∈ PROP ⟹ (P ⟹ Q) ∈ PROP.
+fix (∈) Prop.
+assume imp_type! P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ⟹ Q) ∈ Prop.
 
 begin
 
@@ -9,7 +9,7 @@ interpret Membership.
 
 theory Relation:
 	fix A (≤).
-	import Binary (≤) A A PROP.
+	import Binary (≤) A A Prop.
 begin
 	note! closed.
 end
