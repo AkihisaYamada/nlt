@@ -110,8 +110,7 @@ note ! iff.refl.
 set rewrite iff.imp iff.imp_rev iff.refl iff.trans.
 set dual iff.sym.
 
-note #cong: iff.cong.
-note #cong: iff.imp.cong.
+note (cong) iff.cong iff.imp.cong.
 
 lemma imp_imp_iff: if [P, P ∈ Prop, Q ∈ Prop] then (P ⟹ Q) ⟺ Q;
 	by iff_intro.
@@ -148,7 +147,7 @@ lemma true_imp_iff: if [P ∈ Prop] then (true ⟹ P) ⟺ P;
 lemma imp_true_iff: if [P ∈ Prop] then (P ⟹ true) ⟺ true;
 	by iff_intro.
 
-lemma iff_cong_not#cong: if PP': P ⟺ P', [P ∈ Prop, P' ∈ Prop] then ¬P ⟺ ¬P';
+lemma iff_cong_not(cong) if PP': P ⟺ P', [P ∈ Prop, P' ∈ Prop] then ¬P ⟺ ¬P';
 	apply iff_intro;
 	if nP: ¬P;
 		apply not_intro;
@@ -260,11 +259,11 @@ context iff begin
 
 	end
 
-	note #cong: and.cong.
+	note (cong) and.cong.
 
 end
 
-note #cong: iff.and.cong.
+note (cong) iff.and.cong.
 
 lemma iff_imp_and: if PQ: P ⟺ Q, [P ∈ Prop, Q ∈ Prop] then (P ⟹ Q) ∧ (Q ⟹ P);
 	by and_intro #unfold PQ.
@@ -272,8 +271,7 @@ lemma iff_imp_and: if PQ: P ⟺ Q, [P ∈ Prop, Q ∈ Prop] then (P ⟹ Q) ∧ (
 lemma iff_iff_and: if [P ∈ Prop, Q ∈ Prop] then (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 	by iff_intro and_intro #elim iff.elim and.elim.
 
-lemma and_imp_iff:
-if [P ∈ Prop, Q ∈ Prop, R ∈ Prop] then (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+lemma and_imp_iff: if [P ∈ Prop, Q ∈ Prop, R ∈ Prop] then (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro and_intro #elim and.elim.
 
 lemma nand_intro1: if nP: ¬P, [P ∈ Prop, Q ∈ Prop] then ¬(P ∧ Q);
@@ -334,8 +332,6 @@ end
 context iff begin
 
 	namespace or begin
-set print.
-set print blast.
 
 		interpret Compatible Prop (∨);
 			for P Q P' Q' if PP': P ⟺ P', QQ': Q ⟺ Q', !P ∈ Prop, !Q ∈ Prop, !P' ∈ Prop, !Q' ∈ Prop
@@ -347,7 +343,7 @@ set print blast.
 			by iff_intro #elim or_elim #unfold or_iff_true1.
 
 		interpret CommSemigroupAbsorb (∨) true;
-			note #unfold 1: or_iff_true1 or_iff_true2.
+			note (unfold) or_iff_true1 or_iff_true2.
 			by iff_intro #elim or_elim.
 
 	end

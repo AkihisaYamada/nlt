@@ -43,7 +43,7 @@ lemma arg_cong: if xy: x = y then f x = f y;
 lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
-lemma eq_cong#cong: for f x if fg: f = g, xy: x = y then f x = g y;
+lemma eq_cong(cong) for f x if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;
 		by arg_cong[OF xy].
 	have 2: f y = g y;

@@ -47,7 +47,7 @@ Thm Thy::dualize( Thm const& thm ) const & {
 		if( !dual ) throw Error("\"no dual rule for\"")(get<0>(*bin));
 		Thm dual_thm = subthy.weaken(dual->second.thm) << body;
 		auto inf = Blaster(subthy.rewriter());
-		while( auto o = inf.blasts(subthy,dual_thm) ) {
+		while( auto o = inf.blasts(subthy,dual_thm,false) ) {
 			dual_thm = *o;
 		}
 		return dual_thm.intro();
@@ -74,7 +74,7 @@ std::pair<char,Rewrite::Rule> Thy::make_rewrite_rule( Thm const& rule ) const & 
 	auto const& [to_true,ind] = *rew._to_true;
 	body = sub.weaken(to_true) << body;
 	auto inf = Blaster(sub.rewriter());
-	while( auto o = inf.blasts(sub,body) ) {
+	while( auto o = inf.blasts(sub,body,false) ) {
 		body = *o;
 	}
 	auto iff = body.cbinary(rew._rels[ind]);
@@ -157,7 +157,6 @@ Rewrite& Rewrite::register_cong( Thm const& thm ) & {
 			break;
 		}
 		if( !ind ) break;
-DEB(_rels[*ind]);
 		conds.emplace_back(*ind,abs,assm->capp()->second);
 		rev++;
 	}
@@ -233,7 +232,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rew
 			}
 		} else if( auto assm = intp.assuming() ) {
 			// discharge conditions
-			auto prem = proves(thy,*assm,false);
+			auto prem = proves(thy,*assm,true);
 			if( !prem ) {// condition couldn't be discharged
 				if( log > 0 ) _log() << "failed to discharge rewrite condition: " << thy.pretty(*assm) << endl;
 				return {};// try other rules
@@ -257,8 +256,10 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind ) & {
 	if( auto ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto const& rule = info.ref<Rewrite::Rule>();
 		assert(rule);
+		if( log > 4 ) _log() << "testing rewrite rule: " << thy.pretty(thm) << endl;
 		if( auto const& m = match(rule->pat(),source,is_patvar,{import}) )
 		if( auto const&	ret = _apply_rewrite_rule(thy,rule->pat().ctxt(),*rule,*m) ) {
+			if( log > 3 ) _log() << "rewritten to: " << thy.pretty(*ret) << endl;
 			return ret;
 		}
 		return {};
@@ -269,6 +270,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind ) & {
 	for( auto const& cong : rew->_congs[ind] ) {
 		Ctxt const& pat_ctxt = cong.pat.ctxt();
 		if( auto const& m = match(cong.pat,source,is_patvar) ) {// source: C[s...]
+			if( log > 3 ) _log() << "applying congruence: " << thy.pretty(cong) << endl;
 			Thm ret = thy.weaken(cong);
 			// ret: ∀x... x'.... (φ ⟹ x = x') ⟹ ... ⟹ C[x...] = C[x'...]
 			for( size_t i = 0; i<cong.conds.size(); i++ ) {
@@ -292,7 +294,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind ) & {
 				}
 			}
 			if( success ) {
-				while( auto o = blasts(thy,ret) ) {// blasts remaining conditions
+				while( auto o = blasts(thy,ret,false) ) {// blasts remaining conditions
 					ret = *o;
 				}
 				return ret;
@@ -340,7 +342,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<c
 						if( i == var_end ) break;
 						ret = ret << _make_refl(thy,*m->get(*pat_ctxt.fixed(i)),cong.conds[i].ind);
 					}
-					while( auto o = blasts(thy,ret) ) {// blast conditions
+					while( auto o = blasts(thy,ret,false) ) {// blast conditions
 						ret = *o;
 					}
 					return ret;

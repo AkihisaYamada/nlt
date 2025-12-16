@@ -177,9 +177,9 @@ public:
 	* 
 	* @return Thm the conclusion
 	*/
-	Opt<Thm> blasts( Thy const& thy, Thm const& thesis ) & {
+	Opt<Thm> blasts( Thy const& thy, Thm const& thesis, bool rewrite ) & {
 		if( auto imp = thesis.cbinary(IMP) )
-		if( auto prem = proves(thy,imp->first,true) ) {
+		if( auto prem = proves(thy,imp->first,rewrite) ) {
 			return thesis.discharge(*prem);
 		}
 		return {};

@@ -4,11 +4,11 @@
 With type-free equality, equations are not necessarily propositions.
 It is assumed equations over terms of a type of class `EQTYPE` are propositions.
 ---
-fix (∈) PROP EQTYPE.
+fix (∈) Prop EQTYPE.
 
 import ..Prop.
 
-assume eq_prop#intro 1: if A ∈ EQTYPE then ∀x. x ∈ A ⟹ ∀y. y ∈ A ⟹ x = y ∈ PROP.
+assume eq_prop(intro 1) if A ∈ EQTYPE then ∀x. x ∈ A ⟹ ∀y. y ∈ A ⟹ x = y ∈ Prop.
 
 begin
 
@@ -16,8 +16,13 @@ interpret .Classes.
 
 theory Pair:
 	fix (×) (,) fst snd.
-	assume prod_type#intro: if A ∈ EQTYPE, B ∈ EQTYPE then A × B ∈ EQTYPE.
+	assume prod_type(intro) if A ∈ EQTYPE, B ∈ EQTYPE then A × B ∈ EQTYPE.
 	import Pair.
+begin
+
+	lemma if A: A ∈ EQTYPE, B: B ∈ EQTYPE then
+		∀a. a ∈ A ⟹ b ∈ B ⟹ a' ∈ A ⟹ b' ∈ B ⟹ (a,b) = (a',b') ∈ Prop;
+
 end
 
 
@@ -28,22 +33,24 @@ begin
 	set rewrite! iff.imp iff.imp_rev iff.refl iff.trans.
 	set dual iff.sym.
 set print.
+set print blast 6.
 
-	lemma eq_imp_iff#cong: if eq: P = P', !P ∈ PROP, !P' ∈ PROP then P ⟺ P';
+	lemma eq_imp_iff(cong) if eq: P = P', !P ∈ Prop then P ⟺ P';
+		have !P' ∈ Prop;
+			by #fold(=) eq.
 		by iff_intro #unfold(=) eq.
 
 	theory If:
 		fix (if) (then) (else).
 		assume if_then:
-			if A ∈ EQTYPE, B ∈ EQTYPE, P, P ∈ PROP, x ∈ A, y ∈ B
+			if A ∈ EQTYPE, B ∈ EQTYPE, P, P ∈ Prop, x ∈ A, y ∈ B
 			then (if P then x else y) = x.
 		assume if_else:
-			if A ∈ EQTYPE, B ∈ EQTYPE, P, P ∈ PROP, x ∈ A, y ∈ B
+			if A ∈ EQTYPE, B ∈ EQTYPE, P, P ∈ Prop, x ∈ A, y ∈ B
 			then (if ¬P then x else y) = y.
 	begin
 
 	end
-set print blast.
 
 	theory Pair:
 		import Pair.
@@ -58,9 +65,9 @@ set print blast.
 				- by pair_eq_pair_imp2[OF eq].
 				.
 			if and;
-				have #unfold: x = x';
+				have (unfold) x = x';
 					apply and.elim[OF and].
-				have #unfold: y = y';
+				have (unfold) y = y';
 					apply and.elim[OF and].
 				goal.
 			.

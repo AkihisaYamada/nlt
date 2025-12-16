@@ -289,10 +289,15 @@ public:
 	ClaimStatus get_claim_status( bool need_claim = true, bool allow_claim = true ) {
 		ClaimStatus cs;
 		cs.name = gets_thm_name();
-		if( skips("#") ) {
-			if( auto n = gets_nat() ) {
-				cs.after = *n;
-			}
+		if( skips("!") ) {
+			cs.intro = true;
+			cs.inflated = true;
+			return cs;
+		} else if( skips("?") ) {
+			cs.weak = true;
+			cs.inflated = true;
+			return cs;
+		} else if( skips("(") ) {
 			if( skips("weak") ) {
 				cs.weak = true;
 			} else if( skips("intro") ) {
@@ -306,19 +311,17 @@ public:
 			} else if( skips("fold") ) {
 				cs.fold = true;
 			} else {
-				throw Error("\"unknown #\"")(peek_token());
+				throw Error("\"unknown rule\"")(peek_token());
 			}
-		}
-		if( skips("!") ) {
-			cs.intro = true;
-			cs.inflated = true;
-		} else if( skips("?") ) {
-			cs.weak = true;
-			cs.inflated = true;
-		} else if( skips(":") ) {
-		} else {
-			if( need_claim ) throw Error("\"expected ':'\"")(get());
+			if( auto n = gets_nat() ) {
+				cs.after = *n;
+			}
+			skip(")");
+		} else if( need_claim ) {
+			skip(":");
+		} else if( allow_claim && skips(":") ) {
 			cs.followable = false;
+		} else {
 		}
 		return cs;
 	}

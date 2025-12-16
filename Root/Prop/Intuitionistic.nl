@@ -3,17 +3,17 @@
 ---
 
 import Minimal.
-assume false_elim: false ⟹ ∀P. P ∈ PROP ⟹ P.
+assume false_elim: false ⟹ ∀P. P ∈ Prop ⟹ P.
 
 begin
 
-lemma not_imp_iff_false: if nP: ¬P, [P ∈ PROP] then P ⟺ false;
+lemma not_imp_iff_false: if nP: ¬P, [P ∈ Prop] then P ⟺ false;
 	by iff_intro not_imp_false[OF nP] #elim false_elim.
 
-lemma imp_false_imp_iff_false: if P0: P ⟹ false, [P ∈ PROP] then P ⟺ false;
+lemma imp_false_imp_iff_false: if P0: P ⟹ false, [P ∈ Prop] then P ⟺ false;
 	by not_imp_iff_false not_intro P0.
 
-lemma false_imp_iff: if [P ∈ PROP] then (false ⟹ P) ⟺ true;
+lemma false_imp_iff: if [P ∈ Prop] then (false ⟹ P) ⟺ true;
 	by iff_true #elim false_elim.
 
 namespace iff begin
@@ -23,7 +23,7 @@ namespace iff begin
 		interpret and.
 
 		interpret CommMonoidAbsorb (∧) false true;
-			for P if !P ∈ PROP then false ∧ P ⟺ false;
+			for P if !P ∈ Prop then false ∧ P ⟺ false;
 				apply iff_intro;
 				if and: false ∧ P;
 					by and_elim1[OF and].
@@ -33,7 +33,7 @@ namespace iff begin
 
 end
 
-lemma not_elim: if nP: ¬P, P: P, [P ∈ PROP, Q ∈ PROP] then Q;
+lemma not_elim: if nP: ¬P, P: P, [P ∈ Prop, Q ∈ Prop] then Q;
 	have f: false;
 		by not_imp_false[OF nP P].
 	apply false_elim[OF f].
