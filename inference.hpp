@@ -32,6 +32,9 @@ public:
 		}
 		return Thesis(thy,thesis,claim,goals);
 	}
+	Thy& thy() & {
+		return _thy;
+	}
 	Thy const& thy() const& {
 		return _thy;
 	}
@@ -184,10 +187,10 @@ public:
 		}
 		return {};
 	}
-	Thm blast( Thy const& thy, Thm const& thesis ) & {
+	Thm blast( Thy const& thy, Thm const& thesis, bool rewrite ) & {
 		auto imp = thesis.cbinary(IMP);
-		if( !imp ) throw Error("nothing to blast");
-		return thesis.discharge(prove(thy,imp->first,true));
+		if( !imp ) throw Error("nothing to blast")(thesis);
+		return thesis.discharge(prove(thy,imp->first,rewrite));
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;

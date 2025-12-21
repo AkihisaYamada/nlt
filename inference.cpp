@@ -247,7 +247,7 @@ bool Blaster::_blast(
 			assert(rule);
 			auto const& m = rule->matches(g,{import});
 			if( !m ) {
-				if( log > 3 ) _log() << "intro didn't match: " << subthy.pretty(thm) << endl;
+				if( log > 5 ) _log() << "intro didn't match: " << subthy.pretty(thm) << endl;
 				return {};
 			}
 			if( log > 2 ) _log() << "applying: " << subthy.pretty(thm) << endl;

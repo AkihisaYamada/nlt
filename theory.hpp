@@ -136,6 +136,11 @@ public:
 	Opt<Rewrite const&> rewriter() const &;
 	OptRef<Rewrite>& set_rewriter() &;
 	Thm dualize( Thm const& thm ) const &;
+	Thy& register_refl( Thm const& refl, bool def ) &;
+	Thy& register_trans( Thm const& trans ) &;
+	Thy& register_dual( Thm const& dual ) &;
+	Thy& register_imp( Thm const& imp, bool dir ) &;
+	Thy& register_cong( Thm const& cong ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
 	std::pair<char,Rewrite::Rule> make_rewrite_rule( Thm const& thm ) const &;
 	Blaster blaster( char log = 0 ) const &;

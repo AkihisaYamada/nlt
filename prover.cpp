@@ -338,7 +338,7 @@ public:
 		}
 		if( cs.cong ) {
 			loc.add_thm(Rewrite::CONG,thm);
-			_thy.set_rewriter()->register_cong(thm);
+			_thy.register_cong(thm);
 		}
 		if( cs.elim ) {
 			loc.add_elim(thm);
@@ -1249,17 +1249,13 @@ public:
 						"\n\trev: " <<  _thy.pretty(revimp) <<
 						"\n\trefl: " << _thy.pretty(refl) <<
 						"\n\ttrans: " << _thy.pretty(trans);
-					if( !_thy.rewriter() ) {
-						_thy.set_rewriter() = OptRef<Rewrite>::make();
-					}
-					
-					_thy.set_rewriter()->register_refl(refl,def).
+					_thy.register_refl(refl,def).
 						register_imp(imp,true).
 						register_imp(revimp,false).
 						register_trans(trans);
 					_thy.find_thm( Rewrite::CONG, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 					auto thm2 = thm.subst(import);
-						_thy.set_rewriter()->register_cong(thm2);
+						_thy.register_cong(thm2);
 						if MSG cout << "\n\tcong: " << _thy.pretty(thm2);
 						return {};
 					} );
@@ -1267,14 +1263,14 @@ public:
 				} else if( skips("trans") ) {
 					if MSG cout << "registering transitivity: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.set_rewriter()->register_trans(*thm);
+						_thy.register_trans(*thm);
 						if MSG cout << _thy.pretty(*thm);
 					}
 					if MSG cout << endl;
 				} else if( skips("dual") ) {
 					if MSG cout << "registering dual: ";
 					while( auto const& thm = gets_thm() ) {
-						_thy.set_rewriter()->register_dual(*thm);
+						_thy.register_dual(*thm);
 						if MSG cout << _thy.pretty(*thm);
 					};
 					if MSG cout << endl;

@@ -885,8 +885,8 @@ inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained(size_t i) const & {
 }
 
 inline CTerm CTerm::subst(Intp const& intp) const {
-	if( _ctxt != intp._src ) throw Error(__func__)("\"wrong context subst\"");
-	if( !intp.ready() ) throw Error(__func__)("\"interpretation not ready\"");
+	if( _ctxt != intp._src ) throw Error(__func__)("\"wrong context subst\"")(*this);
+	if( !intp.ready() ) throw Error(__func__)("\"interpretation not ready\"")(*this);
 	return CTerm(intp.ctxt(),this->Term::subst(intp));
 }
 

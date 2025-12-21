@@ -31,7 +31,7 @@ public:
 	};
 	struct Cong : Thm {
 		struct Cond {
-			size_t ind;
+			Opt<size_t> ind;
 			bool abs;
 			CTerm assm;
 		};
@@ -107,6 +107,7 @@ public:
 	Rewrite& register_imp( Thm const& thm, bool dir ) &;
 	Rewrite& register_refl( Thm const& thm, bool def ) &;
 	Rewrite& register_trans( Thm const& thm ) &;
+	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
 	Rewrite& register_cong( Thm const& thm ) &;
 	Rewrite& register_dual( Thm const& thm ) &;
 	Rewrite& register_to_true( Thm const& thm ) &;

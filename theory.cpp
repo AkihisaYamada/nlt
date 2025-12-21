@@ -83,6 +83,35 @@ OptRef<Rewrite>& Thy::set_rewriter() & {
 	return _ref->rewriter;
 }
 
+Thy& Thy::register_refl( Thm const& thm, bool def ) & {
+	if( !_ref->rewriter ) {
+		_ref->rewriter = OptRef<Rewrite>::make(Rewrite());
+	}
+	assert( thm.ctxt() == *this );
+	_ref->rewriter->register_refl(thm,def);
+	return *this;
+}
+Thy& Thy::register_trans( Thm const& thm ) & {
+	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_ref->rewriter->register_trans(thm);
+	return *this;
+}
+Thy& Thy::register_dual( Thm const& thm ) & {
+	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_ref->rewriter->register_dual(thm);
+	return *this;
+}
+Thy& Thy::register_imp( Thm const& thm, bool dir ) & {
+	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_ref->rewriter->register_imp(thm,dir);
+	return *this;
+}
+Thy& Thy::register_cong( Thm const& thm ) & {
+	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_ref->rewriter->register_cong(thm);
+	return *this;
+}
+
 void Thy::setup_definer( Thm const& beta ) & {
 	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
 	_ref->definer = OptRef<Definer>::make(*this,beta);

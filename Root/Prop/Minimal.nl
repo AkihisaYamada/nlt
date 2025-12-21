@@ -312,8 +312,6 @@ lemma or_iff_true1: if !P, !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟺ true;
 lemma or_iff_true2: if !Q, !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
-set print.
-set print blast.
 lemma or_intro:
 if PQR: ∀R. R ∈ Prop ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P ∈ Prop, ! Q ∈ Prop
 then P ∨ Q;

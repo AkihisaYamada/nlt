@@ -10,7 +10,7 @@ begin -- Base doesn't have any axiom
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
-symbol λ ∧ ∨ ∃ ≠ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ → ⟶ ⟷.
+symbol λ ∧ ∨ ∃ ≠ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ → × ⟶ ⟷.
 symbol solo ¬.
 
 prefix ¬ 40 40.
