@@ -111,7 +111,7 @@ public:
 	Rewrite& register_cong( Thm const& thm ) &;
 	Rewrite& register_dual( Thm const& thm ) &;
 	Rewrite& register_to_true( Thm const& thm ) &;
-	Rewrite subst( Intp const& intp ) const;
+	void import( Thy const& thy, Intp const& intp ) &;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
 	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );

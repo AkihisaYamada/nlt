@@ -29,7 +29,8 @@ class Thy : public Ctxt {
 	) const;
 	Opt<Import> _find_thy( std::string_view const& thyname, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) &;
 	void _check_loop_import( Thy const& origin ) const;
-	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const;
+	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const&;
+	void _make_own_rewrite()&;
 	friend Import;
 public:
 	struct Error : public ::Error {
@@ -54,7 +55,7 @@ public:
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
 	 */
-	Thy branch() const;
+	Thy branch() const&;
 	/** Creates a named branch. */
 	Thy branch( std::string_view const& name, std::string_view const& dir ) &;
 	/** Creates a namespace. */
@@ -134,15 +135,16 @@ public:
 	}
 	Opt<Rewrite&> rewriter() && = delete;
 	Opt<Rewrite const&> rewriter() const &;
-	OptRef<Rewrite>& set_rewriter() &;
 	Thm dualize( Thm const& thm ) const &;
 	Thy& register_refl( Thm const& refl, bool def ) &;
 	Thy& register_trans( Thm const& trans ) &;
 	Thy& register_dual( Thm const& dual ) &;
 	Thy& register_imp( Thm const& imp, bool dir ) &;
 	Thy& register_cong( Thm const& cong ) &;
+	Thy& register_to_true( Thm const thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
 	std::pair<char,Rewrite::Rule> make_rewrite_rule( Thm const& thm ) const &;
+	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Blaster blaster( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;

@@ -557,8 +557,8 @@ public:
 				_thy.modify_syntax() = src.syntax();
 			}
 		}
-		if( !_thy.rewriter() && src.rewriter() ) {
-			_thy.set_rewriter() = OptRef<Rewrite>::make(src.rewriter()->subst(intp));
+		if( prefix.empty() && !_thy.rewriter() && src.rewriter() ) {
+			_thy.import_rewrite(src,intp);
 		}
 		if( success ) {
 			_thy.add_import(prefix,std::move(intp));
@@ -1277,7 +1277,7 @@ public:
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
-					_thy.set_rewriter()->register_to_true(thm);
+					_thy.register_to_true(thm);
 				} else if( skips("define") ) {
 					Thm const& beta = get_thm();
 					if MSG cout << " beta: " << _thy.pretty(beta) << endl;

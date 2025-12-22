@@ -23,23 +23,25 @@ struct Thy::_Body {
 	multimap<string,Import,less<>> imports;
 	Ref<Syntax> syntax;
 	OptRef<Rewrite> rewriter;
+	bool own_rewrite;
 	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, bool own_rewrite, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), own_rewrite(own_rewrite), definer(definer) {
 	}
 	~_Body() {}
+	Rewrite& make_own_rewrite()&;
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewrite>(),OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewrite>(),false,OptRef<Definer>())) {};
 
-Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const {
-	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,_ref->definer), intp.ctxt() );
+Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const& {
+	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,false,_ref->definer), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
 	return child;
 }
 void Thy::add_thy( Thy const& thy ) & {
 	_ref->thys.emplace(thy.name(),thy);
 }
-Thy Thy::branch() const {
+Thy Thy::branch() const& {
 	return _branch("","",Ctxt::fork());
 }
 Thy Thy::branch( string_view const& name, string_view const& dir ) & {
@@ -79,37 +81,49 @@ Opt<Rewrite const&> Thy::rewriter() const& {
 	}
 	return {};
 }
-OptRef<Rewrite>& Thy::set_rewriter() & {
-	return _ref->rewriter;
-}
-
-Thy& Thy::register_refl( Thm const& thm, bool def ) & {
-	if( !_ref->rewriter ) {
-		_ref->rewriter = OptRef<Rewrite>::make(Rewrite());
+void Thy::_make_own_rewrite() & {
+	if( !_ref->own_rewrite ) {
+		if( _ref->rewriter ) {// clone rewriter
+			_ref->rewriter = OptRef<Rewrite>::make(*_ref->rewriter);
+		} else {// initialize rewriter
+			_ref->rewriter = OptRef<Rewrite>::make(Rewrite());
+		}
+		_ref->own_rewrite = true;
 	}
-	assert( thm.ctxt() == *this );
+}
+Thy& Thy::register_refl( Thm const& thm, bool def ) & {
+	_make_own_rewrite();
 	_ref->rewriter->register_refl(thm,def);
 	return *this;
 }
 Thy& Thy::register_trans( Thm const& thm ) & {
-	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_make_own_rewrite();
 	_ref->rewriter->register_trans(thm);
 	return *this;
 }
 Thy& Thy::register_dual( Thm const& thm ) & {
-	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_make_own_rewrite();
 	_ref->rewriter->register_dual(thm);
 	return *this;
 }
 Thy& Thy::register_imp( Thm const& thm, bool dir ) & {
-	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_make_own_rewrite();
 	_ref->rewriter->register_imp(thm,dir);
 	return *this;
 }
 Thy& Thy::register_cong( Thm const& thm ) & {
-	if( !_ref->rewriter ) throw Error("\"Rewrite not set\"");
+	_make_own_rewrite();
 	_ref->rewriter->register_cong(thm);
 	return *this;
+}
+Thy& Thy::register_to_true( Thm const thm ) & {
+	_make_own_rewrite();
+	_ref->rewriter->register_to_true(thm);
+	return *this;
+}
+void Thy::import_rewrite( Thy const& src, Intp const& intp ) & {
+	_make_own_rewrite();
+	_ref->rewriter->import(src,intp);
 }
 
 void Thy::setup_definer( Thm const& beta ) & {

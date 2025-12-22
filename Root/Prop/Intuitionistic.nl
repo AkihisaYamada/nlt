@@ -16,6 +16,9 @@ lemma imp_false_imp_iff_false: if P0: P ⟹ false, [P ∈ Prop] then P ⟺ false
 lemma false_imp_iff: if [P ∈ Prop] then (false ⟹ P) ⟺ true;
 	by iff_true #elim false_elim.
 
+lemma foo: if [P ∈ Prop] then (false ⟹ P);
+	unfold false_imp_iff.
+
 namespace iff begin
 	interpret iff.
 
