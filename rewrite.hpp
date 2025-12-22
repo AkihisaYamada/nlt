@@ -12,33 +12,26 @@ class Blaster;
  */
 class Rewrite {
 public:
-	class Rule {
-		CTerm _pat;// Γ.fix x... assume φ... ⊢ l
-		Thm _rule;//  Γ.fix x... assume φ... ⊢ l = r
-		Ctxt _ctxt;// Γ, holding ∀x... φ ⟹... l = r
+	class Cong {
 		friend Rewrite;
-	public:
-		Rule( CTerm const& pat, Thm const& rule, Ctxt const& ctxt ) : _pat(pat), _rule(rule), _ctxt(ctxt) {}
-		CTerm const& pat() const& {
-			return _pat;
-		}
-		Thm const& thm() const& {
-			return _rule;
-		}
-		Ctxt const& ctxt() const& {
-			return _ctxt;
-		}
-	};
-	struct Cong : Thm {
+		friend Blaster;
 		struct Cond {
 			Opt<size_t> ind;
 			bool abs;
+			bool rec;// allow recursive rewriting
 			CTerm assm;
 		};
-		CTerm pat;
+		Thm thm;// Γ ⊢ ∀x...y... φ... ⟹ l[x...] = r[y...]
+		Thm concl;// Γ.fix x...y... assume φ... ⊢ l[x...] = r[y...]
+		CTerm pat;// Γ.fix x...y... assume φ... ⊢ l[x...]
 		std::vector<Cond> conds;
-		Cong( CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : pat(pat), Thm(thm), conds(std::move(conds)) {}
+		Cong( Thm const& concl, CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : concl(concl), pat(pat), thm(thm), conds(std::move(conds)) {}
+	public:
+		operator Thm() const& {
+			return thm;
+		}
 	};
+private:
 	struct Dual {
 		Thm thm;
 		size_t ind;
@@ -73,8 +66,8 @@ public:
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	class Rules : std::vector<std::vector<Rule>> {
-		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
+	class Rules : std::vector<std::vector<Cong>> {
+		Rules( size_t n ) : std::vector<std::vector<Cong>>(n) {}
 		friend Rewrite;
 		friend Thy;
 		friend Blaster;
@@ -104,20 +97,17 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	Rewrite& register_imp( Thm const& thm, bool dir ) &;
-	Rewrite& register_refl( Thm const& thm, bool def ) &;
-	Rewrite& register_trans( Thm const& thm ) &;
+	bool register_refl( Thm const& thm, bool def ) &;
+	void register_imp( Thm const& thm, bool dir ) &;
+	void register_trans( Thm const& thm ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
-	Rewrite& register_cong( Thm const& thm ) &;
-	Rewrite& register_dual( Thm const& thm ) &;
-	Rewrite& register_to_true( Thm const& thm ) &;
+	std::pair<char,Cong> make_cong( Thm const& thm ) const&;
+	bool register_cong( Thm const& thm ) &;
+	void register_dual( Thm const& thm ) &;
+	void register_to_true( Thm const& thm ) &;
 	void import( Thy const& thy, Intp const& intp ) &;
 private:
 	size_t _get_ind( Opt<std::string> const& rel ) const;
-	friend std::ostream& operator<<( std::ostream& os, Rule const& rule );
 };
 
-inline std::ostream& operator<<( std::ostream& os, Rewrite::Rule const& rule ) {
-	return os << '[' << rule.pat() << "] " << rule.thm();
-}
 #endif

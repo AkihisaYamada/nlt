@@ -169,20 +169,20 @@ lemma not_true_iff: ¬true ⟺ false;
 	unfold not_iff_imp_false true_imp_iff.
 
 lemma nnot_intro: if P: P, [P ∈ Prop] then ¬¬P;
-	unfold P not_true_iff not_false.
+	unfold iff_true[OF P] not_true_iff iff_true[OF not_false].
 
 lemma nnot_imp: if imp: ¬¬P ⟹ Q, [P, P ∈ Prop] then Q;
 	by imp nnot_intro.
 
 lemma imp_not: if P: P, [¬Q, P ∈ Prop, Q ∈ Prop] then ¬(P ⟹ Q);
-	unfold P true_imp_iff.
+	unfold iff_true[OF P] true_imp_iff.
 
 lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q, [P ∈ Prop, Q ∈ Prop] then ¬P;
 	apply not_intro;
 	by not_imp_false[OF nQ] PQ.
 
 lemma imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q, [P ∈ Prop, Q ∈ Prop] then ¬P;
-	by not_intro PnQ[unfolded Q not_true_iff].
+	by not_intro PnQ[unfolded iff_true[OF Q] not_true_iff].
 
 lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, [P ∈ Prop, Q ∈ Prop] then ¬¬Q;
 	apply not_intro;
@@ -193,7 +193,7 @@ lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q, [P ∈ Prop, Q ∈ Prop] then �
 	.
 
 lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P, [P ∈ Prop, Q ∈ Prop] then ¬¬Q;
-	by nnPQ[unfolded P true_imp_iff].
+	by nnPQ[unfolded iff_true[OF P] true_imp_iff].
 
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, nQ: ¬Q, [P ∈ Prop, Q ∈ Prop] then ¬(P ⟹ Q);
 	apply not_intro;
@@ -219,7 +219,7 @@ lemma nnimp_not_iff:
 if [P ∈ Prop, Q ∈ Prop] then ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
 	if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
-		by nnimp[unfolded P true_imp_iff nnnot_iff].
+		by nnimp[unfolded iff_true[OF P] true_imp_iff nnnot_iff].
 	by nnot_intro.
 
 ---
@@ -313,8 +313,8 @@ lemma or_iff_true2: if !Q, !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
 lemma or_intro:
-if PQR: ∀R. R ∈ Prop ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P ∈ Prop, ! Q ∈ Prop
-then P ∨ Q;
+	if PQR: ∀R. R ∈ Prop ⟹ (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, ! P ∈ Prop, ! Q ∈ Prop
+	then P ∨ Q;
 	apply PQR;
 	by #unfold or_iff_true1 or_iff_true2.
 
@@ -341,8 +341,7 @@ context iff begin
 			by iff_intro #elim or_elim #unfold or_iff_true1.
 
 		interpret CommSemigroupAbsorb (∨) true;
-			note (unfold) or_iff_true1 or_iff_true2.
-			by iff_intro #elim or_elim.
+			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 
 	end
 
@@ -358,7 +357,7 @@ lemma or_true: if [P ∈ Prop] then P ∨ true;
 	by or_intro2.
 
 lemma or_imp_iff:
-if [P ∈ Prop, Q ∈ Prop, R ∈ Prop] then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
+	if [P ∈ Prop, Q ∈ Prop, R ∈ Prop] then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
 	if nor: P ∨ Q ⟹ R;
 		by and_intro nor or_intro.

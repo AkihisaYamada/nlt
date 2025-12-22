@@ -5,7 +5,7 @@
 
 class AThm;
 class Import;
-using ThmInfo = Sum<int,Intro,Elim,Rewrite::Rule>;
+using ThmInfo = Sum<int,Intro,Elim,Rewrite::Cong>;
 
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
@@ -143,7 +143,6 @@ public:
 	Thy& register_cong( Thm const& cong ) &;
 	Thy& register_to_true( Thm const thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
-	std::pair<char,Rewrite::Rule> make_rewrite_rule( Thm const& thm ) const &;
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Blaster blaster( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;

@@ -194,7 +194,6 @@ public:
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
-	Opt<Thm> _apply_rewrite_rule( Thy const& thy, Ctxt const& pat_ctxt, Rewrite::Rule const& rule, Subst const& matcher ) &;
 	/**
 	 * @brief returns a rewrite step equation for the given source term at given position.
 	 * 
@@ -227,6 +226,7 @@ private:
 		size_t trial,
 		Intro const& intro
 	) &;
+	Opt<Thm> _apply_cond_rewrite( Thy const& thy, Rewrite::Cong const& rule, Subst const& matcher, bool success ) &;
 	bool _blast(
 		Thesis& thesis,
 		size_t trial,
@@ -235,10 +235,11 @@ private:
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
+	Thm _make_refl_abs( Thy const& thy, CTerm const& source, char ind ) &;
 	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst ) &;
+	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst, bool rewrite ) &;
 	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _step_abs( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
 	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, char ind ) &;
 };
 

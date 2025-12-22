@@ -350,7 +350,7 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.make_rewrite_rule(thm);
+				auto [ind,rule] = _thy.rewriter()->make_cong(thm);
 				_thy.add_thm(Thy::REWRITE+ind,thm,rule);
 			}
 		}
@@ -359,7 +359,7 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.make_rewrite_rule(dual);
+				auto [ind,rule] = _thy.rewriter()->make_cong(dual);
 				_thy.add_thm(Thy::REWRITE+ind,dual,rule);
 			}
 		}
@@ -557,7 +557,7 @@ public:
 				_thy.modify_syntax() = src.syntax();
 			}
 		}
-		if( prefix.empty() && !_thy.rewriter() && src.rewriter() ) {
+		if( prefix.empty() && src.rewriter() ) {
 			_thy.import_rewrite(src,intp);
 		}
 		if( success ) {
@@ -850,7 +850,16 @@ public:
 			return {};
 		}
 	}
-
+	char get_print_level() {
+		if( skips("none") ) return 0;
+		if( skips("stat") ) return FLAG_STA;
+		if( skips("system") ) return FLAG_STA | FLAG_SYS;
+		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
+		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
+		if( skips("proof") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY | FLAG_PRF;
+		skips("default");
+		return FLAGS_DEFAULT;
+	}
 	bool _stats() {
 		if( skips("ctxt") ) {
 			skip(".");
@@ -884,6 +893,23 @@ public:
 			Term term = get_term();
 			skip(".");
 			cout << "term " << _thy.pretty(term) << endl;
+			return true;
+		} else if( skips("print") ) {
+			if( skips("ctxt_id") ) {
+				auto b = gets_bool().value_or(true);
+				_thy.modify_syntax().print_ctxt(b);
+				if MSG cout << "print ctxt_id" << endl;
+			} else if( skips("load") ) {
+				_out_load = get_print_level();
+				if MSG cout << "print load level " << _out_load << endl;
+			} else if( skips("prover") ) {
+				_out_blast = gets_int().value_or(5);
+				if MSG cout << "print prover level " << endl;
+			} else {
+				_out = get_print_level();
+				if MSG cout << "print level " << _out << endl;
+			}
+			skip(".");
 			return true;
 		}
 		return false;
@@ -1225,16 +1251,6 @@ public:
 			if MSG cout << _indent();
 		}
 	}
-	char get_print_level() {
-		if( skips("none") ) return 0;
-		if( skips("stat") ) return FLAG_STA;
-		if( skips("system") ) return FLAG_STA | FLAG_SYS;
-		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
-		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
-		if( skips("proof") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY | FLAG_PRF;
-		skips("default");
-		return FLAGS_DEFAULT;
-	}
 	void loop() {
 		for(;;) try {
 			if( _stats() || _thy_decl() || _shared_decl() ) {
@@ -1309,21 +1325,6 @@ public:
 					_thy.modify_syntax().opener("{",-1000,handler);
 					_thy.modify_syntax().closer("}");
 					if MSG cout << "set up set comprehension" << endl;
-				} else if( skips("print") ) {
-					if( skips("ctxt_id") ) {
-						auto b = gets_bool().value_or(true);
-						_thy.modify_syntax().print_ctxt(b);
-						if MSG cout << "set print ctxt_id" << endl;
-					} else if( skips("load") ) {
-						_out_load = get_print_level();
-						if MSG cout << "set print load level " << _out_load << endl;
-					} else if( skips("blast") ) {
-						_out_blast = gets_int().value_or(5);
-						if MSG cout << "set print blast level " << endl;
-					} else {
-						_out = get_print_level();
-						if MSG cout << "set print level " << _out << endl;
-					}
 				}
 				skip(".");
 			} else if( skips("symbol") ) {

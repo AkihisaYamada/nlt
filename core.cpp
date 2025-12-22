@@ -311,10 +311,9 @@ Opt<Thm> Thm::discharges(Thm const& t) const {
 
 CTerm CTerm::intro() const {
 	if( !_ctxt._ref->constants.empty() ) {// checks if obtained constants don't escape
-		auto check = [&](auto v){
-			if( _ctxt.obtains(v) ) { throw Error("#cterm")("\"constant escape\"")(v); }
-		};
-		iter_syms(check);
+		iter_syms( [&](auto v){
+			if( _ctxt.obtains(v) ) throw Error("#cterm")("\"constant escape\"")(v);
+		});
 	}
 	auto const& [parent,rev] = _ctxt.parent();
 	Term stmt = *this;
