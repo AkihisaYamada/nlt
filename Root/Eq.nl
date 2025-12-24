@@ -16,39 +16,38 @@ interpret MetaMagmas (=).
 namespace eq begin
 
 	interpret MetaEquivalence (=);
-		-.
 		for x y if xy: x = y then y = x;
 			by eq_imp_meta[of (z. z = x), OF xy].
 		for x y z if xy: x = y, yz: y = z then x = z;
 			by eq_imp_meta[of (w. x = w), OF yz xy].
-		.
+	.
 
 end
 
 lemma eq_imp: if PQ: P = Q, P: P then Q;
-	by eq_imp_meta[of (x. x), OF PQ P].
+by eq_imp_meta[of (x. x), OF PQ P].
 
 lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
-	by eq_imp[OF eq.sym[OF PQ] Q].
+by eq_imp[OF eq.sym[OF PQ] Q].
 
 set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
 set dual eq.sym.
 
 lemma eq_cong_meta: for α if xy: x = y then α.[x] = α.[y];
-	by eq_imp_meta[of (z. α.[x] = α.[z]), OF xy eq.refl].
+by eq_imp_meta[of (z. α.[x] = α.[z]), OF xy eq.refl].
 
 lemma arg_cong: if xy: x = y then f x = f y;
-	by eq_cong_meta[of (z. f z), OF xy].
+by eq_cong_meta[of (z. f z), OF xy].
 
 lemma fun_cong: if fg: f = g then f x = g x;
-	by eq_cong_meta[of (h. h x), OF fg].
+by eq_cong_meta[of (h. h x), OF fg].
 
 lemma eq_cong(cong) for f x if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;
 		by arg_cong[OF xy].
 	have 2: f y = g y;
 		by fun_cong[OF fg].
-	by eq.trans[OF 1 2].
+by eq.trans[OF 1 2].
 
 theory Const:
 	fix Const const const_fun const_arg.
@@ -60,11 +59,13 @@ begin
 	lemma const_eq_fun: if ! const c, ! const d, cd: c x = d y then c = d;
 		have 1: const_fun (c x) = const_fun (d y);
 			unfold cd.
-		by 1[unfolded const_fun].
+	by 1[unfolded const_fun].
+
 	lemma const_eq_arg: if ! const c, ! const d, cd: c x = d y then x = y;
 		have 1: const_arg (c x) = const_arg (d y);
 			unfold cd.
-		by 1[unfolded const_arg].
+	by 1[unfolded const_arg].
+
 end
 
 theory TwoValued:
@@ -73,8 +74,8 @@ theory TwoValued:
 begin
 	obtain true where true_intro: true;
 		for thesis if assm;
-			apply assm[of (∀P. P ⟹ P)].
-		.
+		apply assm[of (∀P. P ⟹ P)].
+	.
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
 	lemma true_eq: if P: P then true = P;
@@ -101,12 +102,12 @@ begin
 	interpret MetaInjective;
 		for x x' if eq: f x = f x';
 			have 1: f⁻ (f x) = f⁻ (f x');
-				unfold eq.
-			by 1[unfolded inverse].
-		.
+			unfold eq.
+		by 1[unfolded inverse].
+	.
 end
 
-theory Pair:
+theory Pair: --- Syntactic Pairing ---
 	fix (,) fst snd.
 	assume fst: fst (x,y) = x.
 	assume snd: snd (x,y) = y.
@@ -114,9 +115,9 @@ begin
 	interpret pair: MetaInjective (,);
 		for x x' if eq: (,) x = (,) x' then x = x';
 			have 1: fst (x,x) = fst (x',x);
-				unfold eq.
-			by 1[unfolded fst].
-		.
+			unfold eq.
+		by 1[unfolded fst].
+	.
 	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
 		have 1: x = fst (x,y);
 			unfold fst.
@@ -126,7 +127,7 @@ begin
 		apply eq.trans[OF 2];
 		have 3: fst (x',y') = x';
 			unfold fst.
-		by eq.trans[OF 3].
+	by eq.trans[OF 3].
 
 	lemma pair_eq_pair_imp2: if eq: (x,y) = (x',y') then y = y';
 		have 1: y = snd (x,y);
@@ -137,8 +138,27 @@ begin
 		apply eq.trans[OF 2];
 		have 3: snd (x',y') = y';
 			unfold snd.
-		by eq.trans[OF 3].
+	by eq.trans[OF 3].
+
 end
+
+theory Abbreviation:
+	--- Here we assume any term using `(x,y)` can be denoted in curried form `f x y`. ---
+	import Pair.
+	assume abbrev_pair: for F thesis if ∀f. (∀x y. f x y = F.[(x,y)]) ⟹ thesis then thesis.
+begin
+	--- Especially, any term with a variable can be turned into a functional form. ---
+	lemma abbrev: for F thesis if assm: ∀f. (∀x. f x = F.[x]) ⟹ thesis then thesis;
+		apply abbrev_pair[of (p. F.[snd p])];
+		for f if eq;
+			apply assm[of (f (z. z))];
+			note(cong) eq_cong_meta[of F].
+		by #unfold eq snd.
+	.
+
+end
+
+
 
 theory Ext:
 	assume ext: if ∀x ∈ A. f x = g x, A ∈ TYPE, B ∈ TYPE, f ∈ A → B, g ∈ A → B
