@@ -6,8 +6,13 @@ begin
 
 theory Compatible:
 	fix A (*).
-	assume cong: for x y x' y'
+	assume comp: for x y x' y'
 		if x = x', y = y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y = x' * y'.
+begin
+	lemma cong: for x y
+		if !x ∈ A, !y ∈ A, ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
+	apply comp.
+
 end
 
 theory Associative:

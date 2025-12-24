@@ -192,13 +192,13 @@ bool Blaster::_blast(
 ) & {
 	if( fuel == 0 ) {
 		if( fail ) return false;
-		if( log > 1 ) cerr_proof_thms(thesis.thy());
+		if( log > 6 ) cerr_proof_thms(thesis.thy());
 		throw BlastError("\"blast limit exceeded\"")(thesis.goal());
 	}
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
-	if( log > 0 ) {
-		_log() << "+ blasting: " << subthy.pretty(goal) << endl;
+	if( log > 4 ) {
+		_log() << "{ blasting: " << subthy.pretty(goal) << endl;
 		indent++;
 	}
 	size_t n_elim_res = 0;
@@ -229,6 +229,7 @@ bool Blaster::_blast(
 		if( log > 2 ) _log() << "- declared assumption: " << subthy.pretty(assm) << endl;
 	}
 	// try exact conclusions
+	if( log > 5 ) _log() << "- trying to conclude: " << subthy.pretty(goal) << endl;
 	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto thm2 = thm.subst(import);
 		if( thm2 == goal ) {
@@ -247,11 +248,11 @@ bool Blaster::_blast(
 			assert(rule);
 			auto const& m = rule->matches(g,{import});
 			if( !m ) {
-				if( log > 5 ) _log() << "! intro didn't match: " << subthy.pretty(thm) << endl;
+				if( log > 5 ) _log() << "}! intro didn't match: " << subthy.pretty(thm) << endl;
 				return {};
 			}
-			if( log > 2 ) _log() << "- applying: " << subthy.pretty(thm) << endl;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
+			if( log > 2 ) _log() << "- applied: " << subthy.pretty(thm) << endl;
 			return {thm};
 		};
 		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -259,10 +260,13 @@ bool Blaster::_blast(
 			assert(rule);
 			auto const& m = rule->matches(goal,{import});
 			if( !m ) return {};
-			if( log > 2 ) _log() << "+ trying: " << subthy.pretty(thm) << endl;
+			if( log > 4 ) _log() << "{ trying: " << subthy.pretty(thm) << endl;
+			indent++;
 			if( _apply_blast(subthesis,*m,import,trial,*rule) ) {
+				indent--;
 				return {thm};
 			}
+			indent--;
 			return {};
 		};
 		if( !subthy.find_thm(Thy::CONCL,intro_tester) )
@@ -274,14 +278,14 @@ bool Blaster::_blast(
 				if( subthesis._apply(intro,g,subgoal_child) ) {
 					if( log > 2 ) _log() << "- applied elimination result: " << subthy.pretty(athm) << endl;
 				} else {
-					if( log > 1 ) cerr_proof_thms(subgoal_child);
+					if( log > 5 ) cerr_proof_thms(subgoal_child);
 					throw Error("\"unapplied elimination result\"")(athm);
 				}
 				elim_res_ind++;
 				break;// move on to the new thesis
 			}// no elimination result matched
 			if( rewrite && rewrites(subthesis,true) ) {// try rewriting
-				if( log > 2 ) _log() << "* rewritten: " << subthy.pretty(subthesis.goal()) << endl;
+				if( log > 2 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;
 				break;
 			}
 			if( trial > 0 ) {
@@ -290,19 +294,17 @@ bool Blaster::_blast(
 			}// nothing could be applied
 			if( log > 0 ) {
 				indent--;
-				_log() << "! failed to blast: " << subthy.pretty(goal) << endl;
+				_log() << "}! failed to blast: " << subthy.pretty(goal) << endl;
 			}
 			if( fail ) return false;
-			if( log > 1 ) cerr_proof_thms(subgoal_child);
+			if( log > 5 ) cerr_proof_thms(subgoal_child);
 			throw BlastError("\"failed to blast\"")(goal);
 		}
 		// blast all new subgoals:
 		while( subthesis._goals > 0 ) {
 			if( !_blast(subthesis,trial,fail,rewrite,elim_res_ind) ) {
-				if( log > 0 ) {
-					indent--;
-					_log() << "! failed to blast: " << subthy.pretty(subthesis.goal()) << endl;
-				}
+				indent--;
+				if( log > 0 ) _log() << "}! failed to blast: " << subthy.pretty(subthesis.goal()) << endl;
 				return false;
 			}
 		}
@@ -311,10 +313,8 @@ bool Blaster::_blast(
 	for( int i = 0; i < n_elim_res; i++ ) {// clean up elim results
 		elim_res.pop_back();
 	}
-	if( log > 0 ) {
-		indent--;
-		_log() << "* blasted: " << thesis.thy().pretty(goal) << endl;
-	}
+	indent--;
+	if( log > 0 ) _log() << "} blasted: " << thesis.thy().pretty(goal) << endl;
 	return true;
 }
 

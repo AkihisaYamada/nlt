@@ -80,11 +80,11 @@ begin
 	lemma true_eq: if P: P then true = P;
 		unfold eq_true[OF P].
 	lemma eq_refl_eq_true: (x = x) = true;
-		by eq_true[OF eq.refl].
+		by eq_true.
 	lemma weaken_eq: (P ⟹ Q ⟹ P) = true;
-		by eq_true[OF weaken].
+		by eq_true.
 	lemma imp_true_eq: (P ⟹ true) = true;
-		by eq_true[OF weaken[OF true_intro]].
+		by eq_true true_intro.
 	lemma true_imp_eq: (true ⟹ P) = P;
 		by imp_eq[OF true_intro].
 end

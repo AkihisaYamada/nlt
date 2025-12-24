@@ -150,7 +150,7 @@ class Blaster {
 public:
 	Rewrite::Rules rules;
 	Rewrite::Ctrl ctrl;
-	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 1023 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool blasts( Thesis& thesis, bool rewrite ) & {
 		return _blast(thesis,1,true,rewrite,elim_res.size());
 	}
@@ -226,7 +226,7 @@ private:
 		size_t trial,
 		Intro const& intro
 	) &;
-	Opt<Thm> _apply_cond_rewrite( Thy const& thy, Rewrite::Cong const& rule, Subst const& matcher, bool success ) &;
+	Opt<Thm> _apply_cond_rewrite( Thy const& thy, Rewrite::Cong const& rule, Subst const& matcher, bool success, std::vector<char>::const_iterator pos_it, std::vector<char>::const_iterator pos_end ) &;
 	bool _blast(
 		Thesis& thesis,
 		size_t trial,
@@ -236,10 +236,8 @@ private:
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
 	Thm _make_refl_abs( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind ) &;
-	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst, bool rewrite ) &;
 	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
+	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
 	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, char ind ) &;
 };
 
@@ -260,4 +258,7 @@ inline Thm Thy::prove( CTerm const& claim, char log ) const& {
 	return b.blast_all(thesis);
 }
 
+inline std::ostream& operator<<( std::ostream& os, Thesis const& thesis ) {
+	return os << thesis.thy().pretty(thesis.thm());
+}
 #endif

@@ -134,26 +134,30 @@ public:
 		if( !ret ) throw Parser::Error("\"expects a theorem\"");
 		return *ret;
 	}
-	void _get_rewrite( Blaster& inf, Thy& loc, bool rev ) {
+	void _get_rewrite( Blaster& resolver, Thy& loc, bool rev ) {
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
 		if( skips("(") ) {
-			inf.ctrl.rel = get();
+			resolver.ctrl.rel = get();
 			skip(")");
 		}
 		if( skips("[") ) {// parse position
 			while( !skips("]") ) {
-				inf.ctrl.pos.push_back(get_int());
+				resolver.ctrl.pos.push_back(get_int());
 			}
 		}
-		inf.ctrl.min = 1;
+		resolver.ctrl.min = 1;
 		if( skips("^") ) {
-			inf.ctrl.max = get_nat(); inf.ctrl.safe = true;
+			resolver.ctrl.max = get_nat(); resolver.ctrl.safe = true;
 		} else {
-			inf.ctrl.max = 255; inf.ctrl.safe = false;
+			resolver.ctrl.max = 255; resolver.ctrl.safe = false;
 		}
 		while( auto const& arg = _gets_thm(loc) ) {
-			loc.add_rewrite_rule( inf.rules, rev ? loc.dualize(*arg) : *arg );
+			auto rule = *arg;
+			if( rev ) {
+				rule = loc.dualize(rule,resolver);
+			}
+			loc.add_rewrite_rule(resolver.rules,rule);
 		}
 	}
 	Opt<Thm> _gets_thm( Thy& loc ) {
@@ -233,7 +237,8 @@ public:
 					_get_rewrite(inf,loc,dir);
 					ret = inf.rewrite(loc,ret);
 				} else if( skips("dual") ) {
-					ret = loc.dualize(ret);
+					auto resolver = Blaster(loc.rewriter(),_out_blast);
+					ret = loc.dualize(ret,resolver);
 				} else break;
 				if( !skips(",") ) break;
 			}
@@ -355,7 +360,8 @@ public:
 			}
 		}
 		if( cs.fold ) {
-			auto const& dual = _thy.dualize(thm);
+			auto resolver = Blaster(loc.rewriter(),_out_blast);
+			auto const& dual = _thy.dualize(thm,resolver);
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
 			} else {
@@ -385,54 +391,51 @@ public:
 	Thesis get_statement() {
 		auto assm_thy = _thy.branch();
 		bool vars;
-		if( skips("for") ) {
-			vars = true;
-			if MSG cout << "for" << flush;
-			while( auto const& sym = gets_sym() ) {
-				if MSG cout << ' ' << *sym << flush;
-				assm_thy.fix(*sym);
-			}
-		} else {
-			vars = false;
-		}
-		auto assms = vector<pair<ClaimStatus,CTerm>>();
-		if( skips("if") ) {
-			if MSG {
-				if( vars ) {
-					cout << ' ';
+		for(;;) {
+			if( skips("for") ) {
+				vars = true;
+				if MSG cout << "for" << flush;
+				while( auto const& sym = gets_sym() ) {
+					if MSG cout << ' ' << *sym << flush;
+					assm_thy.fix(*sym);
 				}
-				cout << "if " << flush;
-			}
-			for(;;) {
-				if( skips("[") ) {
-					if MSG cout << "[ ";
-					for(;;) {
-						auto t = get_term();
-						if MSG cout << _thy.pretty(t);
-						assms.push_back({ClaimStatus::INFLATED,assm_thy.enclose(t)});
-						if( !skips(",") ) break;
-						if MSG cout << ", " << flush;
+				skips(",");
+			} else if( skips("if") ) {
+				if MSG {
+					if( vars ) {
+						cout << ' ';
 					}
-					skip("]");
-					if MSG cout << " ] ";
-				} else {
-					auto cs = get_claim_status();
-					auto t = get_term();
-					auto assm = assm_thy.enclose(t);
-					if MSG cout << cs << _thy.pretty(t) << ", " << flush;
-					assms.push_back({cs,assm});
+					cout << "if " << flush;
 				}
-				if( !skips(",") ) break;
-			};
-			skip("then");
-			if MSG cout << "then ";
+				for(;;) {
+					if( skips("[") ) {
+						if MSG cout << "[ ";
+						for(;;) {
+							auto t = get_term();
+							if MSG cout << _thy.pretty(t);
+							add_claim(assm_thy,ClaimStatus::INFLATED,assm_thy.assume(assm_thy.enclose(t)));
+							if( !skips(",") ) break;
+							if MSG cout << ", " << flush;
+						}
+						skip("]");
+						if MSG cout << " ] ";
+					} else {
+						auto cs = get_claim_status();
+						auto t = get_term();
+						if MSG cout << cs << _thy.pretty(t) << ", " << flush;
+						add_claim(assm_thy,cs,assm_thy.assume(assm_thy.enclose(t)));
+					}
+					if( !skips(",") ) break;
+				};
+				skip("then");
+				if MSG cout << "then ";
+			} else {
+				break;
+			}
 		}
 		Term t = get_term(0);
 		skip(";");
 		CTerm goal = assm_thy.enclose(t);
-		for( auto const& [cs,assm] : assms ) {
-			add_claim(assm_thy,cs,assm_thy.assume(assm));
-		}
 		if MSG cout << _thy.pretty(goal) << endl;
 		return Thesis::claim_exact(assm_thy,goal);
 	}
@@ -810,10 +813,10 @@ public:
 	}
 	Opt<Blaster> gets_concluder() {
 		if( skips("by") ) {
-			auto blaster = _thy.blaster(_out_blast);
+			auto resolver = _thy.blaster(_out_blast);
 			while( auto thm = gets_thm() ) {
 				bool weak = skips("?");
-				blaster.inflate(_thy,*thm);
+				resolver.inflate(_thy,*thm);
 				_thy.add_thm( weak ? Thy::WEAK : Thy::INTRO, *thm, make_rule(*thm) );
 			}
 			while( skips("#") ) {
@@ -825,25 +828,28 @@ public:
 					auto const& rew = _thy.rewriter();
 					if( !rew ) throw Error("\"rewriter not set\"");
 					if( skips("(") ) {
-						blaster.ctrl.rel = get();
+						resolver.ctrl.rel = get();
 						skip(")");
 					}
 					while( auto const& thm = _gets_thm(_thy) ) {
-						auto rule = rev ? _thy.dualize(*thm) : *thm;
-						rule = blaster.rewrites(_thy,rule);// normalize added rule
+						auto rule = *thm;
+						if( rev ) {
+							rule = _thy.dualize(rule,resolver);
+						}
+//						rule = blaster.rewrites(_thy,rule);// normalize added rule
 						if PRF {
 							if( !MSG ) cout << _indent(' ');
 							cout << "adding rewrite rule: " << _thy.pretty(rule) << endl;
 						}
-						_thy.add_rewrite_rule(blaster.rules,rule);
+						_thy.add_rewrite_rule(resolver.rules,rule);
 					}
-					blaster.ctrl.min = 0;// returns false when not applicable
+					resolver.ctrl.min = 0;// returns false when not applicable
 				} else {
 					throw Error("\"unexpected\"")(get());
 				}
 			}
 			skip(".");
-			return {blaster};
+			return {resolver};
 		} else if( skips(".") ) {
 			return {_thy.blaster(_out_blast)};
 		} else {
@@ -1395,24 +1401,22 @@ public:
 				} else if( skips("assume") ) {
 					auto cs = get_claim_status();
 					Ctxt var_loc = _thy.Ctxt::fork().ctxt();
-					if( skips("for") ) {
-						while( auto const& sym = gets_sym() ) {
-							var_loc.fix(*sym);
+					for(;;) {
+						if( skips("for") ) {
+							while( auto const& sym = gets_sym() ) {
+								var_loc.fix(*sym);
+							}
+							skips(",");
+						} else if( skips("if") ) {
+							do {
+								var_loc.assume(var_loc.enclose(get_term()));
+							} while( skips(",") );
+							skip("then");
+						} else {
+							break;
 						}
-						skips(",");
 					}
-					auto prems = vector<CTerm>();
-					if( skips("if") ) {
-						do {
-							prems.push_back(var_loc.enclose(get_term()));
-						} while( skips(",") );
-						skip("then");
-					}
-					auto assm = var_loc.enclose(get_term());
-					for( auto const& prem : ranges::reverse_view(prems) ) {
-						assm = prem >>= assm;
-					}
-					assm = assm.lift(_thy.cterm(ALL));
+					auto assm = var_loc.enclose(get_term()).intro();
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
 					if CTXT {

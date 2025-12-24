@@ -135,7 +135,7 @@ public:
 	}
 	Opt<Rewrite&> rewriter() && = delete;
 	Opt<Rewrite const&> rewriter() const &;
-	Thm dualize( Thm const& thm ) const &;
+	Thm dualize( Thm const& thm, Blaster& resolver ) const &;
 	Thy& register_refl( Thm const& refl, bool def ) &;
 	Thy& register_trans( Thm const& trans ) &;
 	Thy& register_dual( Thm const& dual ) &;

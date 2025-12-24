@@ -11,22 +11,22 @@ import Pred.
 fix QTYPE (∀∈) (∃∈).
 
 assume all_type!
-if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
 
 assume all_intro: for P A
-if ∀x. x ∈ A ⟹ P.[x], A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-then ∀x ∈ A. P.[x].
+	if ∀x. x ∈ A ⟹ P.[x], A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+	then ∀x ∈ A. P.[x].
 
 assume all_elim1: for x P A
-if ∀y ∈ A. P.[y], x ∈ A, A ∈ QTYPE, ∀y. y ∈ A ⟹ P.[y] ∈ Prop
-then P.[x].
+	if ∀y ∈ A. P.[y], x ∈ A, A ∈ QTYPE, ∀y. y ∈ A ⟹ P.[y] ∈ Prop
+	then P.[x].
 
 assume ex_type!
-if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+	if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
 
 assume ex_intro1: for x P A
-if P.[x], x ∈ A, ∀y. y ∈ A ⟹ P.[y] ∈ Prop, A ∈ QTYPE
-then ∃y ∈ A. P.[y].
+	if P.[x], x ∈ A, ∀y. y ∈ A ⟹ P.[y] ∈ Prop, A ∈ QTYPE
+	then ∃y ∈ A. P.[y].
 
 ---
 In the next ∃-elimination rule, it is crucial that `thesis` is not restricted to `Prop`.
@@ -38,33 +38,32 @@ assume ex_elim: for P A
 
 begin
 
-lemma all_elim:
-	if all: ∀x ∈ A. P.[x]
-	then ∀Q. ((∀x. x ∈ A ⟹ P.[x]) ⟹ Q) ⟹ A ∈ QTYPE ⟹ (∀y. y ∈ A ⟹ P.[y] ∈ Prop) ⟹ Q;
-	for Q if assm, !, !;
-		apply assm;
-		for x if !;
-			apply all_elim1[OF all, of x].
-		.
-	.
+lemma all_elim: if all: ∀x ∈ A. P.[x]
+	then for thesis if assm: (∀x. x ∈ A ⟹ P.[x]) ⟹ thesis, ! A ∈ QTYPE, ! (∀y. y ∈ A ⟹ P.[y] ∈ Prop)
+	then thesis;
+apply assm;
+	for x if !;
+	apply all_elim1[OF all, of x].
+.
 
 lemma ex_intro:
-if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q ∈ Prop ⟹ Q,
-	! A ∈ QTYPE,
-	! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-then ∃x ∈ A. P.[x];
-	apply assm;
+	if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q ∈ Prop ⟹ Q,
+		! A ∈ QTYPE,
+		! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+	then ∃x ∈ A. P.[x];
+apply assm;
 	for x;
-		by ex_intro1[of x].
-	.
+	by ex_intro1[of x].
+.
+
 lemma ex_imp_all_imp:
-if ex_imp: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
-	! A ∈ QTYPE, ! Q ∈ Prop, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-then Q;
-	apply ex_elim[OF ex_imp];
+	if ex_imp: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
+		! A ∈ QTYPE, ! Q ∈ Prop, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+	then Q;
+apply ex_elim[OF ex_imp];
 	for x if !x ∈ A, imp: P.[x] ⟹ Q;
-		by imp all_elim1[OF all].
-	.
+	by imp all_elim1[OF all].
+.
 
 theory Sub:
 	fix (⊆).
