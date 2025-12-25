@@ -18,7 +18,7 @@ begin
 	lemma pair_eq_prop:
 		if [A ∈ EQTYPE, B ∈ EQTYPE, x ∈ A, y ∈ B, x' ∈ A, y' ∈ B]
 		then (x,y) = (x',y') ∈ Prop;
-		by eq_prop[of (A×B)].
+	by eq_prop[of (A×B)].
 
 end
 
@@ -33,14 +33,12 @@ begin
 	lemma eq_imp_iff(cong) if eq: P = P', !P ∈ Prop then P ⟺ P';
 		have !P' ∈ Prop;
 			by #fold(=) eq.
-		by iff_intro #unfold(=) eq.
+	by iff_intro #unfold(=) eq.
 
 	theory If:
 		fix (if) (then) (else).
-		assume if_then:
-			if P, P ∈ Prop then (if P then x else y) = x.
-		assume if_else:
-			if ¬P, P ∈ Prop then (if P then x else y) = y.
+		assume if_then: if P, P ∈ Prop then (if P then x else y) = x.
+		assume if_else: if ¬P, P ∈ Prop then (if P then x else y) = y.
 	begin
 
 	end
@@ -51,20 +49,21 @@ begin
 		lemma pair_eq_iff:
 			if A! A ∈ EQTYPE, B! B ∈ EQTYPE, [x ∈ A, y ∈ B, x' ∈ A, y' ∈ B]
 			then (x,y) = (x',y') ⟺ x = x' ∧ y = y';
-			apply iff_intro;
+		apply iff_intro;
 			if eq;
 				apply and_intro;
 				- by pair_eq_pair_imp1[OF eq].
 				- by pair_eq_pair_imp2[OF eq].
-				.
+			.
 			if and;
 				have (unfold) x = x';
 					apply and.elim[OF and].
 				have (unfold) y = y';
 					apply and.elim[OF and].
-				by pair_eq_prop[OF A B].
 			by pair_eq_prop[OF A B].
+		by pair_eq_prop[OF A B].
 	end
+
 end
 
 theory Intuitionistic:

@@ -456,28 +456,29 @@ Thm Blaster::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
 }
 void Rewrite::import( Thy const& thy, Intp const& intp ) & {
 	int i = 0;
-	for( auto const& refl : thy.rewriter()->_refls ) {
-		register_refl(thy.weaken(refl).subst(intp),i==_default_ind);
+	auto const& src = *thy.rewriter();
+	for( auto const& refl : src._refls ) {
+		register_refl(thy.weaken(refl).subst(intp),i==src._default_ind);
 		i++;
 	}
-	for( auto const& congs : thy.rewriter()->_congs ) {
+	for( auto const& congs : src._congs ) {
 		for( auto const& cong : congs ) {
 			register_cong(thy.weaken(cong).subst(intp));
 		}
 	}
-	for( auto const& [i,dual] : thy.rewriter()->_duals ) {
+	for( auto const& [i,dual] : src._duals ) {
 		register_dual(thy.weaken(dual.thm).subst(intp));
 	}
-	for( auto const& [i,trans] : thy.rewriter()->_trans ) {
+	for( auto const& [i,trans] : src._trans ) {
 		register_trans(thy.weaken(trans).subst(intp));
 	}
-	for( auto const& [i,imp] : thy.rewriter()->_imps ) {
+	for( auto const& [i,imp] : src._imps ) {
 		register_imp(thy.weaken(imp.thm).subst(intp),true);
 	}
-	for( auto const& [i,imp] : thy.rewriter()->_revimps ) {
+	for( auto const& [i,imp] : src._revimps ) {
 		register_imp(thy.weaken(imp.thm).subst(intp),false);
 	}
-	if( auto const& to_true = thy.rewriter()->_to_true ) {
+	if( auto const& to_true = src._to_true ) {
 		register_to_true(thy.weaken(to_true->first).subst(intp));
 	}
 }
