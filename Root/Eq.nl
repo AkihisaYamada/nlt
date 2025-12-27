@@ -83,6 +83,15 @@ One can obtain the type-free existential quantifier as a unary abbreviation.
 
 end
 
+theory If:
+	fix (if) (then) (else).
+	assume if_then: if P then (if P then x else y) = x.
+	---
+	A minimal specification: P and ¬P will not lead to explosion.
+	---
+	assume if_else: if P ⟹ x = y then (if P then x else y) = y.
+end
+
 theory Const:
 	fix Const const const_fun const_arg.
 	assume const_Const: const Const.
@@ -188,12 +197,12 @@ print.
 		obtain (⟺) where
 			intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
 			elim1: (P ⟺ Q) ⟹ P ⟹ Q,
-			elim2: (P ⟺ Q) ⟹ Q ⟹ P
-		;	for thesis if assm;
-				apply abbrev[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
-				for f if f;
-					apply ex_elim[OF curry[of f]];
-					for g if g;
+			elim2: (P ⟺ Q) ⟹ Q ⟹ P;
+		apply abbrev[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
+			for f if f;
+			apply ex_elim[OF curry[of f]];
+				for g if g;
+					for thesis if assm;
 						apply assm[of g];
 						for P Q if PQ, QP;
 							unfold g f;
@@ -270,35 +279,37 @@ print.
 
 	note(cong) iff.cong_imp iff.cong_iff iff.cong_all.
 
+	lemma eq_imp_iff(cong) if eq: P = Q then P ⟺ Q;
+		by iff.intro #unfold(=) eq.
+
 	obtain (∧) where
 		and_intro: P ⟹ Q ⟹ P ∧ Q,
 		and_elim1: P ∧ Q ⟹ P,
-		and_elim2: P ∧ Q ⟹ Q
-	;	for thesis if assm;
-			obtain f where f: f p = (∀R. (fst p ⟹ snd p ⟹ R) ⟹ R);
-			for thesis2 if assm2;
-				apply abbrev[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
-					for f if eq;
-					by assm2[of f] eq.
-				.
-			.
-			apply ex_elim[OF curry[of f]];
-			for (∧) if and;
-				apply assm[of (∧)];
-				for P Q if P: P, Q: Q then P ∧ Q;
-					unfold and f;
-					for R if PQR;
-						by PQR[unfolded fst snd] P Q.
-				.
-				for P Q if PQ;
-					apply PQ[unfolded and f];
-					if P, Q;
-						by P[unfolded fst].
-				.
-				for P Q if PQ;
-					apply PQ[unfolded and f];
-					if P, Q;
-						by Q[unfolded snd].
+		and_elim2: P ∧ Q ⟹ Q;
+	apply abbrev[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
+		for f if f;
+		apply ex_elim[OF curry[of f]];
+			for (∧) if eq;
+				for thesis if assm;
+					apply assm[of (∧)];
+
+					unfold eq.
+
+					for P Q if P: P, Q: Q then P ∧ Q;
+						unfold and f;
+						for R if PQR;
+							by PQR[unfolded fst snd] P Q.
+					.
+					for P Q if PQ;
+						apply PQ[unfolded and f];
+						if P, Q;
+							by P[unfolded fst].
+					.
+					for P Q if PQ;
+						apply PQ[unfolded and f];
+						if P, Q;
+							by Q[unfolded snd].
+					.
 				.
 			.
 		.

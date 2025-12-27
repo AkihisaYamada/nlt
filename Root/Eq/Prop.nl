@@ -35,14 +35,6 @@ begin
 			by #fold(=) eq.
 	by iff_intro #unfold(=) eq.
 
-	theory If:
-		fix (if) (then) (else).
-		assume if_then: if P, P ∈ Prop then (if P then x else y) = x.
-		assume if_else: if ¬P, P ∈ Prop then (if P then x else y) = y.
-	begin
-
-	end
-
 	theory Pair:
 		import Pair.
 	begin

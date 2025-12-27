@@ -5,14 +5,28 @@ import Eq.
 
 fix (λ).
 
-assume beta: (λx. α.[x]) s = α.[s].
+assume beta: (λx. Y.[x]) s = Y.[s].
 
 begin
 
 set define beta.
 
 theory Ext:
-	assume ext: if ∀x. α.[x] = β.[x] then (λx. α.[x]) = (λx. β.[x]).
+	assume ext: if ∀x. Y.[x] = Z.[x] then (λx. Y.[x]) = (λx. Z.[x]).
+end
+
+theory If:
+	import If.
+begin
+	interpret Pair;
+		define[pair] (x,y) P := (if P then x else y).
+		define fst xy := xy (∀P. P ⟹ P).
+		define snd xy := xy (∀P. P).
+		for x y, fst (x,y) = x;
+			by if_then #unfold fst_def pair_def.
+		for x y, snd (x,y) = y;
+			by if_else #unfold snd_def pair_def.
+	.
 end
 
 theory Prop:
