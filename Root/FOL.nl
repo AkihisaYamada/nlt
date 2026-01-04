@@ -10,65 +10,71 @@ import Pred.
 
 fix QTYPE (∀∈) (∃∈).
 
-assume all_type!
-	if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+namespace all:
+	assume type:
+		if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	assume intro: for P A
+		if ∀x. x ∈ A ⟹ P.[x], A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+		then ∀x ∈ A. P.[x].
+	assume elim1: for x P A
+		if ∀y ∈ A. P.[y], x ∈ A, A ∈ QTYPE, ∀y. y ∈ A ⟹ P.[y] ∈ Prop
+		then P.[x].
+end
 
-assume all_intro: for P A
-	if ∀x. x ∈ A ⟹ P.[x], A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-	then ∀x ∈ A. P.[x].
-
-assume all_elim1: for x P A
-	if ∀y ∈ A. P.[y], x ∈ A, A ∈ QTYPE, ∀y. y ∈ A ⟹ P.[y] ∈ Prop
-	then P.[x].
-
-assume ex_type!
-	if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
-
-assume ex_intro1: for x P A
-	if P.[x], x ∈ A, ∀y. y ∈ A ⟹ P.[y] ∈ Prop, A ∈ QTYPE
-	then ∃y ∈ A. P.[y].
-
----
-In the next ∃-elimination rule, it is crucial that `thesis` is not restricted to `Prop`.
-In usual FOL foundation, type judgements do not depend on existence of objects,
----
-assume ex_elim: for P A
-	if ∃x ∈ A. P.[x]
-	then ∀thesis. (∀x. x ∈ A ⟹ P.[x] ⟹ thesis) ⟹ A ∈ QTYPE ⟹ (∀x. x ∈ A ⟹ P.[x] ∈ Prop) ⟹ thesis.
+namespace ex:
+	assume type:
+		if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+	assume intro1: for x P A
+		if P.[x], x ∈ A, ∀y. y ∈ A ⟹ P.[y] ∈ Prop, A ∈ QTYPE
+		then ∃y ∈ A. P.[y].
+	---
+	In the next ∃-elimination rule, it is crucial that `thesis` is not restricted to `Prop`.
+	In usual FOL foundation, type judgements do not depend on existence of objects,
+	---
+	assume elim: for P A
+		if ∃x ∈ A. P.[x] then for Q
+		if ∀x. x ∈ A ⟹ P.[x] ⟹ Q, A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then Q.
+end
 
 begin
 
-lemma all_elim: if all: ∀x ∈ A. P.[x]
-	then for thesis if assm: (∀x. x ∈ A ⟹ P.[x]) ⟹ thesis, ! A ∈ QTYPE, ! (∀y. y ∈ A ⟹ P.[y] ∈ Prop)
-	then thesis;
-apply assm;
-	for x if !;
-	apply all_elim1[OF all, of x].
-.
+note! all.type ex.type.
 
-lemma ex_intro:
-	if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q ∈ Prop ⟹ Q,
-		! A ∈ QTYPE,
-		! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-	then ∃x ∈ A. P.[x];
-apply assm;
-	for x;
-	by ex_intro1[of x].
-.
+context all begin
+	lemma elim: if all: ∀x ∈ A. P.[x]
+		then for Q if Q: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q, ! A ∈ QTYPE, ! (∀y. y ∈ A ⟹ P.[y] ∈ Prop)
+		then Q;
+	apply Q;
+	- for x if !;
+		apply elim1[OF all, of x].
+	.
+end
+
+context ex begin
+	lemma intro:
+		if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q ∈ Prop ⟹ Q,
+			! A ∈ QTYPE,
+			! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+		then ∃x ∈ A. P.[x];
+	apply assm;
+	- for x;
+		by intro1[of x].
+	.
+end
 
 lemma ex_imp_all_imp:
 	if ex_imp: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
 		! A ∈ QTYPE, ! Q ∈ Prop, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
 	then Q;
-apply ex_elim[OF ex_imp];
-	for x if !x ∈ A, imp: P.[x] ⟹ Q;
-	by imp all_elim1[OF all].
+apply ex.elim[OF ex_imp];
+- for x if !x ∈ A, imp: P.[x] ⟹ Q;
+	by imp all.elim1[OF all].
 .
 
 theory Sub:
 	fix (⊆).
-	assume sub_intro: if A ∈ QTYPE, B ∈ QTYPE, ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
-	assume sub_elim: if A ⊆ B, A ∈ QTYPE, B ∈ QTYPE then ∀x. x ∈ A ⟹ x ∈ B.
+	assume sub_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
+	assume sub_elim: if A ⊆ B then ∀x. x ∈ A ⟹ x ∈ B.
 end
 
 theory ChoiceOp:

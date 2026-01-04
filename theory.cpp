@@ -23,18 +23,19 @@ struct Thy::_Body {
 	multimap<string,Import,less<>> imports;
 	Ref<Syntax> syntax;
 	OptRef<Rewrite> rewriter;
+	bool is_scope;
 	bool own_rewrite;
 	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, bool own_rewrite, OptRef<Definer> const& definer ) : name(name), dir(dir), syntax(syntax), rewriter(rewriter), own_rewrite(own_rewrite), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, bool own_rewrite, OptRef<Definer> const& definer ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax), rewriter(rewriter), own_rewrite(own_rewrite), definer(definer) {
 	}
 	~_Body() {}
 	Rewrite& make_own_rewrite()&;
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,Ref<Syntax>::make(),OptRef<Rewrite>(),false,OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make(),OptRef<Rewrite>(),false,OptRef<Definer>())) {};
 
-Thy Thy::_branch( string_view const& name, string_view const& dir, Intp const& intp ) const& {
-	auto child = Thy( Ref<_Body>::make(name,dir,_ref->syntax,_ref->rewriter,false,_ref->definer), intp.ctxt() );
+Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope, Intp const& intp ) const& {
+	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax,_ref->rewriter,false,_ref->definer), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
 	return child;
 }
@@ -42,17 +43,17 @@ void Thy::add_thy( Thy const& thy ) & {
 	_ref->thys.emplace(thy.name(),thy);
 }
 Thy Thy::branch() const& {
-	return _branch("","",Ctxt::fork());
+	return _branch("","",false,Ctxt::fork());
 }
 Thy Thy::branch( string_view const& name, string_view const& dir ) & {
-	return _branch(name,dir,Ctxt::fork());
+	return _branch(name,dir,false,Ctxt::fork());
 }
 Thy Thy::scope_temp( string_view const& name ) const & {
-	return _branch(name,"",Ctxt::self());
+	return _branch(name,"",true,Ctxt::self());
 }
 Thy Thy::scope( string_view const& name ) & {
 	auto const& intp = Ctxt::self();
-	auto const& loc = _branch(name,"",intp);
+	auto const& loc = _branch(name,"",true,intp);
 	add_import(name,Import(intp,loc));
 	return loc;
 }
@@ -80,6 +81,11 @@ Opt<Rewrite const&> Thy::rewriter() const& {
 		return {*_ref->rewriter};
 	}
 	return {};
+}
+void Thy::reset_rewrite() & {
+	if( !_ref->own_rewrite && _ref->parent ) {
+		_ref->rewriter = _ref->parent->source()._ref->rewriter;
+	}
 }
 void Thy::_make_own_rewrite() & {
 	if( !_ref->own_rewrite ) {
@@ -125,7 +131,9 @@ void Thy::import_rewrite( Thy const& src, Intp const& intp ) & {
 	_make_own_rewrite();
 	_ref->rewriter->import(src,intp);
 }
-
+OptRef<Definer>& Thy::definer() & {
+	return _ref->definer;
+}
 void Thy::setup_definer( Thm const& beta ) & {
 	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
 	_ref->definer = OptRef<Definer>::make(*this,beta);
@@ -189,14 +197,18 @@ function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_t
 		return {thm.subst(import)};
 	};
 
-Thm Thy::add_assm(string_view const& name, CTerm const& assm) {
+Thm Thy::add_assm( string_view const& name, CTerm const& assm ) {
+	if( _ref->is_scope ) {
+		assert(_ref->parent);
+		return _ref->parent->source().add_assm( _ref->name+'.'+name, assm );
+	}
 	if( assm.ctxt() != *this ) throw Error("\"wrong context for add_assm\"")(assm);
 	size_t rev = revision();
 	_ref->assm_names.emplace(rev,name);
 	return assume(assm);
 }
 
-void Thy::add_thm(string_view const& name, Thm const& thm, ThmInfo const& info) {
+void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info ) {
 	if( thm.ctxt() != *this ) {
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
@@ -256,7 +268,7 @@ Opt<Thm> Thy::_find_thm(
 	return {};
 }
 
-Opt<Import> Thy::_find_thy( string_view const &thyname, function<void(Thy&,istream&,string_view const&)> reader ) & {
+Opt<Import> Thy::_find_thy( string_view const& thyname, function<void(Thy&,istream&,string_view const&)> reader ) & {
 	if( auto ret = _ref->thys.finds(thyname) ) {
 		return {Import::make(ret->second,*this)};
 	}
@@ -272,7 +284,7 @@ Opt<Import> Thy::_find_thy( string_view const &thyname, function<void(Thy&,istre
 	}
 	return {};
 }
-Opt<Import> Thy::find_thy( string_view const &path, function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor ) {
+Opt<Import> Thy::find_thy( string_view const& path, function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor ) {
 	size_t sep = path.find('.');
 	if( sep == string::npos ) {
 		if( auto ret = _find_thy(path,reader) ) {
@@ -312,7 +324,7 @@ auto _test_term_eq( Term const& x ) {
 	return [&]( Term const& y ) { return x == y; };
 }
 
-static ostream& mk_indent(ostream& os, size_t n) {
+static ostream& mk_indent( ostream& os, size_t n ) {
 	for( size_t i = 0; i < n; i++ ) {
 		os << "  ";
 	}

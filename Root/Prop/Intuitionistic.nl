@@ -3,35 +3,37 @@
 ---
 
 import Minimal.
-assume false_elim: false ⟹ ∀P. P ∈ Prop ⟹ P.
+
+namespace false:
+	assume elim: false ⟹ ∀P. P ∈ Prop ⟹ P.
+end
 
 begin
 
 lemma not_imp_iff_false: if nP: ¬P, [P ∈ Prop] then P ⟺ false;
-	by iff_intro not_imp_false[OF nP] #elim false_elim.
+	by iff.intro not_imp_false[OF nP] #elim false.elim.
 
 lemma imp_false_imp_iff_false: if P0: P ⟹ false, [P ∈ Prop] then P ⟺ false;
-	by not_imp_iff_false not_intro P0.
+	by not_imp_iff_false not.intro P0.
 
 lemma false_imp_iff: if [P ∈ Prop] then (false ⟹ P) ⟺ true;
-	by iff_true #elim false_elim.
+	by iff_true #elim false.elim.
 
 lemma foo: if [P ∈ Prop] then (false ⟹ P);
 	unfold false_imp_iff.
 
-namespace iff begin
+namespace iff:
 	interpret iff.
 
-	namespace and begin
+	namespace and:
 		interpret and.
-
 		interpret CommMonoidAbsorb (∧) false true;
-			for P if !P ∈ Prop then false ∧ P ⟺ false;
-				apply iff_intro;
-				if and: false ∧ P;
-					by and_elim1[OF and].
-				by #elim false_elim.
-			.
+		- for P if !P ∈ Prop then false ∧ P ⟺ false;
+			apply iff.intro;
+			- if and: false ∧ P;
+				by and.elim1[OF and].
+			by #elim false.elim.
+		.
 	end
 
 end
@@ -39,7 +41,7 @@ end
 lemma not_elim: if nP: ¬P, P: P, [P ∈ Prop, Q ∈ Prop] then Q;
 	have f: false;
 		by not_imp_false[OF nP P].
-	apply false_elim[OF f].
+	apply false.elim[OF f].
 
 theory Irreflexive:
 	import Irreflexive.

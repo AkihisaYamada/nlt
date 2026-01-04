@@ -6,52 +6,58 @@ fix (∈).
 
 begin
 
-theory Fun:
-	fix (→).
-	assume fun_elim1: f ∈ A → B ⟹ ∀a. a ∈ A ⟹ f a ∈ B.
-begin
-end
-
 theory Member:
 	fix x A.
 	assume closed: x ∈ A.
 end
 
-theory Unary:
-	fix f A B.
-	assume closed: x ∈ A ⟹ f x ∈ B.
-end
-
-theory Binary:
-	fix f A B C.
-	assume closed: x ∈ A ⟹ y ∈ B ⟹ f x y ∈ C.
-end
-
-theory Binder:
-	fix ξ A B.
-	assume closed: (∀x. x ∈ A ⟹ α.[x] ∈ B) ⟹ ξ A (x. α.[x]) ∈ B.
-end
-
-theory Magma:
-	fix A (*).
-	import Binary (*) A A A.
+theory SubEq:
+	fix (⊆).
+	assume elim1: if A ⊆ B then if x ∈ A then x ∈ B.
+	assume intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
-	note! closed.
+	interpret MetaPreorder (⊆);
+		-; by intro.
+		- for A B C if AB, BC;
+			by intro BC[THEN elim1] AB[THEN elim1].
+		.
 end
 
 theory Reflexive:
 	fix A (≤).
-	assume refl: x ∈ A ⟹ x ≤ x.
+	assume refl: if x ∈ A then x ≤ x.
 end
 
 theory Symmetric:
 	fix A (=).
-	assume sym: x = y ⟹ x ∈ A ⟹ y ∈ A ⟹ y = x.
+	assume sym: if x = y, x ∈ A, y ∈ A then y = x.
+end
+
+theory SemiAttractive:
+	fix A (≤).
+	assume attract: if x ≤ y, y ≤ x, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
+end
+
+theory DualAttractive:
+	fix A (≤).
+	assume dual_attract: if x ≤ y, y ≤ x, x ≤ z, x ∈ A, y ∈ A, z ∈ A then y ≤ z.
+end
+
+theory Attractive:
+	import SemiAttractive.
+	import DualAttractive.
 end
 
 theory Transitive:
 	fix A (≤).
-	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ∈ A ⟹ y ∈ A ⟹ z ∈ A ⟹ x ≤ z.
+	assume trans: if x ≤ y, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
+begin
+	interpret Attractive;
+		- for x y z if xy, yx, yz, !, !, !;
+			by trans[OF xy yz].
+		- for x y z if xy, yx, xz, !, !, !;
+			by trans[OF yx xz].
+		.
 end
 
 theory Preorder:
@@ -81,3 +87,4 @@ begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
 end
+

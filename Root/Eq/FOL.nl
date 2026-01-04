@@ -57,22 +57,22 @@ begin
 	theory Ex1:
 		import Ex1.
 	begin
-		namespace iff begin
+		namespace iff:
 			interpret iff.
 			lemma ex1_iff: if A! A ∈ EQTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
 				then (∃!x ∈ A. P.[x]) ⟺ (∃x ∈ A. P.[x]) ∧ (∀x ∈ A. ∀y ∈ A. P.[x] ⟹ P.[y] ⟹ x = y);
-			apply iff_intro;
-				if ex1;
-					by and_intro ex1_imp_ex[OF ex1] ex1_imp_unique[OF ex1].
-				if and;
-					apply and.elim[OF and];
-					if ex, unique;
-						apply ex_elim[OF ex];
-						for x if x!, Px;
-							apply ex1_intro[of x, OF Px];
-							apply all_intro;
-							for y if y!, Py;
-								by all_elim1[OF all_elim1[OF unique y ! !] x ! !] Px Py.
+			apply intro;
+			- if ex1;
+				by and.intro ex1_imp_ex[OF ex1] ex1_imp_unique[OF ex1].
+			- if and;
+				apply and.elim[OF and];
+				- if ex, unique;
+					apply ex.elim[OF ex];
+					- for x if x!, Px;
+						apply ex1_intro[of x, OF Px];
+						apply all.intro;
+						- for y if y!, Py;
+							by all.elim1[OF all.elim1[OF unique y ! !] x ! !] Px Py.
 						.
 					.
 				.

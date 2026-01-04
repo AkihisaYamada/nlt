@@ -6,12 +6,13 @@ begin
 
 theory Compatible:
 	fix A (*).
-	assume comp: for x y x' y'
-		if x = x', y = y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y = x' * y'.
+	assume comp: if x = x', y = y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y = x' * y'.
 begin
-	lemma cong: for x y
-		if !x ∈ A, !y ∈ A, ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
-	apply comp.
+	lemma cong:
+		if !x ∈ A, !y ∈ A then
+		if ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
+	--
+		apply comp.
 
 end
 
@@ -107,7 +108,8 @@ context PartialEquivalence begin
 	begin
 		note! neutral.closed.
 		lemma right_neutral_is_neutral:
-		if all: ∀x. x ∈ A ⟹ x * e = x, !e ∈ A then e = 1;
+			if all: ∀x. x ∈ A ⟹ x * e = x, !e ∈ A then e = 1;
+		--
 			have 1: e = 1 * e;
 				apply sym;
 				by left_neutral.
@@ -124,7 +126,8 @@ context PartialEquivalence begin
 	begin
 		note! neutral.closed.
 		lemma left_neutral_is_neutral:
-		if all: ∀x. x ∈ A ⟹ e * x = x, !e ∈ A then e = 1;
+			if all: ∀x. x ∈ A ⟹ e * x = x, !e ∈ A then e = 1;
+		--
 			have 1: e = e * 1;
 				apply sym;
 				by right_neutral.
@@ -143,7 +146,7 @@ context PartialEquivalence begin
 		import CommMagma.
 	begin
 		interpret MagmaNeutral;
-			for x if ! x ∈ A then x * 1 = x;
+			- for x if ! x ∈ A then x * 1 = x;
 				have 1: x * 1 = 1 * x;
 					apply commute.
 				apply trans[OF 1];
@@ -174,9 +177,8 @@ context PartialEquivalence begin
 			have 1: z = 0 * z;
 				apply sym;
 				by eq.
-			have 2: 0 * z = 0;
-				by left_absorb.
-			by trans[OF 1 2].
+			apply trans[OF 1];
+			by left_absorb.
 	end
 
 	theory MagmaRightAbsorb:
@@ -190,9 +192,8 @@ context PartialEquivalence begin
 			have 1: z = z * 0;
 				apply sym;
 				by eq.
-			have 2: z * 0 = 0;
-				by right_absorb.
-			by trans[OF 1 2].
+			apply trans[OF 1];
+			by right_absorb.
 	end
 
 	theory MagmaAbsorb:
@@ -206,10 +207,11 @@ context PartialEquivalence begin
 		import MagmaLeftAbsorb.
 	begin
 		interpret MagmaAbsorb;
-			for x if !x ∈ A then x * 0 = 0;
+			- for x if !x ∈ A then x * 0 = 0;
 				have 1: x * 0 = 0 * x;
 					by commute.
-				by trans[OF 1] left_absorb.
+				apply trans[OF 1];
+				by left_absorb.
 			.
 	end
 
@@ -252,7 +254,7 @@ context Equivalence begin
 	begin
 		note! lcancel.closed.
 		interpret LeftCancellative;
-			for x y y' if eq: x * y = x * y', !x ∈ A, !y ∈ A, !y' ∈ A then y = y';
+			- for x y y' if eq: x * y = x * y', !x ∈ A, !y ∈ A, !y' ∈ A then y = y';
 				have 1: y = x \ (x * y);
 					apply sym;
 					apply left_cancel;
@@ -274,7 +276,7 @@ context Equivalence begin
 	begin
 		note! rcancel.closed.
 		interpret RightCancellative;
-			for x y x' if eq: x * y = x' * y, !, !, ! then x = x';
+			- for x y x' if eq: x * y = x' * y, !, !, ! then x = x';
 				have 1: x = x * y / y;
 					apply sym;
 					by right_cancel.

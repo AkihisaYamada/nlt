@@ -109,64 +109,62 @@ begin
 end
 
 -- Implication is a meta-preorder.
-namespace imp begin
+namespace imp:
 	interpret MetaPreorder (⟹);
-		for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
-			by QR PQ.
-		.
+	- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+		by QR PQ.
+	.
 end
 
-thm imp.trans.
-
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
-	by PQ[OF P].
+by PQ[OF P].
 
 lemma weaken: if P: P, Q: Q then P;
-	by P.
+by P.
 
 lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
-	by PQR Q.
+by PQR Q.
 
 ---
 ## Properties of Binary Operators and Relations
 ---
 theory MetaMagmas:
-	fix (=).
+	fix (~).
 begin
 
 	theory MetaCompatible:
 		fix (*).
-		assume cong: for x y x' y', x = x' ⟹ y = y' ⟹ x * y = x' * y'.
+		assume cong: for x y x' y' if x ~ x', y ~ y' then x * y ~ x' * y'.
 	end
 
 	theory MetaCommutative:
 		fix (*).
-		assume commute: x * y = y * x.
+		assume commute: x * y ~ y * x.
 	end
 
 	theory MetaAssociative:
 		fix (*).
-		assume assoc: x * y * z = x * (y * z).
+		assume assoc: x * y * z ~ x * (y * z).
 	end
 
 	theory MetaLeftNeutral:
 		fix (*) (1).
-		assume left_neutral: 1 * x = x.
+		assume left_neutral: 1 * x ~ x.
 	end
 
 	theory MetaRightNeutral:
 		fix (*) (1).
-		assume right_neutral: x * 1 = x.
+		assume right_neutral: x * 1 ~ x.
 	end
 
 	theory MetaLeftAbsorb:
 		fix (*) (0).
-		assume left_absorb: 0 * x = 0.
+		assume left_absorb: 0 * x ~ 0.
 	end
 
 	theory MetaRightAbsorb:
 		fix (*) (0).
-		assume right_absorb: x * 0 = 0.
+		assume right_absorb: x * 0 ~ 0.
 	end
 
 end
@@ -212,25 +210,19 @@ lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;
 
 lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
 	apply PQQR;
-	if PQ: P ⟹ Q then Q;
+	- if PQ: P ⟹ Q then Q;
 		by PQ.
 	.
 
-lemma imp_all: if imp: P ⟹ ∀x. α.[x] then ∀x. P ⟹ α.[x];
-	for x if P: P;
-		by imp[OF P].
-	.
+lemma imp_all: if imp: P ⟹ ∀x. Q.[x] then for x if P: P then Q.[x];
+	by imp[OF P].
 
-lemma all_imp: if all: ∀x. P ⟹ α.[x], [P] then ∀x. α.[x];
+lemma all_imp: if all: ∀x. P ⟹ Q.[x], [P] then ∀x. Q.[x];
 	by all.
 
-lemma all_all_imp: if [∀x. α.[x]], imp: ∀x. α.[x] ⟹ β.[x] then ∀x. β.[x];
+lemma all_all_imp: if [∀x. P.[x]], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
 	by imp.
 
 lemma make_elim:
-if imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. P.[x] ⟹ ∀R. (Q.[x] ⟹ R) ⟹ R;
-	for x if Px;
-		for R if assm;
-			by assm imp Px.
-		.
-	.
+	if PQ: ∀x. P.[x] ⟹ Q.[x] then for x if P: P.[x] then for R if QR: Q.[x] ⟹ R then R;
+	by QR PQ P.

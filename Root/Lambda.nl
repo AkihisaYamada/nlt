@@ -22,16 +22,14 @@ begin
 		define[pair] (x,y) P := (if P then x else y).
 		define fst xy := xy (∀P. P ⟹ P).
 		define snd xy := xy (∀P. P).
-		for x y, fst (x,y) = x;
-			by if_then #unfold fst_def pair_def.
-		for x y, snd (x,y) = y;
-			by if_else #unfold snd_def pair_def.
+	- for x y, fst (x,y) = x;
+		by if_then #unfold fst_def pair_def.
+	- for x y, snd (x,y) = y;
+		by if_else #unfold snd_def pair_def.
 	.
 end
 
 theory Prop:
 	import Prop.
 	import Eq.
-begin
-	thy.
 end

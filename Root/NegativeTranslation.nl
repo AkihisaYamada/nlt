@@ -4,7 +4,7 @@
 
 ----
 The intuitionistic logic can prove theorems of the classical logic after a double-negation translation.
-To formally state the result, we interpret the classical logic context, replacing the `prop` type of by the image of double negation,
+To formally state the result, we interpret the classical logic context, replacing the `Prop` type of by the image of double negation,
 disjunction and existential quantifier by certain forms.
 
 Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
@@ -12,18 +12,20 @@ Since we have not introduced convenient methods such as equality to specify such
 
 import Lambda.
 
+set define beta.
+
 import FOL.
 
 import Intuitionistic.
+print.
+thy.
+define image_nnot P := ∃P'. P' ∈ Prop ∧ P = (¬¬P').
 
-fix image_nnot nnot_or nnot_ex.
+lemma image_nnot_imp_Prop: if P: image_nnot P then P ∈ Prop;
+	apply P[unfolded image_nnot_def, THEN ex_elim];
 
--- `image_nnot` should turn a proposition into a proposition.
-assume prop_image_nnot! P ∈ PROP ⟹ image_nnot P ∈ PROP.
 
-assume image_nnot_imp_prop: image_nnot P ⟹ P ∈ PROP.
-
-assume image_nnot_iff_ex: P ∈ PROP ⟹ image_nnot P ⟺ (∃P' ∈ PROP. P ⟺ ¬¬P').
+assume image_nnot_iff_ex: P ∈ Prop ⟹ image_nnot P ⟺ (∃P' ∈ Prop. P ⟺ ¬¬P').
 
 --The negative translation of disjunction is specified as follows.
 
@@ -33,39 +35,39 @@ assume nnot_or_iff: nnot_or P Q ⟺ ¬(¬P ∧ ¬Q).
 In this context, it is necessary to assume that this operation is well-typed.
 We should be able to derive the fact if we introduce equality and definition.
 ---
-assume nnot_or_type! prop P ⟹ prop Q ⟹ prop (nnot_or P Q).
---import nnot_or: Magma prop nnot_or.
+assume nnot_or_type! Prop P ⟹ Prop Q ⟹ Prop (nnot_or P Q).
+--import nnot_or: Magma Prop nnot_or.
 
 -- The existential quantifier is translated as follows:
 
 assume nnot_ex_iff: nnot_ex ι (x. Y.[x]) ⟺ ¬(∀x:ι. ¬Y.[x]).
 
-assume nnot_ex_type! (∀x. ι x ⟹ prop Y.[x]) ⟹ prop (nnot_ex ι (x. Y.[x])).
+assume nnot_ex_type! (∀x. ι x ⟹ Prop Y.[x]) ⟹ Prop (nnot_ex ι (x. Y.[x])).
 
 begin
 
 --note! nnot_or.type.
 --note! nnot_ex.type.
-note? image_nnot_imp_prop.
+note? image_nnot_imp_Prop.
 
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
 interpret image_nnot: ClassicalLogic;
-	instantiate prop := image_nnot, (∨) := nnot_or, (∃:) := nnot_ex.
+	instantiate Prop := image_nnot, (∨) := nnot_or, (∃:) := nnot_ex.
 
-	have image_nnot_iff: if [prop P] then image_nnot P ⟺ (¬¬P ⟺ P);
+	have image_nnot_iff: if [Prop P] then image_nnot P ⟺ (¬¬P ⟺ P);
 		apply iff_intro,
 		- if tP! image_nnot P then ¬¬P ⟺ P;
 			apply ex_elim[OF tP[unfolded image_nnot_iff_ex]],
-			- for P', if iff: (P ⟺ ¬¬P'), [prop P'];
+			- for P', if iff: (P ⟺ ¬¬P'), [Prop P'];
 				unfold+ iff nnnot_iff.
 			.
 		- if nn: ¬¬P ⟺ P then image_nnot P;
 			unfold image_nnot_iff_ex,
 			apply ex_intro,
-			- for P', if imp: ∀x. (P ⟺ ¬¬x) ⟹ prop x ⟹ P', [prop P'];
+			- for P', if imp: ∀x. (P ⟺ ¬¬x) ⟹ Prop x ⟹ P', [Prop P'];
 				by imp(P) #unfold nn.
 			.
 		.
@@ -79,28 +81,28 @@ interpret image_nnot: ClassicalLogic;
 		fold nnQ,
 		unfold nnimp_not_iff.
 	- for P, if tP: image_nnot P then image_nnot (¬P);
-		note! image_nnot_imp_prop[OF tP].
+		note! image_nnot_imp_Prop[OF tP].
 		unfold image_nnot_iff tP[unfolded image_nnot_iff] nnnot_iff.
 	- for P, if P0: P ⟹ false, tP: image_nnot P then ¬P;
-		by not_intro[OF P0] image_nnot_imp_prop[OF tP].
+		by not_intro[OF P0] image_nnot_imp_Prop[OF tP].
 	- for P, if nP: ¬P, P: P, tP: image_nnot P then false;
-		by not_imp_false[OF nP P] image_nnot_imp_prop[OF tP].
+		by not_imp_false[OF nP P] image_nnot_imp_Prop[OF tP].
 	- for P Q, if tP: image_nnot P, tQ: image_nnot Q then image_nnot (P ∧ Q);
-		note! image_nnot_imp_prop[OF tP].
-		note! image_nnot_imp_prop[OF tQ].
+		note! image_nnot_imp_Prop[OF tP].
+		note! image_nnot_imp_Prop[OF tQ].
 		unfold+ image_nnot_iff nnand_iff,
 		unfold tP[unfolded image_nnot_iff] tQ[unfolded image_nnot_iff].
-	- by and_intro image_nnot_imp_prop.
-	- by image_nnot_imp_prop #elim and_elim.
-	- by image_nnot_imp_prop #elim and_elim.
+	- by and_intro image_nnot_imp_Prop.
+	- by image_nnot_imp_Prop #elim and_elim.
+	- by image_nnot_imp_Prop #elim and_elim.
 	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (P ⟺ Q);
 		unfold image_nnot_iff,
 		fold tP[unfolded image_nnot_iff],
 		fold tQ[unfolded image_nnot_iff],
 		unfold nniff_iff.
-	- by iff_intro image_nnot_imp_prop.
-	- by image_nnot_imp_prop #elim iff_elim1.
-	- by image_nnot_imp_prop #elim iff_elim2.
+	- by iff_intro image_nnot_imp_Prop.
+	- by image_nnot_imp_Prop #elim iff_elim1.
+	- by image_nnot_imp_Prop #elim iff_elim2.
 	- for P Q, if tP! image_nnot P, tQ! image_nnot Q then image_nnot (nnot_or P Q);
 		unfold image_nnot_iff nnot_or_iff nnnot_iff.
 	- for P Q, if P: P;

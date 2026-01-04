@@ -15,54 +15,54 @@ begin
 lemma not_imp_not_all:
 	if nax: ¬ P.[x], ! A ∈ QTYPE, ! x ∈ A, ! ∀y. y ∈ A ⟹ P.[y] ∈ Prop
 	then ¬(∀y ∈ A. P.[y]);
-apply not_intro;
-	if all: ∀y ∈ A. P.[y];
-		have ax: P.[x];
-		by all_elim1[OF all].
+apply not.intro;
+- if all: ∀y ∈ A. P.[y];
+	have ax: P.[x];
+		by all.elim1[OF all].
 	by not_imp_false[OF nax ax].
 .
 
-namespace iff begin
+namespace iff:
 	interpret iff.
-	lemma ball_cong(cong) for P
+	lemma all_cong: for P
 		if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
 			! A ∈ QTYPE,
 			! ∀x. x ∈ A ⟹ P.[x] ∈ Prop,
 			! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
 		then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ A. P'.[x]);
-	apply iff_intro;
-		- by all_intro #fold aa' #elim all_elim.
-		- by all_intro #unfold aa' #elim all_elim.
+	apply iff.intro;
+	-; by all.intro #fold aa' #elim all.elim.
+	-; by all.intro #unfold aa' #elim all.elim.
 	.
 end
 
-note(cong) iff.ball_cong.
+note(cong) iff.all_cong.
 
 ---
 ## Existence
 ---
 
 context iff begin
-	lemma ex_cong(cong) for P
+	lemma ex_cong: for P
 		if aa': ∀x. x ∈ A ⟹ (P.[x] ⟺ P'.[x]),
 			! A ∈ QTYPE,
 			! ∀x. x ∈ A ⟹ P.[x] ∈ Prop,
 			! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
 		then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
-	apply iff_intro;
-		if ex;
-		apply ex_intro;
-			for Q if assm, !;
-			apply ex_elim[OF ex];
-				for x if Px, !;
+	apply iff.intro;
+	- if ex;
+		apply ex.intro;
+		- for Q if assm, !;
+			apply ex.elim[OF ex];
+			- for x if Px, !;
 				by assm[of x] Px #fold aa'.
 			.
 		.
-		if ex;
-		apply ex_intro;
-			for Q if assm, !;
-			apply ex_elim[OF ex];
-				for x if P'x, !;
+	- if ex;
+		apply ex.intro;
+		- for Q if assm, !;
+			apply ex.elim[OF ex];
+			- for x if P'x, !;
 				by assm[of x] P'x #unfold aa'.
 			.
 		.
@@ -72,21 +72,21 @@ end
 note(cong) iff.ex_cong.
 
 lemma nex_false: if ! A ∈ QTYPE then ¬(∃x ∈ A. false);
-by not_intro #elim ex_elim.
+by not.intro #elim ex.elim.
 
 lemma all_imp_iff_ex:
 	if ! A ∈ QTYPE, ! Q ∈ Prop, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
 	then (∀x ∈ A. P.[x] ⟹ Q) ⟺ (∃x ∈ A. P.[x]) ⟹ Q;
-apply iff_intro;
-	if imp: ∀x ∈ A. P.[x] ⟹ Q, ex: ∃x ∈ A. P.[x];
-	apply ex_elim[OF ex];
-		for x if !x ∈ A, ax: P.[x];
-		by all_elim1[OF imp, of x] ax.
+apply iff.intro;
+- if imp: ∀x ∈ A. P.[x] ⟹ Q, ex: ∃x ∈ A. P.[x];
+	apply ex.elim[OF ex];
+	- for x if !x ∈ A, ax: P.[x];
+		by all.elim1[OF imp, of x] ax.
 	.
-	if imp: (∃x ∈ A. P.[x]) ⟹ Q;
-	apply all_intro;
-		for x if !, ax: P.[x];
-		by imp ex_intro1[OF ax].
+- if imp: (∃x ∈ A. P.[x]) ⟹ Q;
+	apply all.intro;
+	- for x if !, ax: P.[x];
+		by imp ex.intro1[OF ax].
 	.
 .
 
@@ -99,10 +99,10 @@ The following direction is provable in general, but the opposite direction requi
 lemma nnall_imp:
 	if nnall: ¬¬(∀x ∈ A. P.[x]), ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
 	then ∀x ∈ A. ¬¬P.[x];
-apply all_intro;
-	for x if !;
-	apply not_intro;
-		if nax: ¬P.[x];
+apply all.intro;
+- for x if !;
+	apply not.intro;
+	- if nax: ¬P.[x];
 		by not_imp_false[OF nnall] not_imp_not_all[OF nax].
 	.
 .

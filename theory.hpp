@@ -5,6 +5,7 @@
 
 class AThm;
 class Import;
+class Definer;
 using ThmInfo = Sum<int,Intro,Elim,Rewrite::Cong>;
 
 template<typename T>
@@ -29,7 +30,7 @@ class Thy : public Ctxt {
 	) const;
 	Opt<Import> _find_thy( std::string_view const& thyname, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) &;
 	void _check_loop_import( Thy const& origin ) const;
-	Thy _branch( std::string_view const& name, std::string_view const& dir, Intp const& intp ) const&;
+	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
 	void _make_own_rewrite()&;
 	friend Import;
 public:
@@ -135,6 +136,7 @@ public:
 	}
 	Opt<Rewrite&> rewriter() && = delete;
 	Opt<Rewrite const&> rewriter() const &;
+	void reset_rewrite() &;
 	Thm dualize( Thm const& thm, Blaster& resolver ) const &;
 	Thy& register_refl( Thm const& refl, bool def ) &;
 	Thy& register_trans( Thm const& trans ) &;
@@ -147,6 +149,7 @@ public:
 	Blaster blaster( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
+	OptRef<Definer>& definer() &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */
 	std::function<std::ostream&(std::ostream&)> pretty( size_t indent = 0, bool scope = false, bool path = true ) const &;

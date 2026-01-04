@@ -1,11 +1,15 @@
-import Base.
+import Membership.
 
-fix (∈) Prop.
-assume imp_type! P ∈ Prop ⟹ Q ∈ Prop ⟹ (P ⟹ Q) ∈ Prop.
+fix Prop.
+
+namespace imp:
+	import Magma Prop (⟹).
+end
 
 begin
 
-interpret Membership.
+note! imp.closed.
+
 
 theory Relation:
 	fix A (≤).

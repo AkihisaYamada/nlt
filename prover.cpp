@@ -407,13 +407,14 @@ public:
 					}
 					cout << "if " << flush;
 				}
+				auto assms = vector<pair<ClaimStatus,CTerm>>();
 				for(;;) {
 					if( skips("[") ) {
 						if MSG cout << "[ ";
 						for(;;) {
 							auto t = get_term();
 							if MSG cout << _thy.pretty(t);
-							add_claim(assm_thy,ClaimStatus::INFLATED,assm_thy.assume(assm_thy.enclose(t)));
+							assms.emplace_back(ClaimStatus::INFLATED,assm_thy.enclose(t));
 							if( !skips(",") ) break;
 							if MSG cout << ", " << flush;
 						}
@@ -423,10 +424,13 @@ public:
 						auto cs = get_claim_status();
 						auto t = get_term();
 						if MSG cout << cs << _thy.pretty(t) << ", " << flush;
-						add_claim(assm_thy,cs,assm_thy.assume(assm_thy.enclose(t)));
+						assms.emplace_back(cs,assm_thy.enclose(t));
 					}
 					if( !skips(",") ) break;
 				};
+				for( auto [cs,assm] : assms ) {
+					add_claim(assm_thy,cs,assm_thy.assume(assm));
+				}
 				skip("then");
 				if MSG cout << "then ";
 			} else {
@@ -560,10 +564,12 @@ public:
 				_thy.modify_syntax() = src.syntax();
 			}
 		}
-		if( prefix.empty() && src.rewriter() ) {
-			_thy.import_rewrite(src,intp);
-		}
 		if( success ) {
+			if( prefix.empty() ) {
+				if( src.rewriter() ) {
+					_thy.import_rewrite(src,intp);
+				}
+			}
 			_thy.add_import(prefix,std::move(intp));
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -657,37 +663,10 @@ public:
 					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( skips("-") ) {
-				for(;;) {
-					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(org_thy,intp,*fix,change);
-					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.blaster(_out_blast);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer);
-					} else {
-						break;
-					}
-				}
-				auto const& assume = intp.assuming();
-				if( !assume ) {
-					throw Error("\"unexpected subgoal\"");
-				}
-				auto loc = _thy.branch();
-				auto thesis = Thesis::claim_exact(loc,loc.weaken(assume->first));
-				try {
-					auto o = _prove(thesis);
-					if( o ) {
-						auto const& thm = o->intro();
-						intp.discharge(thm);
-						if MSG cout << "discharged: " << assume->second << ": " << _thy.pretty(thm) << endl;
-					}
-				} catch( ::Error const& e ) {
-					if ERR cerr << "failed to discharge" << assume->second << ": " << _thy.pretty(assume->first) << endl;
-					throw e;
-				}
-			} else if( auto pat = _gets_subgoal() ) {
+				auto pat = _get_subgoal();
 				for(;;) {
 					if( auto const& assume = intp.assuming() ) {
-						auto [match,thm] = goal_matches(*pat,assume->first);
+						auto [match,thm] = goal_matches(pat,assume->first);
 						if( match ) {
 							if( thm ) {
 								intp.discharge(*thm);
@@ -996,55 +975,37 @@ public:
 		Opt<Term> concl;
 		bool proof;
 	};
-	Opt<GoalPat> _gets_subgoal() {
+	GoalPat _get_subgoal() {
 		auto ret = GoalPat();
-		bool concl;
-		if( skips("show") ) {
-			ret.cs = get_claim_status();
-			if( ret.cs.followable ) {
-				if( _gets_subgoal_for(ret) ) {
-					return {ret};
-				}
-				ret.concl = {get_term()};
-			}
-			ret.proof = _proof_follows();
-			return {ret};
-		}
-		if( _gets_subgoal_for(ret) ) {
-			return {ret};
-		}
-		return {};
-	}
-
-	bool _gets_subgoal_for( GoalPat& pat ) {
 		if( skips("for") ) {
 			while( auto o = gets_sym() ) {
-				pat.vars.emplace_back(*o);
+				ret.vars.emplace_back(*o);
 			}
-			if( !_gets_subgoal_if(pat) ) {
-				if( skips(",") ) {
-					pat.concl = {get_term()};
-				}
-				pat.proof = _proof_follows();
+			if( skips(",") ) {
+				ret.concl = {get_term()};
+				ret.proof = _proof_follows();
+				return ret;
 			}
-			return true;
 		}
-		return _gets_subgoal_if(pat);
-	}
-	bool _gets_subgoal_if( GoalPat& pat ) {
 		if( skips("if") ) {
 			do {
 				auto const& cs = get_claim_status(false);
 				auto const& assm = gets_term();
-				pat.assms.emplace_back(cs,assm);
+				ret.assms.emplace_back(cs,assm);
 			} while( skips(",") );
 			if( skips("then") ) {
-				pat.concl = {get_term()};
+				ret.concl = {get_term()};
 			}
-			pat.proof = _proof_follows();
-			return true;
+			ret.proof = _proof_follows();
+			return ret;
 		}
-		return false;
+		if( auto const& concl = gets_term() ) {
+			ret.concl = {concl};
+			ret.proof = _proof_follows();
+			return ret;
+		}
+		ret.proof = _proof_follows();
+		return ret;
 	}
 	/** @return first whether the goal pattern matches, and then the theorem if the proof was not aborted. */
 	pair<bool,Opt<Thm>> goal_matches( GoalPat& pat, CTerm const& goal ) {
@@ -1122,13 +1083,13 @@ public:
 			}
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
-			skip("begin");
+			skip(":");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << "creating namespace " << name << endl;
 			}
 			auto loc = _thy.scope(name);
-			local_thy(loc,true);
+			local_thy(loc,_final);
 			_thy.add_thy(loc);
 			if MSG cout << "created namespace " << name << endl;
 		} else if( skips("context") ) {
@@ -1139,6 +1100,7 @@ public:
 				if( !MSG ) cout << _indent(' ');
 				cout << "in context " << name << endl;
 			}
+			loc.reset_rewrite();
 			local_thy(loc,true);
 			if MSG cout << "left " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
@@ -1177,6 +1139,17 @@ public:
 			} else if( skips("have") ) {
 				_state();
 				if MSG print_goal(thesis);
+			} else if( skips("show") ) {
+				if( auto o = _state() ) {
+					auto [cs,thm] = *o;
+					for(;;) {
+						auto goal = thesis.has_goal();
+						if( !goal ) throw Error("\"no goal to matches\"")(thm);
+						if( *goal == thm ) break;
+						thesis.blast();
+					}
+					thesis.discharge(thm);
+				}
 			} else if( skips("apply") ) {
 				int min, max;
 				bool safe, wide;
@@ -1209,25 +1182,11 @@ public:
 					return thesis.blast_all();
 				}
 			} else if( skips("-") ) {
-				auto goal = thesis.has_goal();
-				if( !goal ) throw Error("\"unexpected subgoal\"");
-				auto loc = _thy.branch();
-				auto subthesis = Thesis::claim_exact(loc,loc.weaken(*goal));
-				try {
-					auto thm = _prove(subthesis);
-					if( thm ) {
-						thesis.discharge(thm->intro());
-						if MSG cout << "discharged subgoal: " << _thy.pretty(*thm) << endl;
-					}
-				} catch( ::Error const& e ) {
-					if ERR cerr << "failed to prove subgoal: " << _thy.pretty(*goal) << endl;
-					throw e;
-				}
-			} else if( auto pat = _gets_subgoal() ) {
+				auto pat = _get_subgoal();
 				for(;;) {
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");
-					auto [match,thm] = goal_matches(*pat,*goal);
+					auto [match,thm] = goal_matches(pat,*goal);
 					if( match ) {
 				 		if( thm ) {
 							thesis.discharge(*thm);
@@ -1408,9 +1367,13 @@ public:
 							}
 							skips(",");
 						} else if( skips("if") ) {
+							auto assms = vector<CTerm>();
 							do {
-								var_loc.assume(var_loc.enclose(get_term()));
+								assms.push_back(var_loc.enclose(get_term()));
 							} while( skips(",") );
+							for( auto assm : assms ) {
+								var_loc.assume(assm);
+							}
 							skip("then");
 						} else {
 							break;
@@ -1420,7 +1383,7 @@ public:
 					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
 					add_claim(_thy,cs,thm);
 					if CTXT {
-						if(!MSG) cout << _indent(' ');
+						if( !MSG ) cout << _indent(' ');
 						cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
 					}
 					skip(".");

@@ -3,65 +3,55 @@
 -------
 import Base.
 
-fix false (¬) (∧) (⟺) (∨) (∃).
+fix true false (¬) (∧) (⟺) (∨) (∃).
 
-assume and_intro! P ⟹ Q ⟹ P ∧ Q.
-assume and_elim1: P ∧ Q ⟹ P.
-assume and_elim2: P ∧ Q ⟹ Q.
+assume true_intro! true.
 
-assume not_imp_false: ¬ P ⟹ P ⟹ false.
-assume not_intro: (P ⟹ false) ⟹ ¬ P.
+assume and_intro! if P, Q then P ∧ Q.
+assume and_elim1: if P ∧ Q then P.
+assume and_elim2: if P ∧ Q then Q.
 
-assume iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ P ⟺ Q.
-assume iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q.
-assume iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P.
+assume not_imp_false: if ¬P, P then false.
+assume not_intro: if P ⟹ false then ¬P.
 
-assume or_intro1: P ⟹ P ∨ Q.
-assume or_intro2: for P Q, Q ⟹ P ∨ Q.
-assume or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
+assume iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q.
+assume iff_elim1: if P ⟺ Q, P then Q.
+assume iff_elim2: if P ⟺ Q, Q then P.
 
-assume ex_intro1: for x, α.[x] ⟹ ∃x. α.[x].
-assume ex_elim: (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P.
+assume or_intro1: for P Q if P then P ∨ Q.
+assume or_intro2: for P Q if Q then P ∨ Q.
+assume or_elim: if P ∨ Q then for R if P ⟹ R, Q ⟹ R then R.
+
+assume ex_intro1: for x if P.[x] then ∃x. P.[x].
+assume ex_elim: if ∃x. P.[x] then for Q if ∀x. P.[x] ⟹ Q then Q.
 
 begin
 ---
 ## Theorems
 ---
 
--- Obtains true, which is provable.
-obtain true where true_intro! true;
-	for thesis if assm: ∀true. true ⟹ thesis;
-		by assm[of (false ⟹ false)].
-	.
-
 ---
 ### If-and-only-if
 ---
 
-lemma iff_elim: if PQ: P ⟺ Q then ∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R;
-	for R if imp;
-		by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
-	.
+lemma iff_elim: if PQ: P ⟺ Q then for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
+	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
 
-namespace iff begin
-
-	interpret MetaEquivalence (⟺);
-		- by iff_intro.
-		- by iff_intro #elim iff_elim.
-		for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
-			apply iff_intro;
-			- by iff_elim1[OF QR] iff_elim1[OF PQ].
-			- by iff_elim2[OF PQ] iff_elim2[OF QR].
-			.
-		.
--- TODO
-	note! refl.
-
-	set rewrite iff_elim1 iff_elim2 refl trans.
-	set dual sym.
+namespace iff:
 
 	-- We can think of meta-magmas with respect to ⟺
 	interpret MetaMagmas (⟺).
+
+	interpret MetaEquivalence (⟺);
+		-; by iff_intro.
+		-; by iff_intro #elim iff_elim.
+		- for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
+			apply iff_intro;
+			-; by iff_elim1[OF QR] iff_elim1[OF PQ].
+			-; by iff_elim2[OF PQ] iff_elim2[OF QR].
+			.
+		.
+	--
 
 end
 
@@ -70,33 +60,45 @@ note! iff.refl.
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
 set dual iff.sym.
 
-lemma iff_cong_imp#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
-	apply iff_intro;
-	if PR: P ⟹ R, !Q then S;
-		by iff_elim1[OF RS] PR iff_elim2[OF PQ].
-	if QS: Q ⟹ S, !P then R;
-		by iff_elim2[OF RS] QS iff_elim1[OF PQ].
-	.
+context iff begin
 
-lemma iff_cong_iff#cong: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
-	apply iff_intro;
-	if PR: P ⟺ R then Q ⟺ S;
-		have QR: Q ⟺ R;
-			by iff.trans[OF iff.sym[OF PQ] PR].
-		by iff.trans[OF QR RS].
-	if QS: Q ⟺ S then P ⟺ R;
-		have PS: P ⟺ S;
-			by iff.trans[OF PQ QS].
-		by iff.trans[OF PS iff.sym[OF RS]].
-	.
+	interpret MetaCompatible (⟺);
+		- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
+			apply iff_intro;
+			- if PR: P ⟺ R then Q ⟺ S;
+				have QR: Q ⟺ R;
+					by iff.trans[OF iff.sym[OF PQ] PR].
+				by iff.trans[OF QR RS].
+			- if QS: Q ⟺ S then P ⟺ R;
+				have PS: P ⟺ S;
+					by iff.trans[OF PQ QS].
+				by iff.trans[OF PS iff.sym[OF RS]].
+			.
+		.
 
-lemma iff_cong_all#cong: if ab: ∀x. α.[x] ⟺ β.[x] then (∀x. α.[x]) ⟺ (∀x. β.[x]);
-	apply iff_intro;
-	if ! ∀x. α.[x] then ∀x. β.[x];
-		by iff_elim1[OF ab].
-	if ! ∀x. β.[x] then ∀x. α.[x];
-		by iff_elim2[OF ab].
-	.
+	namespace imp:
+		interpret MetaCompatible (⟹);
+			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
+				apply iff_intro;
+				- if PR: P ⟹ R, !Q then S;
+					by iff_elim1[OF RS] PR iff_elim2[OF PQ].
+				- if QS: Q ⟹ S, !P then R;
+					by iff_elim2[OF RS] QS iff_elim1[OF PQ].
+				.
+			.
+	end
+
+	lemma all_cong: if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
+		apply iff_intro;
+		- if ! ∀x. P.[x] then ∀x. Q.[x];
+			by iff_elim1[OF PQ].
+		- if ! ∀x. Q.[x] then ∀x. P.[x];
+			by iff_elim2[OF PQ].
+		.
+
+end
+
+note(cong) iff.cong iff.imp.cong iff.all_cong.
 
 lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
 	by iff_intro.
@@ -109,14 +111,14 @@ lemma all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
 
 lemma imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
 	apply iff_intro[OF imp2_imp_imp];
-	if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q;
+	- if PQ: P ⟹ Q, PQQ: (P ⟹ Q) ⟹ Q then Q;
 		by PQQ[OF PQ].
 	.
 
 lemma imp_all_iff: (P ⟹ ∀x. α.[x]) ⟺ (∀x. P ⟹ α.[x]);
 	apply iff_intro;
-	- by imp_all=.
-	- by all_imp=.
+	-; by imp_all=.
+	-; by all_imp=.
 	.
 
 lemma imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q;
@@ -144,10 +146,8 @@ lemma imp_refl_iff: (P ⟹ P) ⟺ true;
 ### Conjunction
 ---
 
-lemma and_elim#elim: if PQ: P ∧ Q then ∀R. (P ⟹ Q ⟹ R) ⟹ R;
-	for R if PQR: P ⟹ Q ⟹ R;
-		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
-	.
+lemma and_elim(elim) if PQ: P ∧ Q then for R if PQR: P ⟹ Q ⟹ R then R;
+	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 
 interpret and: MetaPartialEquivalence (∧).
 
@@ -156,18 +156,18 @@ lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
 
 context iff begin
 
-	interpret and: MetaCompatible (∧);
-		for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
-			by iff_intro #unfold PQ RS.
-		.
-	note #cong: and.cong.--TODO
-
-	interpret and: MetaCommMonoid (∧) true;
-		by iff_intro.
+	namespace and:
+		interpret MetaCompatible (∧);
+			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
+				by iff_intro #unfold PQ RS.
+			.
+		interpret MetaCommMonoid (∧) true;
+			by iff_intro.
+	end
 
 end
 
-note #cong: iff.and.cong.
+note(cong) iff.and.cong.
 
 lemma and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
@@ -180,15 +180,15 @@ lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
 
 lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
 	apply iff_intro;
-	if ab: ∀x. P.[x] ∧ Q.[x];
+	- if ab: ∀x. P.[x] ∧ Q.[x];
 		apply and_intro;
-		for x;
+		- for x;
 			by and_elim1[OF ab].
-		for x;
+		- for x;
 			by and_elim2[OF ab].
 		.
 	unfold and_imp_iff;
-	if ! ∀x. P.[x], ! ∀x. Q.[x].
+	- if ! ∀x. P.[x], ! ∀x. Q.[x].
 	.
 
 ---
@@ -213,9 +213,9 @@ theory MetaOrder:
 	import MetaTransitive (<).
 begin
 	interpret MetaAsymmetric;
-		for x y if xy: x < y then ¬ y < x;
+		- for x y if xy: x < y then ¬ y < x;
 			apply not_intro;
-			if yx: y < x;
+			- if yx: y < x;
 				have xx: x < x;
 					by trans[OF xy yx].
 				by not_imp_false[OF irrefl xx].
@@ -225,7 +225,7 @@ end
 
 lemma imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q);
 	apply not_intro;
-	if PQ: P ⟹ Q;
+	- if PQ: P ⟹ Q;
 		by not_imp_false[OF nQ] PQ.
 	.
 
@@ -235,7 +235,7 @@ lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
 
 lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P;
 	apply not_intro;
-	if !P;
+	- if !P;
 		have nQ: ¬Q;
 			by PnQ.
 		by not_imp_false[OF nQ].
@@ -243,7 +243,7 @@ lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P;
 
 lemma nnot_intro: if [P] then ¬¬P;
 	apply not_intro;
-	if nP: ¬P;
+	- if nP: ¬P;
 		by not_imp_false[OF nP].
 	.
 
@@ -253,15 +253,19 @@ lemma not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]);
 lemma not_false: ¬false;
 	by not_intro[OF imp.refl].
 
-lemma iff_cong_not#cong: if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
-	apply iff_intro;
-	if nP: ¬P;
-		apply not_intro;
-		by not_imp_false[OF nP] iff_elim2[OF PQ].
-	if nQ: ¬Q;
-		apply not_intro;
-		by not_imp_false[OF nQ] iff_elim1[OF PQ].
-	.
+context iff begin
+	lemma not_cong: if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
+		apply iff_intro;
+		- if nP: ¬P;
+			apply not_intro;
+			by not_imp_false[OF nP] iff_elim2[OF PQ].
+		- if nQ: ¬Q;
+			apply not_intro;
+			by not_imp_false[OF nQ] iff_elim1[OF PQ].
+		.
+end
+
+note(cong) iff.not_cong.
 
 lemma not_iff_imp_false: ¬P ⟺ (P ⟹ false);
 	by iff_intro[OF not_imp_false not_intro].
@@ -270,31 +274,31 @@ lemma imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
 	by iff_intro[OF imp_not_sym imp_not_sym].
 
 lemma nnnot_iff: ¬¬¬P ⟺ ¬P;
-	unfold+ not_iff_imp_false;
+	unfold not_iff_imp_false;
 	by imp3_iff.
 
 lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
-	unfold imp_not_commute;
+	unfold^1 imp_not_commute;
 	unfold nnnot_iff.
 
 lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q;
 	apply not_intro;
-	if nQ: ¬Q;
+	- if nQ: ¬Q;
 		apply+ not_imp_false[OF nnPQ] not_intro;
-		if PQ: P ⟹ Q;
+		- if PQ: P ⟹ Q;
 			by not_imp_false[OF nQ] PQ.
 		.
 	.
 
 lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
-	if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
+	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
 		by nnimp_imp_nnot[OF nnimp P, unfolded nnnot_iff].
 	apply nnot_intro=.
 
 lemma not_true_iff: ¬true ⟺ false;
 	apply iff_intro;
-	if nt: ¬true;
+	- if nt: ¬true;
 		by not_imp_false[OF nt].
 	by not_intro.
 
@@ -314,7 +318,7 @@ lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
 	by not_intro not_imp_false[OF nQ].
 
 lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	unfold+ not_iff_imp_false and_imp_iff.
+	unfold not_iff_imp_false and_imp_iff.
 
 lemma non_contradiction: ¬(P ∧ ¬P);
 	unfold nand_iff_imp_not;
@@ -325,7 +329,7 @@ lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q;
 
 lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
 	apply not_intro;
-	if !¬Q;
+	- if !¬Q;
 		have! ¬P;
 			by imp_not_imp[OF PQ].
 		by not_imp_false[OF nnP].
@@ -333,7 +337,7 @@ lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
 
 lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q);
 	apply not_intro;
-	if PQ: P ⟹ Q;
+	- if PQ: P ⟹ Q;
 		have nnQ: ¬¬Q;
 			by nnot_imp_nnot[OF nnP PQ].
 		by not_imp_false[OF nnQ].
@@ -343,25 +347,25 @@ lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
 	unfold nand_iff_imp_not nnnot_iff.
 
 lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
-	unfold iff.and.commute;
+	unfold^1 iff.and.commute;
 	unfold nand_nnot_iff;
-	unfold iff.and.commute.
+	unfold^1 iff.and.commute.
 
 lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
-	if or_imp;
+	- if or_imp;
 		by or_imp.
-	if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S);
+	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S);
 		by or[OF and_elim1[OF and] and_elim2[OF and]].
 	.
 
 lemma raw_nor_iff_and: ¬(∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟺ ¬P ∧ ¬Q;
-	unfold+ not_iff_imp_false;
+	unfold not_iff_imp_false;
 	by raw_or_imp_iff.
 
 lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
-	fold nnot_nand_iff;
-	fold nand_nnot_iff;
+	fold^1 nnot_nand_iff;
+	fold^1 nand_nnot_iff;
 	fold raw_nor_iff_and;
 	unfold nnnot_iff;
 	unfold raw_nor_iff_and.
@@ -373,7 +377,7 @@ lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	by assm[OF or_intro1 or_intro2].
 
-namespace or begin
+namespace or:
 
 	interpret MetaSymmetric (∨);
 		by or_intro #elim or_elim.
@@ -383,22 +387,21 @@ end
 lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
 	by iff_intro or_intro1.
 
-lemma or_iff_true2: for P Q if ! Q then P ∨ Q ⟺ true;
+lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
 context iff begin
 
-	namespace or begin
+	namespace or:
 
 		interpret MetaCompatible (∨);
-			for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 				by iff_intro or_intro #elim or_elim #unfold PQ RS.
 			.
-		note #cong: cong.
 
 		interpret MetaCommAbsorb (∨) true;
-			- by iff_intro or_intro.
-			- by iff_intro[OF or.sym or.sym].
+			-; by iff_intro or_intro.
+			-; by iff_intro[OF or.sym or.sym].
 			.
 
 		interpret MetaAssociative (∨);
@@ -408,26 +411,26 @@ context iff begin
 
 end
 
-note #cong: iff.or.cong.
+note(cong) iff.or.cong.
 
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R;
 	by or[unfolded imp_imp_iff].
 
 lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
-	if !;
+	- if !;
 		by or_intro.
 	by #elim or_elim.
 
 lemma nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
-	unfold+ not_iff_imp_false;
+	unfold not_iff_imp_false;
 	by or_imp_iff.
 
 lemma nnot_nor_iff: ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff.
+	unfold nor_iff nnnot_iff.
 
 lemma nor_nnot_iff: ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
-	unfold+ nor_iff nnnot_iff.
+	unfold nor_iff nnnot_iff.
 
 lemma nnot_excluded_middle: ¬¬(P ∨ ¬P);
 	unfold nor_iff;
@@ -435,14 +438,14 @@ lemma nnot_excluded_middle: ¬¬(P ∨ ¬P);
 
 lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 	apply not_intro;
-	if and: ¬P ∧ ¬Q;
+	- if and: ¬P ∧ ¬Q;
 		have nP: ¬P;
 			by and_elim1[OF and].
 		have nQ: ¬Q;
 			by and_elim2[OF and].
 		apply or_elim[OF PQ];
-		- by not_imp_false[OF nP].
-		- by not_imp_false[OF nQ].
+		-; by not_imp_false[OF nP].
+		-; by not_imp_false[OF nQ].
 		.
 	.
 
@@ -454,34 +457,34 @@ lemma false_or_false_iff: false ∨ false ⟺ false;
 ### Existence
 ---
 
-lemma ex_intro: if assm: ∀P. (∀x. α.[x] ⟹ P) ⟹ P then ∃x. α.[x];
+lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 	apply assm;
-	for x;
+	- for x;
 		apply ex_intro1=.
 	.
 
-lemma ex_iff: (∃x. α.[x]) ⟺ (∀P. (∀x. α.[x] ⟹ P) ⟹ P);
+lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 	apply iff_intro;
-	- apply ex_elim=.
+	-; apply ex_elim=.
 	apply ex_intro=.
 
-lemma ex_imp_all_imp: if ex: ∃x. α.[x] ⟹ P, [∀x. α.[x]] then P;
+lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, [∀x. P.[x]] then Q;
 	apply ex_elim[OF ex];
-	for x if imp: α.[x] ⟹ P;
+	- for x if imp: P.[x] ⟹ Q;
 		by imp.
 	.
 
-lemma all_imp_iff_ex: (∀x. α.[x] ⟹ P) ⟺ (∃x. α.[x]) ⟹ P;
+lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ (∃x. P.[x]) ⟹ Q;
 	apply iff_intro;
-	if imp: ∀x. α.[x] ⟹ P, ex: ∃x. α.[x];
-		obtain x where ax: α.[x];
-			for thesis;
+	- if imp: ∀x. P.[x] ⟹ Q, ex: ∃x. P.[x];
+		obtain x where Px: P.[x];
+			- for thesis;
 				apply ex[unfolded ex_iff, of thesis]=.
 			.
-		by imp[OF ax].
-	if imp: (∃x. α.[x]) ⟹ P;
-		for x if ax: α.[x];
-			by imp ex_intro1[OF ax].
+		by imp[OF Px].
+	- if imp: (∃x. P.[x]) ⟹ Q;
+		- for x if Px: P.[x];
+			by imp ex_intro1[OF Px].
 		.
 	.
 
@@ -491,11 +494,11 @@ lemma all_imp_iff_ex: (∀x. α.[x] ⟹ P) ⟺ (∃x. α.[x]) ⟹ P;
 
 The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
 ---
-lemma nnall_imp: if nnall: ¬¬(∀x. α.[x]) then (∀x. ¬¬α.[x]);
-	for x;
+lemma nnall_imp: if nnall: ¬¬(∀x. P.[x]) then ∀x. ¬¬P.[x];
+	- for x;
 		apply not_intro;
-		if nax: ¬α.[x];
-			by not_imp_false[OF nnall] not_imp_not_all[OF nax].
+		- if nPx: ¬P.[x];
+			by not_imp_false[OF nnall] not_imp_not_all[OF nPx].
 		.
 	.
 
@@ -503,42 +506,38 @@ lemma nnall_imp: if nnall: ¬¬(∀x. α.[x]) then (∀x. ¬¬α.[x]);
 The other direction is provable if inside the quantification has negation.
 ---
 
-lemma nex_iff_all_not: ¬(∃x. α.[x]) ⟺ (∀x. ¬α.[x]);
-	unfold+ not_iff_imp_false;
+lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+	unfold not_iff_imp_false;
 	fold all_imp_iff_ex.
 
-lemma nnall_not_iff: ¬¬(∀x. ¬α.[x]) ⟺ (∀x. ¬α.[x]);
-	fold+ nex_iff_all_not;
+lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
+	fold nex_iff_all_not;
 	by nnnot_iff.
 
+theory Membership:
 
-
-
-
-theory Classes:
-
-	import ..Classes.
+	import ..Membership.
 
 	theory Connex:
 		fix A (≤).
-		assume connex: x ∈ A ⟹ y ∈ A ⟹ x ≤ y ∨ y ≤ x.
+		assume comparable: if x ∈ A, y ∈ A then x ≤ y ∨ y ≤ x.
 	begin
 
 		interpret Reflexive;
-			for x if x! x ∈ A then x ≤ x;
-				apply or_elim[OF connex[OF x x]].
+			- for x if x! x ∈ A then x ≤ x;
+				apply or_elim[OF comparable[OF x x]].
 			.
 
 	end
 
 	theory Irreflexive:
 		fix A (<).
-		assume irrefl: x ∈ A ⟹ ¬ x < x.
+		assume irrefl: if x ∈ A then ¬ x < x.
 	end
 
 	theory Asymmetric:
 		fix A (<).
-		assume asym: x < y ⟹ x ∈ A ⟹ y ∈ A ⟹ ¬ y < x.
+		assume asym: if x < y, x ∈ A, y ∈ A then ¬ y < x.
 	end
 
 	theory StrictOrder:
@@ -546,9 +545,9 @@ theory Classes:
 		import Transitive A (<).
 	begin
 		interpret Asymmetric;
-			for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
+			- for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
 				apply not_intro;
-				if yx: y < x;
+				- if yx: y < x;
 					have xx: x < x;
 						by trans[OF xy yx].
 					by not_imp_false[OF irrefl[OF x] xx].
@@ -557,4 +556,3 @@ theory Classes:
 	end
 
 end
-
