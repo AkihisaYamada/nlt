@@ -5,16 +5,16 @@ fix true false (¬) (∧) (⟺) (∨) (∃).
 
 assume true_intro! true.
 
+assume iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q.
+assume iff_elim1: if P ⟺ Q, P then Q.
+assume iff_elim2: if P ⟺ Q, Q then P.
+
 assume and_intro! if P, Q then P ∧ Q.
 assume and_elim1: if P ∧ Q then P.
 assume and_elim2: if P ∧ Q then Q.
 
 assume not_imp_false: if ¬P, P then false.
 assume not_intro: if P ⟹ false then ¬P.
-
-assume iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q.
-assume iff_elim1: if P ⟺ Q, P then Q.
-assume iff_elim2: if P ⟺ Q, Q then P.
 
 assume or_intro1: for P Q if P then P ∨ Q.
 assume or_intro2: for P Q if Q then P ∨ Q.
@@ -508,6 +508,29 @@ end
 
 theory Membership:
 	import ..Membership.
+	fix (∀∈) (∃∈).
+	assume ball_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
+	assume bex_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
+begin
+	lemma ball_intro: if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
+		by all[folded ball_iff].
+	lemma ball_elim1: if ball: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
+		by ball[unfolded ball_iff, OF x].
+	lemma ball_elim: if ball: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
+		by imp ball[unfolded ball_iff].
+	lemma bex_intro1: for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
+		unfold bex_iff;
+		by x Px.
+	lemma bex_intro: if imp: (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
+		apply imp;
+		- for x;
+			by bex_intro[of x].
+		.
+	lemma bex_elim: if bex: ∃x ∈ A. P.[x] then for Q if all: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
+		apply bex[unfolded bex_iff, THEN ex_elim];
+		- for x;
+			by all[of x].
+		.
 	theory Irreflexive:
 		fix A (<).
 		assume irrefl: if x ∈ A then ¬ x < x.
@@ -546,3 +569,48 @@ theory Membership:
 		interpret Preorder.
 	end
 end
+
+theory Propositional:
+	fix Prop.
+	import Classes.
+	import true: Member true Prop.
+	import false: Member false Prop.
+	import imp: Magma Prop (⟹).
+	import iff: Magma Prop (⟺).
+	import and: Magma Prop (∧).
+	import or: Magma Prop (∨).
+begin
+
+end
+
+theory FirstOrder:
+	fix QTYPE.
+	import Propositional.
+	assume ball_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	import bex_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+begin
+	theory Impredicative:
+		assume Prop_type: Prop ∈ QTYPE.
+	end
+end
+
+theory SecondOrder:
+	fix IND.
+	import FirstOrder.
+	assume IND_type: if A ∈ IND then A ∈ QTYPE.
+	assume IND_Fun_type: if A ∈ IND, B ∈ QTYPE then A → B ∈ QTYPE.
+begin
+	theory Impredicative:
+		import Impredicative.
+	end
+end
+
+theory HigherOrder:
+	import FirstOrder.
+	assume fun_type: if A ∈ QTYPE, B ∈ QTYPE then A → B ∈ QTYPE.
+begin
+	theory Impredicative:
+		import Impredicative.
+	end
+end
+

@@ -21,11 +21,6 @@ begin
 		by type[THEN fun_elim1, THEN fun_elim1].
 end
 
-theory Binder:
-	fix ξ A B.
-	assume closed: if ∀x. x ∈ A ⟹ α.[x] ∈ B then ξ A (x. α.[x]) ∈ B.
-end
-
 theory Magma:
 	fix A (*).
 	import Binary (*) A A A.

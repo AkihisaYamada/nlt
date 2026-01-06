@@ -11,6 +11,11 @@ theory Member:
 	assume closed: x ∈ A.
 end
 
+theory Binder:
+	fix ξ A B.
+	assume closed: if ∀x. x ∈ A ⟹ F.[x] ∈ B then ξ A (x. F.[x]) ∈ B.
+end
+
 theory SubEq:
 	fix (⊆).
 	assume elim1: if A ⊆ B then if x ∈ A then x ∈ B.
