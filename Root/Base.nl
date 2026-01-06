@@ -111,9 +111,9 @@ end
 -- Implication is a meta-preorder.
 namespace imp:
 	interpret MetaPreorder (⟹);
-	- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
-		by QR PQ.
-	.
+		- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+			by QR PQ.
+		.
 end
 
 lemma mp: if P: P, PQ: P ⟹ Q then Q;

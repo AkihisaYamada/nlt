@@ -53,6 +53,18 @@ end
 
 note(cong) eq.cong.
 
+theory Ex1:
+	fix (∃!).
+	assume ex1_intro1: for x P if P.[x], (∀y. P.[y] ⟹ y = x) then ∃!x. P.[x].
+	assume ex1_elim: if (∃!x. P.[x]) then for Q if ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q.
+begin
+	lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
+		apply assm;
+		- for x if Px;
+			by ex1_intro1[OF Px].
+		.
+end
+
 theory Const:
 	fix Const const const_fun const_arg.
 	assume const_Const: const Const.
@@ -180,49 +192,61 @@ begin
 	---
 	One can obtain the type-free existential quantifier as a unary abbreviation.
 	---
-	obtain (∃) where
-		ex_intro: P.[x] ⟹ ∃x. P.[x],
-		ex_elim: (∃x. P.[x]) ⟹ ∀thesis. (∀x. P.[x] ⟹ thesis) ⟹ thesis;
-		- for thesis if assm;
-			apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
-			- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
-				apply assm[of (∃)];
-				- for P x if Px: P.[x] then ∃x. P.[x];
-					unfold eq;
-					- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
-						by imp[OF Px].
-					.
-				- for P if ex: ∃x. P.[x];
-					- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
-						apply ex[unfolded eq];
-						by #elim imp.
-					.
-				.
-			.
-		.
-	obtain (∃!) where
-		ex1_intro: P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
-		ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
-		- for thesis if assm;
-			apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
-			- for (∃!) if eq: ∀P. (∃!) P = (∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q);
-				apply assm[of (∃!)];
-				- for P x if Px, imp_eq;
-					unfold eq;
-					- for Q if imp;
-						by imp[of x] Px imp_eq.
-					.
-				- for P if ex1;
-					- for Q;
-						apply ex1[unfolded(=) eq]=.
+	interpret Ex;
+		obtain (∃) where
+			ex_intro1: ∀x P. P.[x] ⟹ ∃x. P.[x],
+			ex_elim: (∃x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q;
+			- for thesis if assm;
+				apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
+				- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
+					apply assm[of (∃)];
+					- for x P if Px: P.[x] then ∃x. P.[x];
+						unfold eq;
+						- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
+							by imp[OF Px].
+						.
+					- for P if ex: ∃x. P.[x];
+						- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
+							apply ex[unfolded eq];
+							by #elim imp.
+						.
 					.
 				.
 			.
+		- for x P; apply ex_intro1=.
+		- for P; apply ex_elim=.
 		.
-	theory UniqueChoiceOp:
-		fix (THE).
-		assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
-	end
+	interpret Ex1;
+		obtain (∃!) where
+			ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
+			ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
+			- for thesis if assm;
+				apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
+				- for (∃!) if eq: ∀P. (∃!) P = (∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q);
+					apply assm[of (∃!)];
+					- for x P if Px, imp_eq;
+						unfold eq;
+						- for Q if imp;
+							by imp[of x] Px imp_eq.
+						.
+					- for P if ex1;
+						- for Q;
+							apply ex1[unfolded(=) eq]=.
+						.
+					.
+				.
+			.
+		- for x P; apply ex1_intro1=.
+		- for P; apply ex1_elim=.
+		.
+	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
+		apply ex_intro;
+		- for Q if assm;
+			apply ex1_elim[OF ex1];
+			- for x;
+				by assm[of x].
+			.
+		.
 	obtain inj where
 		inj_elim1: inj f ⟹ ∀x y. f x = f y ⟹ x = y,
 		inj_intro: (∀x y. f x = f y ⟹ x = y) ⟹ inj f;
@@ -237,9 +261,28 @@ begin
 				.
 			.
 		.
-
-
-
+	lemma inj_imp_ex1: if f: inj f then for x, ∃!x'. f x' = f x;
+		apply ex1_intro1[of x];
+		by inj_elim1[OF f].
+	theory UniqueChoiceOp:
+		fix (THE).
+		assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
+	begin
+		lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
+			apply ex_intro;
+			- for thesis if assm;
+				apply abbrev[of (y. THE z. f z = y)];
+				- for g if eq;
+					apply assm[of g];
+					- for x;
+						unfold eq;
+						apply inj_elim1[OF f];
+						apply ex1_imp_THE[of (z. f z = f x)];
+						apply inj_imp_ex1[OF f].
+					.
+				.
+			.
+	end
 end
 
 theory Abbreviation:
@@ -249,11 +292,11 @@ theory Abbreviation:
 	assume curry: ∀f. ∃f'. ∀x y. f' x y = f (x,y).
 begin
 	--- Here one can obtain type-free binary logical operators as abbreviations. ---
-	namespace iff:
+	interpret Iff;
 		obtain (⟺) where
-			intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
-			elim1: (P ⟺ Q) ⟹ P ⟹ Q,
-			elim2: (P ⟺ Q) ⟹ Q ⟹ P;
+			iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
+			iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q,
+			iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
 			- for thesis if assm;
 				apply abbrev[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
 				- for f if f;
@@ -284,56 +327,15 @@ begin
 					.
 				.
 			.
-		lemma elim:
-			if PQ: P ⟺ Q then for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
-			by imp elim1[OF PQ] elim2[OF PQ].
+		-; by iff_intro.
+		-; by #elim iff_elim1.
+		-; by #elim iff_elim2.
+		.
 
-		interpret MetaEquivalence (⟺);
-			-; by intro.
-			-; by intro #elim elim.
-			- for P Q R if PQ: P ⟺ Q, QR: Q ⟺ R then P ⟺ R;
-				apply intro;
-				-; by elim1[OF QR] elim1[OF PQ].
-				-; by elim2[OF PQ] elim2[OF QR].
-				.
-			.
-
-		interpret MetaMagmas (⟺).
-
-		lemma cong_imp: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
-			apply intro;
-			- if PR: P ⟹ R, !Q then S;
-				by elim1[OF RS] PR elim2[OF PQ].
-			- if QS: Q ⟹ S, !P then R;
-				by elim2[OF RS] QS elim1[OF PQ].
-			.
-
-		lemma cong_iff: for P R if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
-			apply intro;
-			- if PR: P ⟺ R then Q ⟺ S;
-				have QR: Q ⟺ R;
-					by trans[OF sym[OF PQ] PR].
-				by trans[OF QR RS].
-			- if QS: Q ⟺ S then P ⟺ R;
-				have PS: P ⟺ S;
-					by trans[OF PQ QS].
-				by trans[OF PS sym[OF RS]].
-			.
-
-		lemma cong_all: if ab: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
-			apply intro;
-			- if ! ∀x. P.[x] then ∀x. Q.[x];
-				by elim1[OF ab].
-			- if ! ∀x. Q.[x] then ∀x. P.[x];
-				by elim2[OF ab].
-			.
-
-	end
-
-	set rewrite! iff.elim1 iff.elim2 iff.refl iff.trans.
+	set rewrite! iff_elim1 iff_elim2 iff.refl iff.trans.
 	set dual iff.sym.
 
-	note(cong) iff.cong_imp iff.cong_iff iff.cong_all.
+	note(cong) iff_cong_imp iff_cong_iff iff_cong_all.
 
 	lemma eq_imp_iff(cong) if eq: P = Q then P ⟺ Q;
 		by iff.intro #unfold(=) eq.

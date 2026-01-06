@@ -1,8 +1,6 @@
 -------
 # Type-Free Minimal Logic
 -------
-import Base.
-
 fix true false (¬) (∧) (⟺) (∨) (∃).
 
 assume true_intro! true.
@@ -143,85 +141,8 @@ lemma imp_refl_iff: (P ⟹ P) ⟺ true;
 	unfold iff_true_iff.
 
 ---
-### Conjunction
----
-
-lemma and_elim(elim) if PQ: P ∧ Q then for R if PQR: P ⟹ Q ⟹ R then R;
-	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
-
-interpret and: MetaPartialEquivalence (∧).
-
-lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
-	by iff_intro.
-
-context iff begin
-
-	namespace and:
-		interpret MetaCompatible (∧);
-			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
-				by iff_intro #unfold PQ RS.
-			.
-		interpret MetaCommMonoid (∧) true;
-			by iff_intro.
-	end
-
-end
-
-note(cong) iff.and.cong.
-
-lemma and_imp_iff: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
-	by iff_intro.
-
-lemma true_and_true: true ∧ true;
-	.
-
-lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	by iff_intro #elim iff_elim.
-
-lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
-	apply iff_intro;
-	- if ab: ∀x. P.[x] ∧ Q.[x];
-		apply and_intro;
-		- for x;
-			by and_elim1[OF ab].
-		- for x;
-			by and_elim2[OF ab].
-		.
-	unfold and_imp_iff;
-	- if ! ∀x. P.[x], ! ∀x. Q.[x].
-	.
-
----
 ### Negation
-
-Negation defines some properties of binary relations.
-Note that antisymmetry is not yet definable, because it requires equality.
 ---
-
-theory MetaIrreflexive:
-	fix (<).
-	assume irrefl: ¬ x < x.
-end
-
-theory MetaAsymmetric:
-	fix (<).
-	assume asym: x < y ⟹ ¬ y < x.
-end
-
-theory MetaOrder:
-	import MetaIrreflexive.
-	import MetaTransitive (<).
-begin
-	interpret MetaAsymmetric;
-		- for x y if xy: x < y then ¬ y < x;
-			apply not_intro;
-			- if yx: y < x;
-				have xx: x < x;
-					by trans[OF xy yx].
-				by not_imp_false[OF irrefl xx].
-			.
-		.
-end
 
 lemma imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q);
 	apply not_intro;
@@ -296,34 +217,6 @@ lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 		by nnimp_imp_nnot[OF nnimp P, unfolded nnnot_iff].
 	apply nnot_intro=.
 
-lemma not_true_iff: ¬true ⟺ false;
-	apply iff_intro;
-	- if nt: ¬true;
-		by not_imp_false[OF nt].
-	by not_intro.
-
-lemma not_false_iff: ¬false ⟺ true;
-	by iff_true[OF not_false].
-
-lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
-	by iff_true[OF imp.refl].
-
-lemma false_and_false_iff: false ∧ false ⟺ false;
-	by iff_intro.
-
-lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q);
-	by not_intro not_imp_false[OF nP].
-
-lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
-	by not_intro not_imp_false[OF nQ].
-
-lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	unfold not_iff_imp_false and_imp_iff.
-
-lemma non_contradiction: ¬(P ∧ ¬P);
-	unfold nand_iff_imp_not;
-	by nnot_intro.
-
 lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q;
 	by imp nnot_intro.
 
@@ -342,6 +235,83 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q);
 			by nnot_imp_nnot[OF nnP PQ].
 		by not_imp_false[OF nnQ].
 	.
+
+lemma not_true_iff: ¬true ⟺ false;
+	apply iff_intro;
+	- if nt: ¬true;
+		by not_imp_false[OF nt].
+	by not_intro.
+
+lemma not_false_iff: ¬false ⟺ true;
+	by iff_true[OF not_false].
+
+lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
+	by iff_true[OF imp.refl].
+
+---
+### Conjunction
+---
+
+lemma and_elim(elim) if PQ: P ∧ Q then for R if PQR: P ⟹ Q ⟹ R then R;
+	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
+
+interpret and: MetaPartialEquivalence (∧).
+
+lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
+	by iff_intro.
+
+context iff begin
+
+	namespace and:
+		interpret MetaCompatible (∧);
+			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
+				by iff_intro #unfold PQ RS.
+			.
+		interpret MetaCommMonoid (∧) true;
+			by iff_intro.
+	end
+
+end
+
+note(cong) iff.and.cong.
+
+lemma and_imp_iff_imp_imp: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+	by iff_intro.
+
+lemma true_and_true: true ∧ true;
+	.
+
+lemma false_and_false_iff: false ∧ false ⟺ false;
+	by iff_intro.
+
+lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
+	by iff_intro #elim iff_elim.
+
+lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
+	apply iff_intro;
+	- if ab: ∀x. P.[x] ∧ Q.[x];
+		apply and_intro;
+		- for x;
+			by and_elim1[OF ab].
+		- for x;
+			by and_elim2[OF ab].
+		.
+	unfold and_imp_iff_imp_imp;
+	- if ! ∀x. P.[x], ! ∀x. Q.[x].
+	.
+
+lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q);
+	by not_intro not_imp_false[OF nP].
+
+lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
+	by not_intro not_imp_false[OF nQ].
+
+lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
+	unfold not_iff_imp_false and_imp_iff_imp_imp.
+
+lemma non_contradiction: ¬(P ∧ ¬P);
+	unfold nand_iff_imp_not;
+	by nnot_intro.
 
 lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
 	unfold nand_iff_imp_not nnnot_iff.
@@ -378,10 +348,8 @@ lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	by assm[OF or_intro1 or_intro2].
 
 namespace or:
-
 	interpret MetaSymmetric (∨);
 		by or_intro #elim or_elim.
-
 end
 
 lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
@@ -391,24 +359,18 @@ lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
 context iff begin
-
 	namespace or:
-
 		interpret MetaCompatible (∨);
 			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 				by iff_intro or_intro #elim or_elim #unfold PQ RS.
 			.
-
 		interpret MetaCommAbsorb (∨) true;
 			-; by iff_intro or_intro.
 			-; by iff_intro[OF or.sym or.sym].
 			.
-
 		interpret MetaAssociative (∨);
 			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
-
 	end
-
 end
 
 note(cong) iff.or.cong.
@@ -456,23 +418,20 @@ lemma false_or_false_iff: false ∨ false ⟺ false;
 ---
 ### Existence
 ---
-
 lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 	apply assm;
 	- for x;
 		apply ex_intro1=.
 	.
-
-lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
-	apply iff_intro;
-	-; apply ex_elim=.
-	apply ex_intro=.
-
 lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, [∀x. P.[x]] then Q;
 	apply ex_elim[OF ex];
 	- for x if imp: P.[x] ⟹ Q;
 		by imp.
 	.
+lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
+	apply iff_intro;
+	-; apply ex.elim=.
+	apply ex.intro=.
 
 lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ (∃x. P.[x]) ⟹ Q;
 	apply iff_intro;
@@ -488,9 +447,13 @@ lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ (∃x. P.[x]) ⟹ Q;
 		.
 	.
 
+lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+	unfold not_iff_imp_false;
+	fold all_imp_iff_ex.
+
 
 ---
-## Double negation and universal quantification.
+### Double negation and universal quantification.
 
 The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
 ---
@@ -506,40 +469,53 @@ lemma nnall_imp: if nnall: ¬¬(∀x. P.[x]) then ∀x. ¬¬P.[x];
 The other direction is provable if inside the quantification has negation.
 ---
 
-lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
-	unfold not_iff_imp_false;
-	fold all_imp_iff_ex.
-
 lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
 	fold nex_iff_all_not;
 	by nnnot_iff.
 
-theory Membership:
+---
+## Theories
 
-	import ..Membership.
+The logical operators allow us to define some properties.
+---
 
-	theory Connex:
-		fix A (≤).
-		assume comparable: if x ∈ A, y ∈ A then x ≤ y ∨ y ≤ x.
-	begin
+theory MetaIrreflexive:
+	fix (<).
+	assume irrefl: ¬ x < x.
+end
 
-		interpret Reflexive;
-			- for x if x! x ∈ A then x ≤ x;
-				apply or_elim[OF comparable[OF x x]].
+theory MetaAsymmetric:
+	fix (<).
+	assume asym: x < y ⟹ ¬ y < x.
+end
+---
+Note that antisymmetry is not yet definable, because it requires equality.
+---
+theory MetaOrder:
+	import MetaIrreflexive.
+	import MetaTransitive (<).
+begin
+	interpret MetaAsymmetric;
+		- for x y if xy: x < y then ¬ y < x;
+			apply not_intro;
+			- if yx: y < x;
+				have xx: x < x;
+					by trans[OF xy yx].
+				by not_imp_false[OF irrefl xx].
 			.
+		.
+end
 
-	end
-
+theory Membership:
+	import ..Membership.
 	theory Irreflexive:
 		fix A (<).
 		assume irrefl: if x ∈ A then ¬ x < x.
 	end
-
 	theory Asymmetric:
 		fix A (<).
 		assume asym: if x < y, x ∈ A, y ∈ A then ¬ y < x.
 	end
-
 	theory StrictOrder:
 		import Irreflexive.
 		import Transitive A (<).
@@ -554,5 +530,19 @@ theory Membership:
 				.
 			.
 	end
-
+	theory Connex:
+		fix A (≤).
+		assume comparable: if x ∈ A, y ∈ A then x ≤ y ∨ y ≤ x.
+	begin
+		interpret Reflexive;
+			- for x if x! x ∈ A then x ≤ x;
+				apply or_elim[OF comparable[OF x x]].
+			.
+	end
+	theory TotalPreorder:
+		import Connex.
+		import Transitive.
+	begin
+		interpret Preorder.
+	end
 end
