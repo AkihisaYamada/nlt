@@ -163,45 +163,100 @@ begin
 end
 
 theory If:
-	fix If (,).
-	assume If_then: if P then If P (x,y) = x.
+	fix If.
+	assume If_then: if P then If P x y = x.
 	---
 	A minimal specification: P and ¬P will not lead to explosion.
 	---
-	assume If_else: if P ⟹ x = y then If P (x,y) = y.
+	assume If_else: if P ⟹ x = y then If P x y = y.
 begin
-	interpret Pair;
-		obtain fst where fst: fst (x,y) = x;
-			- for thesis if assm;
-				apply assm[of (If (∀P. P ⟹ P))];
-				by If_then.
-			.
-		obtain snd where snd: snd (x,y) = y;
-			- for thesis if assm;
-				apply assm[of (If (∀P. P))];
-				by If_else.
-			.
-		-; by fst.
-		-; by snd.
+end
+
+theory Ex1:
+	fix (∃!).
+	assume ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x].
+	assume ex1_elim: if ∃!x. P.[x] then for Q if ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q.
+begin
+	lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
+		apply assm;
+		- for x if Px;
+			by ex1_intro1[OF Px].
 		.
 end
 
-theory UnaryAbbreviation:
+theory UniqueChoiceOp:
+	import Ex1.
+	fix (THE).
+	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
+begin
+	lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
+		apply ex1_elim[OF ex1];
+		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
+			have zT: (THE x. P.[x]) = z;
+				by 1[OF ex1_imp_THE[OF ex1]].
+			unfold zT;
+			unfold 1[OF Px].
+		.
+end
+
+theory Minimal:
+	import Minimal.
+	import Ex1.
+begin
+print.
+	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
+		apply ex1_elim[OF ex1];
+		- for x;
+			by ex_intro1[of x].
+		.
+	lemma ex1_iff: (∃!x. P.[x]) ⟺ (∃x. P.[x] ∧ (∀y. P.[y] ⟹ y = x));
+		apply iff_intro;
+		- if ex1;
+			apply ex_intro;
+			- for Q;
+				unfold and_imp_iff_imp_imp;
+				apply ex1_elim[OF ex1]=.
+			.
+		- if ex;
+			apply ex1_intro;
+			- for Q;
+				apply ex[unfolded ex_iff and_imp_iff_imp_imp]=.
+			.
+		.
+	namespace iff:
+		interpret iff.
+		lemma ex1_cong(cong)
+			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
+			unfold ex1_iff iff.
+	end
+end
+
+theory Intuitionistic:
+	import Minimal.
+	import Intuitionistic.
+end
+
+theory Ext:
+	assume ext: if ∀x ∈ A. f x = g x, A ∈ EQTYPE, B ∈ EQTYPE, f ∈ A → B, g ∈ A → B
+	then f = g.
+end
+
+theory UnaryAbstraction:
 	---
 	For any term with a free variable `x`,
 	we assume one can introduce a symbol `f` such that `f x` is equal to the term.
 	---
-	assume abbrev: if ∀f. (∀x. f x = F.[x]) ⟹ thesis then thesis.
+	assume abst: if ∀f. (∀x. f x = F.[x]) ⟹ thesis then thesis.
 begin
 	---
-	One can obtain the type-free existential quantifier as a unary abbreviation.
+	One can obtain the type-free existential quantifier as a unary abstraction.
 	---
 	interpret Ex;
 		obtain (∃) where
 			ex_intro1: ∀x P. P.[x] ⟹ ∃x. P.[x],
 			ex_elim: (∃x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q;
 			- for thesis if assm;
-				apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
+				apply abst[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
 				- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 					apply assm[of (∃)];
 					- for x P if Px: P.[x] then ∃x. P.[x];
@@ -218,54 +273,39 @@ begin
 				.
 			.
 		.
-	lemma ex_abbrev: ∃f. ∀x. f x = F.[x];
-		apply ex_intro[OF abbrev].
+	lemma ex_abst: ∃f. ∀x. f x = F.[x];
+		apply ex_intro[OF abst].
 	obtain id where id: id x = x;
-		- for thesis if assm;
-			apply abbrev[of (x. x)];
-			- for id if eq;
-				apply assm[of id];
-				by #unfold eq.
-			.
+		- for thesis;
+			apply abst[of (x. x)]=.
 		.
 	note(unfold) id.
-	obtain (∃!) where
-		ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
-		ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
-		- for thesis if assm;
-			apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
-			- for (∃!) if eq: ∀P. (∃!) P = (∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q);
-				apply assm[of (∃!)];
-				- for x P if Px, imp_eq;
-					unfold eq;
-					- for Q if imp;
-						by imp[of x] Px imp_eq.
-					.
-				- for P if ex1;
-					- for Q;
-						apply ex1[unfolded(=) eq]=.
+	interpret Ex1;
+		obtain (∃!) where
+			ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
+			ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
+			- for thesis if assm;
+				apply abst[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
+				- for (∃!) if eq;
+					apply assm[of (∃!)];
+					- for x P if Px, imp_eq;
+						unfold eq;
+						- for Q if imp;
+							by imp[of x] Px imp_eq.
+						.
+					- for P if ex1;
+						- for Q;
+							apply ex1[unfolded(=) eq]=.
+						.
 					.
 				.
-			.
-		.
-	lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
-		apply assm;
-		- for x if Px;
-			by ex1_intro1[OF Px].
-		.
-	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
-		apply ex_intro;
-		- for Q if assm;
-			apply ex1_elim[OF ex1];
-			- for x;
-				by assm[of x].
 			.
 		.
 	obtain inj where
 		inj_elim1: inj f ⟹ ∀x y. f x = f y ⟹ x = y,
 		inj_intro: (∀x y. f x = f y ⟹ x = y) ⟹ inj f;
 		- for thesis if assm;
-			apply abbrev[of (f. (∀x y. f x = f y ⟹ x = y))];
+			apply abst[of (f. (∀x y. f x = f y ⟹ x = y))];
 			- for inj if eq;
 				apply assm[of inj];
 				- for f;
@@ -277,7 +317,6 @@ begin
 		.
 	lemma id_inj: inj id;
 		apply inj_intro.
-
 	lemma inj_imp_ex1: if f: inj f then for x, ∃!x'. f x' = f x;
 		apply ex1_intro1[of x];
 		by inj_elim1[OF f].
@@ -289,49 +328,60 @@ begin
 		- for P if assm;
 			apply assm[OF id_inj].
 		.
-	theory UniqueChoiceOp:
-		fix (THE).
-		assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
-	begin
-		lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
-			apply ex1_elim[OF ex1];
-			- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
-				have zT: (THE x. P.[x]) = z;
-					by 1[OF ex1_imp_THE[OF ex1]].
-				unfold zT;
-				unfold 1[OF Px].
-			.
-		lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
-			apply ex_intro;
-			- for thesis if assm;
-				apply abbrev[of (y. THE z. f z = y)];
-				- for g if eq;
-					apply assm[of g];
-					- for x;
-						unfold eq;
-						apply inj_elim1[OF f];
-						apply ex1_imp_THE[of (z. f z = f x)];
-						apply inj_imp_ex1[OF f].
-					.
-				.
-			.
-	end
 end
 
-theory Abbreviation:
+theory UnaryNotation:
+	import UnaryAbstraction.
+	import UniqueChoiceOp.
+begin
+	lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
+		apply ex_intro;
+		- for thesis if assm;
+			apply abst[of (y. THE z. f z = y)];
+			- for g if eq;
+				apply assm[of g];
+				- for x;
+					unfold eq;
+					apply inj_elim1[OF f];
+					apply ex1_imp_THE[of (z. f z = f x)];
+					apply inj_imp_ex1[OF f].
+				.
+			.
+		.
+	obtain Collect where Collect_inj: inj Collect;
+		- for thesis;
+			apply ex_elim[OF ex_inj]=.
+		.
+	obtain (∋) where
+		Collect_has_intro: P x ⟹ Collect P ∋ x,
+		Collect_has_elim1: Collect P ∋ x ⟹ P x;
+		- for thesis if assm;
+			apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
+			- for (∋) if eq;
+				apply assm[of (∋)];
+				- for P x;
+					unfold eq.
+				- for P x;
+					unfold eq.
+				.
+			.
+		.
+end
+
+theory Abstraction:
 	--- To allow for binary abstraction and more, we assume pairs and Currying. ---
-	import UnaryAbbreviation.
+	import UnaryAbstraction.
 	import Pair.
 	assume curry: ∀f. ∃f'. ∀x y. f' x y = f (x,y).
 begin
-	--- Here one can obtain type-free binary logical operators as abbreviations. ---
+	--- Here one can obtain type-free binary logical operators by abstraction. ---
 	interpret Iff;
 		obtain (⟺) where
 			iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
 			iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q,
 			iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
 			- for thesis if assm;
-				apply abbrev[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
+				apply abst[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
 				- for f if f;
 					apply ex_elim[OF curry[of f]];
 					- for g if g;
@@ -375,7 +425,7 @@ begin
 			and_elim1: P ∧ Q ⟹ P,
 			and_elim2: P ∧ Q ⟹ Q;
 			- for thesis if assm;
-				apply abbrev[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
+				apply abst[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
 				- for f if f;
 					apply ex_elim[OF curry[of f]];
 					- for f' if f';
@@ -388,7 +438,7 @@ begin
 			or_intro2: ∀P Q. Q ⟹ P ∨ Q,
 			or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
 			- for thesis if assm;
-				apply abbrev[of (p. ∀R. (fst p ⟹ R) ⟹ (snd p ⟹ R) ⟹ R)];
+				apply abst[of (p. ∀R. (fst p ⟹ R) ⟹ (snd p ⟹ R) ⟹ R)];
 				- for f if f;
 					apply ex_elim[OF curry[of f]];
 					- for f' if f';
@@ -404,7 +454,7 @@ begin
 			not_intro: (P ⟹ false) ⟹ ¬P,
 			not_imp_false: ¬P ⟹ P ⟹ false;
 			- for thesis if assm;
-				apply abbrev[of (P. P ⟹ false)];
+				apply abst[of (P. P ⟹ false)];
 				- for f if f;
 					apply assm[of f, unfolded f].
 				.
@@ -414,7 +464,7 @@ begin
 		inverts_intro: (∀x. f (g x) = x) ⟹ inverts f g,
 		inverts_elim1: inverts f g ⟹ ∀x. f (g x) = x;
 		- for thesis if assm;
-			apply abbrev[of (p. ∀x. fst p (snd p x) = x)];
+			apply abst[of (p. ∀x. fst p (snd p x) = x)];
 			- for inv if inv;
 				apply ex_elim[OF curry[of inv]];
 				- for inverts if inverts;
@@ -425,60 +475,35 @@ begin
 end
 
 theory Notation:
-	import Abbreviation.
-	import UniqueChoiceOp.
+	import Abstraction.
+	import UnaryNotation.
 begin
 print.
-thy.
 	interpret Collect;
-		obtain Collect where Collect_inj: inj Collect;
-			- for thesis;
-				apply ex_elim[OF ex_inj]=.
-			.
-		obtain (∋) where inv: (∋) (Collect P) = P;
-			- for thesis;
-				apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim]=.
-			.
 		obtain (∈) where
 			Collect_intro: P x ⟹ x ∈ Collect P,
 			Collect_elim1: x ∈ Collect P ⟹ P x;
-			- for thesis if assm;
-				apply abbrev[of (p. snd p ∋ fst p)];
-				- for in if in;
-					apply curry[of in, THEN ex_elim];
-thm eq_imp_iff.
-					unfold(⟺) in;
-e
-
-	obtain Collect where 
-
-	interpret Membership:
-		obtain (∈) where 
+			apply abst[of (p. snd p ∋ fst p)];
+			- for in if in;
+				apply curry[of in, THEN ex_elim];
+				- for (∈) if eq;
+					- for thesis if assm;
+						apply assm[of (∈), unfolded eq in fst snd];
+						by Collect_has_intro #elim Collect_has_elim1.
+					.
+				.
+			.
+		.
+	interpret If;
+		obtain If where
+			if_then: P ⟹ If P x y = x,
+			if_else: (P ⟹ x = y) ⟹ If P x y = y;
+			apply abst[of (t. THE z. fst t ∧ z = fst (snd t) ∨ (fst t ⟹ fst (snd t) = snd (snd t)) ∧ z = snd (snd t))];
+			- for IF if IF;
+				apply curry[of IF, THEN ex_elim];
+				- for If if If;
+					- for thesis if assm;
+						apply assm[of If, unfolded If IF fst snd];
 
 end
 
-
-theory Membership:
-	import Membership.
-begin
-	theory Image:
-		fix (`).
-		assume image_intro: if x ∈ A then f x ∈ f ` A.
-		assume image_elim: if y ∈ f ` A then for P if ∀x. y = f x ⟹ x ∈ A ⟹ P then P.
-	end
-end
-
-theory Classes:
-	import Classes.
-begin
-	theory Prod:
-		fix (×).
-		import Pair.
-		assume pair_type: (,) : X → Y → X × Y.
-	end
-end
-
-theory Ext:
-	assume ext: if ∀x ∈ A. f x = g x, A ∈ EQTYPE, B ∈ EQTYPE, f ∈ A → B, g ∈ A → B
-	then f = g.
-end

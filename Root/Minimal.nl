@@ -339,6 +339,9 @@ lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 	-; apply ex_elim=.
 	apply ex_intro=.
 
+lemma ex_cong(cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
+	unfold ex_iff eq.
+
 lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ (∃x. P.[x]) ⟹ Q;
 	apply iff_intro;
 	- if imp: ∀x. P.[x] ⟹ Q, ex: ∃x. P.[x];
