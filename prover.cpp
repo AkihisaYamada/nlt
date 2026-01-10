@@ -443,11 +443,11 @@ public:
 		if MSG cout << _thy.pretty(goal) << endl;
 		return Thesis::claim_exact(assm_thy,goal);
 	}
-	void _auto_instantiate( Thy& org_thy, Import& intp, string const& sym, bool change ) {
-		if( auto const& c = org_thy.constant(sym) ) {
+	void _auto_instantiate( Import& intp, string const& sym, bool change ) {
+		if( auto const& c = _thy.constant(sym) ) {
 			intp.instantiate(*c);
 		} else if( change ) {
-			auto const& c = org_thy.fix(sym);
+			auto const& c = _thy.fix(sym);
 			intp.instantiate(c);
 			if CTXT {
 				if( !MSG ) cout << _indent(' ');
@@ -455,14 +455,14 @@ public:
 			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Blaster& infer ) {
+	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Blaster& infer ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
 		}
 		assm_name += assume.second;
 		auto const& assm = assume.first;
-		if( auto const& o = org_thy.find_thm(assm_name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( auto const& o = _thy.find_thm(assm_name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto thm2 = thm.subst(import);
 			if( thm2 == assm ) {
 				intp.discharge(thm2);
@@ -472,7 +472,7 @@ public:
 		} ) ) {
 			if MSG cout << "transferred " << assm_name << ": " << _thy.pretty(*o) << endl;
 		} else if( change ) {
-			Thm ret = org_thy.add_assm(assm_name,assm);
+			Thm ret = _thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
 			if CTXT {
 				if( !MSG ) cout << _indent(' ');
@@ -484,7 +484,7 @@ public:
 			intp.discharge(ret);
 		}
 	}
-	void _auto_retain( Thy& thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
+	void _auto_retain( string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
@@ -497,11 +497,11 @@ public:
 				return {};
 			} ) ) {
 			if MSG cout << "blasting " << name << ": " << _thy.pretty(stmt) << endl;
-			Thm thm = infer.prove(thy,stmt,true);
+			Thm thm = infer.prove(_thy,stmt,true);
 			intp.retain(*csym,thm);
 			}
 		} else {
-			auto [sym_term,spec] = thy.obtain(sym,ex,name);
+			auto [sym_term,spec] = _thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
 		}
 	}
@@ -548,13 +548,13 @@ public:
 			skip(".");
 			for(;;) {
 				if( auto const& fix = intp.fixing() ) {
-					_auto_instantiate(_thy,intp,*fix,change);
+					_auto_instantiate(intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.blaster(_out_blast);
-					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
+					_auto_discharge(prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.blaster(_out_blast);
-					_auto_retain(_thy,prefix,intp,*obtain,infer);
+					_auto_retain(prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -648,13 +648,13 @@ public:
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
 							auto infer = _thy.blaster(_out_blast);
-							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+							_auto_discharge(prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							auto infer = _thy.blaster(_out_blast);
-							_auto_retain(org_thy,prefix,intp,*obtain,infer);
+							_auto_retain(prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
-							_auto_instantiate(org_thy,intp,*fix,change);
+							_auto_instantiate(intp,*fix,change);
 						} else {
 							throw Error("\"unexpected instantiate\"")(x);
 						}
@@ -677,19 +677,19 @@ public:
 							break;
 						} else {
 							auto infer = _thy.blaster(_out_blast);
-							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+							_auto_discharge(prefix,intp,*assume,change,infer);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(org_thy,intp,*fix,change);
+						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						auto infer = _thy.blaster(_out_blast);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer);
+						_auto_retain(prefix,intp,*obtain,infer);
 					} else {
 						break;
 					}
 				}
 			} else if( skips("obtain") ) {
-				_obtain(org_thy);
+				_obtain(_thy);
 			} else if( skips("define") ) {
 				_define(org_thy);
 			} else if( skips("retain") ) {
@@ -699,11 +699,11 @@ public:
 			} else if( auto ctrl = gets_concluder() ) {
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(org_thy,intp,*fix,change);
+						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(org_thy,prefix,intp,*assume,change,*ctrl);
+						_auto_discharge(prefix,intp,*assume,change,*ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl);
+						_auto_retain(prefix,intp,*obtain,*ctrl);
 					} else {
 						break;
 					}
@@ -728,10 +728,10 @@ public:
 		auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
-				_auto_instantiate(org_thy,intp,*fix,change);
+				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.blaster(_out_blast);
-				_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+				_auto_discharge(prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
 				Thy thesis_loc = _thy.branch();
@@ -774,7 +774,7 @@ public:
 					break;
 				}
 				auto infer = _thy.blaster(_out_blast);
-				_auto_retain(org_thy,prefix,intp,*obtain,infer);
+				_auto_retain(prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
 			}

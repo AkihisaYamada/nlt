@@ -1,10 +1,10 @@
 -------
-# Type-Free Intuitionistic Logic
+# Intuitionistic Logic
 -------
 
 import Minimal.
 
-assume false_elim: false ⟹ ∀P. P.
+assume false_elim: if false then ∀P. P.
 
 begin
 
@@ -25,3 +25,32 @@ lemma and_false_iff: P ∧ false ⟺ false;
 
 lemma not_elim: if nP: ¬P, P: P then Q;
 	by false_elim[OF not_imp_false[OF nP P]].
+
+theory Propositional:
+	import Propositional.
+end
+
+theory FirstOrder:
+	import FirstOrder.
+begin
+	theory Impredicative:
+		import Impredicative.
+	end
+end
+
+theory SecondOrder:
+	import SecondOrder.
+begin
+	theory Impredicative:
+		import Impredicative.
+	end
+end
+
+theory HigherOrder:
+	import HigherOrder.
+begin
+	theory Impredicative:
+		import Impredicative.
+	end
+end
+	

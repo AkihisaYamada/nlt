@@ -17,50 +17,46 @@ define[or] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 define[ex] (∃) P := ∀P. (∀x. P.[x] ⟹ Q) ⟹ Q.
 define[neq] x ≠ y := ¬ x = y.
 
-interpret TypeFree.
-
 interpret Intuitionistic;
-	retain false := false;
-		if f: false;
-			by f[unfolded false_def].
-		.
+	- true;
+		unfold true_def.
 	note(unfold) and_def not_def.
-	for P Q if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
+	- for P Q if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
 		unfold iff_def and_def;
-		for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
+		- for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R;
 			by imp[OF PQ QP].
 		.
-	for P Q if PQ: P ⟺ Q then P ⟹ Q;
+	- for P Q if PQ: P ⟺ Q then P ⟹ Q;
 		apply PQ[unfolded iff_def and_def].
-	for P Q if PQ: P ⟺ Q then Q ⟹ P;
+	- for P Q if PQ: P ⟺ Q then Q ⟹ P;
 		apply PQ[unfolded iff_def and_def].
 
-	for P Q if P: P then P ∨ Q;
+	- for P Q if P: P then P ∨ Q;
 		unfold or_def;
-		for R if PR: P ⟹ R, QR: Q ⟹ R then R;
+		- for R if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by PR[OF P].
 		.
-	for P Q if Q: Q then P ∨ Q;
+	- for P Q if Q: Q then P ∨ Q;
 		unfold or_def;
-		for R if PR: P ⟹ R, QR: Q ⟹ R then R;
+		- for R if PR: P ⟹ R, QR: Q ⟹ R then R;
 			by QR[OF Q].
 		.
-	for P Q, P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+	- for P Q, P ∨ Q ⟹ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		unfold or_def;
 		apply imp.refl=.
 
-	for x α if ax: α.[x] then ∃x. α.[x];
+	- for x P if Px: P.[x] then ∃x. P.[x];
 		unfold ex_def;
-		for P if all: ∀x. α.[x] ⟹ P;
-			by all[OF ax].
+		for Q if all: ∀x. P.[x] ⟹ Q;
+			by all[OF Px].
 		.
-	for α, (∃x. α.[x]) ⟹ ∀P. (∀x. α.[x] ⟹ P) ⟹ P;
+	for P, (∃x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q;
 		unfold ex_def;
 		apply imp.refl=.
-	retain true := true;
-		unfold true_def.
+	- if f: false then ∀P. P;
+		by f[unfolded false_def].
 	.
-
+--
 
 lemma eq_imp_iff(cong): if PQ: P = Q then P ⟺ Q;
 	unfold(=) PQ.
@@ -97,46 +93,11 @@ theorem russel_paradox: ¬(∀P. P ∨ ¬P);
 	.
 --
 
-
----
-### Unique Existence
----
-
-define[ex1] (∃!) P := ∃x. P.[x] ∧ (∀y. P.[y] ⟹ x = y).
-
-lemma ex1_intro: for x if x: P.[x], 1: ∀y. P.[y] ⟹ x = y then ∃!x. P.[x];
-	unfold ex1_def;
-	apply ex_intro1[of x];
-	apply and_intro;
-	by x 1.
-
-lemma ex1_elim:
-	if ex1: ∃!x. P.[x], body: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ x = y) ⟹ Q
-	then Q;
-	obtain x where and: P.[x] ∧ (∀y. P.[y] ⟹ x = y);
-	- for thesis;
-		apply ex1[unfolded+ ex1_def ex_def, of thesis]=.
+interpret UnaryAbbreviation;
+	- for F P if assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+		apply assm[of (λx. F.[x])];
+		by beta.
 	.
-	have ax: P.[x];
-		by and_elim1[OF and].
-	have 1: ∀y. P.[y] ⟹ x = y;
-		by and_elim2[OF and].
-	by body[OF ax 1].
-
-theory UniqueChoice:
-	fix (THE).
-	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
-begin
-	lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], x: P.[x] then (THE y. P.[y]) = x;
-	apply ex1_elim[OF ex1];
-	- for z if az: P.[z], 1: ∀y. P.[y] ⟹ z = y;
-		have zx: z = x;
-			by 1[OF x].
-		have zT: z = (THE x. P.[x]);
-			by 1[OF ex1_imp_THE[OF ex1]].
-		by zx[unfolded zT].
-	.
-end
 
 theory If:
 	import If.

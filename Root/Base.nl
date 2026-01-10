@@ -226,3 +226,15 @@ lemma all_all_imp: if [∀x. P.[x]], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x]
 lemma make_elim:
 	if PQ: ∀x. P.[x] ⟹ Q.[x] then for x if P: P.[x] then for R if QR: Q.[x] ⟹ R then R;
 	by QR PQ P.
+
+theory Ex:
+	fix (∃).
+	assume ex_intro1: for x P if P.[x] then ∃x. P.[x].
+	assume ex_elim: if ∃x. P.[x] then for Q if ∀x. P.[x] ⟹ Q then Q.
+begin
+	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
+		apply assm;
+		- for x;
+			apply ex_intro1=.
+		.
+end
