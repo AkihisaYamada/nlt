@@ -184,6 +184,12 @@ note(cong) iff.and.cong.
 lemma and_imp_iff_imp_imp: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
 
+lemma imp_and_iff1: if P: P then P ∧ Q ⟺ Q;
+	by iff_intro P.
+
+lemma imp_and_iff2: if Q: Q then P ∧ Q ⟺ P;
+	by iff_intro Q.
+
 lemma true_and_true: true ∧ true;
 	.
 

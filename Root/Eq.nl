@@ -65,7 +65,7 @@ note(cong) eq.cong.
 theory Iff:
 	import Iff.
 begin
-	lemma eq_imp_iff(cong) if eq: P = Q then P ⟺ Q;
+	lemma eq_imp_iff: if eq: P = Q then P ⟺ Q;
 		by iff_intro #unfold(=) eq.
 end
 
@@ -189,7 +189,7 @@ theory UniqueChoiceOp:
 	fix (THE).
 	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
 begin
-	lemma ex1_imp_THE_eq: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
+	lemma THE_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
 		apply ex1_elim[OF ex1];
 		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
 			have zT: (THE x. P.[x]) = z;
@@ -197,13 +197,14 @@ begin
 			unfold zT;
 			unfold 1[OF Px].
 		.
+	note eq_THE_intro: THE_eq_intro[THEN eq.sym].
+
 end
 
 theory Minimal:
 	import Minimal.
 	import Ex1.
 begin
-print.
 	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
 		apply ex1_elim[OF ex1];
 		- for x;
@@ -225,10 +226,11 @@ print.
 		.
 	namespace iff:
 		interpret iff.
-		lemma ex1_cong(cong)
+		lemma ex1_cong:
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_iff iff.
 	end
+	note(cong) iff.ex1_cong.
 end
 
 theory Intuitionistic:
@@ -367,7 +369,7 @@ begin
 			.
 		.
 end
-
+print thy.
 theory Abstraction:
 	--- To allow for binary abstraction and more, we assume pairs and Currying. ---
 	import UnaryAbstraction.
@@ -411,7 +413,8 @@ begin
 				.
 			.
 		.
-	interpret Intuitionistic;
+	interpret .Intuitionistic;
+		note(cong) eq_imp_iff.
 		obtain true where true_intro: true;
 			- for thesis if assm;
 				apply assm[of (∀P. P ⟹ P)].
@@ -460,6 +463,7 @@ begin
 				.
 			.
 		.
+	note(cong) eq_imp_iff.
 	obtain inverts where
 		inverts_intro: (∀x. f (g x) = x) ⟹ inverts f g,
 		inverts_elim1: inverts f g ⟹ ∀x. f (g x) = x;
@@ -498,12 +502,35 @@ print.
 		obtain If where
 			if_then: P ⟹ If P x y = x,
 			if_else: (P ⟹ x = y) ⟹ If P x y = y;
-			apply abst[of (t. THE z. fst t ∧ z = fst (snd t) ∨ (fst t ⟹ fst (snd t) = snd (snd t)) ∧ z = snd (snd t))];
-			- for IF if IF;
-				apply curry[of IF, THEN ex_elim];
-				- for If if If;
-					- for thesis if assm;
-						apply assm[of If, unfolded If IF fst snd];
+			apply abst[of (t. THE z. fst (fst t) ∧ z = snd (fst t) ∨ (fst (fst t) ⟹ snd (fst t) = snd t) ∧ z = snd t)];
+			- for If3 if If3;
+				apply curry[of If3, THEN ex_elim];
+				- for If2 if If2;
+					apply curry[of If2, THEN ex_elim];
+					- for If if If;
+						- for thesis if assm;
+							apply assm[of If, unfolded If If2 If3];
+							- for P x y if P;
+								apply THE_eq_intro;
+								unfold fst snd;
+								apply ex1_intro1[of x];
+								-; by or_intro1 P.
+								- for z if or;
+									apply or_elim[OF or];
+									-; .
+									-; unfold and_imp_iff_imp_imp imp_imp_iff[OF P];
+										- if xy, zy;
+											unfold xy zy.
+										.
+									.
+								-;
+									by or_intro1 P #unfold fst snd.
+								.
+							.
+						.
+					.
+				.
+			.
 
 end
 
