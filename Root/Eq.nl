@@ -369,7 +369,7 @@ begin
 			.
 		.
 end
-print thy.
+
 theory Abstraction:
 	--- To allow for binary abstraction and more, we assume pairs and Currying. ---
 	import UnaryAbstraction.

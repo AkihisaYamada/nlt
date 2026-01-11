@@ -116,8 +116,8 @@ public:
 			return pretty_sym(os,sym);
 		};
 	}
-	std::ostream& pretty( std::ostream& os, Term const& term, int level = -1000 ) const &;
-	std::function<std::ostream&(std::ostream&)> pretty(Term const& term, int level = -1000) const & {
+	std::ostream& pretty( std::ostream& os, Term const& term, int level = 0 ) const &;
+	std::function<std::ostream&(std::ostream&)> pretty(Term const& term, int level = 0) const & {
 		return [this,&term,level](std::ostream& os) -> std::ostream& {
 			return pretty(os,term,level);
 		};

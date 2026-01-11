@@ -79,8 +79,8 @@ void init_syntax( Syntax& syntax ) {
 	syntax.closer(")");
 	syntax.closer("}");
 	syntax.closer("]");
-	syntax.infix(",",-2,-3,-2);
-	syntax.infix(";",-3,-3,-4);
+	syntax.infix(",",-20,-19,-20);
+	syntax.infix(";",-30,-29,-30);
 	syntax.infix(":=",-1,-1,-2);
 	syntax.prefix("if",-1,-2);
 	syntax.infix("then",-2,-1,-2);
