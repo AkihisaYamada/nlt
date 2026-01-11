@@ -164,7 +164,7 @@ end
 
 theory If:
 	fix If.
-	assume If_then: if P then If P x y = x.
+	assume If_then: for P x y if P then If P x y = x.
 	---
 	A minimal specification: P and ¬P will not lead to explosion.
 	---
@@ -500,8 +500,8 @@ print.
 		.
 	interpret If;
 		obtain If where
-			if_then: P ⟹ If P x y = x,
-			if_else: (P ⟹ x = y) ⟹ If P x y = y;
+			If_then: P ⟹ If P x y = x,
+			If_else: (P ⟹ x = y) ⟹ If P x y = y;
 			apply abst[of (t. THE z. fst (fst t) ∧ z = snd (fst t) ∨ (fst (fst t) ⟹ snd (fst t) = snd t) ∧ z = snd t)];
 			- for If3 if If3;
 				apply curry[of If3, THEN ex_elim];
@@ -510,27 +510,44 @@ print.
 					- for If if If;
 						- for thesis if assm;
 							apply assm[of If, unfolded If If2 If3];
-							- for P x y if P;
+							- for P x y if P: P;
 								apply THE_eq_intro;
-								unfold fst snd;
-								apply ex1_intro1[of x];
-								-; by or_intro1 P.
-								- for z if or;
-									apply or_elim[OF or];
-									-; .
-									-; unfold and_imp_iff_imp_imp imp_imp_iff[OF P];
-										- if xy, zy;
-											unfold xy zy.
+								-; unfold fst snd;
+									apply ex1_intro1[of x];
+									-;
+										by or_intro1 P.
+									- for z if or;
+										apply or_elim[OF or];
+										-; .
+										-; unfold and_imp_iff_imp_imp imp_imp_iff[OF P];
+											- if xy, zy;
+												unfold xy zy.
+											.
 										.
 									.
-								-;
-									by or_intro1 P #unfold fst snd.
+								-; unfold fst snd;
+									by or_intro1 P.
+								.
+							- for P x y if nP: P ⟹ x = y;
+								apply THE_eq_intro;
+								-; unfold fst snd;
+									apply ex1_intro1[of y];
+									-; unfold imp_and_iff1[OF nP] or_iff_true2.
+									- for z if or;
+										apply or_elim[OF or];
+										unfold and_imp_iff_imp_imp;
+										- if P: P, zx: z = x then z = y;
+											unfold nP[OF P] zx.
+										.
+									.
+								-; unfold fst snd;
+									by or_intro2 nP.
 								.
 							.
 						.
 					.
 				.
 			.
-
+		.
 end
 

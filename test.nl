@@ -1,11 +1,3 @@
-print.
-fix (,).
-term ((P ⟹ Q) ⟹ R).
-term ((x,y),z).
-term (x,(y,z)).
-term (x,y,z).
-end
-
 import NegativeTranslation.
 
 thy.
