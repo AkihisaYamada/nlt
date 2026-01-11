@@ -1,5 +1,5 @@
 ------
-# Untyped Lambda Calculus
+# Type-Free Lambda Calculus
 ------
 import Eq.
 
@@ -19,17 +19,13 @@ theory If:
 	import If.
 begin
 	interpret Pair;
-		define[pair] (x,y) P := (if P then x else y).
+		define[pair] (x,y) P := (If P x y).
 		define fst xy := xy (∀P. P ⟹ P).
 		define snd xy := xy (∀P. P).
 	- for x y, fst (x,y) = x;
-		by if_then #unfold fst_def pair_def.
+		by If_then #unfold fst_def pair_def.
 	- for x y, snd (x,y) = y;
-		by if_else #unfold snd_def pair_def.
+		by If_else #unfold snd_def pair_def.
 	.
 end
 
-theory Prop:
-	import Prop.
-	import Eq.
-end

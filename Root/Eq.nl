@@ -69,23 +69,14 @@ begin
 		by iff_intro #unfold(=) eq.
 end
 
-theory Const:
-	fix Const const const_fun const_arg.
-	assume const_Const: const Const.
-	assume const_app: if const c then const (c x).
-	assume const_fun: if const c then const_fun (c x) = c.
-	assume const_arg: if const c then const_arg (c x) = x.
-begin
-	lemma const_eq_fun: if ! const c, ! const d, cd: c x = d y then c = d;
-		have 1: const_fun (c x) = const_fun (d y);
-			unfold cd.
-	by 1[unfolded const_fun].
+theory Id: -- I combinator
+	fix id.
+	assume id_eq: id x = x.
+end
 
-	lemma const_eq_arg: if ! const c, ! const d, cd: c x = d y then x = y;
-		have 1: const_arg (c x) = const_arg (d y);
-			unfold cd.
-	by 1[unfolded const_arg].
-
+theory Const: -- K combinator
+	fix const.
+	assume const_eq: const x y = x.
 end
 
 theory TwoValued:
@@ -162,6 +153,30 @@ begin
 
 end
 
+theory Currying:
+	import Pair.
+	assume curry: if ∀f'. (∀x y. f' x y = f (x,y)) ⟹ Q then Q.
+begin
+	interpret Id;
+		obtain id where id_eq: id x = x;
+			- for thesis if elim;
+				apply curry[of snd];
+				- for id if eq;
+					by elim[of (id id)] #unfold eq snd.
+				.
+			.
+		.
+	interpret Const;
+		obtain const where const_eq: const x y = x;
+			- for thesis if elim;
+				apply curry[of fst];
+				- for const if eq;
+					by elim[of const] #unfold eq fst.
+				.
+			.
+		.
+end
+
 theory If:
 	fix If.
 	assume If_then: for P x y if P then If P x y = x.
@@ -198,7 +213,6 @@ begin
 			unfold 1[OF Px].
 		.
 	note eq_THE_intro: THE_eq_intro[THEN eq.sym].
-
 end
 
 theory Minimal:
@@ -225,7 +239,6 @@ begin
 			.
 		.
 	namespace iff:
-		interpret iff.
 		lemma ex1_cong:
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_iff iff.
@@ -236,6 +249,11 @@ end
 theory Intuitionistic:
 	import Minimal.
 	import Intuitionistic.
+begin
+	namespace iff:
+		interpret eq: iff.MetaCommutative (=);
+			by iff_intro[OF eq.sym eq.sym].
+	end
 end
 
 theory Ext:
@@ -248,8 +266,15 @@ theory UnaryAbstraction:
 	For any term with a free variable `x`,
 	we assume one can introduce a symbol `f` such that `f x` is equal to the term.
 	---
-	assume abst: if ∀f. (∀x. f x = F.[x]) ⟹ thesis then thesis.
+	assume abst: if ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 begin
+	interpret Id;
+		obtain id where id_eq: id x = x;
+			- for thesis;
+				apply abst[of (x. x)]=.
+			.
+		.
+	note(unfold) id_eq.
 	---
 	One can obtain the type-free existential quantifier as a unary abstraction.
 	---
@@ -277,11 +302,6 @@ begin
 		.
 	lemma ex_abst: ∃f. ∀x. f x = F.[x];
 		apply ex_intro[OF abst].
-	obtain id where id: id x = x;
-		- for thesis;
-			apply abst[of (x. x)]=.
-		.
-	note(unfold) id.
 	interpret Ex1;
 		obtain (∃!) where
 			ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
@@ -330,6 +350,16 @@ begin
 		- for P if assm;
 			apply assm[OF id_inj].
 		.
+	---
+	One can obtain `Collect` just as an injection.
+	---
+	obtain Collect where Collect_inj: inj Collect;
+		- for thesis;
+			apply ex_elim[OF ex_inj]=.
+		.
+	---
+	To obtain the membership relation as the inverse of `Collect`, one needs to assume the unique choice operator.
+	---
 end
 
 theory UnaryNotation:
@@ -350,10 +380,6 @@ begin
 				.
 			.
 		.
-	obtain Collect where Collect_inj: inj Collect;
-		- for thesis;
-			apply ex_elim[OF ex_inj]=.
-		.
 	obtain (∋) where
 		Collect_has_intro: P x ⟹ Collect P ∋ x,
 		Collect_has_elim1: Collect P ∋ x ⟹ P x;
@@ -373,8 +399,7 @@ end
 theory Abstraction:
 	--- To allow for binary abstraction and more, we assume pairs and Currying. ---
 	import UnaryAbstraction.
-	import Pair.
-	assume curry: ∀f. ∃f'. ∀x y. f' x y = f (x,y).
+	import Currying.
 begin
 	--- Here one can obtain type-free binary logical operators by abstraction. ---
 	interpret Iff;
@@ -385,7 +410,7 @@ begin
 			- for thesis if assm;
 				apply abst[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
 				- for f if f;
-					apply ex_elim[OF curry[of f]];
+					apply curry[of f];
 					- for g if g;
 						apply assm[of g];
 						- for P Q if PQ, QP;
@@ -430,7 +455,7 @@ begin
 			- for thesis if assm;
 				apply abst[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
 				- for f if f;
-					apply ex_elim[OF curry[of f]];
+					apply curry[of f];
 					- for f' if f';
 						apply assm[of f', unfolded f' f fst snd].
 					.
@@ -443,7 +468,7 @@ begin
 			- for thesis if assm;
 				apply abst[of (p. ∀R. (fst p ⟹ R) ⟹ (snd p ⟹ R) ⟹ R)];
 				- for f if f;
-					apply ex_elim[OF curry[of f]];
+					apply curry[of f];
 					- for f' if f';
 						apply assm[of f', unfolded f' f fst snd];
 						-; by #unfold imp_imp_iff.
@@ -470,26 +495,27 @@ begin
 		- for thesis if assm;
 			apply abst[of (p. ∀x. fst p (snd p x) = x)];
 			- for inv if inv;
-				apply ex_elim[OF curry[of inv]];
+				apply curry[of inv];
 				- for inverts if inverts;
 					apply assm[of inverts, unfolded inverts inv fst snd].
 				.
 			.
 		.
+
 end
 
 theory Notation:
-	import Abstraction.
 	import UnaryNotation.
+	import Currying.
 begin
-print.
+	interpret Abstraction.
 	interpret Collect;
 		obtain (∈) where
 			Collect_intro: P x ⟹ x ∈ Collect P,
 			Collect_elim1: x ∈ Collect P ⟹ P x;
 			apply abst[of (p. snd p ∋ fst p)];
 			- for in if in;
-				apply curry[of in, THEN ex_elim];
+				apply curry[of in];
 				- for (∈) if eq;
 					- for thesis if assm;
 						apply assm[of (∈), unfolded eq in fst snd];
@@ -504,9 +530,9 @@ print.
 			If_else: (P ⟹ x = y) ⟹ If P x y = y;
 			apply abst[of (t. THE z. fst (fst t) ∧ z = snd (fst t) ∨ (fst (fst t) ⟹ snd (fst t) = snd t) ∧ z = snd t)];
 			- for If3 if If3;
-				apply curry[of If3, THEN ex_elim];
+				apply curry[of If3];
 				- for If2 if If2;
-					apply curry[of If2, THEN ex_elim];
+					apply curry[of If2];
 					- for If if If;
 						- for thesis if assm;
 							apply assm[of If, unfolded If If2 If3];

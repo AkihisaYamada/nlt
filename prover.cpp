@@ -484,7 +484,7 @@ public:
 			intp.discharge(ret);
 		}
 	}
-	void _auto_retain( string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
+	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
@@ -501,7 +501,7 @@ public:
 			intp.retain(*csym,thm);
 			}
 		} else {
-			auto [sym_term,spec] = _thy.obtain(sym,ex,name);
+			auto [sym_term,spec] = org_thy.obtain(sym,ex,name);
 			intp.retain(sym_term,spec);
 		}
 	}
@@ -554,7 +554,7 @@ public:
 					_auto_discharge(prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.blaster(_out_blast);
-					_auto_retain(prefix,intp,*obtain,infer);
+					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -568,6 +568,9 @@ public:
 			if( prefix.empty() ) {
 				if( src.rewriter() ) {
 					_thy.import_rewrite(src,intp);
+				}
+				if( !_thy.definer() && src.definer() ) {
+					_thy.setup_definer(src.definer()->beta().subst(intp));
 				}
 			}
 			_thy.add_import(prefix,std::move(intp));
@@ -651,7 +654,7 @@ public:
 							_auto_discharge(prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							auto infer = _thy.blaster(_out_blast);
-							_auto_retain(prefix,intp,*obtain,infer);
+							_auto_retain(org_thy,prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(intp,*fix,change);
@@ -683,13 +686,13 @@ public:
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						auto infer = _thy.blaster(_out_blast);
-						_auto_retain(prefix,intp,*obtain,infer);
+						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
 					}
 				}
 			} else if( skips("obtain") ) {
-				_obtain(_thy);
+				_obtain(org_thy);
 			} else if( skips("define") ) {
 				_define(org_thy);
 			} else if( skips("retain") ) {
@@ -703,7 +706,7 @@ public:
 					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(prefix,intp,*assume,change,*ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(prefix,intp,*obtain,*ctrl);
+						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl);
 					} else {
 						break;
 					}
@@ -774,7 +777,7 @@ public:
 					break;
 				}
 				auto infer = _thy.blaster(_out_blast);
-				_auto_retain(prefix,intp,*obtain,infer);
+				_auto_retain(org_thy,prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
 			}
@@ -934,7 +937,7 @@ public:
 			return {};
 		}
 	}
-	void _define( Thy& thy ) {
+	void _define( Thy& org_thy ) {
 		Opt<string> name_op;
 		if( skips("[") ) {
 			name_op = get();
@@ -944,7 +947,7 @@ public:
 		skip(":=");
 		Term r = get_term();
 		skip(".");
-		auto [f,spec] = thy.define(l,r,name_op);
+		auto [f,spec] = org_thy.define(l,r,name_op);
 		Thm def = spec << _thy.thm("imp.refl");
 		string name = (name_op ? *name_op : f) + "_def";
 		_thy.add_thm(name,def);
@@ -1411,7 +1414,7 @@ public:
 		if MSG cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<pair<ClaimStatus,Thm>> prop_thms;
-		Thy thesis_thy = org_thy.branch();
+		Thy thesis_thy = _thy.branch();
 		CTerm var = thesis_thy.fix("_thesis");
 		Thy goal_thy = thesis_thy.branch();
 		goal_thy.fix(sym);
@@ -1432,8 +1435,8 @@ public:
 			goal = prop >>= goal;
 		}
 		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
-		goal = goal.lift(org_thy.cterm(ALL));
-		auto thesis = Thesis::claim_exact(org_thy,goal);
+		goal = goal.lift(_thy.cterm(ALL));
+		auto thesis = Thesis::claim_exact(_thy,goal);
 		_depth++;
 		if MSG cout << _indent();
 		auto const& thm = _prove(thesis);

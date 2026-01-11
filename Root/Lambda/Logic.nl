@@ -1,20 +1,26 @@
 ------
 # Type-Free Logic on Lambda Calculus
 
-On top fo untyped lambda calculus we define logical operations, and arrive at untyped multivalued intuitionistic logic.
+On top fo untyped lambda calculus we obtain logical operations, and arrive at untyped multivalued intuitionistic logic.
 ------
 begin
 
 ----
-## Defining Logical Constructs
+## Obtaining Logical Constructs
 ----
+
+interpret UnaryAbstraction;
+	- for F P if assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+		apply assm[of (λx. F.[x])];
+		by #unfold beta.
+	.
+
 define true := ∀P. P ⟹ P.
 define false := ∀P. P.
 define[not] ¬ P := P ⟹ false.
 define[and] P ∧ Q := ∀R. (P ⟹ Q ⟹ R) ⟹ R.
 define[iff] P ⟺ Q := (P ⟹ Q) ∧ (Q ⟹ P).
 define[or] P ∨ Q := ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
-define[ex] (∃) P := ∀P. (∀x. P.[x] ⟹ Q) ⟹ Q.
 define[neq] x ≠ y := ¬ x = y.
 
 interpret Intuitionistic;
@@ -61,43 +67,6 @@ interpret Intuitionistic;
 lemma eq_imp_iff(cong): if PQ: P = Q then P ⟺ Q;
 	unfold(=) PQ.
 
-namespace iff begin
-
-	interpret ..iff.
-
-	interpret eq: MetaCommutative (=);
-		by iff_intro[OF eq.sym eq.sym].
-
-end
-
-theorem russel_paradox: ¬(∀P. P ∨ ¬P);
-	apply not_intro;
-	if or: ∀P. P ∨ ¬P;
-		define R x := ¬ x x.
-		have eq: R R = (¬ R R);
-			by R_def.
-		have Ror: R R ∨ ¬ R R;
-			by or.
-		apply or_elim[OF Ror];
-		if RR: R R;
-			have nRR: ¬ R R;
-				fold(=) eq;
-				by RR.
-			by not_imp_false[OF nRR RR].
-		if nRR: ¬ R R;
-			have RR: R R;
-				unfold eq;
-				by nRR.
-			by not_imp_false[OF nRR RR].
-		.
-	.
---
-
-interpret UnaryAbbreviation;
-	- for F P if assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
-		apply assm[of (λx. F.[x])];
-		by beta.
-	.
 
 theory If:
 	import If.

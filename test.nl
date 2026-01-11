@@ -1,4 +1,4 @@
-import NegativeTranslation.
+import LambdaTHE.
 
 thy.
 

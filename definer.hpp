@@ -9,7 +9,7 @@ class Definer {
 	std::string const EQ;
 	Term const LAM;
 	Thm const refl;// ∀P. P = P
-	Thm beta;
+	Thm _beta;
 	struct _Init {
 		Thy thy;
 		std::string EQ;
@@ -18,10 +18,13 @@ class Definer {
 		Thm refl;
 	};
 	Definer( _Init && init ) :
-		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), beta(std::move(init.beta)), refl(std::move(init.refl)) {}
+		_thy(std::move(init.thy)), LAM(std::move(init.LAM)), EQ(std::move(init.EQ)), _beta(std::move(init.beta)), refl(std::move(init.refl)) {}
 	static _Init _init( Thy const& thy, Thm const& beta );
 public:
 	Definer( Thy const& thy, Thm const& beta ) : Definer(_init(thy,beta)) {}
+	Thm beta() const {
+		return _beta;
+	}
 	std::pair<std::string,Thm> define(Thy& thy, Term const& l, Term const& r, Opt<std::string const&> name) const;
 };
 

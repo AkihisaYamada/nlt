@@ -366,6 +366,42 @@ lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
 	unfold not_iff_imp_false;
 	fold all_imp_iff_ex.
 
+---
+### Russel's Paradox
+
+Minimal logic with unary abstraction is enough to derive Russel's paradox;
+it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
+---
+theorem russel_paradox:
+	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ¬(∀P. P ∨ ¬P);
+	apply not_intro;
+	- if or: ∀P. P ∨ ¬P;
+		obtain R where R_def: R x ⟺ (¬ x x);
+			- for thesis if elim;
+				apply abst[of (x. ¬ x x), THEN ex_elim];
+				- for R if iff;
+					apply elim[of R];
+					- for x;
+						unfold iff.
+					.
+				.
+			.
+		have iff: R R ⟺ (¬ R R);
+			by R_def.
+		have Ror: R R ∨ ¬ R R;
+			by or.
+		apply or_elim[OF Ror];
+		- if RR: R R;
+			have nRR: ¬ R R;
+				fold iff;
+				by RR.
+			by not_imp_false[OF nRR RR].
+		- if nRR: ¬ R R;
+			have RR: R R;
+				by nRR[folded iff].
+			by not_imp_false[OF nRR RR].
+		.
+	.
 
 ---
 ### Double negation and universal quantification.
@@ -527,4 +563,3 @@ begin
 		import Impredicative.
 	end
 end
-
