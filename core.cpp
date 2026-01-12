@@ -241,8 +241,9 @@ bool Ctxt::has_constant(string_view const& sym) const {
 	if( fixes(sym) || obtains(sym) ) {
 		return true;
 	}
-	if( auto parent = find_parent() ) {
-		return parent->first.has_constant(sym);// TODO
+	if( auto p = find_parent() ) {
+		auto [parent,rev] = *p;
+		return parent.has_constant(sym);
 	}
 	return false;
 }

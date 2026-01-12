@@ -506,6 +506,16 @@ public:
 			intp.retain(sym_term,spec);
 		}
 	}
+	void _update_parent( Thy& child ) {
+		auto p = child.parent();
+		if( !p ) return;
+		auto resolver = Blaster({});
+		while( auto obtain = p->obtaining() ) {
+			auto const& [sym,ex,spec,name] = *obtain;
+			auto [sym_term,thm] = child.obtain(sym,ex,name,false);
+			p->retain(sym_term,thm);
+		}
+	}
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, string_view const& filename ){
 			if SYS {
@@ -566,6 +576,7 @@ public:
 			}
 		}
 		if( success ) {
+			_update_parent(src);// in case of interpreting a child.
 			if( prefix.empty() ) {
 				if( src.rewriter() ) {
 					_thy.import_rewrite(src,intp);

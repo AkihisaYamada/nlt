@@ -88,18 +88,3 @@ interpret Intuitionistic;
 		.
 	.
 
-define[neq] x ≠ y := ¬ x = y.
-
-theory Classes:
-	fix (∈) Collect.
-	import Collect.
-	assume in_Collect_iff: x ∈ Collect P ⟺ P x.
-end
-
--- TODO: should have mutual obtain
-define [in] x ∈ Y := Y x.
-define Collect P := P.
-
-interpret Collect;
-	by #unfold in_def Collect_def.
-

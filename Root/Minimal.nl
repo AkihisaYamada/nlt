@@ -526,8 +526,8 @@ theory Collect:
 	import ..Membership.
 begin
 
-	lemma Collect_iff: x ∈ Collect P ⟺ P x;
-		by iff_intro Collect_intro #elim Collect_elim1.
+	lemma in_Collect_iff: x ∈ Collect P ⟺ P x;
+		by iff_intro in_Collect_intro #elim in_Collect_elim1.
 
 end
 
