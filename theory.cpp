@@ -215,11 +215,13 @@ void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info 
 	_ref->thms.emplace(name,pair(thm,info));
 }
 
-pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name ) {
+pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name, bool declare ) {
 	size_t rev = revision();
 	auto const& ret = Ctxt::obtain(sym,ex);
-	add_thm(spec_name,ret.second);
 	_ref->assm_names.emplace(rev,spec_name);
+	if( declare ) {
+		add_thm(spec_name,ret.second);
+	}
 	return ret;
 }
 Opt<Thm> Thy::find_thm(

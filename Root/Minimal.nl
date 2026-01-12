@@ -521,9 +521,19 @@ begin
 	end
 end
 
+theory Collect:
+	import Collect.
+	import ..Membership.
+begin
+
+	lemma Collect_iff: x ∈ Collect P ⟺ P x;
+		by iff_intro Collect_intro #elim Collect_elim1.
+
+end
+
 theory Propositional:
 	fix Prop.
-	import Classes.
+	import Fun.
 	import true: Member true Prop.
 	import false: Member false Prop.
 	import imp: Magma Prop (⟹).

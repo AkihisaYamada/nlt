@@ -55,7 +55,7 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	thm = thm.instantiate(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
 	thm = thm << eq_thm;// thesis
 	thm = thm.intro();// ∀thesis. (∀f. (∀x... f x... = r) ⟹ thesis) ⟹ thesis
-	auto [cf,spec] = thy.obtain( f, thm, make_spec_name( name ? *name : f ) );// f, ((∀x... f x... = r) ⟹ thesis) ⟹ thesis
+	auto [cf,spec] = thy.obtain( f, thm, make_spec_name( name ? *name : f ), true );// f, ((∀x... f x... = r) ⟹ thesis) ⟹ thesis
 	return {f,spec};
 }
 

@@ -10,26 +10,23 @@ begin -- Base doesn't have any axiom
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
-symbol λ ∧ ∨ ∃ ≠ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ → × ⟶ ⟷.
+symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ → × ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
 symbol solo ¬.
 
-prefix ¬ 40 40.
-infix ∧ 35 36 35.
-infix ∨ 30 31 30.
 infix ⟺ 1 1 0.
-infix ⟶ 1 0 0.
-infix ⟷ 1 1 0.
+infix ∨ 10 11 10.
+infix ∧ 20 21 20.
+prefix ¬ 30 30.
 binder ∃ 0 0.
 binder ∃! 0 0.
-infix : 50 51 50.
-binder_middle ∀ : ∀:.
-binder_middle ∃ : ∃:.
+binder λ 0 0.
+binder THE 0 0.
+binder SOME 0 0.
+
+infix ∈ 51 51 50.
 binder_middle ∀ ∈ ∀∈.
 binder_middle ∃ ∈ ∃∈.
 binder_middle ∃! ∈ ∃!∈.
-
-binder THE 0 0.
-binder SOME 0 0.
 binder_middle THE ∈ THE_IN.
 binder_middle SOME ∈ SOME_IN.
 
@@ -37,25 +34,26 @@ infix = 51 51 50.
 infix ≡ 51 51 50.
 infix ≠ 51 51 50.
 infix ~ 51 51 50.
-
-binder λ 0 0.
-
-infix ∈ 50 50 50.
-infix ∋ 50 50 50.
-infix ∉ 50 50 50.
+infix ∋ 51 51 50.
+infix ∉ 51 51 50.
 infix ⊆ 51 51 50.
 infix ⊂ 51 51 50.
 infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
-infix ∪ 61 60 61.
-infix ∩ 71 70 71.
-infix ` 100 100 100.
-infix → 61 60 60.
-
 infix < 51 51 50.
 infix > 51 51 50.
 infix ≤ 51 51 50.
 infix ≥ 51 51 50.
+infix ⊑ 51 51 50.
+infix ⊒ 51 51 50.
+infix ⊏ 51 51 50.
+infix ⊐ 51 51 50.
+
+infix → 61 60 60.
+infix ∪ 71 70 71.
+infix ∩ 81 80 81.
+infix ` 101 100 100.
+infix × 111 110 110.
 
 infix + 100 101 100.
 infix - 100 101 100.
@@ -238,3 +236,4 @@ begin
 			apply ex_intro1=.
 		.
 end
+

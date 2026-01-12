@@ -2,6 +2,7 @@
 # Properties for Magmas
 ----
 fix (=).
+import Fun.
 begin
 
 theory Compatible:

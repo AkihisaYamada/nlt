@@ -100,7 +100,7 @@ public:
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
-	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name );
+	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name, bool declare );
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
 	/** Weaken theorem from an ancestor. */

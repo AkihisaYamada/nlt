@@ -79,6 +79,7 @@ void init_syntax( Syntax& syntax ) {
 	syntax.closer(")");
 	syntax.closer("}");
 	syntax.closer("]");
+	syntax.infix(":",50,51,50);
 	syntax.infix(",",-20,-19,-20);
 	syntax.infix(";",-30,-29,-30);
 	syntax.infix(":=",-1,-1,-2);
@@ -501,7 +502,7 @@ public:
 			intp.retain(*csym,thm);
 			}
 		} else {
-			auto [sym_term,spec] = org_thy.obtain(sym,ex,name);
+			auto [sym_term,spec] = org_thy.obtain(sym,ex,name,false);
 			intp.retain(sym_term,spec);
 		}
 	}
@@ -1442,7 +1443,7 @@ public:
 		auto const& thm = _prove(thesis);
 		_depth--;
 		if( thm ) {
-			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)));
+			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)),true);
 			// deriver: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
 			for( auto const& [cs,prop_thm] : prop_thms ) {
 				auto const& arg = prop_thm.intro();// props... ⟹ prop_i

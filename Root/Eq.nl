@@ -153,30 +153,6 @@ begin
 
 end
 
-theory Currying:
-	import Pair.
-	assume curry: if ∀f'. (∀x y. f' x y = f (x,y)) ⟹ Q then Q.
-begin
-	interpret Id;
-		obtain id where id_eq: id x = x;
-			- for thesis if elim;
-				apply curry[of snd];
-				- for id if eq;
-					by elim[of (id id)] #unfold eq snd.
-				.
-			.
-		.
-	interpret Const;
-		obtain const where const_eq: const x y = x;
-			- for thesis if elim;
-				apply curry[of fst];
-				- for const if eq;
-					by elim[of const] #unfold eq fst.
-				.
-			.
-		.
-end
-
 theory If:
 	fix If.
 	assume If_then: for P x y if P then If P x y = x.
@@ -199,7 +175,7 @@ begin
 		.
 end
 
-theory UniqueChoiceOp:
+theory The:
 	import Ex1.
 	fix (THE).
 	assume ex1_imp_THE: (∃!x. P.[x]) ⟹ P.[THE x. P.[x]].
@@ -244,6 +220,14 @@ begin
 			unfold ex1_iff iff.
 	end
 	note(cong) iff.ex1_cong.
+	theory Class:
+		import Collect.
+		assume Collect_eq_intro: if ∀x. P x ⟺ P' x then Collect P = Collect P'.
+	begin
+		---
+		Paradoxical classes e.g. {x. ¬ x x} contain untyped elements, so they will not be equal to typeable classes.
+		---
+	end
 end
 
 theory Intuitionistic:
@@ -351,21 +335,11 @@ begin
 			apply assm[OF id_inj].
 		.
 	---
-	One can obtain `Collect` just as an injection.
+	Having operator `THE` allows one to pick an inverse of an injection.
 	---
-	obtain Collect where Collect_inj: inj Collect;
-		- for thesis;
-			apply ex_elim[OF ex_inj]=.
-		.
-	---
-	To obtain the membership relation as the inverse of `Collect`, one needs to assume the unique choice operator.
-	---
-end
-
-theory UnaryNotation:
-	import UnaryAbstraction.
-	import UniqueChoiceOp.
-begin
+	theory The:
+		import The.
+	begin
 	lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
 		apply ex_intro;
 		- for thesis if assm;
@@ -380,200 +354,19 @@ begin
 				.
 			.
 		.
-	obtain (∋) where
-		Collect_has_intro: P x ⟹ Collect P ∋ x,
-		Collect_has_elim1: Collect P ∋ x ⟹ P x;
-		- for thesis if assm;
-			apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
-			- for (∋) if eq;
-				apply assm[of (∋)];
-				- for P x;
-					unfold eq.
-				- for P x;
-					unfold eq.
+		--- obtain (∋) where
+			Collect_has_intro: P x ⟹ Collect P ∋ x,
+			Collect_has_elim1: Collect P ∋ x ⟹ P x;
+			- for thesis if assm;
+				apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
+				- for (∋) if eq;
+					apply assm[of (∋)];
+					- for P x;
+						unfold eq.
+					- for P x;
+						unfold eq.
+					.
 				.
-			.
-		.
+			. ---
+	end
 end
-
-theory Abstraction:
-	--- To allow for binary abstraction and more, we assume pairs and Currying. ---
-	import UnaryAbstraction.
-	import Currying.
-begin
-	--- Here one can obtain type-free binary logical operators by abstraction. ---
-	interpret Iff;
-		obtain (⟺) where
-			iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
-			iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q,
-			iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
-			- for thesis if assm;
-				apply abst[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
-				- for f if f;
-					apply curry[of f];
-					- for g if g;
-						apply assm[of g];
-						- for P Q if PQ, QP;
-							unfold g f;
-							- for R if body;
-								apply body[unfolded fst snd];
-								-; by PQ.
-								-; by QP.
-								.
-							.
-						- for P Q if gPQ, P;
-							apply gPQ[unfolded g f];
-							unfold fst snd;
-							- if PQ, QP;
-								by PQ[OF P].
-							.
-						- for P Q if gPQ, Q;
-							apply gPQ[unfolded g f];
-							unfold fst snd;
-							- if PQ, QP;
-								by QP[OF Q].
-							.
-						.
-					.
-				.
-			.
-		.
-	interpret .Intuitionistic;
-		note(cong) eq_imp_iff.
-		obtain true where true_intro: true;
-			- for thesis if assm;
-				apply assm[of (∀P. P ⟹ P)].
-			.
-		obtain false where false_elim: false ⟹ ∀P. P;
-			- for thesis if assm;
-				apply assm[of (∀P. P)].
-			.
-		obtain (∧) where
-			and_intro: P ⟹ Q ⟹ P ∧ Q,
-			and_elim1: P ∧ Q ⟹ P,
-			and_elim2: P ∧ Q ⟹ Q;
-			- for thesis if assm;
-				apply abst[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
-				- for f if f;
-					apply curry[of f];
-					- for f' if f';
-						apply assm[of f', unfolded f' f fst snd].
-					.
-				.
-			.
-		obtain (∨) where
-			or_intro1: ∀P Q. P ⟹ P ∨ Q,
-			or_intro2: ∀P Q. Q ⟹ P ∨ Q,
-			or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
-			- for thesis if assm;
-				apply abst[of (p. ∀R. (fst p ⟹ R) ⟹ (snd p ⟹ R) ⟹ R)];
-				- for f if f;
-					apply curry[of f];
-					- for f' if f';
-						apply assm[of f', unfolded f' f fst snd];
-						-; by #unfold imp_imp_iff.
-						-; by #unfold imp_imp_iff.
-						- for P Q; apply imp.refl=.
-						.
-					.
-				.
-			.
-		obtain (¬) where
-			not_intro: (P ⟹ false) ⟹ ¬P,
-			not_imp_false: ¬P ⟹ P ⟹ false;
-			- for thesis if assm;
-				apply abst[of (P. P ⟹ false)];
-				- for f if f;
-					apply assm[of f, unfolded f].
-				.
-			.
-		.
-	note(cong) eq_imp_iff.
-	obtain inverts where
-		inverts_intro: (∀x. f (g x) = x) ⟹ inverts f g,
-		inverts_elim1: inverts f g ⟹ ∀x. f (g x) = x;
-		- for thesis if assm;
-			apply abst[of (p. ∀x. fst p (snd p x) = x)];
-			- for inv if inv;
-				apply curry[of inv];
-				- for inverts if inverts;
-					apply assm[of inverts, unfolded inverts inv fst snd].
-				.
-			.
-		.
-
-end
-
-theory Notation:
-	import UnaryNotation.
-	import Currying.
-begin
-	interpret Abstraction.
-	interpret Collect;
-		obtain (∈) where
-			Collect_intro: P x ⟹ x ∈ Collect P,
-			Collect_elim1: x ∈ Collect P ⟹ P x;
-			apply abst[of (p. snd p ∋ fst p)];
-			- for in if in;
-				apply curry[of in];
-				- for (∈) if eq;
-					- for thesis if assm;
-						apply assm[of (∈), unfolded eq in fst snd];
-						by Collect_has_intro #elim Collect_has_elim1.
-					.
-				.
-			.
-		.
-	interpret If;
-		obtain If where
-			If_then: P ⟹ If P x y = x,
-			If_else: (P ⟹ x = y) ⟹ If P x y = y;
-			apply abst[of (t. THE z. fst (fst t) ∧ z = snd (fst t) ∨ (fst (fst t) ⟹ snd (fst t) = snd t) ∧ z = snd t)];
-			- for If3 if If3;
-				apply curry[of If3];
-				- for If2 if If2;
-					apply curry[of If2];
-					- for If if If;
-						- for thesis if assm;
-							apply assm[of If, unfolded If If2 If3];
-							- for P x y if P: P;
-								apply THE_eq_intro;
-								-; unfold fst snd;
-									apply ex1_intro1[of x];
-									-;
-										by or_intro1 P.
-									- for z if or;
-										apply or_elim[OF or];
-										-; .
-										-; unfold and_imp_iff_imp_imp imp_imp_iff[OF P];
-											- if xy, zy;
-												unfold xy zy.
-											.
-										.
-									.
-								-; unfold fst snd;
-									by or_intro1 P.
-								.
-							- for P x y if nP: P ⟹ x = y;
-								apply THE_eq_intro;
-								-; unfold fst snd;
-									apply ex1_intro1[of y];
-									-; unfold imp_and_iff1[OF nP] or_iff_true2.
-									- for z if or;
-										apply or_elim[OF or];
-										unfold and_imp_iff_imp_imp;
-										- if P: P, zx: z = x then z = y;
-											unfold nP[OF P] zx.
-										.
-									.
-								-; unfold fst snd;
-									by or_intro2 nP.
-								.
-							.
-						.
-					.
-				.
-			.
-		.
-end
-

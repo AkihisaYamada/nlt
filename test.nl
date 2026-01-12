@@ -1,3 +1,7 @@
+print.
+term (x,(y,z)).
+term ((x,y),z).
+
 import LambdaTHE.
 
 thy.
