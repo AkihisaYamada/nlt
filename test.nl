@@ -2,7 +2,8 @@ print.
 term (x,(y,z)).
 term ((x,y),z).
 
-import LambdaTHE.
+import Abstraction.
+import Logic.
 
 thy.
 

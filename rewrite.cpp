@@ -229,13 +229,21 @@ Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	if( log > 1 ) _log() << "} made refl: " << thy.pretty(refl) << endl;
 	return refl;
 }
-Opt<Thm> Blaster::_apply_cond_rewrite( Thy const& thy, Rewrite::Cong const& rule, Subst const& matcher, bool success, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<Thm> Blaster::_apply_cond_rewrite(
+	Thy const& thy,
+	Rewrite::Cong const& rule,
+	Subst const& matcher,
+	Intp const& rule2thy,
+	bool success,
+	vector<char>::const_iterator pos_it,
+	vector<char>::const_iterator pos_end
+) & {
 	if( log > 4 ) _log() << "{ applying conditional rule: " << thy.pretty(rule) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();
 	Thy subthy = thy.branch();
-	auto intp = Intp::make(pat_ctxt,rule_ctxt).compose(subthy.interpret_ancestor(rule_ctxt));
+	auto intp = Intp::make(pat_ctxt,rule_ctxt).compose(rule2thy).compose(*subthy.parent());
 	for(;;) {
 		if( auto const& v = intp.fixing() ) {
 			if( auto const& val = matcher.get(*v) ) {
@@ -323,7 +331,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<c
 		for( auto const& rule : rules[ind] ) {
 			if( log > 5 ) _log() << "- testing rewrite rule: " << thy.pretty(rule) << endl;
 			if( auto const& m = match(rule.pat,source,is_patvar) ) {
-				if( auto const& ret = _apply_cond_rewrite(thy,rule,*m,true,pos_it,pos_end) ) {
+				if( auto const& ret = _apply_cond_rewrite(thy,rule,*m,thy.interpret_ancestor(rule.thm.ctxt()),true,pos_it,pos_end) ) {
 					indent--;
 					if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
 					return ret;
@@ -335,7 +343,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<c
 			assert(rule);
 			if( log > 5 ) _log() << "testing rewrite rule: " << thy.pretty(thm) << endl;
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) )
-				return _apply_cond_rewrite(thy,*rule,*m,true,pos_it,pos_end);
+				return _apply_cond_rewrite(thy,*rule,*m,import,true,pos_it,pos_end);
 			return {};
 		}) ) {
 			indent--;
@@ -345,7 +353,7 @@ Opt<Thm> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<c
 	}
 	for( auto const& cong : rew->_congs[ind] ) {
 		if( auto const& m = match(cong.pat,source,is_patvar) ) {// source: C[s...]
-			if( auto ret = _apply_cond_rewrite(thy,cong,*m,false,pos_it,pos_end) ) {
+			if( auto ret = _apply_cond_rewrite(thy,cong,*m,thy.interpret_ancestor(cong.thm.ctxt()),false,pos_it,pos_end) ) {
 				indent--;
 				if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
 				return ret;

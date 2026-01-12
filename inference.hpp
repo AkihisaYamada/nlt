@@ -226,7 +226,15 @@ private:
 		size_t trial,
 		Intro const& intro
 	) &;
-	Opt<Thm> _apply_cond_rewrite( Thy const& thy, Rewrite::Cong const& rule, Subst const& matcher, bool success, std::vector<char>::const_iterator pos_it, std::vector<char>::const_iterator pos_end ) &;
+	Opt<Thm> _apply_cond_rewrite(
+		Thy const& thy,
+		Rewrite::Cong const& rule,
+		Subst const& matcher,
+		Intp const& rule2thy,
+		bool success,
+		std::vector<char>::const_iterator pos_it,
+		std::vector<char>::const_iterator pos_end
+	) &;
 	bool _blast(
 		Thesis& thesis,
 		size_t trial,

@@ -127,6 +127,27 @@ obtain inverts where
 			apply assm[of inverts, unfolded inverts fst snd].
 		.
 	.
+obtain rev_app where rev_app: rev_app x f = f x;
+	- for thesis;
+		apply abst_pair[of (p. snd p (fst p)), unfolded fst snd]=.
+	.
+
+interpret Collect;
+	obtain Collect_in_pair where
+		Collect_in_pair: snd Collect_in_pair x (fst Collect_in_pair P) ⟺ P x;
+		- for thesis if assm;
+			apply assm[of (id,rev_app)];
+			by #unfold fst snd rev_app.
+		.
+	obtain Collect where Collect_def: Collect = fst Collect_in_pair;
+		- for thesis if assm;
+			apply assm[OF eq.refl].
+		.
+	obtain (∈) where in_def: (∈) = snd Collect_in_pair;
+		- for thesis if assm;
+			apply assm[OF eq.refl].
+		.
+	by #unfold Collect_def in_def Collect_in_pair.
 
 ---
 Having operator `THE` yields `If`.
@@ -179,4 +200,6 @@ begin
 				.
 			.
 		.
+end
+
 end

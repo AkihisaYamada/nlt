@@ -573,3 +573,12 @@ begin
 		import Impredicative.
 	end
 end
+
+theory Choice:
+	assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
+end
+
+theory ChoiceOperator:
+	fix (SOME).
+	assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
+end
