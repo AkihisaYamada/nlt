@@ -282,7 +282,7 @@ bool Blaster::_blast(
 				elim_res_ind++;
 				break;// move on to the new thesis
 			}// no elimination result matched
-			if( rewrite && rewrites(subthesis,true) ) {// try rewriting
+			if( rewrite && rewrites(subthesis,0,255,true,{},{}) ) {// try rewriting
 				if( log > 3 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;
 				break;
 			}

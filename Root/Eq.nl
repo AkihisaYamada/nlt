@@ -56,7 +56,7 @@ context eq begin
 		by fun_cong[OF fg].
 end
 
-note(cong) eq.cong.
+note(fallback) eq.cong.
 
 ---
 ## Theories
@@ -153,7 +153,8 @@ theory Iff:
 	import Iff.
 begin
 	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
-		by iff_intro #unfold(=) eq.
+		unfold(=) eq;
+		.
 end
 
 theory Minimal:

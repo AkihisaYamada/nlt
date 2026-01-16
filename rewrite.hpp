@@ -74,15 +74,6 @@ public:
 		friend Thy;
 		friend Blaster;
 	};
-	struct Ctrl {
-		Opt<std::string> rel;
-		std::vector<char> pos;
-		size_t min, max;
-		bool safe;
-		size_t fuel = 255;
-		size_t trial = 1;
-	};
-	static Ctrl const DEFAULT_CTRL;
 	bool empty() const {
 		return _rels.empty();
 	}
@@ -109,8 +100,8 @@ public:
 	void register_dual( Thm const& thm ) &;
 	void register_to_true( Thm const& thm ) &;
 	void import( Thy const& thy, Intp const& intp ) &;
+	size_t get_ind( Opt<std::string> const& rel ) const &;
 private:
-	size_t _get_ind( Opt<std::string> const& rel ) const;
 };
 
 #endif

@@ -4,7 +4,6 @@
 using namespace std;
 
 string const Rewrite::CONG = "#cong";
-Rewrite::Ctrl const Rewrite::DEFAULT_CTRL = {};
 
 Opt<tuple<string,Term,Term>> strips_binary( Term const& term ) {
 	if( auto const& app = term.app() )
@@ -407,7 +406,7 @@ assert( ret->ctxt() == thy );
 		if( auto ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
-			if( log > 5 ) _log() << "testing simp rule: " << thy.pretty(thm) << endl;
+			if( log > 5 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
 			return test(*rule,true,{import.subst()});
 		}) ) {
 			return {{*ret,ret->capp()->second}};
@@ -428,7 +427,7 @@ assert( ret->ctxt() == thy );
 	return {};
 }
 
-size_t Rewrite::_get_ind( Opt<std::string> const& rel ) const {
+size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
 	if( rel ) {
 		auto const& o = gets_rel_ind(*rel);
 		if( !o ) throw Error("\"unregistered relation\"")(*rel);
@@ -443,7 +442,7 @@ Opt<Thm> Blaster::_steps(
 	CTerm const& s,
 	size_t min,
 	size_t max,
-	bool safe,
+	bool normalize,
 	vector<char> const& pos,
 	char ind
 ) & {
@@ -456,7 +455,7 @@ Opt<Thm> Blaster::_steps(
 		throw Error("\"rewrite failed\"")(s);
 	}
 	auto [eq,t] = *init;
-	if( max <= 1 && safe ) {
+	if( max <= 1 && !normalize ) {
 		return eq;
 	}
 	auto const& tranp = rew->_trans.finds(ind);
@@ -478,23 +477,23 @@ Opt<Thm> Blaster::_steps(
 		}
 		i++;
 		if( i == max ) {
-			if( !safe )
+			if( normalize )
 				throw Error("\"rewrite limit exceeded\"")(to_string(max));
 			return eq;
 		}
 		t = t2;
 	}
 }
-bool Blaster::rewrites( Thesis& thesis, bool failable ) & {
+bool Blaster::rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
-	size_t ind = rew->_get_ind(ctrl.rel);
+	size_t ind = rew->get_ind(rel);
 	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
-	auto steps = _steps( thy, *goal, failable ? 0 : ctrl.min, ctrl.max, ctrl.safe, ctrl.pos, ind );// s = t
+	auto steps = _steps(thy,*goal,min,max,normalize,pos,ind);// s = t
 	if( !steps ) return false;
 	auto imp = thy.weaken(o->second.thm);// x = y ⟹ conds... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s
@@ -507,10 +506,10 @@ bool Blaster::rewrites( Thesis& thesis, bool failable ) & {
 	return true;
 }
 Thm Blaster::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
-	size_t ind = rew->_get_ind(ctrl.rel);
+	size_t ind = rew->_default_ind;
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto steps = _steps(thy,source,min,ctrl.max,ctrl.safe,ctrl.pos,ind);
+	auto steps = _steps(thy,source,min,255,true,{},ind);
 	if( !steps ) {
 		return source;
 	}

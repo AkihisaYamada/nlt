@@ -149,7 +149,6 @@ class Blaster {
 	}
 public:
 	Rewrite::Rules rules;
-	Rewrite::Ctrl ctrl;
 	Blaster( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 1023 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool blasts( Thesis& thesis, bool rewrite ) & {
 		return _blast(thesis,1,true,rewrite,elim_res.size());
@@ -204,16 +203,13 @@ public:
 		return _step(thy,source,rew->_default_ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis, bool failable = false ) &;
+	bool rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
 	/** @brief Rewrites a theorem */
-	Thm rewrite( Thy const& thy, Thm const& source ) & {
-		return rewrites(thy,source,ctrl.min);
-	}
 	Thm rewrites( Thy const& thy, Thm const& source, size_t min = 0 ) &;
 	/** @brief returns a rewriting theorem */
-	Thm steps( Thy const& thy, CTerm const& source ) & {
-		size_t ind = rew->_get_ind(ctrl.rel);
-		if( auto ret = _steps(thy,source,ctrl.min,ctrl.max,ctrl.safe,ctrl.pos,ind) ) {
+	Thm steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+		size_t ind = rew->get_ind(rel);
+		if( auto ret = _steps(thy,source,min,max,normalize,pos,ind) ) {
 			return *ret;
 		}
 		return _make_refl(thy,source,ind);

@@ -113,6 +113,7 @@ struct Matcher {
 					} else {
 						rind_info.first->second = rpre;
 					}
+					depth--;
 					return true;
 				}
 			}
@@ -183,6 +184,7 @@ struct Matcher {
 							matcher.assign(x,*abs);
 							return true;
 						}
+DEB( (rbvars[ind->second]/=val) );
 						return false;
 					}
 					// otherwise, val must also be abstraction

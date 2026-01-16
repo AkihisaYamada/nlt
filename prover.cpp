@@ -135,23 +135,30 @@ public:
 		if( !ret ) throw Error("\"expects a theorem\"");
 		return *ret;
 	}
-	void _get_rewrite( Blaster& resolver, Thy& loc, bool rev ) {
+	struct RewriteCtrl {
+		size_t min;
+		size_t max;
+		vector<char> pos;
+		bool normalize;
+		Opt<string> rel;
+	};
+	RewriteCtrl _get_rewrite( Blaster& resolver, Thy& loc, bool rev ) {
+		RewriteCtrl ret;
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
 		if( skips("(") ) {
-			resolver.ctrl.rel = get();
+			ret.rel = {get()};
 			skip(")");
 		}
 		if( skips("[") ) {// parse position
 			while( !skips("]") ) {
-				resolver.ctrl.pos.push_back(get_int());
+				ret.pos.push_back(get_int());
 			}
 		}
-		resolver.ctrl.min = 1;
 		if( skips("^") ) {
-			resolver.ctrl.max = get_nat(); resolver.ctrl.safe = true;
+			ret.min = ret.max = get_nat(); ret.normalize = false;
 		} else {
-			resolver.ctrl.max = 255; resolver.ctrl.safe = false;
+			ret.min = 1; ret.max = 255; ret.normalize = true;
 		}
 		while( auto const& arg = _gets_thm(loc) ) {
 			auto rule = *arg;
@@ -160,6 +167,7 @@ public:
 			}
 			loc.add_rewrite_rule(resolver.rules,rule);
 		}
+		return ret;
 	}
 	Opt<Thm> _gets_thm( Thy& loc ) {
 		auto const& opt = gets_thm_name();
@@ -235,8 +243,8 @@ public:
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
 					auto inf = loc.blaster(_out_blast);
-					_get_rewrite(inf,loc,dir);
-					ret = inf.rewrite(loc,ret);
+					auto ctrl = _get_rewrite(inf,loc,dir);
+					ret = inf.rewrites(loc,ret);
 				} else if( skips("dual") ) {
 					auto resolver = Blaster(loc.rewriter(),_out_blast);
 					ret = loc.dualize(ret,resolver);
@@ -826,10 +834,6 @@ public:
 				} else if( bool rev = false; skips("unfold") || (rev = true, skips("fold") ) ) {
 					auto const& rew = _thy.rewriter();
 					if( !rew ) throw Error("\"rewriter not set\"");
-					if( skips("(") ) {
-						resolver.ctrl.rel = get();
-						skip(")");
-					}
 					while( auto const& thm = _gets_thm(_thy) ) {
 						auto rule = *thm;
 						if( rev ) {
@@ -842,7 +846,6 @@ public:
 						}
 						_thy.add_rewrite_rule(resolver.rules,rule);
 					}
-					resolver.ctrl.min = 0;// returns false when not applicable
 				} else {
 					throw Error("\"unexpected\"")(get());
 				}
@@ -1213,21 +1216,15 @@ public:
 				if( max == 0 ) max = min;
 				bool more = _proof_follows();
 				thesis.apply(rules,min,max,safe,wide);
-				if( more ) {
-					if MSG print_goal(thesis,"applied goals:\n\t");
-				} else {
-					return thesis.blast_all();
-				}
+				if( !more ) return thesis.blast_all();
+				if MSG print_goal(thesis,"applied goals:\n\t");
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
 				auto inf = _thy.blaster(_out_blast);
-				_get_rewrite(inf,_thy,dir);
+				auto ctrl = _get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
-				inf.rewrites(thesis);
-				if( more ) {
-					if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
-				} else {
-					return thesis.blast_all();
-				}
+				inf.rewrites(thesis,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
+				if( !more ) return thesis.blast_all();
+				if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
 				for(;;) {

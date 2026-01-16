@@ -171,12 +171,10 @@ begin
 		- for thesis if assm;
 			apply abbrev2[of (p. ¬ fst p ∈ snd p)];
 			- for f if f;
-print prover.
 				apply assm[of f];
 				by iff_intro #unfold f fst snd.
 			.
 		.
-exit
 end
 
 theory Collect:
@@ -243,11 +241,7 @@ begin
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
 			- for f if f;
-				apply assm[of f];
-				- for X Y;
-					unfold f;
-					unfold COLLECT_eq_iff;
-				.
+				by assm[of f] #unfold f COLLECT_eq_iff.
 			.
 		.
 	lemma in_cup_iff: x ∈ X ∪ Y ⟺ x ∈ X ∨ x ∈ Y;
