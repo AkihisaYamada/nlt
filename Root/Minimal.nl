@@ -8,19 +8,19 @@ fix true false (∧) (∨) (¬) (∃).
 
 assume true_intro! true.
 
-assume and_intro! if P, Q then P ∧ Q.
+assume and_intro! for P Q if P, Q then P ∧ Q.
 assume and_elim1: if P ∧ Q then P.
 assume and_elim2: if P ∧ Q then Q.
 
 assume or_intro1: for P Q if P then P ∨ Q.
 assume or_intro2: for P Q if Q then P ∨ Q.
-assume or_elim: if P ∨ Q then for R if P ⟹ R, Q ⟹ R then R.
+assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
 
 assume not_intro: if P ⟹ false then ¬P.
 assume not_imp_false: if ¬P, P then false.
 
 assume ex_intro1: for x if P.[x] then ∃x. P.[x].
-assume ex_elim: if ∃x. P.[x] then for Q if ∀x. P.[x] ⟹ Q then Q.
+assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 
 begin
 ---
@@ -158,7 +158,7 @@ lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
 ### Conjunction
 ---
 
-lemma and_elim(elim) if PQ: P ∧ Q then for R if PQR: P ⟹ Q ⟹ R then R;
+lemma and_elim(elim) if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
 	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 
 interpret and: MetaPartialEquivalence (∧).
@@ -170,7 +170,7 @@ context iff begin
 
 	namespace and:
 		interpret MetaCompatible (∧);
-			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
+			- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
 				by iff_intro #unfold PQ RS.
 			.
 		interpret MetaCommMonoid (∧) true;
@@ -273,7 +273,7 @@ lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 context iff begin
 	namespace or:
 		interpret MetaCompatible (∨);
-			- for P R Q S if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+			- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 				by iff_intro or_intro #elim or_elim #unfold PQ RS.
 			.
 		interpret MetaCommAbsorb (∨) true;
@@ -522,13 +522,15 @@ begin
 end
 
 theory Collect:
-	import Collect.
-	import ..Membership.
+	import Membership.
+	fix COLLECT.
+	set collect COLLECT.
+	assume in_COLLECT_iff: x ∈ {x. P.[x]} ⟺ P.[x].
 begin
-
-	lemma in_Collect_iff: x ∈ Collect P ⟺ P x;
-		by iff_intro in_Collect_intro #elim in_Collect_elim1.
-
+	lemma in_COLLECT_intro: if assm: P.[x] then x ∈ {x. P.[x]};
+		by assm #unfold in_COLLECT_iff.
+	lemma in_COLLECT_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
+		by assm[unfolded in_COLLECT_iff].
 end
 
 theory Propositional:

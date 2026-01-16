@@ -3,7 +3,7 @@
         {
             "label": "make",
             "type": "shell",
-            "command": "c:\\cygwin64\\bin\\make.exe",
+            "command": "make",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -12,7 +12,7 @@
         {
             "label": "make test",
             "type": "shell",
-            "command": "c:\\cygwin64\\bin\\make.exe test.exe",
+            "command": "make test.exe",
             "problemMatcher": []
         },
     ],

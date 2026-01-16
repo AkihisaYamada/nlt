@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Cygwin",
+            "name": "wsl",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
@@ -15,7 +15,7 @@
             "cppStandard": "c++20",
             "intelliSenseMode": "linux-gcc-x64",
             "configurationProvider": "ms-vscode.makefile-tools",
-            "compilerPath": "c:/cygwin64/bin/gcc.exe",
+            "compilerPath": "/usr/bin/gcc",
             "mergeConfigurations": false,
             "browse": {
                 "path": [

@@ -722,9 +722,6 @@ class Intp {
 public:
 	/** @brief makes a direct interpretation. */
 	static Intp make( Ctxt const& src, Ctxt const& tgt );
-	operator Subst const&() const& {
-		return _subst;
-	}
 	Ctxt source() && {
 		return std::move(_src);
 	}
@@ -734,9 +731,14 @@ public:
 	Ctxt ctxt() const& {
 		return _subst.ctxt();
 	}
-	Subst const& subst() const {
+	operator Subst const&() const& {
 		return _subst;
 	}
+	operator Subst const&() && = delete;
+	Subst const& subst() const& {
+		return _subst;
+	}
+	auto subst() && = delete;
 	size_t revision() const {
 		return _rev < 0 ? _src.revision() : _rev;
 	}

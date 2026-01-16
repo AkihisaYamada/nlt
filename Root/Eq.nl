@@ -25,9 +25,9 @@ Equality is an equivalence.
 ---
 context eq begin
 	interpret MetaEquivalence (=);
-		- for x y if xy: x = y then y = x;
+		- if xy: x = y then y = x;
 			by elim[of (z. z = x), OF xy].
-		- for x y z if xy: x = y, yz: y = z then x = z;
+		- if xy: x = y, yz: y = z then x = z;
 			by elim[of (w. x = w), OF yz xy].
 		.
 	lemma cong_meta: for X if yz: y = z then X.[y] = X.[z];
@@ -49,7 +49,7 @@ lemma fun_cong: if fg: f = g then f x = g x;
 	by eq.cong_meta[of (h. h x), OF fg].
 
 context eq begin
-	lemma cong: for f x if fg: f = g, xy: x = y then f x = g y;
+	lemma cong: for f x if fg: f = g then for y if xy: x = y then f x = g y;
 		have 1: f x = f y;
 			by arg_cong[OF xy].
 		apply trans[OF 1];
@@ -61,13 +61,6 @@ note(cong) eq.cong.
 ---
 ## Theories
 ---
-
-theory Iff:
-	import Iff.
-begin
-	lemma eq_imp_iff: if eq: P = Q then P ⟺ Q;
-		by iff_intro #unfold(=) eq.
-end
 
 theory Id: -- I combinator
 	fix id.
@@ -87,6 +80,7 @@ begin
 	- for thesis if assm;
 		apply assm[of (∀P. P ⟹ P)].
 	.
+print prover.
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
 	lemma true_eq: if P: P then true = P;
@@ -116,41 +110,6 @@ begin
 				unfold eq.
 			by 1[unfolded inverse].
 		.
-end
-
-theory Pair: --- Syntactic Pairing ---
-	fix (,) fst snd.
-	assume fst: fst (x,y) = x.
-	assume snd: snd (x,y) = y.
-begin
-	interpret pair: MetaInjective (,);
-		- for x x' if eq: (,) x = (,) x' then x = x';
-			have 1: fst (x,x) = fst (x',x);
-				unfold eq.
-			by 1[unfolded fst].
-		.
-	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
-		have 1: x = fst (x,y);
-			unfold fst.
-		apply eq.trans[OF 1];
-		have 2: fst (x,y) = fst (x',y');
-			unfold eq.
-		apply eq.trans[OF 2];
-		have 3: fst (x',y') = x';
-			unfold fst.
-		by eq.trans[OF 3].
-
-	lemma pair_eq_pair_imp2: if eq: (x,y) = (x',y') then y = y';
-		have 1: y = snd (x,y);
-			unfold snd.
-		apply eq.trans[OF 1];
-		have 2: snd (x,y) = snd (x',y');
-			unfold eq.
-		apply eq.trans[OF 2];
-		have 3: snd (x',y') = y';
-			unfold snd.
-		by eq.trans[OF 3].
-
 end
 
 theory If:
@@ -191,7 +150,15 @@ begin
 	note eq_THE_intro: THE_eq_intro[THEN eq.sym].
 end
 
+theory Iff:
+	import Iff.
+begin
+	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
+		by iff_intro #unfold(=) eq.
+end
+
 theory Minimal:
+	import Iff.
 	import Minimal.
 	import Ex1.
 begin
@@ -214,19 +181,52 @@ begin
 				apply ex[unfolded ex_iff and_imp_iff_imp_imp]=.
 			.
 		.
-	namespace iff:
-		lemma ex1_cong:
-			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
-			unfold ex1_iff iff.
+	lemma ex1_cong_iff(cong)
+		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
+		unfold ex1_iff iff.
+
+	theory Membership:
+		import Membership.
+	begin
+		lemma ball_cong_iff(cong) for A P B Q
+			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+			then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
+			apply iff_intro;
+			- if PA;
+				apply ball_intro;
+				by ball_elim1[OF PA, unfolded AB] #fold PQ.
+			- if QB;
+				apply ball_intro;
+				by ball_elim1[OF QB] #unfold AB PQ.
+			.
+		lemma bex_cong_iff(cong) for A P B Q
+			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
+			apply iff_intro;
+			- if PA;
+				apply bex_elim[OF PA];
+				- for x;
+					by bex_intro1[of x] #unfold AB #fold PQ.
+				.
+			- if QB;
+				apply bex_elim[OF QB];
+				- for x;
+					by bex_intro1[of x] #unfold AB PQ.
+				.
+			.
 	end
-	note(cong) iff.ex1_cong.
+
 	theory Class:
 		import Collect.
-		assume Collect_eq_intro: if ∀x. P x ⟺ P' x then Collect P = Collect P'.
+		assume COLLECT_eq_intro: if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
 	begin
-		---
-		Paradoxical classes e.g. {x. ¬ x x} contain untyped elements, so they will not be equal to typeable classes.
-		---
+		lemma COLLECT_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
+			apply iff_intro;
+			- if eq;
+				have in_iff: for x, x ∈ {x. P.[x]} ⟺ x ∈ {x. Q.[x]};
+					unfold(=) eq.
+				by in_iff[unfolded in_COLLECT_iff].
+			by COLLECT_eq_intro[of P Q].
 	end
 end
 
@@ -245,29 +245,29 @@ theory Ext:
 	then f = g.
 end
 
-theory UnaryAbstraction:
+theory UnaryAbbreviation:
 	---
 	For any term with a free variable `x`,
 	we assume one can introduce a symbol `f` such that `f x` is equal to the term.
 	---
-	assume abst: if ∀f. (∀x. f x = F.[x]) ⟹ P then P.
+	assume abbrev: if ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 begin
 	interpret Id;
 		obtain id where id_eq: id x = x;
 			- for thesis;
-				apply abst[of (x. x)]=.
+				apply abbrev[of (x. x)]=.
 			.
 		.
 	note(unfold) id_eq.
 	---
-	One can obtain the type-free existential quantifier as a unary abstraction.
+	One can obtain the type-free existential quantifier as a unary abbreviation.
 	---
 	interpret Ex;
 		obtain (∃) where
 			ex_intro1: ∀x P. P.[x] ⟹ ∃x. P.[x],
 			ex_elim: (∃x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q;
 			- for thesis if assm;
-				apply abst[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
+				apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
 				- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 					apply assm[of (∃)];
 					- for x P if Px: P.[x] then ∃x. P.[x];
@@ -284,14 +284,14 @@ begin
 				.
 			.
 		.
-	lemma ex_abst: ∃f. ∀x. f x = F.[x];
-		apply ex_intro[OF abst].
+	lemma ex_abbrev: ∃f. ∀x. f x = F.[x];
+		apply ex_intro[OF abbrev].
 	interpret Ex1;
 		obtain (∃!) where
 			ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
 			ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
 			- for thesis if assm;
-				apply abst[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
+				apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
 				- for (∃!) if eq;
 					apply assm[of (∃!)];
 					- for x P if Px, imp_eq;
@@ -311,7 +311,7 @@ begin
 		inj_elim1: inj f ⟹ ∀x y. f x = f y ⟹ x = y,
 		inj_intro: (∀x y. f x = f y ⟹ x = y) ⟹ inj f;
 		- for thesis if assm;
-			apply abst[of (f. (∀x y. f x = f y ⟹ x = y))];
+			apply abbrev[of (f. (∀x y. f x = f y ⟹ x = y))];
 			- for inj if eq;
 				apply assm[of inj];
 				- for f;
@@ -343,7 +343,7 @@ begin
 	lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
 		apply ex_intro;
 		- for thesis if assm;
-			apply abst[of (y. THE z. f z = y)];
+			apply abbrev[of (y. THE z. f z = y)];
 			- for g if eq;
 				apply assm[of g];
 				- for x;
@@ -369,4 +369,44 @@ begin
 				.
 			. ---
 	end
+end
+
+theory Pair: --- Syntactic Pairing ---
+	fix (,) fst snd.
+	assume fst: fst (x,y) = x.
+	assume snd: snd (x,y) = y.
+begin
+	interpret pair: MetaInjective (,);
+		- for x x' if eq: (,) x = (,) x' then x = x';
+			have 1: fst (x,x) = fst (x',x);
+				unfold eq.
+			by 1[unfolded fst].
+		.
+	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
+		have 1: x = fst (x,y);
+			unfold fst.
+		apply eq.trans[OF 1];
+		have 2: fst (x,y) = fst (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: fst (x',y') = x';
+			unfold fst.
+		by eq.trans[OF 3].
+
+	lemma pair_eq_pair_imp2: if eq: (x,y) = (x',y') then y = y';
+		have 1: y = snd (x,y);
+			unfold snd.
+		apply eq.trans[OF 1];
+		have 2: snd (x,y) = snd (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: snd (x',y') = y';
+			unfold snd.
+		by eq.trans[OF 3].
+
+	theory UniqueChoice:
+		import Ex1.
+		assume unique_choice: if ∀x. ∃!y. P.[(x,y)] then ∃f. ∀x. P.[(x, f x)].
+	end
+
 end

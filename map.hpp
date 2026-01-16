@@ -9,7 +9,7 @@ class Map : std::map<K,T,std::less<>> {
 	using M = std::map<K,T,std::less<>>;
 public:
 	using typename M::value_type, M::iterator, M::const_iterator;
-	using M::map, M::find, M::insert, M::begin, M::end, M::size, M::empty;
+	using M::map, M::find, M::insert, M::begin, M::end, M::size, M::empty, M::insert_or_assign;
 	/**
 	 * @brief emplaces a key-value pair.
 	 * @return the pair of the iterator to the key-value pair and bool if insertion took place

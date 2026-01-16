@@ -93,7 +93,7 @@ public:
 		return _closers.contains(sym);
 	}
 	void opener(std::string const& opener, int level, std::function<Term(Parser&)> handler) {
-		_openers.insert({opener,{level,handler}});
+		_openers.insert_or_assign(opener,Opener{level,handler});
 	}
 	Opt<std::pair<std::string const, Opener> const&> finds_opener(std::string_view const& sym) const {
 		return _openers.finds(sym);

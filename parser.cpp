@@ -2,8 +2,6 @@
 
 using namespace std;
 
-const Error Parser::Error = ::Error("#parser");
-
 Opt<string> Parser::gets_thm_name() & {
 	return gets(Lexer::Word|Lexer::Number);
 }
@@ -78,11 +76,11 @@ Opt<Term> Parser::gets_term( int level ) & {
 		ignore_token();
 		if( level < 0 && skips(".") ) {
 			auto t = gets_term(level);
-			if( !t ) throw Error("\"abstraction expects body\"");
+			if( !t ) throw Error("\"binding expects body\"");
 			ret = sym /= *t;
 		} else if( skips(".[") ) {
 			auto const& t = gets_term(-1000);
-			if( !t ) throw Error("\"fix expects body\"");
+			if( !t ) throw Error("\"unbinding expects body\"");
 			ret = sym %= *t;
 			skip("]");
 		} else {

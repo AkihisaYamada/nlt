@@ -1,8 +1,8 @@
-print.
+print load.
 term (x,(y,z)).
 term ((x,y),z).
 
-import Abstraction.
+import Abbreviation.
 import Logic.
 
 thy.

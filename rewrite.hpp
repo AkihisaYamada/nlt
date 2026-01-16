@@ -12,20 +12,20 @@ class Blaster;
  */
 class Rewrite {
 public:
-	class Cong {
+	class Rule {
 		friend Rewrite;
 		friend Blaster;
 		struct Cond {
 			Opt<size_t> ind;
 			bool abs;
 			bool rec;// allow recursive rewriting
-			CTerm assm;
+			CTerm assm;// φ or x. φ if abs
 		};
 		Thm thm;// Γ ⊢ ∀x...y... φ... ⟹ l[x...] = r[y...]
 		Thm concl;// Γ.fix x...y... assume φ... ⊢ l[x...] = r[y...]
 		CTerm pat;// Γ.fix x...y... assume φ... ⊢ l[x...]
 		std::vector<Cond> conds;
-		Cong( Thm const& concl, CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : concl(concl), pat(pat), thm(thm), conds(std::move(conds)) {}
+		Rule( Thm const& concl, CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : concl(concl), pat(pat), thm(thm), conds(std::move(conds)) {}
 	public:
 		operator Thm() const& {
 			return thm;
@@ -54,7 +54,9 @@ private:
 	/** ∀P Q. P = Q ⟹ Q ⟹ P */
 	Map<size_t,Imp> _revimps;
 	/** ∀x y x' y'. x = x' ⟹ y = y' ⟹ x + y = x' + y' */
-	std::vector<std::vector<Cong>> _congs;
+	std::vector<std::vector<Rule>> _congs;
+	/** ∀P Q. P = Q ⟹ P ⟺ Q */
+	Map<size_t,Rule> _fallbacks;
 	/** ∀P. P ⟹ P = true */
 	Opt<std::pair<Thm,size_t>> _to_true;
 	size_t _default_ind;
@@ -66,8 +68,8 @@ public:
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	class Rules : std::vector<std::vector<Cong>> {
-		Rules( size_t n ) : std::vector<std::vector<Cong>>(n) {}
+	class Rules : std::vector<std::vector<Rule>> {
+		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewrite;
 		friend Thy;
 		friend Blaster;
@@ -101,8 +103,9 @@ public:
 	void register_imp( Thm const& thm, bool dir ) &;
 	void register_trans( Thm const& thm ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
-	std::pair<char,Cong> make_cong( Thm const& thm ) const&;
+	std::pair<char,Rule> make_rule( Thm const& thm ) const&;
 	bool register_cong( Thm const& thm ) &;
+	void register_fallback( Thm const& thm ) &;
 	void register_dual( Thm const& thm ) &;
 	void register_to_true( Thm const& thm ) &;
 	void import( Thy const& thy, Intp const& intp ) &;

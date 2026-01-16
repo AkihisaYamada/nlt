@@ -7,7 +7,6 @@
 class Parser : public Lexer {
 public:
 	using Lexer::Lexer;
-	static const Error Error;
 	virtual Syntax const& syntax() const = 0;
 	Opt<std::string> gets_thm_name() &;
 	std::string get_thm_name() &;

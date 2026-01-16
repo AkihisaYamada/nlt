@@ -18,12 +18,12 @@ end
 
 theory SubEq:
 	fix (⊆).
-	assume elim1: if A ⊆ B then if x ∈ A then x ∈ B.
+	assume elim1: if A ⊆ B, x ∈ A then x ∈ B.
 	assume intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
 	interpret MetaPreorder (⊆);
 		-; by intro.
-		- for A B C if AB, BC;
+		- if AB: A ⊆ B, BC: B ⊆ C;
 			by intro BC[THEN elim1] AB[THEN elim1].
 		.
 end
@@ -58,9 +58,9 @@ theory Transitive:
 	assume trans: if x ≤ y, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
 begin
 	interpret Attractive;
-		- for x y z if xy, yx, yz, !, !, !;
+		- if xy: x ≤ y, yx: y ≤ x, yz: y ≤ z, !, !, !;
 			by trans[OF xy yz].
-		- for x y z if xy, yx, xz, !, !, !;
+		- if xy: x ≤ y, yx: y ≤ x, xz: x ≤ z, !, !, !;
 			by trans[OF yx xz].
 		.
 end

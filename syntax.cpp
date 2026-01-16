@@ -164,14 +164,13 @@ ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev ) const 
 }
 
 function<ostream&(ostream&)> Syntax::pretty_subst(Subst const& subst) const & {
-	static function<void(ostream&,pair<string const,Opt<Term>> const&)> pair = [this](ostream& os, auto p){
-		auto t = p.second ? *p.second : p.first;
-		os << pretty(p.first) << " := " << pretty(t);
-	};
-	return [&](ostream& os)->ostream&{
+	return [&subst,this](ostream& os)->ostream&{
+		static function<void(ostream&,pair<string const,Opt<Term>> const&)> const& pair = [this]( ostream& os, auto const& p ){
+			auto const& [var,val] = p;
+			os << pretty(var) << " := " << pretty( val ? *val : var );
+		};
 		os << '@' << subst.ctxt().id() << " [ ";
-		auto& map = subst.map();
-		out_sep(os, map.begin(), map.end(), ",\n  ", pair );
+		out_sep(os, subst.map().begin(), subst.map().end(), ",\n  ", pair );
 		return os << " ]";
 	};
 }

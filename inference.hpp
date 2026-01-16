@@ -200,7 +200,7 @@ public:
 	 * @param source the term to be rewritten
 	 * @return Opt<Thm> 
 	 */
-	Opt<Thm> step( Thy const& thy, CTerm const& source, std::vector<char> const& pos ) & {
+	Opt<std::pair<Thm,CTerm>> step( Thy const& thy, CTerm const& source, std::vector<char> const& pos ) & {
 		return _step(thy,source,rew->_default_ind,pos.begin(),pos.end());
 	}
 	/** @brief applies rewriting */
@@ -226,9 +226,9 @@ private:
 		size_t trial,
 		Intro const& intro
 	) &;
-	Opt<Thm> _apply_cond_rewrite(
+	Opt<Thm> _apply_rewrite_rule(
 		Thy const& thy,
-		Rewrite::Cong const& rule,
+		Rewrite::Rule const& rule,
 		Subst const& matcher,
 		Intp const& rule2thy,
 		bool success,
@@ -243,9 +243,12 @@ private:
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
-	Thm _make_refl_abs( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<Thm> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	std::pair<Thm,bool> _step_abs( Thy const& thy, CTerm const& source, char ind, CTerm const& assm, Subst const& subst, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
+	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	/** rewrites abstraction.
+	 * @returns equation, the rhs, and whether rewrite succeeded
+	 */
+	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
+	void _refl_cond( Thy const& thy, Intp& intp, CTerm const& cond, char ind ) &;
 	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, char ind ) &;
 };
 

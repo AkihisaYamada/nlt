@@ -29,7 +29,6 @@ struct Thy::_Body {
 	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, bool own_rewrite, OptRef<Definer> const& definer ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax), rewriter(rewriter), own_rewrite(own_rewrite), definer(definer) {
 	}
 	~_Body() {}
-	Rewrite& make_own_rewrite()&;
 };
 
 Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make(),OptRef<Rewrite>(),false,OptRef<Definer>())) {};
@@ -97,35 +96,33 @@ void Thy::_make_own_rewrite() & {
 		_ref->own_rewrite = true;
 	}
 }
-Thy& Thy::register_refl( Thm const& thm, bool def ) & {
+void Thy::register_refl( Thm const& thm, bool def ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_refl(thm,def);
-	return *this;
 }
-Thy& Thy::register_trans( Thm const& thm ) & {
+void Thy::register_trans( Thm const& thm ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_trans(thm);
-	return *this;
 }
-Thy& Thy::register_dual( Thm const& thm ) & {
+void Thy::register_dual( Thm const& thm ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_dual(thm);
-	return *this;
 }
-Thy& Thy::register_imp( Thm const& thm, bool dir ) & {
+void Thy::register_imp( Thm const& thm, bool dir ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_imp(thm,dir);
-	return *this;
 }
-Thy& Thy::register_cong( Thm const& thm ) & {
+void Thy::register_cong( Thm const& thm ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_cong(thm);
-	return *this;
 }
-Thy& Thy::register_to_true( Thm const thm ) & {
+void Thy::register_fallback( Thm const& thm ) & {
+	_make_own_rewrite();
+	_ref->rewriter->register_cong(thm);
+}
+void Thy::register_to_true( Thm const thm ) & {
 	_make_own_rewrite();
 	_ref->rewriter->register_to_true(thm);
-	return *this;
 }
 void Thy::import_rewrite( Thy const& src, Intp const& intp ) & {
 	_make_own_rewrite();
@@ -208,7 +205,7 @@ Thm Thy::add_assm( string_view const& name, CTerm const& assm ) {
 	return assume(assm);
 }
 
-void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info ) {
+void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info ) & {
 	if( thm.ctxt() != *this ) {
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}

@@ -10,7 +10,7 @@ begin -- Base doesn't have any axiom
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
-symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ ⋂ ⋃ → × ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
+symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ → × ⋂ ⋃ ⋀ ⋁ ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
 symbol solo ¬.
 
 infix ⟺ 1 1 0.
@@ -71,12 +71,12 @@ end
 
 theory MetaTransitive:
 	fix (≤).
-	assume trans: x ≤ y ⟹ y ≤ z ⟹ x ≤ z.
+	assume trans: if x ≤ y, y ≤ z then x ≤ z.
 end
 
 theory MetaSymmetric:
 	fix (~).
-	assume sym: x ~ y ⟹ y ~ x.
+	assume sym: if x ~ y then y ~ x.
 end
 
 theory MetaPreorder:
@@ -109,7 +109,7 @@ end
 -- Implication is a meta-preorder.
 namespace imp:
 	interpret MetaPreorder (⟹);
-		- for P Q R if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+		- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 			by QR PQ.
 		.
 end
@@ -132,7 +132,7 @@ begin
 
 	theory MetaCompatible:
 		fix (*).
-		assume cong: for x y x' y' if x ~ x', y ~ y' then x * y ~ x' * y'.
+		assume cong: for x y if x ~ x', y ~ y' then x * y ~ x' * y'.
 	end
 
 	theory MetaCommutative:
@@ -236,4 +236,3 @@ begin
 			apply ex_intro1=.
 		.
 end
-

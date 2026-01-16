@@ -6,7 +6,7 @@
 class AThm;
 class Import;
 class Definer;
-using ThmInfo = Sum<int,Intro,Elim,Rewrite::Cong>;
+using ThmInfo = Sum<int,Intro,Elim,Rewrite::Rule>;
 
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;
@@ -91,11 +91,10 @@ public:
 	/** @brief Adds a named theorem in the theory.
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
-	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {});
+	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {}) &;
 	void add_elim( Thm const& thm ) & {
 		add_thm(ELIM,thm,Elim::rule(thm,0,'?'));
 	}
-
 	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
@@ -119,31 +118,35 @@ public:
 	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
-	auto pretty_sym( std::string_view const& s ) const {
+	auto pretty_sym( std::string_view const& s ) const& {
 		return syntax().pretty_sym(s);
 	}
-	auto pretty( Term const& t ) const {
+	auto pretty( Term const& t ) const& {
 		return syntax().pretty(t);
 	}
-	auto pretty( CTerm const& t ) const {
+	auto pretty( CTerm const& t ) const& {
 		return syntax().pretty(t);
 	}
-	auto pretty( Thm const& t ) const {
+	auto pretty( Thm const& t ) const& {
 		return syntax().pretty(t);
 	}
-	auto pretty_ctxt() const {
+	auto pretty_ctxt() const& {
 		return syntax().pretty_ctxt(*this);
+	}
+	auto pretty( Subst const& subst ) const& {
+		return syntax().pretty_subst(*this);
 	}
 	Opt<Rewrite&> rewriter() && = delete;
 	Opt<Rewrite const&> rewriter() const &;
 	void reset_rewrite() &;
 	Thm dualize( Thm const& thm, Blaster& resolver ) const &;
-	Thy& register_refl( Thm const& refl, bool def ) &;
-	Thy& register_trans( Thm const& trans ) &;
-	Thy& register_dual( Thm const& dual ) &;
-	Thy& register_imp( Thm const& imp, bool dir ) &;
-	Thy& register_cong( Thm const& cong ) &;
-	Thy& register_to_true( Thm const thm ) &;
+	void register_refl( Thm const& refl, bool def ) &;
+	void register_trans( Thm const& trans ) &;
+	void register_dual( Thm const& dual ) &;
+	void register_imp( Thm const& imp, bool dir ) &;
+	void register_cong( Thm const& cong ) &;
+	void register_fallback( Thm const& thm ) &;
+	void register_to_true( Thm const thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Blaster blaster( char log = 0 ) const &;
