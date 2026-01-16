@@ -80,7 +80,6 @@ begin
 	- for thesis if assm;
 		apply assm[of (∀P. P ⟹ P)].
 	.
-print prover.
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
 	lemma true_eq: if P: P then true = P;

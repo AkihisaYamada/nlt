@@ -103,26 +103,6 @@ interpret Intuitionistic;
 			.
 		.
 	.
-theory Membership:
-	import Membership.
-begin
-	obtain (⊆) where subseteq_iff: X ⊆ Y ⟺ (∀x ∈ X. x ∈ Y);
-		- for thesis if assm;
-			apply abbrev2[of (p. ∀x ∈ fst p. x ∈ snd p)];
-			- for f if f;
-				by assm[of f] #unfold f fst snd.
-			.
-		.
-	obtain (∉) where notin_iff: x ∉ X ⟺ ¬ x ∈ X;
-		- for thesis if assm;
-			apply abbrev2[of (p. ¬ fst p ∈ snd p)];
-			- for f if f;
-				apply assm[of f];
-				by iff_intro #unfold f fst snd.
-			.
-		.
-end
-
 interpret Const;
 	obtain const where const_eq: const x y = x;
 		- for thesis if elim;
@@ -177,10 +157,32 @@ obtain inf_pred where inf_pred_iff: inf_pred P Q x ⟺ P x ∧ Q x;
 		.
 	.
 
+theory Membership:
+	import Membership.
+begin
+	obtain (⊆) where subseteq_iff: X ⊆ Y ⟺ (∀x ∈ X. x ∈ Y);
+		- for thesis if assm;
+			apply abbrev2[of (p. ∀x ∈ fst p. x ∈ snd p)];
+			- for f if f;
+				by assm[of f] #unfold f fst snd.
+			.
+		.
+	obtain (∉) where notin_iff: x ∉ X ⟺ ¬ x ∈ X;
+		- for thesis if assm;
+			apply abbrev2[of (p. ¬ fst p ∈ snd p)];
+			- for f if f;
+print prover.
+				apply assm[of f];
+				by iff_intro #unfold f fst snd.
+			.
+		.
+exit
+end
+
 theory Collect:
+	import Membership.
 	import Collect.
 begin
-	interpret Membership.
 	obtain Empty where Empty_def: Empty = {x. false};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
@@ -227,23 +229,25 @@ begin
 
 end
 
-
 theory Class:
 	import Collect.
 	assume COLLECT_ext: (∀x. P.[x] ⟺ Q.[x]) ⟹ {x. P.[x]} = {x. Q.[x]}.
 begin
-
 	lemma COLLECT_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
 		apply iff_intro;
-		- if eq;
+		- if eq then for x;
+			fold in_COLLECT_iff;
 			unfold eq.
 		apply COLLECT_ext=.
-
 	obtain (∪) where cup_def: X ∪ Y = {x. x ∈ X ∨ x ∈ Y};
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
 			- for f if f;
-				by assm[of f] #unfold f fst snd.
+				apply assm[of f];
+				- for X Y;
+					unfold f;
+					unfold COLLECT_eq_iff;
+				.
 			.
 		.
 	lemma in_cup_iff: x ∈ X ∪ Y ⟺ x ∈ X ∨ x ∈ Y;
