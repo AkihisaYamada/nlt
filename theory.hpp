@@ -130,6 +130,11 @@ public:
 	auto pretty( Thm const& t ) const& {
 		return syntax().pretty(t);
 	}
+	auto pretty( Rewrite::Rule const& rule ) const& {
+		return [&]( std::ostream& os )->std::ostream&{
+			return os << '#' << (rule.cong ? "cong" : "simp" ) << ": " << pretty((Thm const&)rule);
+		};
+	}
 	auto pretty_ctxt() const& {
 		return syntax().pretty_ctxt(*this);
 	}
@@ -147,7 +152,7 @@ public:
 	void register_cong( Thm const& cong ) &;
 	void register_fallback( Thm const& thm ) &;
 	void register_to_true( Thm const thm ) &;
-	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule ) const &;
+	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule, bool cong ) const &;
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Blaster blaster( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;

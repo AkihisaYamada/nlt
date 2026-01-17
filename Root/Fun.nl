@@ -1,7 +1,7 @@
 import Membership.
 
 fix (→).
-assume fun_elim1: if f ∈ A → B then for a if a ∈ A then f a ∈ B.
+assume fun_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
 
 begin
 

@@ -24,7 +24,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 		return pretty_sym(os,*sym);
 	} else if( auto const& app = term.app() ) {
 		auto const& fun = app->first, arg = app->second;
-		if( auto const& sym = fun.sym() ) {
+		if( auto const& sym = fun.sym() ) {// unary
 			if( auto const& x = _prefixes.finds(*sym) ) {
 				auto const& op = x->second;
 				if( level > op.llevel ) os << '(';
@@ -59,7 +59,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 			}
 		} else if( auto app_in = fun.app() ) {
 			auto const& fun_in = app_in->first, arg_in = app_in->second;
-			if( auto sym = fun_in.sym() ) {
+			if( auto sym = fun_in.sym() ) {// binary
 				if( auto const& x = _prefixes.finds(*sym) ) {
 					auto const& op = x->second;
 					if( level > op.llevel ) os << '(';
@@ -87,11 +87,10 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 				} else if( auto const& x = _opener_of.finds(*sym) ) {
 					auto const& opener = x->second;
 					auto const& op = _openers.finds(opener)->second;
-					if( auto const& y = op.bcompr.finds(*sym ) ) {// {x ∈ X. _}
+					if( auto const& y = op.mid_of.finds(*sym ) ) {// {x ∈ X. _}
 						if( auto const& abs = arg.bind() ) {
-							return os << opener << pretty_sym(abs->first) << ' '
-								<< op.mid_of.finds(*sym)->second << ' ' << app_in->second << ". "
-								<< pretty(abs->second,0) << op.closer;
+							return os << opener << pretty_sym(abs->first) << ' ' << y->second << ' '
+								<< pretty(app_in->second) << ". " << pretty(abs->second) << op.closer;
 						}
 					}
 				}

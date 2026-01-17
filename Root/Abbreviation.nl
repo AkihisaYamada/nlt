@@ -13,7 +13,7 @@ interpret UnaryAbbreviation;
 		note(cong) eq.cong_meta[of F].
 		apply abbrev2[of (p. F.[snd p])];
 		- for f if f;
-			by assm[of (f fst)] #unfold f snd.
+			by assm[of (f fst)] #unfold f.
 		.
 	.
 lemma abbrev3: if assm: ∀f. (∀x y z. f x y z = F.[(x,y,z)]) ⟹ P then P;
@@ -22,7 +22,7 @@ lemma abbrev3: if assm: ∀f. (∀x y z. f x y z = F.[(x,y,z)]) ⟹ P then P;
 	- for f2 if f2;
 		apply abbrev2[of (p. f2 p)];
 		- for f3 if f3;
-			by assm[of f3] #unfold f3 f2 fst snd.
+			by assm[of f3] #unfold f3 f2.
 		.
 	.
 --- One can obtain type-free binary logical operators by abbreviation. ---
@@ -122,8 +122,8 @@ obtain inverts where
 	inverts_elim1: inverts f g ⟹ ∀x. f (g x) = x;
 	- for thesis if assm;
 		apply abbrev2[of (p. ∀x. fst p (snd p x) = x)];
-		- for inverts if inverts;
-			apply assm[of inverts, unfolded inverts fst snd].
+		- for f if f;
+			by assm[of f] #unfold f.
 		.
 	.
 obtain rev_app where rev_app: rev_app x f = f x;
@@ -226,58 +226,83 @@ begin
 		.
 	lemma in_bigcap_iff: x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
 		by #unfold bigcap_def in_COLLECT_iff.
-
 end
 
 theory Class:
 	import Collect.
-	assume COLLECT_ext: (∀x. P.[x] ⟺ Q.[x]) ⟹ {x. P.[x]} = {x. Q.[x]}.
+	assume COLLECT_ext(cong) (∀x. P.[x] ⟺ Q.[x]) ⟹ {x. P.[x]} = {x. Q.[x]}.
 begin
 	lemma COLLECT_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
 		apply iff_intro;
 		- if eq then for x;
-			fold in_COLLECT_iff;
+			fold^1 in_COLLECT_iff;
 			unfold eq.
 		apply COLLECT_ext=.
 	obtain (∪) where cup_def: X ∪ Y = {x. x ∈ X ∨ x ∈ Y};
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
 			- for f if f;
-				by assm[of f] #unfold f COLLECT_eq_iff fst snd.
+				by assm[of f] #unfold f.
 			.
 		.
 	lemma in_cup_iff: x ∈ X ∪ Y ⟺ x ∈ X ∨ x ∈ Y;
 		unfold cup_def in_COLLECT_iff.
 
+	obtain (`) where image_def: f ` X = {y. ∃x ∈ X. y = f x};
+		- for thesis if assm;
+			apply abbrev2[of (p. {y. ∃x ∈ snd p. y = fst p x})];
+			- for f if f;
+				by assm[of f] #unfold f.
+			.
+		.
+	lemma in_image_iff: x ∈ f ` A ⟺ (∃a ∈ A. x = f a);
+		unfold image_def in_COLLECT_iff.
+
 	obtain (∩) where cap_def: X ∩ Y = {x. x ∈ X ∧ x ∈ Y};
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∧ x ∈ snd p})];
 			- for f if f;
-				by assm[of f] #unfold f fst snd COLLECT_eq_iff.
+				by assm[of f] #unfold f.
 			.
 		.
 	lemma in_cap_iff: x ∈ X ∩ Y ⟺ x ∈ X ∧ x ∈ Y;
 		unfold cap_def in_COLLECT_iff.
 
 	set compr {_ ∈ _. _} := COLLECT_in.
-	obtain COLLECT_in where COLLECT_in: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]};
+	obtain COLLECT_in where COLLECT_in_def: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]};
 		- for thesis if assm;
 			apply abbrev2[of (p. fst p ∩ COLLECT (snd p))];
 			- for f if f;
 				apply assm[of f];
-				by #unfold f cap_def COLLECT_eq_iff in_COLLECT_iff.
+				by #unfold f cap_def in_COLLECT_iff.
 			.
 		.
+	lemma COLLECT_in_cong:
+		if X: X = X', P: ∀x. x ∈ X' ⟹ P.[x] ⟺ P'.[x] then {x ∈ X. P.[x]} = {x ∈ X'. P'.[x]};
+		by #unfold X P COLLECT_in_def #cong iff.and_cong1.
 
-	obtain class where class_def: class A (⊑) x = {y. x ⊑ y};
+	obtain class where class_def: class A (⊑) x = {y ∈ A. x ⊑ y};
 		- for thesis if assm;
-			apply abbrev2[of (p. {y. (fst p) (snd p) y})];
+			apply abbrev3[of (p. {y ∈ fst p. fst (snd p) (snd (snd p)) y})];
 			- for f if f;
-				by assm[of f] #unfold f COLLECT_eq_iff.
+				by assm[of f] #unfold f COLLECT_in_def.
 			.
 		.
-	obtain quotient where quotient A r = {C. x ∈ A ∧ {
-
+	infix // 110 111 110.
+	obtain (//) where quotient_def: A // (⊑) = {C. ∃x ∈ A. C = {y ∈ A. x ⊑ y}};
+		- for thesis if assm;
+			apply abbrev2[of (p. {C. ∃x ∈ fst p. C = {y ∈ fst p. snd p x y}})];
+			- for f if f;
+				by assm[of f] #unfold f COLLECT_in_def.
+			.
+		.
+	obtain (→) where A → B = {f. ∀x ∈ A. f x ∈ B};
+		- for thesis if assm;
+			apply abbrev2[of (p. {f. ∀x ∈ fst p. f x ∈ snd p})];
+			- for f if f;
+				by assm[of f] #unfold f.
+			.
+		.
 	obtain DECIDED where DECIDED_def: DECIDED = {x. x ∨ ¬x};
 		- for thesis if assm;
 			apply assm[OF eq.refl].

@@ -80,7 +80,6 @@ lemma not_false: ¬false;
 	by not_intro[OF imp.refl].
 
 namespace iff:
-	interpret iff.
 	lemma not_cong: if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
 		apply iff_intro;
 		- if nP: ¬P;
@@ -168,14 +167,16 @@ lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
 
 context iff begin
 
-	namespace and:
-		interpret MetaCompatible (∧);
-			- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∧ R ⟺ Q ∧ S;
-				by iff_intro #unfold PQ RS.
-			.
-		interpret MetaCommMonoid (∧) true;
-			by iff_intro.
-	end
+	interpret and: iff.MetaCompatible (∧);
+		- for P Q if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
+			by iff_intro #unfold P Q.
+		.
+
+	interpret and: iff.MetaCommMonoid (∧) true;
+		by iff_intro.
+
+	lemma and_cong1: if P: P ⟺ P', Q: P' ⟹ Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
+		by iff_intro #unfold P Q.
 
 end
 
@@ -271,18 +272,16 @@ lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
 context iff begin
-	namespace or:
-		interpret MetaCompatible (∨);
-			- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
-				by iff_intro or_intro #elim or_elim #unfold PQ RS.
-			.
-		interpret MetaCommAbsorb (∨) true;
-			-; by iff_intro or_intro.
-			-; by iff_intro[OF or.sym or.sym].
-			.
-		interpret MetaAssociative (∨);
-			by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
-	end
+	interpret or: iff.MetaCompatible (∨);
+		- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+			by iff_intro or_intro #elim or_elim #unfold PQ RS.
+		.
+	interpret or: iff.MetaCommAbsorb (∨) true;
+		-; by iff_intro or_intro.
+		-; by iff_intro[OF or.sym or.sym].
+		.
+	interpret or: iff.MetaAssociative (∨);
+		by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 end
 
 note(cong) iff.or.cong.

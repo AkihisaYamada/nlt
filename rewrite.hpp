@@ -15,6 +15,7 @@ public:
 	class Rule {
 		friend Rewrite;
 		friend Blaster;
+		friend Thy;
 		struct Cond {
 			Opt<size_t> ind;
 			bool abs;
@@ -25,7 +26,8 @@ public:
 		Thm concl;// Γ.fix x...y... assume φ... ⊢ l[x...] = r[y...]
 		CTerm pat;// Γ.fix x...y... assume φ... ⊢ l[x...]
 		std::vector<Cond> conds;
-		Rule( Thm const& concl, CTerm const& pat, Thm const& thm, std::vector<Cond> && conds ) : concl(concl), pat(pat), thm(thm), conds(std::move(conds)) {}
+		bool cong;// at least one condition must be rewritten
+		Rule( Thm const& concl, CTerm const& pat, Thm const& thm, std::vector<Cond> && conds, bool cong ) : concl(concl), pat(pat), thm(thm), conds(std::move(conds)), cong(cong) {}
 	public:
 		operator Thm() const& {
 			return thm;
@@ -94,7 +96,7 @@ public:
 	void register_imp( Thm const& thm, bool dir ) &;
 	void register_trans( Thm const& thm ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
-	std::pair<char,Rule> make_rule( Thm const& thm ) const&;
+	std::pair<char,Rule> make_rule( Thm const& thm, bool cong ) const&;
 	bool register_cong( Thm const& thm ) &;
 	void register_fallback( Thm const& thm ) &;
 	void register_dual( Thm const& thm ) &;

@@ -157,7 +157,7 @@ public:
 			if( rev ) {
 				rule = loc.dualize(rule,resolver);
 			}
-			loc.add_rewrite_rule(resolver.rules,rule);
+			loc.add_rewrite_rule(resolver.rules,rule,false);
 		}
 		return ret;
 	}
@@ -360,7 +360,7 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.rewriter()->make_rule(thm);
+				auto [ind,rule] = _thy.rewriter()->make_rule(thm,false);
 				_thy.add_thm(Thy::REWRITE+ind,thm,rule);
 			}
 		}
@@ -370,7 +370,7 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.rewriter()->make_rule(dual);
+				auto [ind,rule] = _thy.rewriter()->make_rule(dual,false);
 				_thy.add_thm(Thy::REWRITE+ind,dual,rule);
 			}
 		}
@@ -772,20 +772,19 @@ public:
 					while( auto elim = gets_thm() ) {
 						_thy.add_elim(*elim);
 					}
-				} else if( bool rev = false; skips("unfold") || (rev = true, skips("fold") ) ) {
+				} else if( int type = skips("unfold") ? 1 : skips("fold") ? 2 : skips("cong") ? 3 : 0 ) {
 					auto const& rew = _thy.rewriter();
 					if( !rew ) throw Error("\"rewriter not set\"");
 					while( auto const& thm = _gets_thm(_thy) ) {
 						auto rule = *thm;
-						if( rev ) {
+						if( type == 2 ) {
 							rule = _thy.dualize(rule,resolver);
 						}
-//						rule = blaster.rewrites(_thy,rule);// normalize added rule
 						if PRF {
 							if( !MSG ) cout << _indent(' ');
 							cout << "adding rewrite rule: " << _thy.pretty(rule) << endl;
 						}
-						_thy.add_rewrite_rule(resolver.rules,rule);
+						_thy.add_rewrite_rule(resolver.rules,rule,type==3);
 					}
 				} else {
 					throw Error("\"unexpected\"")(get());

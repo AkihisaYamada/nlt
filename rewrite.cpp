@@ -56,8 +56,8 @@ Thm Thy::dualize( Thm const& thm, Blaster& resolver ) const & {
 	throw Error("\"not dualizable\"")(body);
 }
 
-void Thy::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm ) const & {
-	auto const& [ind,rule] = rewriter()->make_rule(thm);
+void Thy::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const & {
+	auto const& [ind,rule] = rewriter()->make_rule(thm,cong);
 	rules[ind].emplace_back(std::move(rule));
 }
 
@@ -114,7 +114,7 @@ void Rewrite::register_trans( Thm const& thm ) & {
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
-pair<char,Rewrite::Rule> Rewrite::make_rule( Thm const& thm ) const& {
+pair<char,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
 	// parsing congruence rule
 	auto intro = Intro::rule(thm);// e.g. ∀x y, (φ ⟹... x = y), ∀x2 y2, ... ⊢ l[x...] = r[y...]
 	auto const& bin = strips_binary(intro.conclusion());
@@ -190,11 +190,11 @@ pair<char,Rewrite::Rule> Rewrite::make_rule( Thm const& thm ) const& {
 		}
 	}
 	Thm concl = intro.conclusion().subst(tmp2rule);
-	return {*ind,Rule(concl,l,concl.intro(),std::move(conds))};
+	return {*ind,Rule(concl,l,concl.intro(),std::move(conds),cong)};
 }
 
 bool Rewrite::register_cong( Thm const& thm ) & {
-	auto [ind,cong] = make_rule(thm);
+	auto [ind,cong] = make_rule(thm,true);
 	for( auto const& cong : _congs[ind] ) {// do not register duplicates
 		if( (Term)cong == thm ) return false;
 	}
@@ -202,7 +202,7 @@ bool Rewrite::register_cong( Thm const& thm ) & {
 	return true;
 }
 void Rewrite::register_fallback( Thm const& thm ) & {
-	auto [ind,rule] = make_rule(thm);
+	auto [ind,rule] = make_rule(thm,true);
 	_fallbacks.emplace(ind,rule);
 }
 
@@ -269,7 +269,7 @@ bool Blaster::_step_cond(
 		// source == (Γ; ∀v'; φθ.[v']... ⊢ lθ.[v'])
 	} else {// pat: φ... ⟹ x = y
 		while( auto imp = pat.binary(IMP) ) {
-			auto assm = subthy.assume(imp->first.csubst(intp));// φθ
+			auto assm = subthy.assume(subthy.weaken(imp->first.csubst(intp)));// φθ
 			inflate(subthy,assm);
 			add_forced(subthy,assm);
 			pat = imp->second;
@@ -315,12 +315,11 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	Rewrite::Rule const& rule,// Δ ⊢ ∀x... ∀y. s = y ⟹... l[x...] = r[y...]
 	Subst const& matcher,// θ : {x...} → Γ s.t. source == l[x...]θ
 	Intp const& rule2thy,// σ : Δ → Γ
-	bool success,
 	bool simp,
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 4 ) _log() << "{ applying " << ( success ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
+	if( log > 4 ) _log() << "{ applying " << ( rule.cong ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();// (Δ, ∀x..., ∀y, s = y, ...)
@@ -337,6 +336,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	}
 	// Γ ⊢ Δ, ∀x...; θ; ∀y, s = y,...
 	size_t i = 0;
+	bool applied = false;
 	for( auto const& cond : rule.conds ) {
 		if( !cond.ind ) {// guard condition should be automatically provable
 			auto guard = intp.assuming();
@@ -358,11 +358,11 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 				pos_it++;
 			}
 			i++;
-			success = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || success;
+			applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || applied;
 		}
 	}
 	indent--;
-	if( success ) {
+	if( !rule.cong || applied ) {
 		if( !intp.ready() ) {
 			if( auto const& v = intp.fixing() ) throw Error("\"bad rewrite\"")(rule)("\"unfixed\"")(*v);
 			if( auto const& assm = intp.assuming() ) throw Error("\"bad rewrite\"")(rule)("\"undischarged\"")(*assm);
@@ -389,8 +389,8 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 		cerr << '(' << rew->_rels[ind] << "): " << thy.pretty(source) << endl;
 	}
 	indent++;
-	auto apply = [&]( Rewrite::Rule const& rule, bool success, Subst const& matcher, Intp const& intp )->Opt<Thm> {
-		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,success,simp,pos_it,pos_end) ) {
+	auto apply = [&]( Rewrite::Rule const& rule, Subst const& matcher, Intp const& intp )->Opt<Thm> {
+		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,simp,pos_it,pos_end) ) {
 			indent--;
 			if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
 			return ret;
@@ -399,9 +399,9 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 	};
 	if( pos_it == pos_end ) {// active position
 		for( auto const& rule : rules[ind] ) {
-			if( log > 5 ) _log() << "- testing rewrite rule: " << thy.pretty(rule) << endl;
+			if( log > 5 ) _log() << "- testing explicit rule: " << thy.pretty(rule) << endl;
 			if( auto const& m = match(rule.pat,source,is_patvar) )
-			if( auto const& ret = apply(rule,true,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 				return {{*ret,ret->capp()->second}};
 			}
 		}
@@ -411,7 +411,7 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 			assert(rule);
 			if( log > 5 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {
-				return apply(*rule,true,*m,import);
+				return apply(*rule,*m,import);
 			}
 			return {};
 		}) ) {
@@ -420,14 +420,14 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 	}
 	for( auto const& rule : rew->_congs[ind] ) {
 		if( auto const& m = match(rule.pat,source,is_patvar) )
-		if( auto const& ret = apply(rule,false,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
 		}
 	}
 	if( auto const& o = rew->_fallbacks.finds(ind) ) {
 		auto const& rule = o->second;
 		if( auto const& m = match(rule.pat,source,is_patvar) )
-		if( auto const& ret = apply(rule,false,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
 		}
 	}

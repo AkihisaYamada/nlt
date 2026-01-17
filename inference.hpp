@@ -223,7 +223,6 @@ private:
 		Rewrite::Rule const& rule,
 		Subst const& matcher,
 		Intp const& rule2thy,
-		bool success,
 		bool simp,
 		std::vector<char>::const_iterator pos_it,
 		std::vector<char>::const_iterator pos_end
