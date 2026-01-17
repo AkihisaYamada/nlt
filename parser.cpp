@@ -25,68 +25,100 @@ Opt<Term> Parser::gets_term( int level ) & {
 	if( peek == "" || syn.has_closer(peek) ) {
 		return {};
 	}
-	Term ret;
-	if( auto opener_p = syn.finds_opener(peek) ) {
+	Term init;
+	if( skips("(") ) {
+		init = get_term(-1000);
+		skip(")");
+	} else if( auto const& x = syn.finds_opener(peek) ) {
 		ignore_token();
-		auto const& opener = opener_p->second;
-		ret = opener.handler(*this);
-	} else if( auto x = syn.finds_prefix(peek) ) {
-		if( x->second.llevel < level ) {
-			return {};
-		}
-		ret = Term(x->first);
-		ignore_token();
-		if( auto const& r = gets_term(x->second.rlevel) ) {
-			ret = ret(*r);
-		}
-	} else if( auto x = syn.finds_binder(peek) ) {
-		if( x->second.llevel < level ) {
-			return {};
-		}
-		ignore_token();
-		auto var = gets(Lexer::Word);
-		if( !var && skips("(") ) {
-			var = get();
-			skip(")");
-		}
-		if( var ) {
-			auto follow = get();
+		auto const& [opener,op] = *x;
+		if( auto const& var = gets_sym() ) {
+			auto const& follow = peek_token();
 			if( follow == "." ) {
-				ret = Term(x->first)( *var /= get_term(x->second.rlevel) );
-			} else if( auto y = x->second.mids.finds(follow) ) {
-				auto sym = y->second;
-				auto typ = get_term();
+				ignore_token();
+				auto body = get_term();
+				skip(op.closer);
+				if( !op.compr ) throw Error("\"comprehension not registered\"")(string("\"")+opener+"\"");
+				init = Term(*op.compr)(*var/=body);
+			} else if( auto y = op.bcompr.finds(follow) ) {
+				ignore_token();
+				auto bcompr = y->second;
+				auto range = get_term();
 				skip(".");
-				auto body = get_term(x->second.rlevel);
-				ret = Term(sym)(typ)(*var/=body);
+				auto body = get_term();
+				skip(op.closer);
+				init = Term(bcompr)(range)(*var/=body),level;
 			} else {
-				ret = Term(x->first)( *var /= Term(x->first)( follow /= nest_abs(x->first,x->second.rlevel) ) );
+				auto inner = _get_follow(*var,0,syn);
+				skip(op.closer);
+				if( !op.singleton ) throw Error("\"singleton not registered\"")(inner);
+				init = Term(*op.singleton)(inner);
 			}
 		} else {
-			ret = Term(x->first);
+			skip(op.closer);
+			if( !op.empty ) throw Error("\"empty not registered\"");
+			init = *op.empty;
+		}
+	} else if( auto x = syn.finds_prefix(peek) ) {
+		auto const& [binder,op] = *x;
+		if( op.llevel < level ) {
+			return {};
+		}
+		ignore_token();
+		if( auto const& r = gets_term(x->second.rlevel) ) {
+			init = Term(binder)(*r);
+		} else {
+			init = binder;
+		}
+	} else if( auto x = syn.finds_binder(peek) ) {
+		auto const& [binder,op] = *x;
+		if( op.llevel < level ) {
+			return {};
+		}
+		ignore_token();
+		if( auto var = gets_sym() ) {
+			auto follow = get();
+			if( follow == "." ) {// ∀x. _
+				auto body = get_term(op.rlevel);
+				init = Term(binder)(*var/=body);
+			} else if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
+				auto actual = y->second;
+				auto range = get_term();
+				skip(".");
+				auto body = get_term(op.rlevel);
+				init = Term(actual)(range)(*var/=body);
+			} else {
+				auto inner = nest_abs(binder,op.rlevel);
+				init = Term(binder)( *var /= Term(binder)(follow/=inner) );
+			}
+		} else {
+			init = binder;
 		}
 	} else if( auto x = syn.finds_infix(peek) ) {
 		if( x->second.level < level ) {
 			return {};
 		}
-		ret = Term(x->first);
+		init = Term(x->first);
 		ignore_token();
 	} else {
 		auto sym = string(peek);
 		ignore_token();
 		if( level < 0 && skips(".") ) {
-			auto t = gets_term(level);
-			if( !t ) throw Error("\"binding expects body\"");
-			ret = sym /= *t;
+			auto body = gets_term(level);
+			if( !body ) throw Error("\"binding expects body\"");
+			init = sym /= *body;
 		} else if( skips(".[") ) {
-			auto const& t = gets_term(-1000);
-			if( !t ) throw Error("\"unbinding expects body\"");
-			ret = sym %= *t;
+			auto const& body = gets_term(-1000);
+			if( !body ) throw Error("\"unbinding expects body\"");
 			skip("]");
+			init = sym %= *body;
 		} else {
-			ret = Term(sym);
+			init = sym;
 		}
 	}
+	return {_get_follow(init,level,syn)};
+}
+Term Parser::_get_follow( Term ret, int level, Syntax const& syn ) & {
 	for(;;) {
 		string_view peek = peek_token();
 		if( peek == "" || syn.has_closer(peek) ) {

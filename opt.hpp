@@ -71,6 +71,9 @@ public:
 	bool operator&&( std::function<bool(T const&)> f ) const& {
 		return *this && f(*_opt);
 	}
+	bool contains( T const& other ) const {
+		return *this && **this == other;
+	}
 	template<typename U>
 	operator Opt<U>() && = delete;
 	template<typename U> requires std::is_convertible_v<T,U>

@@ -8,89 +8,92 @@ Syntax::Syntax() {
 	infix("⟹",0,1,0);
 	binder("∀",0,0);
 	infix(".",-1,-1,-2);
+	_closers.emplace(")");
+	_closers.emplace("]");
 }
 
 ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
-	if( _prefixes.contains(sym) || _binders.contains(sym) || _mid_binders.contains(sym) || _infixes.contains(sym) ) {
+	if( _prefixes.contains(sym) || _binders.contains(sym) || _binder_of.contains(sym) || _infixes.contains(sym) ) {
 		return os << '(' << sym << ')';
 	}
 	return os << sym;
 }
 
 ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
-	if( auto sym = term.sym() ) {
+	if( auto const& sym = term.sym() ) {
 		return pretty_sym(os,*sym);
-	} else if( auto app = term.app() ) {
+	} else if( auto const& app = term.app() ) {
 		auto const& fun = app->first, arg = app->second;
-		if( auto sym = fun.sym() ) {
-			if( auto x = _prefixes.finds(*sym) ) {
+		if( auto const& sym = fun.sym() ) {
+			if( auto const& x = _prefixes.finds(*sym) ) {
 				auto const& op = x->second;
-				if( level > op.llevel ) {
-					os << '(';
-				}
+				if( level > op.llevel ) os << '(';
 				os << *sym << ' ' << pretty(arg,op.rlevel);
-				if( level > op.llevel ) {
-					os << ')';
-				}
+				if( level > op.llevel ) os << ')';
 				return os;
-			}
-			if( auto abs = arg.bind() )
-			if( auto x = _binders.finds(*sym) ) {
-				auto const& op = x->second;
-				if( level > op.llevel ) {
-					os << '(';
+			} else if( auto const& x = _binders.finds(*sym) ) {// ∀x. _
+				if( auto const& abs = arg.bind() ) {
+					auto const& op = x->second;
+					if( level > op.llevel ) os << '(';
+					os << *sym << ' ' << pretty_sym(abs->first);
+					Term cur = abs->second;
+					while( auto abs2 = cur.binder(*sym) ) {
+						os << ' ' << pretty_sym(abs2->first);
+						cur = abs2->second;
+					}
+					os << ". " << pretty(cur,op.rlevel);
+					if( level > op.llevel ) os << ')';
+					return os;
 				}
-				os << *sym << ' ' << pretty_sym(abs->first);
-				Term cur = abs->second;
-				while( auto abs2 = cur.binder(*sym) ) {
-					os << ' ' << pretty_sym(abs2->first);
-					cur = abs2->second;
+			} else if( auto const& x = _opener_of.finds(*sym) ) {
+				auto const& opener = x->second;
+				auto const& op = _openers.finds(opener)->second;
+				if( op.compr.contains(*sym ) ) {// {x. _}
+					if( auto const& abs = arg.bind() ) {
+						return os << opener << pretty_sym(abs->first) << ". " <<
+							pretty(abs->second,0) << op.closer;
+					}
+				} else if( op.singleton.contains(*sym) ) {// {_}
+					return os << opener << pretty(arg,0) << op.closer;
 				}
-				os << ". " << pretty(cur,op.rlevel);
-				if( level > op.llevel ) {
-					os << ')';
-				}
-				return os;
 			}
 		} else if( auto app_in = fun.app() ) {
 			auto const& fun_in = app_in->first, arg_in = app_in->second;
 			if( auto sym = fun_in.sym() ) {
-				if( auto x = _prefixes.finds(*sym) ) {
+				if( auto const& x = _prefixes.finds(*sym) ) {
 					auto const& op = x->second;
-					if( level > op.llevel ) {
-						os << '(';
-					}
+					if( level > op.llevel ) os << '(';
 					os << *sym << ' ';
 					os << pretty(arg,op.rlevel);
-					if( level > op.llevel ) {
-						os << ')';
-					}
+					if( level > op.llevel ) os << ')';
 					return os;
-				}
-				if( auto x = _infixes.finds(*sym) ) {
+				} else if( auto const& x = _infixes.finds(*sym) ) {
 					auto const& op = x->second;
-					if( level > op.level ) {
-						os << '(';
-					}
+					if( level > op.level ) os << '(';
 					os << pretty(arg_in,op.llevel);
 					os << ' ' << *sym << ' ';
 					os << pretty(arg,op.rlevel);
-					if( level > op.level ) {
-						os << ')';
-					}
+					if( level > op.level ) os << ')';
 					return os;
-				}
-				if( auto abs = arg.bind() )
-				if( auto x = _mid_binders.finds(*sym) ) {
-					auto const& op = x->second;
-					if( level > op.llevel ) {
-						os << '(';
+				} else if( auto const& x = _binder_of.finds(*sym) ) {
+					auto const& prefix = x->second;
+					auto const& op = _binders.finds(prefix)->second;
+					if( auto abs = arg.bind() ) {
+						if( level > op.llevel ) os << '(';
+						os << prefix << ' ' << abs->first << ' ' << op.mid_of.finds(*sym)->second << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,op.rlevel);
+						if( level > op.llevel ) os << ')';
+						return os;
 					}
-					os << op.prefix << ' ' << abs->first << ' ' << op.mid << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,op.rlevel);
-					if( level > op.llevel ) {
-						os << ')';
+				} else if( auto const& x = _opener_of.finds(*sym) ) {
+					auto const& opener = x->second;
+					auto const& op = _openers.finds(opener)->second;
+					if( auto const& y = op.bcompr.finds(*sym ) ) {// {x ∈ X. _}
+						if( auto const& abs = arg.bind() ) {
+							return os << opener << pretty_sym(abs->first) << ' '
+								<< op.mid_of.finds(*sym)->second << ' ' << app_in->second << ". "
+								<< pretty(abs->second,0) << op.closer;
+						}
 					}
-					return os;
 				}
 			}
 		}

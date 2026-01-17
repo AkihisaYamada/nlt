@@ -524,7 +524,7 @@ end
 theory Collect:
 	import Membership.
 	fix COLLECT.
-	set collect COLLECT.
+	set compr {_. _} := COLLECT.
 	assume in_COLLECT_iff: x ∈ {x. P.[x]} ⟺ P.[x].
 begin
 	lemma in_COLLECT_intro: if assm: P.[x] then x ∈ {x. P.[x]};

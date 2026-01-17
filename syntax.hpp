@@ -42,21 +42,19 @@ public:
 		int llevel;
 		int rlevel;
 	};
-	struct MidBinder {
-		std::string prefix;
-		std::string mid;
-		int llevel;
-		int rlevel;
-		MidBinder( std::string_view const& prefix, std::string_view const& mid, int llevel, int rlevel ) : prefix(prefix), mid(mid), llevel(llevel), rlevel(rlevel) {}
-	};
 	struct Binder {
 		int llevel;
 		int rlevel;
-		StrMap<std::string> mids;
+		StrMap<std::string> bbinds;// ∀x ∈ X. _
+		StrMap<std::string> mid_of;// bbind -> "∈"
 	};
 	struct Opener {
-		int level;
-		std::function<Term(Parser&)> handler;
+		std::string closer;
+		Opt<std::string> empty;// {}
+		Opt<std::string> singleton;// {_}
+		Opt<std::string> compr;// {x. _}
+		StrMap<std::string> bcompr;// {x ∈ X. _}
+		StrMap<std::string> mid_of;// bcompr -> "∈"
 	};
 private:
 	StrMap<Opener> _openers;
@@ -64,7 +62,8 @@ private:
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
 	StrMap<Binder> _binders;
-	StrMap<MidBinder> _mid_binders;
+	StrMap<std::string> _binder_of;// bbind → "λ"
+	StrMap<std::string> _opener_of;// bcompr → "{"
 	bool _print_ctxt = false;
 public:
 	Syntax();
@@ -86,16 +85,10 @@ public:
 	Opt<std::pair<std::string const,Infix> const&> finds_infix(std::string_view const& sym) const {
 		return _infixes.finds(sym);
 	}
-	void closer(std::string const& cl) {
-		_closers.insert(cl);
-	}
 	bool has_closer(std::string_view const& sym) const {
 		return _closers.contains(sym);
 	}
-	void opener(std::string const& opener, int level, std::function<Term(Parser&)> handler) {
-		_openers.insert_or_assign(opener,Opener{level,handler});
-	}
-	Opt<std::pair<std::string const, Opener> const&> finds_opener(std::string_view const& sym) const {
+	Opt<std::pair<std::string const, Opener> const&> finds_opener( std::string_view const& sym ) const {
 		return _openers.finds(sym);
 	}
 	void binder( std::string_view const& binder, int llevel, int rlevel ) {
@@ -104,11 +97,37 @@ public:
 	auto finds_binder( std::string_view const& binder ) const& {
 		return _binders.finds(binder);
 	}
-	void binder_mid( std::string_view const& prefix, std::string_view const& mid, std::string_view const& sym ) {
-		auto bind = _binders.finds(prefix);
-		if( !bind ) throw Error("\"binder not registered\"")(prefix)(mid);
-		bind->second.mids.emplace(mid,sym);
-		_mid_binders.emplace(sym,MidBinder(prefix,mid,bind->second.llevel,bind->second.rlevel));
+	void binder_mid( std::string_view const& prefix, std::string_view const& mid, std::string_view const& actual ) & {
+		auto binder = _binders.finds(prefix);
+		if( !binder ) throw Error("\"binder not registered\"")(prefix)(mid);
+		binder->second.bbinds.emplace(mid,actual);
+		binder->second.mid_of.emplace(actual,mid);
+		_binder_of.emplace(actual,prefix);
+	}
+	void empty_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
+		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+		it->second.empty.emplace(actual);
+		_opener_of.emplace(actual,opener);
+		_closers.emplace(closer);
+	}
+	void singleton_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
+		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+		it->second.singleton.emplace(actual);
+		_opener_of.emplace(actual,opener);
+		_closers.emplace(closer);
+	}
+	void compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
+		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+		it->second.compr.emplace(actual);
+		_opener_of.emplace(actual,opener);
+		_closers.emplace(closer);
+	}
+	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual ) & {
+		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+		it->second.bcompr.emplace(mid,actual);
+		it->second.mid_of.emplace(actual,mid);
+		_opener_of.emplace(actual,opener);
+		_closers.emplace(closer);
 	}
 	std::ostream& pretty_sym( std::ostream& os, std::string_view const& sym ) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_sym( std::string_view const& sym ) const & {

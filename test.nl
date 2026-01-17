@@ -1,7 +1,4 @@
 print load.
-term (x,(y,z)).
-term ((x,y),z).
-
 import Abbreviation.
 import Logic.
 

@@ -181,21 +181,23 @@ theory Collect:
 	import Membership.
 	import Collect.
 begin
-	obtain Empty where Empty_def: Empty = {x. false};
+	set compr {} := Empty.
+	obtain Empty where Empty_def: {} = {x. false};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
 		.
-	lemma not_in_Empty: ¬ x ∈ Empty;
+	lemma not_in_Empty: ¬ x ∈ {};
 		by not_false #unfold Empty_def in_COLLECT_iff const_eq.
 
-	obtain Singleton where Singleton_def: Singleton x = {y. x = y};
+	set compr {_} := Singleton.
+	obtain Singleton where Singleton_def: {x} = {y. x = y};
 		- for thesis if assm;
 			apply abbrev[of (x. {y. x = y})];
 			- for f if f;
 				by assm[of f] #unfold f.
 			.
 		.
-	lemma in_Singleton_iff: x ∈ Singleton y ⟺ x = y;
+	lemma in_Singleton_iff: x ∈ {y} ⟺ x = y;
 		unfold Singleton_def in_COLLECT_iff;
 		apply iff.eq.commute.
 
@@ -241,35 +243,43 @@ begin
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
 			- for f if f;
-				by assm[of f] #unfold f COLLECT_eq_iff.
+				by assm[of f] #unfold f COLLECT_eq_iff fst snd.
 			.
 		.
 	lemma in_cup_iff: x ∈ X ∪ Y ⟺ x ∈ X ∨ x ∈ Y;
 		unfold cup_def in_COLLECT_iff.
 
-	set set_comprehension COLLECT Empty Singleton (∪).
-
 	obtain (∩) where cap_def: X ∩ Y = {x. x ∈ X ∧ x ∈ Y};
 		- for thesis if assm;
 			apply abbrev2[of (p. {x. x ∈ fst p ∧ x ∈ snd p})];
 			- for f if f;
+				by assm[of f] #unfold f fst snd COLLECT_eq_iff.
+			.
+		.
+	obtain COLLECT_in where COLLECT_in X (x. P.[x]) = {x. x ∈ X ∧ P.[x]};
+		abbrev2[of (p. COLLECT P)]
+	obtain class where class_def: class A (⊑) x = {y. x ⊑ y};
+		- for thesis if assm;
+			apply abbrev2[of (p. {y. (fst p) (snd p) y})];
+			- for f if f;
 				by assm[of f] #unfold f fst snd.
 			.
 		.
-
-end
+	obtain quotient where quotient A r = {C. x ∈ A ∧ {
 
 	obtain DECIDED where DECIDED_def: DECIDED = {x. x ∨ ¬x};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
+		.
 
 	lemma in_DECIDED_iff: P ∈ DECIDED ⟺ P ∨ ¬P;
 		unfold DECIDED_def in_COLLECT_iff.
 
-	namespace DECIDED begin
+	namespace DECIDED:
 
 		interpret Propositional (∈) DECIDED;
-		- for x y if x: x ∈ DECIDED, y: y ∈ DECIDED then (x ⟹ y) ∈ DECIDED;
+goals.
+		- if x: x ∈ DECIDED, y: y ∈ DECIDED then (x ⟹ y) ∈ DECIDED;
 			unfold in_DECIDED_iff;
 			apply or_elim[OF y[unfolded in_DECIDED_iff]];
 			-; by or_intro1.

@@ -71,14 +71,6 @@ void init_lex( Lex& lex ) {
 	lex.register_multi_op('^');
 }
 void init_syntax( Syntax& syntax ) {
-	syntax.opener("(",-1000,[&]( Parser& parser ){
-		Opt<Term> t = parser.gets_term(-1000);
-		parser.skip(")");
-		return *t;
-	});
-	syntax.closer(")");
-	syntax.closer("}");
-	syntax.closer("]");
 	syntax.infix(":",50,51,50);
 	syntax.infix(",",-20,-19,-20);
 	syntax.infix(";",-30,-29,-30);
@@ -1306,43 +1298,38 @@ public:
 					Thm const& beta = get_thm();
 					if MSG cout << " beta: " << _thy.pretty(beta) << endl;
 					_thy.setup_definer(beta);
-				} else if( skips("collect" ) ) {
-					Term const& collect = get_term(1000);
-					_thy.modify_syntax().opener("{",-1000,[=,this]( Parser& parser ) {
-						auto inner = parser.get_term(-1);
-						if( inner.bind() ) {
-							parser.skip("}");
-							return collect(inner);
+				} else if( skips("compr") ) {
+					auto opener = get();
+					if( skips("_") ) {
+						if( skips(".") ) {
+							skip("_");
+							auto closer = get();
+							skip(":=");
+							auto actual = get_sym();
+							_thy.modify_syntax().compr(opener,closer,actual);
+							if MSG cout << "comprehension: " << opener << "_. _" << closer << " := " << _thy.pretty(actual) << endl;
+						} else {
+							auto next = get();
+							if( skips("_") ) {
+								skip(".");
+								skip("_");
+								auto closer = get();
+								skip(":=");
+								auto actual = get_sym();
+								_thy.modify_syntax().bcompr(opener,next,closer,actual);
+								if MSG cout << "bounded comprehension: " << opener << "_ " << next << "_. _" << closer << " := " << _thy.pretty(actual) << endl;
+							}
+							skip(":=");
+							auto actual = get_sym();
+							_thy.modify_syntax().singleton_compr(opener,next,actual);
 						}
-						throw Error("\"collect expects binding\"")(inner);
-					});
-					_thy.modify_syntax().closer("}");
-					if MSG cout << "set up set collection" << endl;
-				} else if( skips("set_comprehension") ) {
-					Term const& collect = get_term(1000);
-					Term const& empty = get_term(1000);
-					Term const& singleton = get_term(1000);
-					Term const& cup = get_term(1000);
-					_thy.modify_syntax().opener("{",-1000,[=,this]( Parser& parser ){
-						auto const& inner = parser.gets_term(-1);
-						if( !inner ) {
-							parser.skip("}");
-							return empty;
-						}
-						if( inner->bind() ) {
-							parser.skip("}");
-							return collect(*inner);
-						}
-						Term ret = singleton(*inner);
-						while( parser.skips(",") ) {
-							auto const inner2 = parser.gets_term(0);
-							ret = cup(ret)(singleton(*inner2));
-						}
-						parser.skip("}");
-						return ret;
-					});
-					_thy.modify_syntax().closer("}");
-					if MSG cout << "set up set comprehension" << endl;
+					} else {
+						auto closer = get();
+						skip(":=");
+						auto actual = get_sym();
+						_thy.modify_syntax().empty_compr(opener,closer,actual);
+						if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
+					}
 				}
 				skip(".");
 			} else if( skips("symbol") ) {
