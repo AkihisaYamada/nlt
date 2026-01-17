@@ -108,14 +108,14 @@ interpret Const;
 		- for thesis if elim;
 			apply abbrev2[of (p. fst p)];
 			- for f if f;
-				by elim[of f] #unfold f fst.
+				by elim[of f] #unfold f.
 			.
 		.
 	.
 lemma curry: for f, ∃f'. ∀x y. f' x y = f (x,y);
 	apply abbrev2[of (p. f p)];
 	- for f' if f';
-		by ex_intro1[of f'] #unfold f' fst snd.
+		by ex_intro1[of f'] #unfold f'.
 	.
 obtain inverts where
 	inverts_intro: (∀x. f (g x) = x) ⟹ inverts f g,
@@ -130,7 +130,7 @@ obtain rev_app where rev_app: rev_app x f = f x;
 	- for thesis if assm;
 		apply abbrev2[of (p. snd p (fst p))];
 		- for f if f;
-			by assm[of f] #unfold f fst snd.
+			by assm[of f] #unfold f.
 		.
 	.
 
@@ -138,7 +138,7 @@ obtain (≠) where neq_iff: x ≠ y ⟺ ¬ x = y;
 	- for thesis if assm;
 		apply abbrev2[of (p. ¬ fst p = snd p)];
 		- for f if f;
-			by assm[of f] #unfold f fst snd.
+			by assm[of f] #unfold f.
 		.
 	.
 
@@ -146,14 +146,14 @@ obtain sup_pred where sup_pred_iff: sup_pred P Q x ⟺ P x ∨ Q x;
 	- for thesis if assm;
 		apply abbrev3[of (t. fst t (snd (snd t)) ∨ fst (snd t) (snd (snd t)))];
 		- for f if f;
-			by assm[of f] #unfold f fst snd.
+			by assm[of f] #unfold f.
 		.
 	.
 obtain inf_pred where inf_pred_iff: inf_pred P Q x ⟺ P x ∧ Q x;
 	- for thesis if assm;
 		apply abbrev3[of (t. fst t (snd (snd t)) ∧ fst (snd t) (snd (snd t)))];
 		- for f if f;
-			by assm[of f] #unfold f fst snd.
+			by assm[of f] #unfold f.
 		.
 	.
 
@@ -164,7 +164,7 @@ begin
 		- for thesis if assm;
 			apply abbrev2[of (p. ∀x ∈ fst p. x ∈ snd p)];
 			- for f if f;
-				by assm[of f] #unfold f fst snd.
+				by assm[of f] #unfold f.
 			.
 		.
 	obtain (∉) where notin_iff: x ∉ X ⟺ ¬ x ∈ X;
@@ -172,7 +172,7 @@ begin
 			apply abbrev2[of (p. ¬ fst p ∈ snd p)];
 			- for f if f;
 				apply assm[of f];
-				by iff_intro #unfold f fst snd.
+				by iff_intro #unfold f.
 			.
 		.
 end
@@ -256,13 +256,24 @@ begin
 				by assm[of f] #unfold f fst snd COLLECT_eq_iff.
 			.
 		.
-	obtain COLLECT_in where COLLECT_in X (x. P.[x]) = {x. x ∈ X ∧ P.[x]};
-		abbrev2[of (p. COLLECT P)]
+	lemma in_cap_iff: x ∈ X ∩ Y ⟺ x ∈ X ∧ x ∈ Y;
+		unfold cap_def in_COLLECT_iff.
+
+	set compr {_ ∈ _. _} := COLLECT_in.
+	obtain COLLECT_in where COLLECT_in: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]};
+		- for thesis if assm;
+			apply abbrev2[of (p. fst p ∩ COLLECT (snd p))];
+			- for f if f;
+				apply assm[of f];
+				by #unfold f cap_def COLLECT_eq_iff in_COLLECT_iff.
+			.
+		.
+
 	obtain class where class_def: class A (⊑) x = {y. x ⊑ y};
 		- for thesis if assm;
 			apply abbrev2[of (p. {y. (fst p) (snd p) y})];
 			- for f if f;
-				by assm[of f] #unfold f fst snd.
+				by assm[of f] #unfold f COLLECT_eq_iff.
 			.
 		.
 	obtain quotient where quotient A r = {C. x ∈ A ∧ {

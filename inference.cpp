@@ -207,7 +207,7 @@ bool Blaster::_blast(
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
 		if( rewrite && rew ) {// rewrite the assumption
-			assm = rewrites(subthy,assm);
+			assm = rewrites(subthy,assm,true);
 		}
 		// checks if an elimination rule matches
 		if( subthy.find_thm( Thy::ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -282,7 +282,7 @@ bool Blaster::_blast(
 				elim_res_ind++;
 				break;// move on to the new thesis
 			}// no elimination result matched
-			if( rewrite && rewrites(subthesis,0,255,true,{},{}) ) {// try rewriting
+			if( rewrite && rewrites(subthesis,true,0,255,true,{},{}) ) {// try rewriting
 				if( log > 3 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;
 				break;
 			}

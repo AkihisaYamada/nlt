@@ -193,23 +193,19 @@ public:
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
+	/** @brief applies rewriting */
+	bool rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
+	/** @brief Rewrites a theorem */
+	Thm rewrites( Thy const& thy, Thm const& source, bool simp, size_t min = 0 ) &;
 	/**
-	 * @brief returns a rewrite step equation for the given source term at given position.
+	 * @brief returns a rewrite equation for the given source term at given position.
 	 * 
 	 * @param source the term to be rewritten
-	 * @return Opt<Thm> 
+	 * @return the equation
 	 */
-	Opt<std::pair<Thm,CTerm>> step( Thy const& thy, CTerm const& source, std::vector<char> const& pos ) & {
-		return _step(thy,source,rew->_default_ind,pos.begin(),pos.end());
-	}
-	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
-	/** @brief Rewrites a theorem */
-	Thm rewrites( Thy const& thy, Thm const& source, size_t min = 0 ) &;
-	/** @brief returns a rewriting theorem */
-	Thm steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+	Thm steps( Thy const& thy, CTerm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 		size_t ind = rew->get_ind(rel);
-		if( auto ret = _steps(thy,source,min,max,normalize,pos,ind) ) {
+		if( auto ret = _steps(thy,source,simp,min,max,normalize,pos,ind) ) {
 			return *ret;
 		}
 		return _make_refl(thy,source,ind);
@@ -228,6 +224,7 @@ private:
 		Subst const& matcher,
 		Intp const& rule2thy,
 		bool success,
+		bool simp,
 		std::vector<char>::const_iterator pos_it,
 		std::vector<char>::const_iterator pos_end
 	) &;
@@ -239,13 +236,12 @@ private:
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, bool simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
 	/** rewrites abstraction.
 	 * @returns equation, the rhs, and whether rewrite succeeded
 	 */
-	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end, bool rewrite ) &;
-	void _refl_cond( Thy const& thy, Intp& intp, CTerm const& cond, char ind ) &;
-	Opt<Thm> _steps( Thy const& thy, CTerm const& source, size_t min, size_t max, bool safe, std::vector<char> const& pos, char ind ) &;
+	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, bool simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _steps( Thy const& thy, CTerm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
 };
 
 inline void Thesis::blast() & {

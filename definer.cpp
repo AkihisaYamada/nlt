@@ -49,7 +49,7 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	Thm thm = thesis_ctxt.assume( f &= qeq >>= thesis );// ∀f. (∀x... f x... = r) ⟹ thesis
 	auto inf = Blaster(lthy.rewriter());
 	lthy.add_rewrite_rule(inf.rules,lthy.weaken(_beta));
-	auto eq_thm = inf.steps(lthy,r_cabs_app,steps,steps,false,{},{EQ});// (λx... r) x... = r
+	auto eq_thm = inf.steps(lthy,r_cabs_app,false,steps,steps,false,{},{EQ});// (λx... r) x... = r
 	eq_thm = eq_thm.intro().subst(thesis_intp);// ∀x... (λx... r) x... = r
 	thm = thm.instantiate(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
 	thm = thm << eq_thm;// thesis

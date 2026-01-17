@@ -236,7 +236,7 @@ public:
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
 					auto inf = loc.blaster(_out_blast);
 					auto ctrl = _get_rewrite(inf,loc,dir);
-					ret = inf.rewrites(loc,ret);
+					ret = inf.rewrites(loc,ret,false);
 				} else if( skips("dual") ) {
 					auto resolver = Blaster(loc.rewriter(),_out_blast);
 					ret = loc.dualize(ret,resolver);
@@ -392,57 +392,6 @@ public:
 		if( i == 0 ) {
 			cout << "no goal" << endl;
 		}
-	}
-	Thesis get_statement() {
-		auto assm_thy = _thy.branch();
-		bool vars;
-		for(;;) {
-			if( skips("for") ) {
-				vars = true;
-				if MSG cout << "for" << flush;
-				while( auto const& sym = gets_sym() ) {
-					if MSG cout << ' ' << *sym << flush;
-					assm_thy.fix(*sym);
-				}
-				skips(",");
-			} else if( skips("if") ) {
-				if MSG {
-					if( vars ) {
-						cout << ' ';
-					}
-					cout << "if " << flush;
-				}
-				for(;;) {
-					if( skips("[") ) {
-						if MSG cout << "[ ";
-						for(;;) {
-							auto t = get_term();
-							if MSG cout << _thy.pretty(t);
-							add_claim(assm_thy,ClaimStatus::INFLATED,assm_thy.assume(t));
-							if( !skips(",") ) break;
-							if MSG cout << ", " << flush;
-						}
-						skip("]");
-						if MSG cout << " ] ";
-					} else {
-						auto cs = get_claim_status();
-						auto t = get_term();
-						if MSG cout << cs << _thy.pretty(t) << ", " << flush;
-						add_claim(assm_thy,cs,assm_thy.assume(t));
-					}
-					if( !skips(",") ) break;
-				};
-				skip("then");
-				if MSG cout << "then ";
-			} else {
-				break;
-			}
-		}
-		Term t = get_term(0);
-		skip(";");
-		CTerm goal = assm_thy.enclose(t);
-		if MSG cout << _thy.pretty(goal) << endl;
-		return Thesis::claim_exact(assm_thy,goal);
 	}
 	void _auto_instantiate( Import& intp, string const& sym, bool change ) {
 		if( auto const& c = _thy.constant(sym) ) {
@@ -935,19 +884,72 @@ public:
 	Opt<pair<ClaimStatus,Thm>> _state() {
 		auto cs = get_claim_status();
 		if MSG cout << "showing " << cs << flush;
-		auto thesis = get_statement();
-		_depth++;
-		if MSG cout << _indent();
-		auto o = _prove(thesis);
-		_depth--;
-		if( o ) {
-			auto thm = o->intro();
-			add_claim(_thy,cs,thm);
-			return {{cs,thm}};
-		} else {
-			if ERR cerr << "failed to prove " << cs << thesis.goal();
-			return {};
+		auto assm_thy = _thy.branch();
+		bool vars;
+		for(;;) {
+			if( skips("for") ) {
+				vars = true;
+				if MSG cout << "for" << flush;
+				while( auto const& sym = gets_sym() ) {
+					if MSG cout << ' ' << *sym << flush;
+					assm_thy.fix(*sym);
+				}
+				skips(",");
+			} else if( skips("if") ) {
+				if MSG {
+					if( vars ) {
+						cout << ' ';
+					}
+					cout << "if " << flush;
+				}
+				for(;;) {
+					if( skips("[") ) {
+						if MSG cout << "[ ";
+						for(;;) {
+							auto t = get_term();
+							if MSG cout << _thy.pretty(t);
+							add_claim(assm_thy,ClaimStatus::INFLATED,assm_thy.assume(t));
+							if( !skips(",") ) break;
+							if MSG cout << ", " << flush;
+						}
+						skip("]");
+						if MSG cout << " ] ";
+					} else {
+						auto cs = get_claim_status();
+						auto t = get_term();
+						if MSG cout << cs << _thy.pretty(t) << ", " << flush;
+						add_claim(assm_thy,cs,assm_thy.assume(t));
+					}
+					if( !skips(",") ) break;
+				};
+				skip("then");
+				if MSG cout << "then ";
+			} else {
+				break;
+			}
 		}
+		Term t = get_term(0);
+		CTerm goal = assm_thy.enclose(t);
+		if MSG cout << _thy.pretty(goal) << endl;
+		if( skips(";") ) {
+			auto thesis = Thesis::claim_exact(assm_thy,goal);
+			_depth++;
+			if MSG cout << _indent();
+			auto o = _prove(thesis);
+			_depth--;
+			if( o ) {
+				auto thm = o->intro();
+				add_claim(_thy,cs,thm);
+				return {{cs,thm}};
+			} else {
+				if ERR cerr << "failed to prove " << cs << thesis.goal();
+				return {};
+			}
+		}
+		skip(".");
+		auto thm = assm_thy.prove(goal).intro();
+		add_claim(_thy,cs,thm);
+		return {{cs,thm}};
 	}
 	void _define( Thy& org_thy ) {
 		Opt<string> name_op;
@@ -1214,7 +1216,7 @@ public:
 				auto inf = _thy.blaster(_out_blast);
 				auto ctrl = _get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
-				inf.rewrites(thesis,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
+				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.blast_all();
 				if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 			} else if( skips("-") ) {
@@ -1318,10 +1320,12 @@ public:
 								auto actual = get_sym();
 								_thy.modify_syntax().bcompr(opener,next,closer,actual);
 								if MSG cout << "bounded comprehension: " << opener << "_ " << next << "_. _" << closer << " := " << _thy.pretty(actual) << endl;
+							} else {
+								skip(":=");
+								auto actual = get_sym();
+								_thy.modify_syntax().singleton_compr(opener,next,actual);
+								if MSG cout << "singleton comprehension: " << opener << "_ " << next << " := " << _thy.pretty(actual) << endl;
 							}
-							skip(":=");
-							auto actual = get_sym();
-							_thy.modify_syntax().singleton_compr(opener,next,actual);
 						}
 					} else {
 						auto closer = get();

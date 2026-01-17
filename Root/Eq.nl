@@ -322,7 +322,7 @@ begin
 			.
 		.
 	lemma id_inj: inj id;
-		apply inj_intro.
+		by inj_intro.
 	lemma inj_imp_ex1: if f: inj f then for x, ∃!x'. f x' = f x;
 		apply ex1_intro1[of x];
 		by inj_elim1[OF f].
@@ -373,8 +373,8 @@ end
 
 theory Pair: --- Syntactic Pairing ---
 	fix (,) fst snd.
-	assume fst: fst (x,y) = x.
-	assume snd: snd (x,y) = y.
+	assume fst(unfold) fst (x,y) = x.
+	assume snd(unfold) snd (x,y) = y.
 begin
 	interpret pair: MetaInjective (,);
 		- for x x' if eq: (,) x = (,) x' then x = x';
@@ -383,8 +383,7 @@ begin
 			by 1[unfolded fst].
 		.
 	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
-		have 1: x = fst (x,y);
-			unfold fst.
+		have 1: x = fst (x,y).
 		apply eq.trans[OF 1];
 		have 2: fst (x,y) = fst (x',y');
 			unfold eq.

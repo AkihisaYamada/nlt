@@ -235,8 +235,11 @@ bool Blaster::_step_cond(
 	Thy const& thy,// Γ
 	Intp& intp,// Γ ⊢ Δ
 	CTerm const& cond,// Δ ⊢ φ... ⟹ x = y or ∀v. φ.[v]... ⟹ X.[v] = Y.[v]
+	bool rewrite,
+	bool simp,
 	char ind,
-	vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end, bool rewrite
+	vector<char>::const_iterator pos_it,
+	vector<char>::const_iterator pos_end
 ) & {
 	if( log > 4 ) {
 		_log() << "{ rewriting condition (" << rew->_rels[ind] << "): " << thy.pretty(cond) << endl;
@@ -279,7 +282,7 @@ bool Blaster::_step_cond(
 		// source == (Γ; φθ... ⊢ xθ)
 	}
 	if( rewrite )
-	if( auto o = _step(subthy,source,ind,pos_it,pos_end) ) {
+	if( auto o = _step(subthy,source,simp,ind,pos_it,pos_end) ) {
 		auto [eq,t] = *o;// Γ; ∀v'; φθ.[v']... ⊢ Xθ.[v'] = t.[v']
 		auto res = t.lift(thy.cterm(ALL));// Γ ⊢ ∀v'. t.[v']
 		intp.instantiate( all ? res.capp()->second : res );
@@ -313,10 +316,11 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	Subst const& matcher,// θ : {x...} → Γ s.t. source == l[x...]θ
 	Intp const& rule2thy,// σ : Δ → Γ
 	bool success,
+	bool simp,
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 4 ) _log() << "{ applying rewrite rule: " << thy.pretty(rule) << endl;
+	if( log > 4 ) _log() << "{ applying " << ( success ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();// (Δ, ∀x..., ∀y, s = y, ...)
@@ -347,14 +351,14 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 		} else {
 			if( pos_it != pos_end ) {
 				if( *pos_it != i ) {// inactive position
-					_step_cond(subthy,intp,cond.assm,*cond.ind,pos_it,pos_end,false);
+					_step_cond(subthy,intp,cond.assm,false,false,*cond.ind,pos_it,pos_end);
 					i++;
 					continue;
 				}
 				pos_it++;
 			}
 			i++;
-			success = _step_cond(subthy,intp,cond.assm,*cond.ind,pos_it,pos_end,true) || success;
+			success = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || success;
 		}
 	}
 	indent--;
@@ -372,7 +376,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	return {};
 }
 
-Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( log > 4 ) {
 		_log() << "{ trying to rewrite ";
 		if( pos_it != pos_end ) {
@@ -385,40 +389,45 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, char i
 		cerr << '(' << rew->_rels[ind] << "): " << thy.pretty(source) << endl;
 	}
 	indent++;
-	auto test = [&]( Rewrite::Rule const& rule, bool success, Opt<Subst> const& import = {} )->Opt<Thm> {
-		if( auto const& m = match(rule.pat,source,is_patvar,import) ) {
-			if( auto const& ret = _apply_rewrite_rule(thy,rule,*m,thy.interpret_ancestor(rule.thm.ctxt()),success,pos_it,pos_end) ) {
-				indent--;
-				if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
-assert( ret->ctxt() == thy );
-				return ret;
-			}
+	auto apply = [&]( Rewrite::Rule const& rule, bool success, Subst const& matcher, Intp const& intp )->Opt<Thm> {
+		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,success,simp,pos_it,pos_end) ) {
+			indent--;
+			if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
+			return ret;
 		}
 		return {};
 	};
 	if( pos_it == pos_end ) {// active position
 		for( auto const& rule : rules[ind] ) {
 			if( log > 5 ) _log() << "- testing rewrite rule: " << thy.pretty(rule) << endl;
-			if( auto ret = test(rule,true) ) {
+			if( auto const& m = match(rule.pat,source,is_patvar) )
+			if( auto const& ret = apply(rule,true,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 				return {{*ret,ret->capp()->second}};
 			}
 		}
-		if( auto ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( simp )
+		if( auto const& ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
 			if( log > 5 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
-			return test(*rule,true,{import.subst()});
+			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {
+				return apply(*rule,true,*m,import);
+			}
+			return {};
 		}) ) {
 			return {{*ret,ret->capp()->second}};
 		}
 	}
-	for( auto cong : rew->_congs[ind] ) {
-		if( auto ret = test(cong,false) ) {
+	for( auto const& rule : rew->_congs[ind] ) {
+		if( auto const& m = match(rule.pat,source,is_patvar) )
+		if( auto const& ret = apply(rule,false,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
 		}
 	}
-	if( auto o = rew->_fallbacks.finds(ind) ) {
-		if( auto ret = test(o->second,false) ) {
+	if( auto const& o = rew->_fallbacks.finds(ind) ) {
+		auto const& rule = o->second;
+		if( auto const& m = match(rule.pat,source,is_patvar) )
+		if( auto const& ret = apply(rule,false,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
 		}
 	}
@@ -440,6 +449,7 @@ size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
 Opt<Thm> Blaster::_steps(
 	Thy const& thy, 
 	CTerm const& s,
+	bool simp,
 	size_t min,
 	size_t max,
 	bool normalize,
@@ -447,7 +457,7 @@ Opt<Thm> Blaster::_steps(
 	char ind
 ) & {
 	auto begin = pos.begin(), end = pos.end();
-	auto const& init = _step(thy,s,ind,begin,end);
+	auto const& init = _step(thy,s,simp,ind,begin,end);
 	if( !init ) {
 		if( min == 0 ) {
 			return {};
@@ -464,7 +474,7 @@ Opt<Thm> Blaster::_steps(
 	Thm ltrans = thy.weaken(tranp->second).instantiate(s);
 	if( log > 3 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
-		auto const& step = _step(thy,t,ind,begin,end);
+		auto const& step = _step(thy,t,simp,ind,begin,end);
 		if( !step ) {
 			if( i < min ) throw Error("\"too few steps\"")(to_string(i))(to_string(min))(t);
 			return eq;
@@ -484,7 +494,7 @@ Opt<Thm> Blaster::_steps(
 		t = t2;
 	}
 }
-bool Blaster::rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+bool Blaster::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -493,7 +503,7 @@ bool Blaster::rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, 
 	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
-	auto steps = _steps(thy,*goal,min,max,normalize,pos,ind);// s = t
+	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
 	if( !steps ) return false;
 	auto imp = thy.weaken(o->second.thm);// x = y ⟹ conds... ⟹ y ⟹ x
 	imp = imp << *steps; // conditions... ⟹ t ⟹ s
@@ -505,11 +515,11 @@ bool Blaster::rewrites( Thesis& thesis, size_t min, size_t max, bool normalize, 
 	if( log > 1 ) _log() << "rewritten goal to: " << thesis << endl;
 	return true;
 }
-Thm Blaster::rewrites( Thy const& thy, Thm const& source, size_t min ) & {
+Thm Blaster::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min ) & {
 	size_t ind = rew->_default_ind;
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto steps = _steps(thy,source,min,255,true,{},ind);
+	auto steps = _steps(thy,source,simp,min,255,true,{},ind);
 	if( !steps ) {
 		return source;
 	}
