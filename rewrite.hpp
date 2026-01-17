@@ -96,7 +96,7 @@ public:
 	void register_imp( Thm const& thm, bool dir ) &;
 	void register_trans( Thm const& thm ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
-	std::pair<char,Rule> make_rule( Thm const& thm, bool cong ) const&;
+	std::tuple<char,std::string,Rule> make_rule( Thm const& thm, bool cong ) const&;
 	bool register_cong( Thm const& thm ) &;
 	void register_fallback( Thm const& thm ) &;
 	void register_dual( Thm const& thm ) &;

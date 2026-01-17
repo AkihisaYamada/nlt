@@ -57,7 +57,7 @@ Thm Thy::dualize( Thm const& thm, Blaster& resolver ) const & {
 }
 
 void Thy::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const & {
-	auto const& [ind,rule] = rewriter()->make_rule(thm,cong);
+	auto const& [ind,rel,rule] = rewriter()->make_rule(thm,cong);
 	rules[ind].emplace_back(std::move(rule));
 }
 
@@ -114,7 +114,7 @@ void Rewrite::register_trans( Thm const& thm ) & {
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
-pair<char,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
+tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
 	// parsing congruence rule
 	auto intro = Intro::rule(thm);// e.g. ∀x y, (φ ⟹... x = y), ∀x2 y2, ... ⊢ l[x...] = r[y...]
 	auto const& bin = strips_binary(intro.conclusion());
@@ -190,11 +190,11 @@ pair<char,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& 
 		}
 	}
 	Thm concl = intro.conclusion().subst(tmp2rule);
-	return {*ind,Rule(concl,l,concl.intro(),std::move(conds),cong)};
+	return {*ind,rel,Rule(concl,l,concl.intro(),std::move(conds),cong)};
 }
 
 bool Rewrite::register_cong( Thm const& thm ) & {
-	auto [ind,cong] = make_rule(thm,true);
+	auto [ind,rel,cong] = make_rule(thm,true);
 	for( auto const& cong : _congs[ind] ) {// do not register duplicates
 		if( (Term)cong == thm ) return false;
 	}
@@ -202,7 +202,7 @@ bool Rewrite::register_cong( Thm const& thm ) & {
 	return true;
 }
 void Rewrite::register_fallback( Thm const& thm ) & {
-	auto [ind,rule] = make_rule(thm,true);
+	auto [ind,rel,rule] = make_rule(thm,true);
 	_fallbacks.emplace(ind,rule);
 }
 
@@ -241,7 +241,7 @@ bool Blaster::_step_cond(
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 4 ) {
+	if( log > 15 ) {
 		_log() << "{ rewriting condition (" << rew->_rels[ind] << "): " << thy.pretty(cond) << endl;
 	}
 	indent++;
@@ -288,7 +288,7 @@ bool Blaster::_step_cond(
 		intp.instantiate( all ? res.capp()->second : res );
 		intp.discharge(eq.intro());// Γ ⊢ ∀v'. φθ.[v']... ⟹ Xθ.[v'] = res.[v']
 		indent--;
-		if( log > 1 ) _log() << "} condition rewritten: " << thy.pretty(eq) << endl;
+		if( log > 14 ) _log() << "} condition rewritten: " << thy.pretty(eq) << endl;
 		return true;
 	}
 	auto eq = _make_refl(subthy,source,ind);
@@ -296,18 +296,16 @@ bool Blaster::_step_cond(
 	intp.instantiate( all ? res.capp()->second : res );
 	intp.discharge(eq.intro());
 	indent--;
-	if( log > 2 ) _log() << "}! condition reflected: " << thy.pretty(eq) << endl;
+	if( log > 14 ) _log() << "}! condition reflected: " << thy.pretty(eq) << endl;
 	return false;
 }
 Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
-	if( log > 4 ) _log() << "{ making refl: " << thy.pretty(source) << endl;
 	indent++;
 	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
 	while( auto imp = refl.cbinary(IMP) ) {
 		refl = refl.discharge(prove(thy,imp->first,false));
 	}
 	indent--;
-	if( log > 1 ) _log() << "} made refl: " << thy.pretty(refl) << endl;
 	return refl;
 }
 Opt<Thm> Blaster::_apply_rewrite_rule(
@@ -319,7 +317,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 4 ) _log() << "{ applying " << ( rule.cong ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
+	if( log > 15 ) _log() << "{ applying " << ( rule.cong ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();// (Δ, ∀x..., ∀y, s = y, ...)
@@ -344,7 +342,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 			auto o = proves(subthy,*guard,cond.rec);
 			if( !o ) {
 				indent--;
-				if( log > 0 ) _log() << "}! failed to resolve guard: " << thy.pretty(*guard) << endl;
+				if( log > 10 ) _log() << "}! failed to resolve guard: " << thy.pretty(*guard) << endl;
 				return {};
 			}
 			intp.discharge(*o);
@@ -369,15 +367,15 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 			assert(false);
 		}
 		auto ret = rule.concl.subst(intp);
-		if( log > 1 ) _log() << "} rewritten: " << thy.pretty(ret) << endl;
+		if( log > 12 ) _log() << "} rewritten: " << thy.pretty(ret) << endl;
 		return {ret.intro()};
 	}
-	if( log > 2 ) _log() << "}! failed to rewrite: " << endl;
+	if( log > 10 ) _log() << "}! failed to rewrite: " << endl;
 	return {};
 }
 
 Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
-	if( log > 4 ) {
+	if( log > 12 ) {
 		_log() << "{ trying to rewrite ";
 		if( pos_it != pos_end ) {
 			cerr << "[ ";
@@ -392,21 +390,21 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 	auto apply = [&]( Rewrite::Rule const& rule, Subst const& matcher, Intp const& intp )->Opt<Thm> {
 		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,simp,pos_it,pos_end) ) {
 			indent--;
-			if( log > 1 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
+			if( log > 11 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
 			return ret;
 		}
 		return {};
 	};
 	if( pos_it == pos_end ) {// active position
 		for( auto const& rule : rules[ind] ) {
-			if( log > 5 ) _log() << "- testing explicit rule: " << thy.pretty(rule) << endl;
+			if( log > 13 ) _log() << "- testing explicit rule: " << thy.pretty(rule) << endl;
 			if( auto const& m = match(rule.pat,source,is_patvar) )
 			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 				return {{*ret,ret->capp()->second}};
 			}
 		}
 		if( simp )
-		if( auto const& ret = thy.find_thm( Thy::REWRITE+ind, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( auto const& ret = thy.find_thm( Thy::REWRITE+(rew->_rels[ind]), [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
 			if( log > 5 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
@@ -432,7 +430,7 @@ Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool s
 		}
 	}
 	indent--;
-	if( log > 2 ) _log() << "}! not rewritten: " << thy.pretty(source) << endl;
+	if( log > 10 ) _log() << "}! not rewritten: " << thy.pretty(source) << endl;
 	return {};
 }
 
@@ -472,7 +470,7 @@ Opt<Thm> Blaster::_steps(
 	if( !tranp ) throw Error("\"transitivity rule unregistered\"");
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
 	Thm ltrans = thy.weaken(tranp->second).instantiate(s);
-	if( log > 3 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
+	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(thy,t,simp,ind,begin,end);
 		if( !step ) {

@@ -13,7 +13,7 @@ assume excluded_middle: P ∈ Prop ⟹ P ∨ ¬P.
 begin
 
 lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P ∈ Prop, [Q ∈ Prop] then Q;
-	apply or.elim[OF excluded_middle[OF pP]];
+	apply or_elim[OF excluded_middle[OF pP]];
 	-; by PQ.
 	-; by nPQ.
 	.
@@ -31,5 +31,5 @@ lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [P ∈ Prop, Q ∈ Prop] then P;
 	- if nP: ¬P;
 		have f: false;
 			by PQP[unfolded not_imp_iff_false[OF nP] false_imp_iff true_imp_iff].
-		apply false.elim[OF f].
+		apply false_elim[OF f].
 	.

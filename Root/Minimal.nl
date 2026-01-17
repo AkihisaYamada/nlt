@@ -141,17 +141,15 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q);
 		by not_imp_false[OF nnQ].
 	.
 
-lemma not_true_iff: ¬true ⟺ false;
+lemma not_true_iff(unfold) ¬true ⟺ false;
 	apply iff_intro;
 	- if nt: ¬true;
 		by not_imp_false[OF nt].
 	by not_intro.
 
-lemma not_false_iff: ¬false ⟺ true;
+lemma not_false_iff(unfold) ¬false ⟺ true;
 	by iff_true[OF not_false].
 
-lemma false_imp_false_iff: (false ⟹ false) ⟺ true;
-	by iff_true[OF imp.refl].
 
 ---
 ### Conjunction
@@ -285,6 +283,7 @@ context iff begin
 end
 
 note(cong) iff.or.cong.
+note(unfold) iff.or.left_absorb iff.or.right_absorb.
 
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R;
 	by or[unfolded imp_imp_iff].
@@ -541,7 +540,9 @@ theory Propositional:
 	import iff: Magma Prop (⟺).
 	import and: Magma Prop (∧).
 	import or: Magma Prop (∨).
+	import not: Unary (¬) Prop Prop.
 begin
+	note! true.closed false.closed imp.closed iff.closed and.closed or.closed not.closed.
 end
 
 theory FirstOrder:

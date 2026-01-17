@@ -187,7 +187,7 @@ begin
 			apply assm[OF eq.refl].
 		.
 	lemma not_in_Empty: ¬ x ∈ {};
-		by not_false #unfold Empty_def in_COLLECT_iff const_eq.
+		by #unfold Empty_def in_COLLECT_iff const_eq.
 
 	set compr {_} := Singleton.
 	obtain Singleton where Singleton_def: {x} = {y. x = y};
@@ -296,50 +296,62 @@ begin
 				by assm[of f] #unfold f COLLECT_in_def.
 			.
 		.
-	obtain (→) where A → B = {f. ∀x ∈ A. f x ∈ B};
+	obtain undefined;.
+	obtain (→) where fun_def: A → B = {f. ∀x ∈ A. f x ∈ B};
 		- for thesis if assm;
 			apply abbrev2[of (p. {f. ∀x ∈ fst p. f x ∈ snd p})];
 			- for f if f;
 				by assm[of f] #unfold f.
 			.
 		.
-	obtain DECIDED where DECIDED_def: DECIDED = {x. x ∨ ¬x};
+	interpret Fun;
+		by #unfold fun_def in_COLLECT_iff ball_iff.
+	lemma fun_intro: if f: ∀x. x ∈ A ⟹ f x ∈ B then f ∈ A → B;
+		by f ball_intro #unfold fun_def in_COLLECT_iff.
+
+	obtain Decided where Decided_def: Decided = {x. x ∨ ¬x};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
 		.
 
-	lemma in_DECIDED_iff: P ∈ DECIDED ⟺ P ∨ ¬P;
-		unfold DECIDED_def in_COLLECT_iff.
+	lemma in_Decided_iff: P ∈ Decided ⟺ P ∨ ¬P;
+		unfold Decided_def in_COLLECT_iff.
 
-	namespace DECIDED:
-
-		interpret Propositional (∈) DECIDED;
-goals.
-		- if x: x ∈ DECIDED, y: y ∈ DECIDED then (x ⟹ y) ∈ DECIDED;
-			unfold in_DECIDED_iff;
-			apply or_elim[OF y[unfolded in_DECIDED_iff]];
-			-; by or_intro1.
-			- if ny: ¬y;
-				apply or_elim[OF x[unfolded in_DECIDED_iff]];
-				- if !x;
-					apply+ or_intro2 not_intro;
-					by not_imp_false[OF ny].
-				- if nx: ¬x;
-					apply or_intro1[OF not_elim[OF nx]].
-				.
-			.
-		.
+	namespace Decided:
 
 		interpret Classical;
-			note! not_intro and_intro or_intro iff_intro.
-			note #elim: and_elim or_elim iff_elim false_elim.
+			goals.
+			instantiate Prop := Decided.
+			note! not_intro and_intro iff_intro.
+			note(elim) and_elim or_elim iff_elim false_elim.
+		- true ∈ Decided;
+			by #unfold in_Decided_iff.
+		- false ∈ Decided;
+			by #unfold in_Decided_iff.
+		- (⟹) ∈ Decided → Decided → Decided;
+			apply fun_intro;
+			- if x: x ∈ Decided;
+				apply fun_intro;
+				- if y: y ∈ Decided then (x ⟹ y) ∈ Decided;
+					unfold in_Decided_iff;
+					apply or_elim[OF x[unfolded in_Decided_iff]];
+					- if x: x;
+						by y[unfolded in_Decided_iff] #unfold imp_imp_iff[OF x].
+					- if nx: ¬x;
+						by or_intro1 #elim not_elim[OF nx].
+					.
+				.
+			.
+		- (⟺) ∈ Decided → Decided → Decided;
+			apply fun_intro;
+			- for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ⟺ y) ∈ Decided;
+			unfold iff_def;
+			by and_type imp_type.
 
-		- false ∈ DECIDED;
-			by not_false #unfold in_DECIDED_iff.
-		- for x, x ∈ DECIDED ⟹ (¬ x) ∈ DECIDED;
-			by nnot_intro #unfold in_DECIDED_iff.
-			show and_type: for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ∧ y) ∈ DECIDED;
-				unfold+ in_DECIDED_iff;
+		- for x, x ∈ Decided ⟹ (¬ x) ∈ Decided;
+			by nnot_intro #unfold in_Decided_iff.
+			show and_type: for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ∧ y) ∈ Decided;
+				unfold+ in_Decided_iff;
 				if x: x ∨ ¬x, y: y ∨ ¬y;
 					apply or_elim[OF x];
 					if !x;
@@ -348,8 +360,8 @@ goals.
 						by or_intro2 nand_intro2.
 					by or_intro2 nand_intro1.
 				.
-		- for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ∨ y) ∈ DECIDED;
-			unfold+ in_DECIDED_iff;
+		- for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ∨ y) ∈ Decided;
+			unfold+ in_Decided_iff;
 			- if x: x ∨ ¬x, y: y ∨ ¬y;
 				apply or_elim[OF x];
 				-; by or_intro1.
@@ -365,25 +377,20 @@ goals.
 					.
 				.
 			.
-		- for x y, x ∈ DECIDED ⟹ y ∈ DECIDED ⟹ (x ⟺ y) ∈ DECIDED;
-			unfold iff_def;
-			by and_type imp_type.
 		- for P if P0: P ⟹ false, _ then ¬ P;
 			by P0.
-		- for P, ¬ P ⟹ P ⟹ P ∈ DECIDED ⟹ false;
+		- for P, ¬ P ⟹ P ⟹ P ∈ Decided ⟹ false;
 			by #elim not_imp_false.
-		retain true := true;
-			by or_intro #unfold in_DECIDED_iff.
-		-  for P, P ∈ DECIDED ⟹ P ∨ ¬ P;
-			unfold in_DECIDED_iff.
+		-  for P, P ∈ Decided ⟹ P ∨ ¬ P;
+			unfold in_Decided_iff.
 		.
 
 	end
 
-	thm DECIDED.pierce_law.
+	thm Decided.pierce_law.
 
-	lemma nnot_DECIDED: ¬ ¬ x ∈ DECIDED;
-		unfold in_DECIDED_iff;
+	lemma nnot_Decided: ¬ ¬ x ∈ Decided;
+		unfold in_Decided_iff;
 		by nnot_excluded_middle.
 
 

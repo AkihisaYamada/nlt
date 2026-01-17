@@ -360,8 +360,8 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.rewriter()->make_rule(thm,false);
-				_thy.add_thm(Thy::REWRITE+ind,thm,rule);
+				auto [ind,rel,rule] = _thy.rewriter()->make_rule(thm,false);
+				_thy.add_thm(Thy::REWRITE+rel,thm,rule);
 			}
 		}
 		if( cs.fold ) {
@@ -370,8 +370,8 @@ public:
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
 			} else {
-				auto [ind,rule] = _thy.rewriter()->make_rule(dual,false);
-				_thy.add_thm(Thy::REWRITE+ind,dual,rule);
+				auto [ind,rel,rule] = _thy.rewriter()->make_rule(dual,false);
+				_thy.add_thm(Thy::REWRITE+rel,dual,rule);
 			}
 		}
 		if( cs.inflated ) {
@@ -1446,8 +1446,6 @@ public:
 	}
 	void _obtain( Thy& org_thy ) {
 		string sym = get_sym();
-		skip("where");
-		if MSG cout << "obtaining " << sym << " where" << endl;
 		vector<CTerm> props;
 		vector<pair<ClaimStatus,Thm>> prop_thms;
 		Thy thesis_thy = _thy.branch();
@@ -1456,16 +1454,19 @@ public:
 		goal_thy.fix(sym);
 		auto props_thy = org_thy.branch();
 		props_thy.fix(sym);
-		for(;;) {
-			auto [cs,t] = get_assm();
-			Thm thm = props_thy.assume(props_thy.fork().ctxt().enclose(t).intro());
-			add_claim(props_thy,cs,thm);
-			prop_thms.emplace_back(cs,thm);
-			props.push_back(goal_thy.fork().ctxt().enclose(t).intro());
-			if MSG cout << '\t' << cs << _thy.pretty(thm) << endl;
-			if( !skips(",") ) break;
+		if MSG cout << "obtaining " << sym;
+		if( skips("where") ) {
+			if MSG cout << " where" << endl;
+			for(;;) {
+				auto [cs,t] = get_assm();
+				Thm thm = props_thy.assume(props_thy.fork().ctxt().enclose(t).intro());
+				add_claim(props_thy,cs,thm);
+				prop_thms.emplace_back(cs,thm);
+				props.push_back(goal_thy.fork().ctxt().enclose(t).intro());
+				if MSG cout << '\t' << cs << _thy.pretty(thm) << endl;
+				if( !skips(",") ) break;
+			}
 		}
-		skip(";");
 		CTerm goal = goal_thy.weaken(var);
 		for( auto& prop : ranges::reverse_view(props) ) {
 			goal = prop >>= goal;
@@ -1474,6 +1475,7 @@ public:
 		goal = goal.lift(_thy.cterm(ALL));
 		auto thesis = Thesis::claim_exact(_thy,goal);
 		_depth++;
+		skip(";");
 		if MSG cout << _indent();
 		auto const& thm = _prove(thesis);
 		_depth--;
