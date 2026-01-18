@@ -361,7 +361,7 @@ public:
 				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
 			} else {
 				auto [ind,rel,rule] = _thy.rewriter()->make_rule(thm,false);
-				_thy.add_thm(Thy::REWRITE+rel,thm,rule);
+				loc.add_thm(Thy::REWRITE+rel,thm,rule);
 			}
 		}
 		if( cs.fold ) {
@@ -371,7 +371,7 @@ public:
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
 			} else {
 				auto [ind,rel,rule] = _thy.rewriter()->make_rule(dual,false);
-				_thy.add_thm(Thy::REWRITE+rel,dual,rule);
+				loc.add_thm(Thy::REWRITE+rel,dual,rule);
 			}
 		}
 		if( cs.inflated ) {

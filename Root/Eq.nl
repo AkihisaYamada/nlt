@@ -185,8 +185,8 @@ begin
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
 
-	theory Membership:
-		import Membership.
+	theory Ball:
+		import Ball.
 	begin
 		lemma ball_cong_iff(cong) for A P B Q
 			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
@@ -199,6 +199,11 @@ begin
 				apply ball_intro;
 				by ball_elim1[OF QB] #unfold AB PQ.
 			.
+	end
+
+	theory Bex:
+		import Bex.
+	begin
 		lemma bex_cong_iff(cong) for A P B Q
 			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
 			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
@@ -228,6 +233,20 @@ begin
 				by in_iff[unfolded in_COLLECT_iff].
 			by COLLECT_eq_intro[of P Q].
 	end
+
+	theory FirstOrder:
+		import FirstOrder.
+	begin
+		interpret Ball.
+		interpret Bex.
+	end
+
+	theory HigherOrder:
+		import HigherOrder.
+	begin
+		interpret .FirstOrder.
+	end
+
 end
 
 theory Intuitionistic:

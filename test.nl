@@ -1,6 +1,5 @@
 print load.
 import Abbreviation.
-import Logic.
 
 thy.
 

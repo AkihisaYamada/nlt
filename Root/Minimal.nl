@@ -451,30 +451,7 @@ end
 
 theory Membership:
 	import ..Membership.
-	fix (∀∈) (∃∈).
-	assume ball_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
-	assume bex_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
 begin
-	lemma ball_intro: if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
-		by all[folded ball_iff].
-	lemma ball_elim1: if ball: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
-		by ball[unfolded ball_iff, OF x].
-	lemma ball_elim: if ball: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
-		by imp ball[unfolded ball_iff].
-	lemma bex_intro1: for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
-		unfold bex_iff;
-		apply ex_intro1[of x];
-		by x Px.
-	lemma bex_intro: if imp: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
-		apply imp;
-		- for x;
-			by bex_intro1[of x].
-		.
-	lemma bex_elim: if bex: ∃x ∈ A. P.[x] then for Q if all: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
-		apply bex[unfolded bex_iff, THEN ex_elim];
-		- for x;
-			by all[of x].
-		.
 	theory Irreflexive:
 		fix A (<).
 		assume irrefl: if x ∈ A then ¬ x < x.
@@ -514,6 +491,40 @@ begin
 	end
 end
 
+theory Ball:
+	fix (∀∈).
+	import Membership.
+	assume ball_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
+begin
+	lemma ball_intro: if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
+		by all[folded ball_iff].
+	lemma ball_elim1: if ball: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
+		by ball[unfolded ball_iff, OF x].
+	lemma ball_elim: if ball: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
+		by imp ball[unfolded ball_iff].
+end
+
+theory Bex:
+	fix (∃∈).
+	import Membership.
+	assume bex_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
+begin
+	lemma bex_intro1: for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
+		unfold bex_iff;
+		apply ex_intro1[of x];
+		by x Px.
+	lemma bex_intro: if imp: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
+		apply imp;
+		- for x;
+			by bex_intro1[of x].
+		.
+	lemma bex_elim: if bex: ∃x ∈ A. P.[x] then for Q if all: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
+		apply bex[unfolded bex_iff, THEN ex_elim];
+		- for x;
+			by all[of x].
+		.
+end
+
 theory Collect:
 	import Membership.
 	fix COLLECT.
@@ -542,6 +553,8 @@ end
 
 theory FirstOrder:
 	fix QTYPE.
+	import Ball.
+	import Bex.
 	import Propositional.
 	assume ball_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
 	assume bex_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
