@@ -5,11 +5,10 @@ We formalize intuitionistic ZF set theory in a conservative axiomatic form.
 There, operations to derive sets from others are not explicit, but
 only the existence of the resulting sets is axiomatized.
 
-We base on equational intuitionistic FOL.
+We base on the first order logic defined via abbreviation.
 ---
-import Eq.
-import FOL.
-import Intuitionistic.
+import Abbreviation.
+import FirstOrder.
 
 ---
 `Set` is the (sole) quantifiable and equatable type.
@@ -43,7 +42,8 @@ The empty set is specified by an existential axiom (of type `Prop`):
 ---
 assume empty_axiom: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
-obtain ∅ where empty_Set! ∅ ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ ∅);
+set compr {} := Empty.
+obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 - for thesis if assm;
 	apply ex.elim[OF empty_axiom];
 	- for e;
@@ -61,19 +61,12 @@ assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w �
 ---
 Informally, then one assumes granted a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) `z`.
-In Naive Logic, such a binary function is not possible without further assumptions.
-For given `x` and `y`, we can use the unique choice operator to denote the `z`:
+For given `x` and `y`, we can use `THE` operator to denote the `z`:
 ---
-import Intuitionistic.UniqueChoiceOp.
+import The.
 ---
-Now what one assumes is further a function such that `upair x y = (THE z. ...)`.
-We achieve this by admitting the (untyped) lambda calculus:
-take `λx y. THE z. ...` as `upair`.
 ---
-import Lambda.
-
 note! ex1_type THE_type.
-note(cong) iff.ex1_cong.
 
 lemma upair_ex1:
 	if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
@@ -89,7 +82,9 @@ apply upair_axiom[THEN all.elim1, OF x ! !, THEN all.elim1, OF y ! !, THEN ex.el
 		.
 	.
 .
-
+---
+Since we have admitted abbreviations, we can denote the 
+---
 obtain upair where
 	upair_Set! ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ upair x y ∈ Set,
 	upair_iff: ∀x y z. x ∈ Set ⟹ y ∈ Set ⟹ z ∈ Set ⟹ z ∈ upair x y ⟺ z = x ∨ z = y;

@@ -1,5 +1,6 @@
 print load.
-import Abbreviation.
+import Class.
+import ZF.
 
 thy.
 

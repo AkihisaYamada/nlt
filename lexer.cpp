@@ -138,23 +138,6 @@ void Lexer::fetch_continue( Lex::CharType t ) {
 	}
 }
 
-void Lexer::_dot_follower() {
-	for(;;) {
-		if( fetched_char_type != Lex::Dot ) break;
-		auto old_wp = wp;// TODO
-		fetch_char();
-		switch(fetched_char_type) {
-			case Lex::Other: case Lex::Digit:
-			fetch_continue( Lex::Other | Lex::Digit );
-			continue;
-			case Lex::Blank:// forget that blank is read
-			fetched_char_type = Lex::DotBlank;
-			wp = old_wp;
-		}
-		break;
-	}
-}
-
 string_view Lexer::peek_token() {
 	if( token_type == Unset ) {// no token is set
 		if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
@@ -189,10 +172,14 @@ string_view Lexer::peek_token() {
 			switch( fetched_char_type ) {
 			case Lex::Dot:
 				fetch_continue( Lex::Dot );
-				if( fetched_char_type & ( Lex::Digit | Lex::Other ) ) {
-					fetch_continue( Lex::Other | Lex::Digit );
-					_dot_follower();
+				if( fetched_char_type & ( Lex::Digit | Lex::Letter ) ) {
+					fetch_continue( Lex::Digit | Lex::Letter );
+					_fetch_follower();
 					token_type = Word;
+				} else if( fetched_char_type == Lex::MultiOp ) {
+					fetch_continue( Lex::MultiOp );
+					_fetch_follower();
+					token_type = Operator;
 				} else {
 					token_type = Dots;
 				}
@@ -202,7 +189,8 @@ string_view Lexer::peek_token() {
 				token_type = Number;
 				break;
 			case Lex::MultiOp:
-				fetch_continue( Lex::MultiOp | Lex::Dot );
+				fetch_continue( Lex::MultiOp );
+				_fetch_follower();
 				token_type = Operator;
 				break;
 			case Lex::SingleOp:// dot followed by a single operator is another operator
@@ -210,9 +198,9 @@ string_view Lexer::peek_token() {
 				fetched_char_type = Lex::Blank;// no character is prefetched
 				token_type = Operator;
 				break;
-			case Lex::Other:
-				fetch_continue(Lex::Other|Lex::Digit);
-				_dot_follower();
+			case Lex::Letter:
+				fetch_continue( Lex::Digit | Lex::Letter );
+				_fetch_follower();
 				token_type = Word;
 				break;
 			default:
@@ -221,8 +209,9 @@ string_view Lexer::peek_token() {
 			}
 			break;
 		case Lex::MultiOp:
-			fetch_continue( Lex::MultiOp );
 			token_type = Operator;
+			fetch_continue( Lex::MultiOp );
+			_fetch_follower();
 			break;
 		case Lex::SingleOp:
 			token_type = Operator;
@@ -232,15 +221,47 @@ string_view Lexer::peek_token() {
 			token_type = Special;
 			fetched_char_type = Lex::Blank;
 			break;
-		default:
+		case Lex::Glue:
+			rp = wp;
 			token_type = Word;
-			fetch_continue( Lex::Other | Lex::Digit );
-			_dot_follower();
+			fetched_char_type = Lex::Blank;
+			break;
+		case Lex::Letter:
+			token_type = Word;
+			fetch_continue( Lex::Letter | Lex::Digit );
+			_fetch_follower();
 			break;
 		}
 		peeked_token = string_view(buf,rp);
 	}
 	return peeked_token;
+}
+void Lexer::_fetch_follower() {
+	for(;;) {
+		if( fetched_char_type == Lex::Glue ) {
+			fetch_char();
+			rp = wp;
+			if( fetched_char_type == Lex::MultiOp ) {
+				fetch_continue( Lex::MultiOp );
+			} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
+				fetch_continue( Lex::Letter | Lex::Digit );
+			}
+		} else if( fetched_char_type == Lex::Dot ) {
+			auto old_wp = wp;// TODO
+			fetch_char();
+			if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
+				fetched_char_type = Lex::DotBlank;
+				wp = old_wp;
+				return;
+			} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
+				fetch_continue( Lex::Letter | Lex::Digit );
+			} else if( fetched_char_type == Lex::MultiOp ) {
+				fetch_continue( Lex::MultiOp );
+			}
+		} else {
+			return;
+		}
+	}
 }
 
 Opt<size_t> Tokenizer::gets_nat() {

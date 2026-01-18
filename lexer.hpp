@@ -22,7 +22,7 @@ int int_of_chars( char const* start );
 class Lex {
 public:
 	enum CharType {
-		Other = 1 << 0,
+		Letter = 1 << 0,
 		Digit = 1 << 1,
 		Blank = 1 << 2,// space or nothing
 		Control = 1 << 3,
@@ -31,6 +31,7 @@ public:
 		MultiOp = 1 << 6,
 		Dot = 1 << 7,// .
 		DotBlank = 1 << 8,// special treatment of dot followed by blank
+		Glue = 1 << 9,// connects letters and operators
 	};
 private:
 	std::map<int,CharType> _char_map;
@@ -38,16 +39,19 @@ public:
 	Lex();
 	Lex( Lex const& other ) : _char_map(other._char_map) {}
 	void register_single_op( int c ) {
-		_char_map.insert({c,SingleOp});
+		_char_map.emplace(c,SingleOp);
 	}
 	void register_multi_op( int c ) {
-		_char_map.insert({c,MultiOp});
+		_char_map.emplace(c,MultiOp);
+	}
+	void register_glue( int c ) {
+		_char_map.emplace(c,Glue);
 	}
 	CharType char_type( int c ) const {
 		if( auto it = _char_map.find(c); it != _char_map.end() ) {
 			return it->second;
 		}
-		return Other;
+		return Letter;
 	}
 	friend CharType operator|( CharType a, CharType b ) {
 		return (CharType)((int)a|(int)b);
@@ -205,7 +209,7 @@ public:
 		return filename + ':' + std::to_string(read_lines);
 	}
 private:
-	void _dot_follower();
+	void _fetch_follower();
 };
 
 #endif

@@ -1,5 +1,5 @@
 ---
-# Logic on Binary Abbreviation
+# Type-Free Intuitionistic Logic via Binary Abbreviation
 ---
 import Eq.
 import Pair.
@@ -7,7 +7,7 @@ assume abbrev2: if ∀f. (∀x y. f x y = F.[(x,y)]) ⟹ P then P.
 
 begin
 
---- This allows unary and multi-ary abbreviation. ---
+--- Binary abbreviation allows unary and multi-ary abbreviations. ---
 interpret UnaryAbbreviation;
 	- for F P if assm;
 		note(cong) eq.cong_meta[of F].
@@ -254,178 +254,18 @@ begin
 		.
 	lemma in_bigcap_iff: x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
 		by #unfold bigcap_def in_COLLECT_iff.
+
+	obtain Pow where Pow_def: Pow X = {Y. Y ⊆ X};
+		- for thesis if assm;
+			apply abbrev[of (X. {Y. Y ⊆ X})];
+			- for f if f;
+				by assm[of f] #unfold f.
+			.
+		.
+	lemma in_Pow_iff(unfold) X ∈ Pow Y ⟺ X ⊆ Y;
+		by #unfold Pow_def in_COLLECT_iff.
+
 	-- Binary notation for classes requires extensionality.
-end
-
-theory Class:
-	import Collect.
-	assume COLLECT_ext(cong) (∀x. P.[x] ⟺ Q.[x]) ⟹ {x. P.[x]} = {x. Q.[x]}.
-begin
-	lemma COLLECT_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
-		apply iff_intro;
-		- if eq then for x;
-			fold^1 in_COLLECT_iff;
-			unfold eq.
-		apply COLLECT_ext=.
-
-	obtain (∪) where cup_def: X ∪ Y = {x. x ∈ X ∨ x ∈ Y};-- the better definition requires extensionality.
-		- for thesis if assm;
-			apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
-			- for f if f;
-				by assm[of f] #unfold f.
-			.
-		.
-	lemma in_cup_iff: x ∈ X ∪ Y ⟺ x ∈ X ∨ x ∈ Y;
-		by #unfold cup_def in_COLLECT_iff.
-
-	obtain (∩) where cap_def: X ∩ Y = {x. x ∈ X ∧ x ∈ Y};
-		- for thesis if assm;
-			apply abbrev2[of (p. {x. x ∈ fst p ∧ x ∈ snd p})];
-			- for f if f;
-				by assm[of f] #unfold f.
-			.
-		.
-	lemma in_cap_iff: x ∈ X ∩ Y ⟺ x ∈ X ∧ x ∈ Y;
-		by #unfold cap_def in_COLLECT_iff.
-
-	obtain (`) where image_def: f ` X = {y. ∃x ∈ X. y = f x};
-		- for thesis if assm;
-			apply abbrev2[of (p. {y. ∃x ∈ snd p. y = fst p x})];
-			- for f if f;
-				by assm[of f] #unfold f.
-			.
-		.
-	lemma in_image_iff: x ∈ f ` A ⟺ (∃a ∈ A. x = f a);
-		unfold image_def in_COLLECT_iff.
-
-	set compr {_ ∈ _. _} := COLLECT_in.
-	obtain COLLECT_in where COLLECT_in_def: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]};
-		- for thesis if assm;
-			apply abbrev2[of (p. fst p ∩ COLLECT (snd p))];
-			- for f if f;
-				apply assm[of f];
-				by #unfold f cap_def in_COLLECT_iff.
-			.
-		.
-	lemma COLLECT_in_cong:
-		if X: X = X', P: ∀x. x ∈ X' ⟹ P.[x] ⟺ P'.[x] then {x ∈ X. P.[x]} = {x ∈ X'. P'.[x]};
-		by #unfold X P COLLECT_in_def #cong iff.and_cong1.
-
-	obtain class where class_def: class A (⊑) x = {y ∈ A. x ⊑ y};
-		- for thesis if assm;
-			apply abbrev3[of (p. {y ∈ fst p. fst (snd p) (snd (snd p)) y})];
-			- for f if f;
-				by assm[of f] #unfold f COLLECT_in_def.
-			.
-		.
-	infix // 110 111 110.
-	obtain (//) where quotient_def: A // (⊑) = {C. ∃x ∈ A. C = {y ∈ A. x ⊑ y}};
-		- for thesis if assm;
-			apply abbrev2[of (p. {C. ∃x ∈ fst p. C = {y ∈ fst p. snd p x y}})];
-			- for f if f;
-				by assm[of f] #unfold f COLLECT_in_def.
-			.
-		.
-	obtain (→) where fun_def: A → B = {f. ∀x ∈ A. f x ∈ B};
-		- for thesis if assm;
-			apply abbrev2[of (p. {f. ∀x ∈ fst p. f x ∈ snd p})];
-			- for f if f;
-				by assm[of f] #unfold f.
-			.
-		.
-	interpret Fun;
-		by #unfold fun_def in_COLLECT_iff ball_iff.
-
-	lemma in_fun_intro: if f: ∀x. x ∈ A ⟹ f x ∈ B then f ∈ A → B;
-		by f ball_intro #unfold fun_def in_COLLECT_iff.
-
-	obtain Decided where Decided_def: Decided = {x. x ∨ ¬x};
-		- for thesis if assm;
-			apply assm[OF eq.refl].
-		.
-
-	lemma in_Decided_iff: P ∈ Decided ⟺ P ∨ ¬P;
-		unfold Decided_def in_COLLECT_iff.
-
-	lemma in_Decided_cong: if P: P ⟺ P' then P ∈ Decided ⟺ P' ∈ Decided;
-		unfold in_Decided_iff P.
-
-	interpret Decided: Classical;
-		instantiate Prop := Decided.
-		note! not_intro and_intro iff_intro.
-		note(elim) and_elim iff_elim false_elim.
-		note(intro 1) not_elim.
-		note(cong) in_Decided_cong.
-		interpret imp: Magma Decided (⟹);
-			- (⟹) ∈ Decided → Decided → Decided;
-				apply in_fun_intro;
-				- if x: x ∈ Decided;
-					apply in_fun_intro;
-					- if y: y ∈ Decided then (x ⟹ y) ∈ Decided;
-						unfold in_Decided_iff;
-						apply or_elim[OF x[unfolded in_Decided_iff]];
-						- if x: x;
-							by y[unfolded in_Decided_iff] #unfold imp_imp_iff[OF x].
-						-; by or_intro1.
-						.
-					.
-				.
-			.
-		interpret and: Magma Decided (∧);
-			- (∧) ∈ Decided → Decided → Decided;
-				apply in_fun_intro;
-				- if P: P ∈ Decided;
-					apply P[unfolded in_Decided_iff, THEN or_elim];
-					- if P1: P;
-						apply in_fun_intro;
-						- if Q: Q ∈ Decided then (P ∧ Q) ∈ Decided;
-							unfold in_Decided_iff;
-							apply Q[unfolded in_Decided_iff, THEN or_elim];
-							- if Q1: Q; by or_intro1 P1 Q1.
-							- if Q0: ¬Q; by or_intro2 nand_intro2[OF Q0].
-							.
-						.
-					- if P0: ¬P;
-						by in_fun_intro or_intro2 nand_intro1[OF P0] #unfold in_Decided_iff.
-					.
-				.
-			.
-		- true ∈ Decided;
-			by #unfold in_Decided_iff.
-		- false ∈ Decided;
-			by #unfold in_Decided_iff.
-		- (⟺) ∈ Decided → Decided → Decided;
-			by in_fun_intro and.closed imp.closed #unfold iff_iff_and.
-		- (∨) ∈ Decided → Decided → Decided;
-			apply in_fun_intro;
-			- if P: P ∈ Decided;
-				apply P[unfolded in_Decided_iff, THEN or_elim];
-				- if P1: P;
-					by in_fun_intro #unfold in_Decided_iff iff_true[OF P1].
-				- if P0: ¬P;
-					apply in_fun_intro;
-					- if Q: Q ∈ Decided then (P ∨ Q) ∈ Decided;
-						apply Q[unfolded in_Decided_iff, THEN or_elim];
-						- if Q1: Q;
-							by #unfold in_Decided_iff iff_true[OF Q1].
-						- if Q0: ¬Q;
-							by or_intro2 P0 Q0 #unfold in_Decided_iff nor_iff.
-						.
-					.
-				.
-			.
-		- (¬) ∈ Decided → Decided;
-			by in_fun_intro or_intro nnot_intro #elim or_elim #unfold in_Decided_iff.
-		- P ∈ Decided ⟹ P ∨ ¬ P;
-			unfold in_Decided_iff.
-		.
-
-	thm Decided.pierce_law.
-
-	lemma nnot_Decided: ¬ ¬ x ∈ Decided;
-		unfold in_Decided_iff;
-		by nnot_excluded_middle.
-
 end
 
 ---

@@ -58,6 +58,7 @@ pair<fstream,string> file_of_thy( string_view const& dir, string_view const& nam
 void init_lex( Lex& lex ) {
 	lex.register_multi_op(int_of_chars("∀"));
 	lex.register_multi_op(int_of_chars("⟹"));
+	lex.register_glue('_');
 	lex.register_single_op(',');
 	lex.register_single_op(';');
 	lex.register_multi_op(':');
