@@ -5,7 +5,7 @@
 
 class Thy;
 
-class Blaster;
+class Resolver;
 /**
  * @brief Rewrite information
  * 
@@ -14,7 +14,7 @@ class Rewrite {
 public:
 	class Rule {
 		friend Rewrite;
-		friend Blaster;
+		friend Resolver;
 		friend Thy;
 		struct Cond {
 			Opt<size_t> ind;
@@ -62,7 +62,7 @@ private:
 	/** ∀P. P ⟹ P = true */
 	Opt<std::pair<Thm,size_t>> _to_true;
 	size_t _default_ind;
-	friend Blaster;
+	friend Resolver;
 	friend Thy;
 public:
 	static std::string const CONG;
@@ -74,7 +74,7 @@ public:
 		Rules( size_t n ) : std::vector<std::vector<Rule>>(n) {}
 		friend Rewrite;
 		friend Thy;
-		friend Blaster;
+		friend Resolver;
 	};
 	bool empty() const {
 		return _rels.empty();

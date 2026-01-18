@@ -233,6 +233,6 @@ begin
 	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 		apply assm;
 		- for x;
-			apply ex_intro1=.
+			by ex_intro1[of x].
 		.
 end

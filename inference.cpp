@@ -127,16 +127,7 @@ void Thesis::_apply2( Subst const& matcher, Intro const& intro, Thy const& child
 	_thm = child.weaken(_thm).discharge(intro.conclusion().subst(pat2child)).intro();
 	_goals--;
 }
-
-struct BlastError : public Error {
-	inline static Error const RT = Error("#blast");
-	BlastError( Error const& err ) : Error(err) {}
-	BlastError( Term const& msg ) : Error(RT(msg)) {}
-	BlastError operator()( Term const& msg ) const {
-		return BlastError(((Error)*this)(msg));
-	}
-};
-bool Blaster::_apply_blast(
+bool Resolver::_apply_and_discharge(
 	Thesis& thesis,
 	Subst const& matcher,
 	Intp const& rule2child,
@@ -156,7 +147,7 @@ bool Blaster::_apply_blast(
 			}
 		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
 			auto condthesis = Thesis::claim_exact(thesis.thy(),*assm);
-			if( !_blast(condthesis,trial,true,true,elim_res.size()) ) return false;
+			if( !_discharge(condthesis,trial,true,true,elim_res.size()) ) return false;
 			pat_intp.discharge(condthesis._thm);
 		} else {
 			break;
@@ -167,7 +158,7 @@ bool Blaster::_apply_blast(
 	return true;
 }
 
-void Blaster::inflate( Thy& thy, Thm const& assm ) & {
+void Resolver::inflate( Thy& thy, Thm const& assm ) & {
 	// one cannot update the list while reading the list.
 	auto infs = vector<pair<string,AThm>>();
 	thy.find_thm( Thy::INF, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
@@ -183,7 +174,7 @@ void Blaster::inflate( Thy& thy, Thm const& assm ) & {
 		thy.add_thm(lbl,athm,athm.info);
 	}
 }
-bool Blaster::_blast(
+bool Resolver::_discharge(
 	Thesis& thesis,
 	size_t trial,
 	bool fail,
@@ -193,11 +184,11 @@ bool Blaster::_blast(
 	if( fuel == 0 ) {
 		if( fail ) return false;
 		if( log > 6 ) cerr_proof_thms(thesis.thy());
-		throw BlastError("\"blast limit exceeded\"")(thesis.goal());
+		throw Error("\"resolve limit exceeded\"")(thesis.goal());
 	}
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
-	if( log > 4 ) _log() << "{ blasting: " << subthy.pretty(goal) << endl;
+	if( log > 4 ) _log() << "{ resolving: " << subthy.pretty(goal) << endl;
 	indent++;
 	size_t n_elim_res = 0;
 	for(;;) {// strip all assumptions
@@ -260,7 +251,7 @@ bool Blaster::_blast(
 			if( !m ) return {};
 			if( log > 4 ) _log() << "{ trying: " << subthy.pretty(thm) << endl;
 			indent++;
-			if( _apply_blast(subthesis,*m,import,trial,*rule) ) {
+			if( _apply_and_discharge(subthesis,*m,import,trial,*rule) ) {
 				indent--;
 				return {thm};
 			}
@@ -291,16 +282,16 @@ bool Blaster::_blast(
 				if( subthy.find_thm(Thy::WEAK,weak_tester) ) break;
 			}// nothing could be applied
 			indent--;
-			if( log > 0 ) _log() << "}! failed to blast: " << subthy.pretty(goal) << endl;
+			if( log > 0 ) _log() << "}! failed to resolve: " << subthy.pretty(goal) << endl;
 			if( fail ) return false;
 			if( log > 5 ) cerr_proof_thms(subgoal_child);
-			throw BlastError("\"failed to blast\"")(goal);
+			throw Error("\"failed to resolve\"")(goal);
 		}
-		// blast all new subgoals:
+		// prove all new subgoals:
 		while( subthesis._goals > 0 ) {
-			if( !_blast(subthesis,trial,fail,rewrite,elim_res_ind) ) {
+			if( !_discharge(subthesis,trial,fail,rewrite,elim_res_ind) ) {
 				indent--;
-				if( log > 0 ) _log() << "}! failed to blast: " << subthy.pretty(subthesis.goal()) << endl;
+				if( log > 0 ) _log() << "}! failed to resolve: " << subthy.pretty(subthesis.goal()) << endl;
 				return false;
 			}
 		}
@@ -310,7 +301,7 @@ bool Blaster::_blast(
 		elim_res.pop_back();
 	}
 	indent--;
-	if( log > 1 ) _log() << "} blasted: " << thesis.thy().pretty(goal) << endl;
+	if( log > 1 ) _log() << "} resolved: " << thesis.thy().pretty(goal) << endl;
 	return true;
 }
 

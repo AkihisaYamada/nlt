@@ -144,7 +144,7 @@ public:
 	Opt<Rewrite&> rewriter() && = delete;
 	Opt<Rewrite const&> rewriter() const &;
 	void reset_rewrite() &;
-	Thm dualize( Thm const& thm, Blaster& resolver ) const &;
+	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
 	void register_refl( Thm const& refl, bool def ) &;
 	void register_trans( Thm const& trans ) &;
 	void register_dual( Thm const& dual ) &;
@@ -154,7 +154,7 @@ public:
 	void register_to_true( Thm const thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule, bool cong ) const &;
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
-	Blaster blaster( char log = 0 ) const &;
+	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	void setup_definer( Thm const& beta ) &;
 	OptRef<Definer>& definer() &;

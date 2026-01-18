@@ -340,34 +340,34 @@ begin
 	theory The:
 		import The.
 	begin
-	lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
-		apply ex_intro;
-		- for thesis if assm;
-			apply abbrev[of (y. THE z. f z = y)];
-			- for g if eq;
-				apply assm[of g];
-				- for x;
-					unfold eq;
-					apply inj_elim1[OF f];
-					apply ex1_imp_THE[of (z. f z = f x)];
-					apply inj_imp_ex1[OF f].
-				.
-			.
-		.
-		--- obtain (∋) where
-			Collect_has_intro: P x ⟹ Collect P ∋ x,
-			Collect_has_elim1: Collect P ∋ x ⟹ P x;
+		lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
+			apply ex_intro;
 			- for thesis if assm;
-				apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
-				- for (∋) if eq;
-					apply assm[of (∋)];
-					- for P x;
-						unfold eq.
-					- for P x;
-						unfold eq.
+				apply abbrev[of (y. THE z. f z = y)];
+				- for g if eq;
+					apply assm[of g];
+					- for x;
+						unfold eq;
+						apply inj_elim1[OF f];
+						apply ex1_imp_THE[of (z. f z = f x)];
+						apply inj_imp_ex1[OF f].
 					.
 				.
-			. ---
+			.
+			--- obtain (∋) where
+				Collect_has_intro: P x ⟹ Collect P ∋ x,
+				Collect_has_elim1: Collect P ∋ x ⟹ P x;
+				- for thesis if assm;
+					apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
+					- for (∋) if eq;
+						apply assm[of (∋)];
+						- for P x;
+							unfold eq.
+						- for P x;
+							unfold eq.
+						.
+					.
+				. ---
 	end
 end
 

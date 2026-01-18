@@ -56,25 +56,22 @@ lemma imp_not: if [P], nQ: ¬Q then ¬(P ⟹ Q);
 	.
 
 lemma imp_not_imp: if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
-	apply not_intro;
-	by not_imp_false[OF nQ] PQ.
+	by not_intro not_imp_false[OF nQ] PQ.
 
-lemma imp_not_sym: if PnQ: P ⟹ ¬Q, [Q] then ¬P;
+lemma imp_not_sym: if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
 	apply not_intro;
-	- if !P;
-		have nQ: ¬Q;
-			by PnQ.
-		by not_imp_false[OF nQ].
+	- if P: P;
+		by not_imp_false[OF PnQ[OF P] Q].
 	.
 
-lemma nnot_intro: if [P] then ¬¬P;
+lemma nnot_intro: if P: P then ¬¬P;
 	apply not_intro;
 	- if nP: ¬P;
-		by not_imp_false[OF nP].
+		by not_imp_false[OF nP P].
 	.
 
-lemma not_imp_not_all: if nax: ¬α.[x] then ¬(∀y. α.[y]);
-	by not_intro not_imp_false[OF nax].
+lemma not_imp_not_all: if nPx: ¬P.[x] then ¬(∀y. P.[y]);
+	by not_intro not_imp_false[OF nPx].
 
 lemma not_false: ¬false;
 	by not_intro[OF imp.refl].
@@ -83,11 +80,9 @@ namespace iff:
 	lemma not_cong: if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
 		apply iff_intro;
 		- if nP: ¬P;
-			apply not_intro;
-			by not_imp_false[OF nP] iff_elim2[OF PQ].
+			by not_intro not_imp_false[OF nP] iff_elim2[OF PQ].
 		- if nQ: ¬Q;
-			apply not_intro;
-			by not_imp_false[OF nQ] iff_elim1[OF PQ].
+			by not_intro not_imp_false[OF nQ] iff_elim1[OF PQ].
 		.
 end
 

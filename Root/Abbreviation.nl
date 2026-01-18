@@ -158,8 +158,11 @@ obtain inf_pred where inf_pred_iff: inf_pred P Q x ⟺ P x ∧ Q x;
 	.
 
 theory Membership:
-	import Membership.
+	import ..Membership.
 begin
+	interpret Membership;
+goals.
+
 	obtain (⊆) where subseteq_iff: X ⊆ Y ⟺ (∀x ∈ X. x ∈ Y);
 		- for thesis if assm;
 			apply abbrev2[of (p. ∀x ∈ fst p. x ∈ snd p)];
@@ -227,6 +230,27 @@ begin
 	lemma in_bigcap_iff: x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
 		by #unfold bigcap_def in_COLLECT_iff.
 end
+
+theory weakCollect:
+begin
+	interpret Collect;
+		obtain COLLECT_in_pair where
+			COLLECT_in_pair: snd COLLECT_in_pair x (fst COLLECT_in_pair P) ⟺ P x;
+			- for thesis if assm;
+				apply assm[of (id,rev_app)];
+				by #unfold fst snd rev_app.
+			.
+		obtain COLLECT where COLLECT_def: COLLECT = fst COLLECT_in_pair;
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+		obtain (∈) where in_def: (∈) = snd COLLECT_in_pair;
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+		by #unfold COLLECT_def in_def COLLECT_in_pair.
+end
+
 
 theory Class:
 	import Collect.
@@ -306,7 +330,7 @@ begin
 		.
 	interpret Fun;
 		by #unfold fun_def in_COLLECT_iff ball_iff.
-	lemma fun_intro: if f: ∀x. x ∈ A ⟹ f x ∈ B then f ∈ A → B;
+	lemma in_fun_intro: if f: ∀x. x ∈ A ⟹ f x ∈ B then f ∈ A → B;
 		by f ball_intro #unfold fun_def in_COLLECT_iff.
 
 	obtain Decided where Decided_def: Decided = {x. x ∨ ¬x};
@@ -317,71 +341,78 @@ begin
 	lemma in_Decided_iff: P ∈ Decided ⟺ P ∨ ¬P;
 		unfold Decided_def in_COLLECT_iff.
 
+	lemma in_Decided_cong: if P: P ⟺ P' then P ∈ Decided ⟺ P' ∈ Decided;
+		unfold in_Decided_iff P.
+
 	namespace Decided:
 
 		interpret Classical;
-			goals.
 			instantiate Prop := Decided.
 			note! not_intro and_intro iff_intro.
-			note(elim) and_elim or_elim iff_elim false_elim.
+			note(elim) and_elim iff_elim false_elim.
+			note(intro 1) not_elim.
+			note(cong) in_Decided_cong.
+			interpret imp: Magma Decided (⟹);
+				- (⟹) ∈ Decided → Decided → Decided;
+					apply in_fun_intro;
+					- if x: x ∈ Decided;
+						apply in_fun_intro;
+						- if y: y ∈ Decided then (x ⟹ y) ∈ Decided;
+							unfold in_Decided_iff;
+							apply or_elim[OF x[unfolded in_Decided_iff]];
+							- if x: x;
+								by y[unfolded in_Decided_iff] #unfold imp_imp_iff[OF x].
+							-; by or_intro1.
+							.
+						.
+					.
+				.
+			interpret and: Magma Decided (∧);
+				- (∧) ∈ Decided → Decided → Decided;
+					apply in_fun_intro;
+					- if P: P ∈ Decided;
+						apply P[unfolded in_Decided_iff, THEN or_elim];
+						- if P1: P;
+							apply in_fun_intro;
+							- if Q: Q ∈ Decided then (P ∧ Q) ∈ Decided;
+								unfold in_Decided_iff;
+								apply Q[unfolded in_Decided_iff, THEN or_elim];
+								- if Q1: Q; by or_intro1 P1 Q1.
+								- if Q0: ¬Q; by or_intro2 nand_intro2[OF Q0].
+								.
+							.
+						- if P0: ¬P;
+							by in_fun_intro or_intro2 nand_intro1[OF P0] #unfold in_Decided_iff.
+						.
+					.
+				.
 		- true ∈ Decided;
 			by #unfold in_Decided_iff.
 		- false ∈ Decided;
 			by #unfold in_Decided_iff.
-		- (⟹) ∈ Decided → Decided → Decided;
-			apply fun_intro;
-			- if x: x ∈ Decided;
-				apply fun_intro;
-				- if y: y ∈ Decided then (x ⟹ y) ∈ Decided;
-					unfold in_Decided_iff;
-					apply or_elim[OF x[unfolded in_Decided_iff]];
-					- if x: x;
-						by y[unfolded in_Decided_iff] #unfold imp_imp_iff[OF x].
-					- if nx: ¬x;
-						by or_intro1 #elim not_elim[OF nx].
-					.
-				.
-			.
 		- (⟺) ∈ Decided → Decided → Decided;
-			apply fun_intro;
-			- for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ⟺ y) ∈ Decided;
-			unfold iff_def;
-			by and_type imp_type.
-
-		- for x, x ∈ Decided ⟹ (¬ x) ∈ Decided;
-			by nnot_intro #unfold in_Decided_iff.
-			show and_type: for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ∧ y) ∈ Decided;
-				unfold+ in_Decided_iff;
-				if x: x ∨ ¬x, y: y ∨ ¬y;
-					apply or_elim[OF x];
-					if !x;
-						apply or_elim[OF y];
-						- by or_intro1 and_intro.
-						by or_intro2 nand_intro2.
-					by or_intro2 nand_intro1.
-				.
-		- for x y, x ∈ Decided ⟹ y ∈ Decided ⟹ (x ∨ y) ∈ Decided;
-			unfold+ in_Decided_iff;
-			- if x: x ∨ ¬x, y: y ∨ ¬y;
-				apply or_elim[OF x];
-				-; by or_intro1.
-				- if ! ¬x;
-					apply or_elim[OF y];
-					- if ! y;
-						apply or_intro1;
-						by or_intro2.
-					- if ! ¬y;
-						apply or_intro2;
-						unfold nor_iff;
-						by and_intro.
+			by in_fun_intro and.closed imp.closed #unfold iff_iff_and.
+		- (∨) ∈ Decided → Decided → Decided;
+			apply in_fun_intro;
+			- if P: P ∈ Decided;
+				apply P[unfolded in_Decided_iff, THEN or_elim];
+				- if P1: P;
+					by in_fun_intro #unfold in_Decided_iff iff_true[OF P1].
+				- if P0: ¬P;
+					apply in_fun_intro;
+					- if Q: Q ∈ Decided then (P ∨ Q) ∈ Decided;
+						apply Q[unfolded in_Decided_iff, THEN or_elim];
+						- if Q1: Q;
+							by #unfold in_Decided_iff iff_true[OF Q1].
+						- if Q0: ¬Q;
+							by or_intro2 P0 Q0 #unfold in_Decided_iff nor_iff.
+						.
 					.
 				.
 			.
-		- for P if P0: P ⟹ false, _ then ¬ P;
-			by P0.
-		- for P, ¬ P ⟹ P ⟹ P ∈ Decided ⟹ false;
-			by #elim not_imp_false.
-		-  for P, P ∈ Decided ⟹ P ∨ ¬ P;
+		- (¬) ∈ Decided → Decided;
+			by in_fun_intro or_intro nnot_intro #elim or_elim #unfold in_Decided_iff.
+		- P ∈ Decided ⟹ P ∨ ¬ P;
 			unfold in_Decided_iff.
 		.
 
@@ -395,27 +426,6 @@ begin
 
 
 end
-
-theory weakCollect:
-begin
-	interpret Collect;
-		obtain COLLECT_in_pair where
-			COLLECT_in_pair: snd COLLECT_in_pair x (fst COLLECT_in_pair P) ⟺ P x;
-			- for thesis if assm;
-				apply assm[of (id,rev_app)];
-				by #unfold fst snd rev_app.
-			.
-		obtain COLLECT where COLLECT_def: COLLECT = fst COLLECT_in_pair;
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-		obtain (∈) where in_def: (∈) = snd COLLECT_in_pair;
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-		by #unfold Collect_def in_def Collect_in_pair.
-end
-
 
 ---
 Having operator `THE` yields `If`.
@@ -435,8 +445,7 @@ begin
 						apply THE_eq_intro;
 						-; unfold fst snd;
 							apply ex1_intro1[of x];
-							-;
-								by or_intro1 P.
+							-; by or_intro1 P.
 							- for z if or;
 								apply or_elim[OF or];
 								-; .

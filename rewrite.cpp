@@ -32,7 +32,7 @@ Opt<string const&> gets_binary_sym( Term const& term ) {
 }
 Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 
-Thm Thy::dualize( Thm const& thm, Blaster& resolver ) const & {
+Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 	Thy subthy = branch();
 	Thm body = subthy.weaken(thm);
 	for(;;) {
@@ -48,7 +48,7 @@ Thm Thy::dualize( Thm const& thm, Blaster& resolver ) const & {
 		auto const& dual = rewriter()->_duals.finds(*ind);
 		if( !dual ) throw Error("\"no dual rule for\"")(get<0>(*bin));
 		Thm dual_thm = subthy.weaken(dual->second.thm) << body;
-		while( auto o = resolver.blasts(subthy,dual_thm,false) ) {
+		while( auto o = resolver.discharges(subthy,dual_thm,false) ) {
 			dual_thm = *o;
 		}
 		return dual_thm.intro();
@@ -231,7 +231,7 @@ void Rewrite::register_to_true( Thm const& thm ) & {
 	if( !ind ) throw Error("\"unregistered rewrite relation\"")(*rel)(thm);
 	_to_true = {{thm,*ind}};
 }
-bool Blaster::_step_cond(
+bool Resolver::_step_cond(
 	Thy const& thy,// Γ
 	Intp& intp,// Γ ⊢ Δ
 	CTerm const& cond,// Δ ⊢ φ... ⟹ x = y or ∀v. φ.[v]... ⟹ X.[v] = Y.[v]
@@ -299,7 +299,7 @@ bool Blaster::_step_cond(
 	if( log > 14 ) _log() << "}! condition reflected: " << thy.pretty(eq) << endl;
 	return false;
 }
-Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
+Thm Resolver::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	indent++;
 	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
 	while( auto imp = refl.cbinary(IMP) ) {
@@ -308,7 +308,7 @@ Thm Blaster::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	indent--;
 	return refl;
 }
-Opt<Thm> Blaster::_apply_rewrite_rule(
+Opt<Thm> Resolver::_apply_rewrite_rule(
 	Thy const& thy,// Γ
 	Rewrite::Rule const& rule,// Δ ⊢ ∀x... ∀y. s = y ⟹... l[x...] = r[y...]
 	Subst const& matcher,// θ : {x...} → Γ s.t. source == l[x...]θ
@@ -374,7 +374,7 @@ Opt<Thm> Blaster::_apply_rewrite_rule(
 	return {};
 }
 
-Opt<pair<Thm,CTerm>> Blaster::_step( Thy const& thy, CTerm const& source, bool simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( log > 12 ) {
 		_log() << "{ trying to rewrite ";
 		if( pos_it != pos_end ) {
@@ -444,7 +444,7 @@ size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
 	}
 }
 
-Opt<Thm> Blaster::_steps(
+Opt<Thm> Resolver::_steps(
 	Thy const& thy, 
 	CTerm const& s,
 	bool simp,
@@ -492,7 +492,7 @@ Opt<Thm> Blaster::_steps(
 		t = t2;
 	}
 }
-bool Blaster::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -508,12 +508,12 @@ bool Blaster::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool 
 	auto conds = o->second.conds;
 	thesis.apply(Intro::imp(imp,conds+1));// conditions... ⟹ t ⟹ rest
 	for( size_t i = 0; i < conds; i++ ) {
-		blast(thesis,false);
+		discharge(thesis,false);
 	}// t ⟹ s
 	if( log > 1 ) _log() << "rewritten goal to: " << thesis << endl;
 	return true;
 }
-Thm Blaster::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min ) & {
+Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min ) & {
 	size_t ind = rew->_default_ind;
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
@@ -524,7 +524,7 @@ Thm Blaster::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min 
 	auto tmp = thy.weaken(o->second.thm);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
 	tmp = tmp << *steps;// conds... ⟹ s ⟹ t
 	for( int i = 0; i < o->second.conds; i++ ) {
-		tmp = blast(thy,tmp,false);
+		tmp = discharge(thy,tmp,false);
 	}// s ⟹ t
 	return tmp << source;
 }

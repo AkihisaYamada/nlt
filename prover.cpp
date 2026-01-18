@@ -134,7 +134,7 @@ public:
 		bool normalize;
 		Opt<string> rel;
 	};
-	RewriteCtrl _get_rewrite( Blaster& resolver, Thy& loc, bool rev ) {
+	RewriteCtrl _get_rewrite( Resolver& resolver, Thy& loc, bool rev ) {
 		RewriteCtrl ret;
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
@@ -234,11 +234,11 @@ public:
 						loc.fix(*x);
 					}
 				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
-					auto inf = loc.blaster(_out_blast);
+					auto inf = loc.resolver(_out_blast);
 					auto ctrl = _get_rewrite(inf,loc,dir);
 					ret = inf.rewrites(loc,ret,false);
 				} else if( skips("dual") ) {
-					auto resolver = Blaster(loc.rewriter(),_out_blast);
+					auto resolver = Resolver(loc.rewriter(),_out_blast);
 					ret = loc.dualize(ret,resolver);
 				} else break;
 				if( !skips(",") ) break;
@@ -365,7 +365,7 @@ public:
 			}
 		}
 		if( cs.fold ) {
-			auto resolver = Blaster(loc.rewriter(),_out_blast);
+			auto resolver = Resolver(loc.rewriter(),_out_blast);
 			auto const& dual = _thy.dualize(thm,resolver);
 			if( cs.after > 0 ) {
 				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
@@ -375,7 +375,7 @@ public:
 			}
 		}
 		if( cs.inflated ) {
-			auto blaster = loc.blaster(_out_blast);
+			auto blaster = loc.resolver(_out_blast);
 			blaster.inflate(loc,thm);
 		}
 	}
@@ -405,7 +405,7 @@ public:
 			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Blaster& infer ) {
+	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer ) {
 		string assm_name = prefix;
 		if( prefix != "" ) {
 			assm_name += '.';
@@ -434,7 +434,7 @@ public:
 			intp.discharge(ret);
 		}
 	}
-	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Blaster& infer ) {
+	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer ) {
 		auto [sym,ex,spec,name] = obtain;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
@@ -458,7 +458,7 @@ public:
 	void _update_parent( Thy& child ) {
 		auto p = child.parent();
 		if( !p ) return;
-		auto resolver = Blaster({});
+		auto resolver = Resolver({});
 		while( auto obtain = p->obtaining() ) {
 			auto const& [sym,ex,spec,name] = *obtain;
 			auto [sym_term,thm] = child.obtain(sym,ex,name,false);
@@ -510,10 +510,10 @@ public:
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.blaster(_out_blast);
+					auto infer = _thy.resolver(_out_blast);
 					_auto_discharge(prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.blaster(_out_blast);
+					auto infer = _thy.resolver(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer);
 				} else {
 					break;
@@ -611,10 +611,10 @@ public:
 				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							auto infer = _thy.blaster(_out_blast);
+							auto infer = _thy.resolver(_out_blast);
 							_auto_discharge(prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							auto infer = _thy.blaster(_out_blast);
+							auto infer = _thy.resolver(_out_blast);
 							_auto_retain(org_thy,prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
@@ -632,7 +632,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.blaster(_out_blast);
+						auto infer = _thy.resolver(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else if( auto const& assume = intp.assuming() ) {
 						auto [match,thm] = goal_matches(pat,assume->first);
@@ -645,13 +645,13 @@ public:
 							}
 							break;
 						} else {
-							auto infer = _thy.blaster(_out_blast);
+							auto infer = _thy.resolver(_out_blast);
 							_auto_discharge(prefix,intp,*assume,change,infer);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.blaster(_out_blast);
+						auto infer = _thy.resolver(_out_blast);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer);
 					} else {
 						break;
@@ -699,7 +699,7 @@ public:
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
-				auto infer = _thy.blaster(_out_blast);
+				auto infer = _thy.resolver(_out_blast);
 				_auto_discharge(prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
@@ -737,12 +737,12 @@ public:
 						}
 					} else {
 						skip(".");
-						intp.retain(term,thesis.blast_all().intro());
+						intp.retain(term,thesis.discharge_all().intro());
 					}
 					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
-				auto infer = _thy.blaster(_out_blast);
+				auto infer = _thy.resolver(_out_blast);
 				_auto_retain(org_thy,prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
@@ -759,9 +759,9 @@ public:
 			return Intro::rule(thm);
 		}
 	}
-	Opt<Blaster> gets_concluder() {
+	Opt<Resolver> gets_concluder() {
 		if( skips("by") ) {
-			auto resolver = _thy.blaster(_out_blast);
+			auto resolver = _thy.resolver(_out_blast);
 			while( auto thm = gets_thm() ) {
 				bool weak = skips("?");
 				resolver.inflate(_thy,*thm);
@@ -793,7 +793,7 @@ public:
 			skip(".");
 			return {resolver};
 		} else if( skips(".") ) {
-			return {_thy.blaster(_out_blast)};
+			return {_thy.resolver(_out_blast)};
 		} else {
 			return {};
 		}
@@ -1061,7 +1061,15 @@ public:
 			}
 		}
 		if( pat.concl ) {
-			if( loc_goal != *pat.concl ) return {false,{}};
+			size_t prev = loc.revision();
+			auto concl = loc.enclose(*pat.concl);
+			while( auto const& v = loc.fixed(prev) ) {
+				auto all = loc_goal.cunary(ALL);
+				if( !all || !all->bind() ) return {false,{}};
+				loc_goal = all->inst(loc.cterm(*v));
+				prev++;
+			}
+			if( loc_goal != concl ) return {false,{}};
 		}
 		if( pat.proof ) {
 			if MSG {
@@ -1103,7 +1111,7 @@ public:
 			add_claim(_thy,pat.cs,ret);
 			return {true,{ret}};
 		}
-		auto infer = loc.blaster(_out_blast);
+		auto infer = loc.resolver(_out_blast);
 		Thm ret = infer.prove(loc,loc_goal,true).intro();
 		add_claim(_thy,pat.cs,ret);
 		return {true,{ret}};
@@ -1189,7 +1197,7 @@ public:
 						auto goal = thesis.has_goal();
 						if( !goal ) throw Error("\"no goal to matches\"")(thm);
 						if( *goal == thm ) break;
-						thesis.blast();
+						thesis.auto_discharge();
 					}
 					thesis.discharge(thm);
 				}
@@ -1209,14 +1217,14 @@ public:
 				if( max == 0 ) max = min;
 				bool more = _proof_follows();
 				thesis.apply(rules,min,max,safe,wide);
-				if( !more ) return thesis.blast_all();
+				if( !more ) return thesis.discharge_all();
 				if MSG print_goal(thesis,"applied goals:\n\t");
 			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
-				auto inf = _thy.blaster(_out_blast);
+				auto inf = _thy.resolver(_out_blast);
 				auto ctrl = _get_rewrite(inf,_thy,dir);
 				bool more = _proof_follows();
 				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
-				if( !more ) return thesis.blast_all();
+				if( !more ) return thesis.discharge_all();
 				if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
@@ -1232,12 +1240,12 @@ public:
 						}
 						break;
 					} else {
-						thesis.blast();
+						thesis.auto_discharge();
 					}
 				}
 				if MSG print_goal(thesis,"next goals ");
 			} else if( auto infer = gets_concluder() ) {
-				return infer->blast_all(thesis);
+				return infer->discharge_all(thesis);
 			} else if( skips("oops") ) {
 				return {};
 			} else if( skips("") ) {
