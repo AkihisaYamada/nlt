@@ -24,11 +24,11 @@ binder THE 0 0.
 binder SOME 0 0.
 
 infix ∈ 51 51 50.
-binder_middle ∀ ∈ ∀∈.
-binder_middle ∃ ∈ ∃∈.
-binder_middle ∃! ∈ ∃!∈.
-binder_middle THE ∈ THE_IN.
-binder_middle SOME ∈ SOME_IN.
+syntax ∀_ ∈ _. _ := ∀∈.
+syntax ∃_ ∈ _. _ := ∃∈.
+syntax ∃!_ ∈ _. _ := ∃!∈.
+syntax THE _ ∈ _. _ := THE_IN.
+syntax SOME _ ∈ _. _ := SOME_IN.
 
 infix = 51 51 50.
 infix ≡ 51 51 50.

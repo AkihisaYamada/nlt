@@ -13,7 +13,7 @@
     "comments": {
       "patterns": [{
         "name": "comment.line.double-dash",
-        "match": "(^|[^-])--[^-].*\\n"
+        "match": "(^|(?=[^-]))--([^-].*)?\\n"
       }]
     },
     "block-comments": {
@@ -24,7 +24,7 @@
     "commands": {
       "patterns": [{
         "name": "storage.nlt",
-        "match": ":\\=?|\\b(thm|ctxt|thy|goals?|base|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|define|instantiate|retain|set|prefix|infix|binder(_middle)?)\\b"
+        "match": ":\\=?|\\b(thm|ctxt|thy|goals?|base|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|define|instantiate|retain|set|prefix|infix|syntax?)\\b"
       }]
     },
     "structures": {

@@ -103,6 +103,7 @@ interpret Intuitionistic;
 			.
 		.
 	.
+
 interpret Const;
 	obtain const where const_eq: const x y = x;
 		- for thesis if elim;
@@ -188,7 +189,7 @@ theory Collect:
 	import Membership.
 	import Collect.
 begin
-	set compr {} := Empty.
+	syntax {} := Empty.
 	obtain Empty where Empty_def: {} = {x. false};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
@@ -196,7 +197,7 @@ begin
 	lemma not_in_Empty: ¬ x ∈ {};
 		by #unfold Empty_def in_COLLECT_iff const_eq.
 
-	set compr {_} := Singleton.
+	syntax {_} := Singleton.
 	obtain Singleton where Singleton_def: {x} = {y. x = y};
 		- for thesis if assm;
 			apply abbrev[of (x. {y. x = y})];
@@ -267,7 +268,6 @@ begin
 
 	-- Binary notation for classes requires extensionality.
 end
-
 ---
 Having operator `THE` yields `If`.
 ---
@@ -319,5 +319,20 @@ begin
 			.
 		.
 end
+
+theory Propositional:
+	fix Prop EQTYPE.
+	import Propositional.
+	assume eq_type: if A ∈ EQTYPE, x ∈ A, y ∈ A then x = y ∈ Prop.
+end
+
+theory FirstOrder:
+	import Propositional.
+	import FirstOrder.
+	assume ex1_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
+begin
+
+end
+
 
 end

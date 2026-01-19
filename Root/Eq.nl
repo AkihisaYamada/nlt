@@ -188,7 +188,7 @@ begin
 	theory Ball:
 		import Ball.
 	begin
-		lemma ball_cong_iff(cong) for A P B Q
+		lemma ball_cong_iff(cong)
 			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
 			then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
 			apply iff_intro;
@@ -204,7 +204,7 @@ begin
 	theory Bex:
 		import Bex.
 	begin
-		lemma bex_cong_iff(cong) for A P B Q
+		lemma bex_cong_iff(cong)
 			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
 			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
 			apply iff_intro;
@@ -221,6 +221,13 @@ begin
 			.
 	end
 
+	theory Bex1:
+		fix (∃!∈).
+		import Ball.
+		assume bex1_intro1: for x A P if P.[x], x ∈ A, ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x].
+		assume bex1_elim: if ∃!x ∈ A. P.[x], ∀x ∈ A. P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q.
+	end
+
 	theory Class:
 		import Collect.
 		assume COLLECT_eq_intro: if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
@@ -232,6 +239,17 @@ begin
 					unfold(=) eq.
 				by in_iff[unfolded in_COLLECT_iff].
 			by COLLECT_eq_intro[of P Q].
+	end
+
+	theory Propositional:
+		fix Prop EQTYPE.
+		import Propositional.
+		assume eq_type: if A ∈ EQTYPE then (=) ∈ A → A → Prop.
+		import Bex1.
+		assume bex1_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
+	begin
+		lemma eq_prop: if A: A ∈ EQTYPE, x: x ∈ A, y: y ∈ A then (x = y) ∈ Prop;
+			by eq_type[OF A, THEN fun_elim1, THEN fun_elim1] x y.
 	end
 
 	theory FirstOrder:

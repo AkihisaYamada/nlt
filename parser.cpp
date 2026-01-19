@@ -119,29 +119,27 @@ Opt<Term> Parser::gets_term( int level ) & {
 	return {_get_follow(init,level,syn)};
 }
 Term Parser::_get_follow( Term ret, int level, Syntax const& syn ) & {
+	int lastlevel = INT_MAX;
 	for(;;) {
 		string_view peek = peek_token();
 		if( peek == "" || syn.has_closer(peek) ) {
 			return ret;
 		}
-		int rlevel;
 		if( auto x = syn.finds_infix(peek) ) {
-			if( x->second.llevel < level ) {
-				return ret;
-			}
-			ret = Term(x->first)(ret);
+			auto [sym,op] = *x;
+			if( op.level < level ) return ret;
+			if( lastlevel < op.llevel ) return ret;
+			ret = Term(sym)(ret);
 			ignore_token();
-			rlevel = x->second.rlevel;
-		} else {
-			if( 1000 <= level ) {
-				return ret;
-			}
-			rlevel = 1000;
-		}
-		if( auto const& r = gets_term(rlevel) ) {
+			auto const& r = gets_term(op.rlevel);
+			if( !r ) return ret;
+			lastlevel = op.level;
 			ret = ret(*r);
 		} else {
-			return ret;
+			if( 1000 <= level ) return ret;
+			auto const& r = gets_term(1000);
+			if( !r ) return ret;
+			ret = ret(*r);
 		}
 	}
 }

@@ -58,7 +58,6 @@ pair<fstream,string> file_of_thy( string_view const& dir, string_view const& nam
 void init_lex( Lex& lex ) {
 	lex.register_multi_op(int_of_chars("∀"));
 	lex.register_multi_op(int_of_chars("⟹"));
-	lex.register_glue('_');
 	lex.register_single_op(',');
 	lex.register_single_op(';');
 	lex.register_multi_op(':');
@@ -1308,40 +1307,6 @@ public:
 					Thm const& beta = get_thm();
 					if MSG cout << " beta: " << _thy.pretty(beta) << endl;
 					_thy.setup_definer(beta);
-				} else if( skips("compr") ) {
-					auto opener = get();
-					if( skips("_") ) {
-						if( skips(".") ) {
-							skip("_");
-							auto closer = get();
-							skip(":=");
-							auto actual = get_sym();
-							_thy.modify_syntax().compr(opener,closer,actual);
-							if MSG cout << "comprehension: " << opener << "_. _" << closer << " := " << _thy.pretty(actual) << endl;
-						} else {
-							auto next = get();
-							if( skips("_") ) {
-								skip(".");
-								skip("_");
-								auto closer = get();
-								skip(":=");
-								auto actual = get_sym();
-								_thy.modify_syntax().bcompr(opener,next,closer,actual);
-								if MSG cout << "bounded comprehension: " << opener << "_ " << next << "_. _" << closer << " := " << _thy.pretty(actual) << endl;
-							} else {
-								skip(":=");
-								auto actual = get_sym();
-								_thy.modify_syntax().singleton_compr(opener,next,actual);
-								if MSG cout << "singleton comprehension: " << opener << "_ " << next << " := " << _thy.pretty(actual) << endl;
-							}
-						}
-					} else {
-						auto closer = get();
-						skip(":=");
-						auto actual = get_sym();
-						_thy.modify_syntax().empty_compr(opener,closer,actual);
-						if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
-					}
 				}
 				skip(".");
 			} else if( skips("symbol") ) {
@@ -1375,21 +1340,54 @@ public:
 				_thy.modify_syntax().infix(sym,level,llevel,rlevel);
 				if MSG cout << "new infix operator " << sym << endl;
 				skip(".");
+			} else if( skips("syntax") ) {
+				auto opener = get();
+				if( skips("_") ) {
+					if( skips(".") ) {
+						skip("_");
+						auto closer = get();
+						skip(":=");
+						auto actual = get_sym();
+						_thy.modify_syntax().compr(opener,closer,actual);
+						if MSG cout << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
+					} else {
+						auto next = get();
+						if( skips("_") ) {
+							skip(".");
+							skip("_");
+							if( skips(":=") ) {
+								auto actual = get_sym();
+								_thy.modify_syntax().binder_mid(opener,next,actual);
+								if MSG cout << "binder middle " << opener << " x " << next << " y. z := " << actual << " y (x. z)" << endl;
+							} else {
+								auto closer = get();
+								skip(":=");
+								auto actual = get_sym();
+								_thy.modify_syntax().bcompr(opener,next,closer,actual);
+								if MSG cout << "bounded comprehension: " << opener << "x " << next << "y. z" << closer << " := " << _thy.pretty(actual) << " y (x. z)" << endl;
+							}
+						} else {
+							skip(":=");
+							auto actual = get_sym();
+							_thy.modify_syntax().singleton_compr(opener,next,actual);
+							if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
+						}
+					}
+				} else {
+					auto closer = get();
+					skip(":=");
+					auto actual = get_sym();
+					_thy.modify_syntax().empty_compr(opener,closer,actual);
+					if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
+				}
+				skip(".");
 			} else if( skips("binder") ) {
 				string sym = get();
 				int llevel = get_int();
 				int rlevel = get_int();
 				_make_own_parser();
 				_thy.modify_syntax().binder(sym,llevel,rlevel);
-				if MSG cout << "new binder " << sym << endl;
-				skip(".");
-			} else if( skips("binder_middle") ) {
-				string prefix = get();
-				string mid = get();
-				string sym = get();
-				_make_own_parser();
-				_thy.modify_syntax().binder_mid(prefix,mid,sym);
-				if MSG cout << "new binder middle " << prefix << " x " << mid << " y. z := " << sym << " y (x. z)" << endl;
+				if MSG cout << "new binder: " << sym << endl;
 				skip(".");
 			} else if( skips("end") || skips("") ) {
 				return;

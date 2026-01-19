@@ -341,7 +341,7 @@ lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 lemma ex_cong(cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
 	unfold ex_iff eq.
 
-lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ (∃x. P.[x]) ⟹ Q;
+lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ ((∃x. P.[x]) ⟹ Q);
 	apply iff_intro;
 	- if imp: ∀x. P.[x] ⟹ Q, ex: ∃x. P.[x];
 		obtain x where Px: P.[x];
@@ -365,7 +365,7 @@ lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
 Minimal logic with unary abstraction is enough to derive Russel's paradox;
 it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
 ---
-theorem russel_paradox:
+theorem Russel_paradox_pred:
 	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ¬(∀P. P ∨ ¬P);
 	apply not_intro;
 	- if or: ∀P. P ∨ ¬P;
@@ -528,7 +528,7 @@ end
 theory Collect:
 	import Membership.
 	fix COLLECT.
-	set compr {_. _} := COLLECT.
+	syntax {_. _} := COLLECT.
 	assume in_COLLECT_iff: x ∈ {x. P.[x]} ⟺ P.[x].
 begin
 	lemma in_COLLECT_intro: if assm: P.[x] then x ∈ {x. P.[x]};

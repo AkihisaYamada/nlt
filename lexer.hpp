@@ -31,7 +31,6 @@ public:
 		MultiOp = 1 << 6,
 		Dot = 1 << 7,// .
 		DotBlank = 1 << 8,// special treatment of dot followed by blank
-		Glue = 1 << 9,// connects letters and operators
 	};
 private:
 	std::map<int,CharType> _char_map;
@@ -43,9 +42,6 @@ public:
 	}
 	void register_multi_op( int c ) {
 		_char_map.emplace(c,MultiOp);
-	}
-	void register_glue( int c ) {
-		_char_map.emplace(c,Glue);
 	}
 	CharType char_type( int c ) const {
 		if( auto it = _char_map.find(c); it != _char_map.end() ) {
@@ -209,6 +205,7 @@ public:
 		return filename + ':' + std::to_string(read_lines);
 	}
 private:
+	void _fetch_word_or_op();
 	void _fetch_follower();
 };
 

@@ -188,14 +188,14 @@ string_view Lexer::peek_token() {
 				fetch_continue( Lex::Digit );
 				token_type = Number;
 				break;
-			case Lex::MultiOp:
-				fetch_continue( Lex::MultiOp );
-				_fetch_follower();
-				token_type = Operator;
-				break;
 			case Lex::SingleOp:// dot followed by a single operator is another operator
 				rp = wp;
 				fetched_char_type = Lex::Blank;// no character is prefetched
+				token_type = Operator;
+				break;
+			case Lex::MultiOp:
+				fetch_continue( Lex::MultiOp );
+				_fetch_follower();
 				token_type = Operator;
 				break;
 			case Lex::Letter:
@@ -208,11 +208,6 @@ string_view Lexer::peek_token() {
 				break;
 			}
 			break;
-		case Lex::MultiOp:
-			token_type = Operator;
-			fetch_continue( Lex::MultiOp );
-			_fetch_follower();
-			break;
 		case Lex::SingleOp:
 			token_type = Operator;
 			fetched_char_type = Lex::Blank;
@@ -221,10 +216,10 @@ string_view Lexer::peek_token() {
 			token_type = Special;
 			fetched_char_type = Lex::Blank;
 			break;
-		case Lex::Glue:
-			rp = wp;
-			token_type = Word;
-			fetched_char_type = Lex::Blank;
+		case Lex::MultiOp:
+			fetch_continue( Lex::MultiOp );
+			_fetch_follower();
+			token_type = Operator;
 			break;
 		case Lex::Letter:
 			token_type = Word;
@@ -236,31 +231,24 @@ string_view Lexer::peek_token() {
 	}
 	return peeked_token;
 }
+void Lexer::_fetch_word_or_op() {
+	if( fetched_char_type == Lex::MultiOp ) {
+		fetch_continue( Lex::MultiOp );
+	} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
+		fetch_continue( Lex::Letter | Lex::Digit );
+	}
+}
+
 void Lexer::_fetch_follower() {
-	for(;;) {
-		if( fetched_char_type == Lex::Glue ) {
-			fetch_char();
-			rp = wp;
-			if( fetched_char_type == Lex::MultiOp ) {
-				fetch_continue( Lex::MultiOp );
-			} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
-				fetch_continue( Lex::Letter | Lex::Digit );
-			}
-		} else if( fetched_char_type == Lex::Dot ) {
-			auto old_wp = wp;// TODO
-			fetch_char();
-			if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
-				fetched_char_type = Lex::DotBlank;
-				wp = old_wp;
-				return;
-			} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
-				fetch_continue( Lex::Letter | Lex::Digit );
-			} else if( fetched_char_type == Lex::MultiOp ) {
-				fetch_continue( Lex::MultiOp );
-			}
-		} else {
+	while( fetched_char_type == Lex::Dot ) {
+		auto old_wp = wp;// TODO
+		fetch_char();
+		if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
+			fetched_char_type = Lex::DotBlank;
+			wp = old_wp;
 			return;
 		}
+		_fetch_word_or_op();
 	}
 }
 

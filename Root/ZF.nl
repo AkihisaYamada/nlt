@@ -11,7 +11,7 @@ import Abbreviation.
 import FirstOrder.
 
 ---
-`Set` is the (sole) quantifiable and equatable type.
+`Set` is the (sole) quantifiable and equational type.
 ---
 fix Set.
 
@@ -31,9 +31,8 @@ assume extensionality_axiom: ∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A 
 As an inference rule:
 ---
 lemma set_eq_intro: for A B if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A ∈ Set, B! B ∈ Set then A = B;
-	note 1: all.elim1[OF extensionality_axiom A ! !].
-	apply all.elim1[OF 1 B ! !];
-	by all.intro eq.
+	apply extensionality_axiom[THEN ball_elim1, OF A, THEN ball_elim1, OF B];
+	by ball_intro eq.
 
 ---
 ### Empty set
@@ -45,7 +44,7 @@ assume empty_axiom: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 set compr {} := Empty.
 obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 - for thesis if assm;
-	apply ex.elim[OF empty_axiom];
+	apply bex_elim[OF empty_axiom];
 	- for e;
 		by assm[of e].
 	.
