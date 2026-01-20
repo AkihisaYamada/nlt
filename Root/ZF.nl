@@ -89,8 +89,12 @@ Since we have admitted abbreviations, we can denote the
 obtain upair where
 	upair_Set! ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ upair x y ∈ Set,
 	upair_iff: ∀x y z. x ∈ Set ⟹ y ∈ Set ⟹ z ∈ Set ⟹ z ∈ upair x y ⟺ z = x ∨ z = y;
-- for thesis if assm;
-	apply assm[of (λx y. THE z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y)];
+	- for thesis if assm;
+		apply abbrev2[of (p. THE z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = fst p ∨ w = snd p)];
+		- for f if f;
+			apply assm[of f];
+print prover 20.
+			unfold f;
 	- for x y if !, !;
 		unfold(=) beta.
 	- for x y z if x!, y!, z!;

@@ -750,10 +750,7 @@ public:
 		}
 	}
 	Intro make_rule( Thm const& thm ) {
-		if( skips("!") ) {
-			size_t n = get_nat();
-			return Intro::imp(thm,n);
-		} else if( skips("=") ) {
+		if( skips("=") ) {
 			return Intro::axiom(thm);
 		} else {
 			return Intro::rule(thm);
@@ -1219,13 +1216,13 @@ public:
 				thesis.apply(rules,min,max,safe,wide);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goal(thesis,"applied goals:\n\t");
-			} else if( bool dir = false; skips("unfold") || ( dir = true, skips("fold") ) ) {
+			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_blast);
-				auto ctrl = _get_rewrite(inf,_thy,dir);
+				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
 				bool more = _proof_follows();
 				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goal( thesis, dir ? "folded goal " : "unfolded goal " );
+				if MSG print_goal( thesis, mode == 2 ? "folded goal " : "unfolded goal " );
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
 				for(;;) {

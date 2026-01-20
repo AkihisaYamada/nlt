@@ -169,7 +169,7 @@ public:
 		return Intro(thm,thm.subst(child),0,0);
 	}
 	/** @brief Makes implication a rule. */
-	static Intro imp( Thm const& thm, size_t n = 1 );
+	static Intro imp( Thm const& thm, size_t n, bool all );
 	/** @brief Makes a theorem into a rule. */
 	static Intro rule( Thm const& thm );
 	/** @brief Makes a theorem into an axiom.

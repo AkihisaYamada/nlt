@@ -498,18 +498,18 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
 	size_t ind = rew->get_ind(rel);
-	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ conds... ⟹ y ⟹ x
+	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
 	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
 	if( !steps ) return false;
-	auto imp = thy.weaken(o->second.thm);// x = y ⟹ conds... ⟹ y ⟹ x
-	imp = imp << *steps; // conditions... ⟹ t ⟹ s
+	auto imp = thy.weaken(o->second.thm);// x = y ⟹ φ ⟹... y ⟹ x
+	imp = imp << *steps; // φθ ⟹... t ⟹ s
 	auto conds = o->second.conds;
-	thesis.apply(Intro::imp(imp,conds+1));// conditions... ⟹ t ⟹ rest
 	for( size_t i = 0; i < conds; i++ ) {
-		discharge(thesis,false);
+		imp = imp.discharge(prove(thy,imp.cbinary(IMP)->first,false));
 	}// t ⟹ s
+	thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
 	if( log > 1 ) _log() << "rewritten goal to: " << thesis << endl;
 	return true;
 }

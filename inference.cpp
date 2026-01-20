@@ -10,29 +10,31 @@ void cerr_proof_thms( Thy const& thy ) {
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
-Intro Intro::imp( Thm const& thm, size_t n ) {
+Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
 	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
 	auto f = patvar_maker();
 	Thm rule = thm.subst(child);
 	size_t vars = 0;
-	for( size_t i = 0;; i++ ) {
+	size_t i = 0;
+	for( ;; i++ ) {
+		if( i == n && !all ) break;
 		auto const& [rule2,vars2] = strip_all(rule,self,f);
 		rule = rule2;
 		vars += vars2;
-		if( i < n ) {
-			if( auto imp = rule.cbinary(IMP) ) {
-				rule = rule.discharge(child.ctxt().assume(imp->first));
-				continue;
-			}
+		if( i == n ) break;
+		auto imp = rule.cbinary(IMP);
+		if( !imp ) {
 			if( n != 255 ) throw Error("\"making intro rule failed\"")(thm);
+			break;
 		}
-		return Intro(thm,rule,vars,i);
+		rule = rule.discharge(child.ctxt().assume(imp->first));
 	}
+	return Intro(thm,rule,vars,i);
 }
 
 Intro Intro::rule( Thm const& thm ) {
-	return imp(thm,255);
+	return imp(thm,255,true);
 }
 Elim Elim::rule( Thm const& thm, short after, char mode ) {
 	auto child = thm.ctxt().fork();
