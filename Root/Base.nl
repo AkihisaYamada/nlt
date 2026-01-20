@@ -26,9 +26,10 @@ binder SOME 0 0.
 infix ∈ 51 51 50.
 syntax ∀_ ∈ _. _ := ∀∈.
 syntax ∃_ ∈ _. _ := ∃∈.
+syntax λ_ ∈ _. _ := λ∈.
 syntax ∃!_ ∈ _. _ := ∃!∈.
-syntax THE _ ∈ _. _ := THE_IN.
-syntax SOME _ ∈ _. _ := SOME_IN.
+syntax THE _ ∈ _. _ := THE.∈.
+syntax SOME _ ∈ _. _ := SOME.∈.
 
 infix = 51 51 50.
 infix ≡ 51 51 50.

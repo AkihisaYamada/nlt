@@ -489,40 +489,33 @@ begin
 	begin
 		interpret Preorder.
 	end
-end
-
-theory Ball:
-	fix (∀∈).
-	import Membership.
-	assume ball_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
-begin
-	lemma ball_intro: if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
-		by all[folded ball_iff].
-	lemma ball_elim1: if ball: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
-		by ball[unfolded ball_iff, OF x].
-	lemma ball_elim: if ball: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
-		by imp ball[unfolded ball_iff].
-end
-
-theory Bex:
-	fix (∃∈).
-	import Membership.
-	assume bex_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
-begin
-	lemma bex_intro1: for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
-		unfold bex_iff;
-		apply ex_intro1[of x];
-		by x Px.
-	lemma bex_intro: if imp: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
-		apply imp;
-		- for x;
-			by bex_intro1[of x].
-		.
-	lemma bex_elim: if bex: ∃x ∈ A. P.[x] then for Q if all: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
-		apply bex[unfolded bex_iff, THEN ex_elim];
-		- for x;
-			by all[of x].
-		.
+	theory AllIn:
+		fix (∀∈).
+		assume allIn_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
+	begin
+		interpret AllIn;
+			- if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
+				by all[folded allIn_iff].
+			- if allin: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
+				by allin[unfolded allIn_iff, OF x].
+			.
+	end
+	theory ExIn:
+		fix (∃∈).
+		assume exIn_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
+	begin
+		interpret ExIn;
+			- for x if Px: P.[x], x: x ∈ A then ∃x ∈ A. P.[x];
+				unfold exIn_iff;
+				apply ex_intro1[of x];
+				by x Px.
+			- for A P if exIn: ∃x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
+				apply exIn[unfolded exIn_iff ex_iff];
+				- for x;
+					by imp[of x].
+				.
+			.
+	end
 end
 
 theory Collect:
@@ -535,6 +528,11 @@ begin
 		by assm #unfold in_COLLECT_iff.
 	lemma in_COLLECT_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
 		by assm[unfolded in_COLLECT_iff].
+end
+
+theory Fun:
+	import Fun.
+	import .Membership.
 end
 
 theory Propositional:
@@ -553,11 +551,11 @@ end
 
 theory FirstOrder:
 	fix QTYPE.
-	import Ball.
-	import Bex.
 	import Propositional.
-	assume ball_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
-	assume bex_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+	import AllIn.
+	import ExIn.
+	assume allIn_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	assume exIn_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
 begin
 	theory Impredicative:
 		assume Prop_type: Prop ∈ QTYPE.

@@ -184,48 +184,66 @@ begin
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
-
-	theory Ball:
-		import Ball.
+	theory Membership:
+		import Membership.
 	begin
-		lemma ball_cong_iff(cong)
-			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-			then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
-			apply iff_intro;
-			- if PA;
-				apply ball_intro;
-				by ball_elim1[OF PA, unfolded AB] #fold PQ.
-			- if QB;
-				apply ball_intro;
-				by ball_elim1[OF QB] #unfold AB PQ.
-			.
-	end
-
-	theory Bex:
-		import Bex.
-	begin
-		lemma bex_cong_iff(cong)
-			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
-			apply iff_intro;
-			- if PA;
-				apply bex_elim[OF PA];
-				- for x;
-					by bex_intro1[of x] #unfold AB #fold PQ.
+		theory AllIn:
+			import AllIn.
+		begin
+			lemma allIn_cong_iff(cong)
+				if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+				then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
+				apply iff_intro;
+				- if PA;
+					apply allIn_intro;
+					by allIn_elim1[OF PA, unfolded AB] #fold PQ.
+				- if QB;
+					apply allIn_intro;
+					by allIn_elim1[OF QB] #unfold AB PQ.
 				.
-			- if QB;
-				apply bex_elim[OF QB];
-				- for x;
-					by bex_intro1[of x] #unfold AB PQ.
+		end
+		theory ExIn:
+			import ExIn.
+		begin
+			lemma ExIn_cong_iff(cong)
+				if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+				then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
+				apply iff_intro;
+				- if PA;
+					apply exIn_elim[OF PA];
+					- for x;
+						by exIn_intro1[of x] #unfold AB #fold PQ.
+					.
+				- if QB;
+					apply exIn_elim[OF QB];
+					- for x;
+						by exIn_intro1[of x] #unfold AB PQ.
+					.
 				.
-			.
-	end
-
-	theory Bex1:
-		fix (∃!∈).
-		import Ball.
-		assume bex1_intro1: for x A P if P.[x], x ∈ A, ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x].
-		assume bex1_elim: if ∃!x ∈ A. P.[x], ∀x ∈ A. P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q.
+		end
+		theory Ex1In:
+			fix (∃!∈).
+			import AllIn.
+			assume ex1In_intro1: for x A P if P.[x], x ∈ A, ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x].
+			assume ex1In_elim: if ∃!x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q.
+		end
+		theory TheIn:
+			fix THE.∈.
+			import Ex1In.
+			assume TheIn_intro: (∃!x ∈ A. P.[x]) ⟹ P.[THE x ∈ A. P.[x]].
+			assume TheIn_in: (∃!x ∈ A. P.[x]) ⟹ (THE x ∈ A. P.[x]) ∈ A.
+		begin
+			lemma TheIn_eq_intro: if ex1: ∃!y ∈ A. P.[y], Px: P.[x], xA: x ∈ A then (THE y ∈ A. P.[y]) = x;
+				apply ex1In_elim[OF ex1];
+				- for z if zA: z ∈ A, Pz: P.[z], 1: ∀y ∈ A. P.[y] ⟹ y = z;
+					note imp: 1[unfolded allIn_iff].
+					have zT: (THE x ∈ A. P.[x]) = z;
+						by imp TheIn_intro ex1 TheIn_in.
+					unfold zT;
+					by Px xA #unfold imp.
+				.
+			note TheIn_intro: TheIn_eq_intro[THEN eq.sym].
+		end
 	end
 
 	theory Class:
@@ -244,25 +262,27 @@ begin
 	theory Propositional:
 		fix Prop EQTYPE.
 		import Propositional.
+		import .Membership.
 		assume eq_type: if A ∈ EQTYPE then (=) ∈ A → A → Prop.
-		import Bex1.
-		assume bex1_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
 	begin
 		lemma eq_prop: if A: A ∈ EQTYPE, x: x ∈ A, y: y ∈ A then (x = y) ∈ Prop;
 			by eq_type[OF A, THEN fun_elim1, THEN fun_elim1] x y.
 	end
 
 	theory FirstOrder:
+		import Propositional.
 		import FirstOrder.
+		import Ex1In.
+		assume ex1In_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
 	begin
-		interpret Ball.
-		interpret Bex.
+		interpret AllIn.
+		interpret ExIn.
 	end
 
 	theory HigherOrder:
+		import FirstOrder.
 		import HigherOrder.
 	begin
-		interpret .FirstOrder.
 	end
 
 end

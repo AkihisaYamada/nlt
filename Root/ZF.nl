@@ -31,8 +31,8 @@ assume extensionality_axiom: ∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A 
 As an inference rule:
 ---
 lemma set_eq_intro: for A B if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A ∈ Set, B! B ∈ Set then A = B;
-	apply extensionality_axiom[THEN ball_elim1, OF A, THEN ball_elim1, OF B];
-	by ball_intro eq.
+	apply extensionality_axiom[THEN allIn_elim1, OF A, THEN allIn_elim1, OF B];
+	by allIn_intro eq.
 
 ---
 ### Empty set
@@ -41,10 +41,10 @@ The empty set is specified by an existential axiom (of type `Prop`):
 ---
 assume empty_axiom: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
-set compr {} := Empty.
+syntax {} := Empty.
 obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 - for thesis if assm;
-	apply bex_elim[OF empty_axiom];
+	apply exIn_elim[OF empty_axiom];
 	- for e;
 		by assm[of e].
 	.
@@ -62,22 +62,22 @@ Informally, then one assumes granted a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) `z`.
 For given `x` and `y`, we can use `THE` operator to denote the `z`:
 ---
-import The.
+import TheIn.
 ---
 ---
-note! ex1_type THE_type.
+note! ex1In_type TheIn_in.
 
 lemma upair_ex1:
 	if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-apply upair_axiom[THEN all.elim1, OF x ! !, THEN all.elim1, OF y ! !, THEN ex.elim];
+apply upair_axiom[THEN allIn_elim1, OF x, THEN allIn_elim1, OF y, THEN exIn_elim];
 - for z if !, zall;
-	apply ex1_intro[of z];
+	apply ex1In_intro1[of z];
 	apply zall;
-	apply all.intro;
+	apply allIn_intro;
 	- for z' if !, z'all;
 		apply set_eq_intro;
 		- for w if w!;
-			unfold z'all[THEN all.elim1] zall[THEN all.elim1].
+			unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
 		.
 	.
 .

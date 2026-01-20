@@ -216,8 +216,8 @@ begin
 	lemma in_UNIV! x ∈ UNIV;
 		unfold UNIV_def in_COLLECT_iff const_eq.
 
-	interpret Ball;
-		obtain (∀∈) where ball_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]);
+	interpret AllIn;
+		obtain (∀∈) where allIn_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]);
 			- for thesis if assm;
 				apply abbrev2[of (p. ∀x. x ∈ fst p ⟹ x ∈ COLLECT (snd p))];
 				- for f if f;
@@ -226,8 +226,8 @@ begin
 				.
 			.
 		.
-	interpret Bex;
-		obtain (∃∈) where bex_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]);
+	interpret ExIn;
+		obtain (∃∈) where exIn_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]);
 			- for thesis if assm;
 				apply abbrev2[of (p. ∃x. x ∈ fst p ∧ x ∈ COLLECT (snd p))];
 				- for f if f;
@@ -319,20 +319,5 @@ begin
 			.
 		.
 end
-
-theory Propositional:
-	fix Prop EQTYPE.
-	import Propositional.
-	assume eq_type: if A ∈ EQTYPE, x ∈ A, y ∈ A then (x = y) ∈ Prop.
-end
-
-theory FirstOrder:
-	import Propositional.
-	import FirstOrder.
-	assume ex1_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
-begin
-
-end
-
 
 end

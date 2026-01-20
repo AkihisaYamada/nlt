@@ -93,3 +93,17 @@ begin
 	interpret PartialEquivalence.
 end
 
+theory AllIn:
+	fix (∀∈).
+	assume allIn_intro: if ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x].
+	assume allIn_elim1: if ∀x ∈ A. P.[x], x ∈ A then P.[x].
+begin
+	lemma allIn_elim: if all: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
+		by imp allIn_elim1[OF all].
+end
+
+theory ExIn:
+	fix (∃∈).
+	assume exIn_intro1: for x if P.[x], x ∈ A then ∃x ∈ A. P.[x].
+	assume exIn_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q.
+end
