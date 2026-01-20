@@ -323,7 +323,7 @@ end
 theory Propositional:
 	fix Prop EQTYPE.
 	import Propositional.
-	assume eq_type: if A ∈ EQTYPE, x ∈ A, y ∈ A then x = y ∈ Prop.
+	assume eq_type: if A ∈ EQTYPE, x ∈ A, y ∈ A then (x = y) ∈ Prop.
 end
 
 theory FirstOrder:

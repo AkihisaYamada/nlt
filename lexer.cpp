@@ -130,11 +130,11 @@ int Lexer::fetch_char() {
 }
 void Lexer::fetch_continue( Lex::CharType t ) {
 	for(;;) {
+		rp = wp;// this character is considered read
 		fetch_char();
 		if( ( fetched_char_type & t ) == 0 ) {
 			return;
 		}
-		rp = wp;// this character is considered read
 	}
 }
 
@@ -170,16 +170,11 @@ string_view Lexer::peek_token() {
 		case Lex::Dot:
 			fetch_char();
 			switch( fetched_char_type ) {
-			case Lex::Dot:
+			case Lex::Dot:// ..
 				fetch_continue( Lex::Dot );
-				if( fetched_char_type & ( Lex::Digit | Lex::Letter ) ) {
-					fetch_continue( Lex::Digit | Lex::Letter );
+				if( _fetch_word_or_op() ) {
 					_fetch_follower();
 					token_type = Word;
-				} else if( fetched_char_type == Lex::MultiOp ) {
-					fetch_continue( Lex::MultiOp );
-					_fetch_follower();
-					token_type = Operator;
 				} else {
 					token_type = Dots;
 				}
@@ -222,23 +217,15 @@ string_view Lexer::peek_token() {
 			token_type = Operator;
 			break;
 		case Lex::Letter:
-			token_type = Word;
 			fetch_continue( Lex::Letter | Lex::Digit );
 			_fetch_follower();
+			token_type = Word;
 			break;
 		}
 		peeked_token = string_view(buf,rp);
 	}
 	return peeked_token;
 }
-void Lexer::_fetch_word_or_op() {
-	if( fetched_char_type == Lex::MultiOp ) {
-		fetch_continue( Lex::MultiOp );
-	} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
-		fetch_continue( Lex::Letter | Lex::Digit );
-	}
-}
-
 void Lexer::_fetch_follower() {
 	while( fetched_char_type == Lex::Dot ) {
 		auto old_wp = wp;// TODO
@@ -249,6 +236,18 @@ void Lexer::_fetch_follower() {
 			return;
 		}
 		_fetch_word_or_op();
+	}
+}
+bool Lexer::_fetch_word_or_op() {
+	if( fetched_char_type == Lex::MultiOp ) {
+		
+		fetch_continue( Lex::MultiOp );
+		return true;
+	} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
+		fetch_continue( Lex::Letter | Lex::Digit );
+		return true;
+	} else {
+		return false;
 	}
 }
 

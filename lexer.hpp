@@ -205,7 +205,7 @@ public:
 		return filename + ':' + std::to_string(read_lines);
 	}
 private:
-	void _fetch_word_or_op();
+	bool _fetch_word_or_op();
 	void _fetch_follower();
 };
 
