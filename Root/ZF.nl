@@ -69,18 +69,20 @@ note! ex1In_type TheIn_in.
 
 lemma upair_ex1:
 	if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-apply upair_axiom[THEN allIn_elim1, OF x, THEN allIn_elim1, OF y, THEN exIn_elim];
-- for z if !, zall;
-	apply ex1In_intro1[of z];
-	apply zall;
-	apply allIn_intro;
-	- for z' if !, z'all;
-		apply set_eq_intro;
-		- for w if w!;
-			unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
+	apply upair_axiom[THEN allIn_elim1, OF x, THEN allIn_elim1, OF y, THEN exIn_elim];
+	- for z if z! z ∈ Set, zall;
+		apply ex1In_intro1[of z];
+		-; apply zall.
+		-; by z.
+		-; apply allIn_intro;
+			- for z' if !, z'all;
+				apply set_eq_intro;
+				- for w if w!;
+					unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
+				.
+			.
 		.
 	.
-.
 ---
 Since we have admitted abbreviations, we can denote the 
 ---
