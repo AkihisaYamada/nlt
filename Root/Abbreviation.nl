@@ -89,7 +89,7 @@ interpret Intuitionistic;
 				apply assm[of f, unfolded f fst snd];
 				-; by #unfold imp_imp_iff.
 				-; by #unfold imp_imp_iff.
-				- for P Q; apply imp.refl=.
+				- for P Q; apply imp.refl>0.
 				.
 			.
 		.

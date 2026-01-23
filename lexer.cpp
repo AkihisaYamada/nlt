@@ -65,10 +65,12 @@ int Lexer::fetch_char() {
 		exit(-1);
 	}
 	char c = pis->get();
+	peeked_column++;
 	while( c == '-' && pis->peek() == '-' ) {// comment starts with "--"
 		unsigned int n = 0;
 		for(;;) {// count the number of '-'
 			pis->ignore();
+			peeked_column++;
 			if( pis->peek() != '-' ) break;
 			n++;
 		}
@@ -83,16 +85,19 @@ int Lexer::fetch_char() {
 					break;
 				} else if( c == '\n' ) {
 					peeked_lines++;
+					peeked_column = 0;
 				} else if( c == '-' ) {
 					m = 0;
 					while( pis->peek() == '-' ) {
 						pis->ignore();
+						peeked_column++;
 						m++;
 					}
 					if( m > n ) {// enough '-'s to close the comment
 						break;
 					}
 				}
+				peeked_column++;
 			}
 		}
 		c = pis->get();
@@ -103,6 +108,7 @@ int Lexer::fetch_char() {
 	}
 	if( c == '\n' ) {
 		peeked_lines++;
+		peeked_column = 0;
 	}
 	char* start = &buf[wp];
 	int len = char_size(c);
@@ -125,6 +131,7 @@ int Lexer::fetch_char() {
 		ch = int_of_chars(start,len);
 		break;
 	}
+	peeked_column += len;
 	fetched_char_type = plex->char_type(ch);
 	return ch;
 }
@@ -139,77 +146,60 @@ void Lexer::fetch_continue( Lex::CharType t ) {
 }
 
 string_view Lexer::peek_token() {
-	if( token_type == Unset ) {// no token is set
-		if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
-			do {
-				wp = 0;// start from the top
-				fetch_char();
-			} while( fetched_char_type == Lex::Blank );
-			rp = wp;// the first non-blank character is read
-		} else {// a significant character is prefetched
-			// move it to the top of buf
-			size_t next_wp = 0;
-			for( ;rp < wp; rp++, next_wp++ ) {
-				buf[next_wp] = buf[rp];
-			}
-			wp = rp = next_wp;
-		}
-		switch( fetched_char_type ) {
-		case Lex::Digit:
-			fetch_continue( Lex::Digit );
-			while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
-				fetch_continue( Lex::Digit );
-			}
-			token_type = Number;
-			break;
-		case Lex::DotBlank:// dot-blank is just dot.
-			rp = wp;
-			token_type = Dots;
-			fetched_char_type = Lex::Blank;
-			break;
-		case Lex::Dot:
+	if( token_type != Unset ) {// token is already fetched
+		return peeked_token;
+	}
+	if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
+		do {
+			wp = 0;// start from the top
 			fetch_char();
-			switch( fetched_char_type ) {
-			case Lex::Dot:// ..
-				fetch_continue( Lex::Dot );
-				if( _fetch_word_or_op() ) {
-					_fetch_follower();
-					token_type = Word;
-				} else {
-					token_type = Dots;
-				}
-				break;
-			case Lex::Digit: // dot followed by digits
-				fetch_continue( Lex::Digit );
-				token_type = Number;
-				break;
-			case Lex::SingleOp:// dot followed by a single operator is another operator
-				rp = wp;
-				fetched_char_type = Lex::Blank;// no character is prefetched
-				token_type = Operator;
-				break;
-			case Lex::MultiOp:
-				fetch_continue( Lex::MultiOp );
-				_fetch_follower();
-				token_type = Operator;
-				break;
-			case Lex::Letter:
-				fetch_continue( Lex::Digit | Lex::Letter );
+		} while( fetched_char_type == Lex::Blank );
+		rp = wp;// the first non-blank character is read
+	} else {// a significant character is prefetched
+		// move it to the top of buf
+		size_t next_wp = 0;
+		for( ;rp < wp; rp++, next_wp++ ) {
+			buf[next_wp] = buf[rp];
+		}
+		wp = rp = next_wp;
+	}
+	prev_token_column = read_column;
+	prev_token_line = read_line;
+	read_line = peeked_lines;
+	read_column = peeked_column;
+	switch( fetched_char_type ) {
+	case Lex::Digit:
+		fetch_continue( Lex::Digit );
+		while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
+			fetch_continue( Lex::Digit );
+		}
+		token_type = Number;
+		break;
+	case Lex::DotBlank:// dot-blank is just dot.
+		rp = wp;
+		token_type = Dots;
+		fetched_char_type = Lex::Blank;
+		break;
+	case Lex::Dot:
+		fetch_char();
+		switch( fetched_char_type ) {
+		case Lex::Dot:// ..
+			fetch_continue( Lex::Dot );
+			if( _fetch_word_or_op() ) {
 				_fetch_follower();
 				token_type = Word;
-				break;
-			default:
-				token_type = Dots; // single dot
-				break;
+			} else {
+				token_type = Dots;
 			}
 			break;
-		case Lex::SingleOp:
-			token_type = Operator;
-			fetched_char_type = Lex::Blank;
+		case Lex::Digit: // dot followed by digits
+			fetch_continue( Lex::Digit );
+			token_type = Number;
 			break;
-		case Lex::Control:
-			token_type = Special;
-			fetched_char_type = Lex::Blank;
+		case Lex::SingleOp:// dot followed by a single operator is another operator
+			rp = wp;
+			fetched_char_type = Lex::Blank;// no character is prefetched
+			token_type = Operator;
 			break;
 		case Lex::MultiOp:
 			fetch_continue( Lex::MultiOp );
@@ -217,13 +207,35 @@ string_view Lexer::peek_token() {
 			token_type = Operator;
 			break;
 		case Lex::Letter:
-			fetch_continue( Lex::Letter | Lex::Digit );
+			fetch_continue( Lex::Digit | Lex::Letter );
 			_fetch_follower();
 			token_type = Word;
 			break;
+		default:
+			token_type = Dots; // single dot
+			break;
 		}
-		peeked_token = string_view(buf,rp);
+		break;
+	case Lex::SingleOp:
+		token_type = Operator;
+		fetched_char_type = Lex::Blank;
+		break;
+	case Lex::Control:
+		token_type = Special;
+		fetched_char_type = Lex::Blank;
+		break;
+	case Lex::MultiOp:
+		fetch_continue( Lex::MultiOp );
+		_fetch_follower();
+		token_type = Operator;
+		break;
+	case Lex::Letter:
+		fetch_continue( Lex::Letter | Lex::Digit );
+		_fetch_follower();
+		token_type = Word;
+		break;
 	}
+	peeked_token = string_view(buf,rp);
 	return peeked_token;
 }
 void Lexer::_fetch_follower() {

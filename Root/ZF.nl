@@ -39,12 +39,12 @@ lemma set_eq_intro: for A B if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A
 
 The empty set is specified by an existential axiom (of type `Prop`):
 ---
-assume empty_axiom: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
+assume ex_empty: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
 syntax {} := Empty.
 obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 - for thesis if assm;
-	apply exIn_elim[OF empty_axiom];
+	apply exIn_elim[OF ex_empty];
 	- for e;
 		by assm[of e].
 	.
@@ -56,7 +56,7 @@ obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {
 We need to admit more assumptions for more constructions;
 for instance, the unordered pair $\{x,y\}$ is axiomatized by
 ---
-assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
+assume ex_upair: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
 ---
 Informally, then one assumes granted a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) `z`.
@@ -67,18 +67,20 @@ import TheIn.
 ---
 note! ex1In_type TheIn_in.
 
-lemma upair_ex1:
-	if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	apply upair_axiom[THEN allIn_elim1, OF x, THEN allIn_elim1, OF y, THEN exIn_elim];
-	- for z if z! z ∈ Set, zall;
-		apply ex1In_intro1[of z];
-		-; apply zall.
-		-; by z.
-		-; apply allIn_intro;
-			- for z' if !, z'all;
-				apply set_eq_intro;
-				- for w if w!;
-					unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
+lemma ex1_upair: ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
+	unfold allIn_iff;
+	- if x! x ∈ Set, y! y ∈ Set;
+		apply ex_upair[unfolded allIn_iff, OF x y, THEN exIn_elim];
+		- for z if z! z ∈ Set, zall;
+			apply ex1In_intro1[of z];
+			-; apply zall.
+			-; by z.
+			-; apply allIn_intro;
+				- for z' if !, z'all;
+					apply set_eq_intro;
+					- for w if w!;
+						unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
+					.
 				.
 			.
 		.
@@ -87,21 +89,26 @@ lemma upair_ex1:
 Since we have admitted abbreviations, we can denote the 
 ---
 obtain upair where
-	upair_Set! ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ upair x y ∈ Set,
-	upair_iff: ∀x y z. x ∈ Set ⟹ y ∈ Set ⟹ z ∈ Set ⟹ z ∈ upair x y ⟺ z = x ∨ z = y;
+	upair_Set! ∀x ∈ Set. ∀y ∈ Set. upair x y ∈ Set,
+	upair_iff: ∀x ∈ Set. ∀y ∈ Set. ∀z ∈ Set. z ∈ upair x y ⟺ z = x ∨ z = y;
 	- for thesis if assm;
-		apply abbrev2[of (p. THE z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = fst p ∨ w = snd p)];
+		apply abbrev2[of (p. THE u ∈ Set. ∀z ∈ Set. z ∈ u ⟺ z = fst p ∨ z = snd p)];
 		- for f if f;
 			apply assm[of f];
-print prover 20.
 			unfold f;
+note(cong)ex1In_cong_iff.
+			-; by TheIn_in ex1_upair.
+			-;
+note 1: TheIn_intro[OF ex1_upair].
+
+who
 	- for x y if !, !;
-		unfold(=) beta.
+		unfold f.
 	- for x y z if x!, y!, z!;
-		unfold(=) beta;
+		unfold f;
 		by ex1_imp_THE[OF upair_ex1[OF x y] ! !, THEN all.elim1, OF z ! !].
-	by #unfold(=) beta.
-by #unfold(=) beta.
+	by #unfold f.
+by #unfold f.
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---

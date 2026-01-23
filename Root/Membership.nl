@@ -8,12 +8,29 @@ begin
 
 theory Member:
 	fix x A.
-	assume closed: x ∈ A.
+	assume closed! x ∈ A.
 end
 
 theory Binder:
 	fix ξ A B.
 	assume closed: if ∀x. x ∈ A ⟹ F.[x] ∈ B then ξ A (x. F.[x]) ∈ B.
+end
+
+theory Unary:
+	fix f A B.
+	assume closed: x ∈ A ⟹ f x ∈ B.
+end
+
+theory Binary:
+	fix f A B C.
+	assume closed: x ∈ A ⟹ y ∈ B ⟹ f x y ∈ C.
+end
+
+theory Magma:
+	fix A (*).
+	import Binary (*) A A A.
+begin
+	note! closed.
 end
 
 theory SubEq:
@@ -95,7 +112,7 @@ end
 
 theory AllIn:
 	fix (∀∈).
-	assume allIn_intro: if ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x].
+	assume allIn_intro! if ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x].
 	assume allIn_elim1: if ∀x ∈ A. P.[x], x ∈ A then P.[x].
 begin
 	lemma allIn_elim: if all: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
@@ -106,4 +123,10 @@ theory ExIn:
 	fix (∃∈).
 	assume exIn_intro1: for x if P.[x], x ∈ A then ∃x ∈ A. P.[x].
 	assume exIn_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q.
+begin
+	lemma exIn_intro: if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
+		apply assm;
+		- for x;
+			by exIn_intro1[of x].
+		.
 end

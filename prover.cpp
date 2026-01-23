@@ -27,7 +27,6 @@
 using namespace std;
 
 struct ClaimStatus {
-	Opt<string> name;
 	bool weak = false, intro = false, elim = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, followable = true;
 	short after = 0;
 	static ClaimStatus const INFLATED;
@@ -36,9 +35,6 @@ inline ClaimStatus const ClaimStatus::INFLATED =
 	[](){ ClaimStatus ret; ret.intro = true; ret.inflated = true; return ret; }();
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
-	if( cs.name ) {
-		os << *cs.name;
-	}
 	if( cs.intro ) {
 		os << '!';
 	}
@@ -61,7 +57,9 @@ void init_lex( Lex& lex ) {
 	lex.register_single_op(',');
 	lex.register_single_op(';');
 	lex.register_multi_op(':');
+	lex.register_multi_op('<');
 	lex.register_multi_op('=');
+	lex.register_multi_op('>');
 	lex.register_multi_op('!');
 	lex.register_multi_op('?');
 	lex.register_multi_op('*');
@@ -292,17 +290,14 @@ public:
 			return os << ' ' << flush;
 		};
 	}
-	ClaimStatus get_claim_status( bool need_claim = true, bool allow_claim = true ) {
+	Opt<ClaimStatus> gets_claim_status( bool need_claim = true, bool allow_claim = true ) {
 		ClaimStatus cs;
-		cs.name = gets_thm_name();
 		if( skips("!") ) {
 			cs.intro = true;
 			cs.inflated = true;
-			return cs;
 		} else if( skips("?") ) {
 			cs.weak = true;
 			cs.inflated = true;
-			return cs;
 		} else if( skips("(") ) {
 			if( skips("weak") ) {
 				cs.weak = true;
@@ -325,58 +320,54 @@ public:
 				cs.after = *n;
 			}
 			skip(")");
-		} else if( need_claim ) {
-			skip(":");
-		} else if( allow_claim && skips(":") ) {
-			cs.followable = false;
 		} else {
+			return {};
 		}
-		return cs;
+		return {cs};
 	}
-	pair<ClaimStatus,Term> get_assm() {
-		return {get_claim_status(),get_term()};
-	}
-	void add_claim( Thy& loc, ClaimStatus cs, Thm const& thm ) {
-		if( cs.intro ) {
-			if( cs.after > 0 ) {
-				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'i'));
-			} else {
-				add_forced(loc,thm,true);
+	void add_claim( Thy& loc, Opt<string> const& name, Opt<ClaimStatus> const& cs, Thm const& thm ) {
+		if( name ) {
+			loc.add_thm(*name,thm);
+		}
+		if( cs ) {
+			if( cs->intro ) {
+				if( cs->after > 0 ) {
+					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after,'i'));
+				} else {
+					add_forced(loc,thm,true);
+				}
 			}
-		}
-		if( cs.cong ) {
-			_thy.register_cong(thm);
-		}
-		if( cs.fallback ) {
-			_thy.register_fallback(thm);
-		}
-		if( cs.elim ) {
-			loc.add_elim(thm);
-		}
-		if( cs.name ) {
-			loc.add_thm(*cs.name,thm);
-		}
-		if( cs.unfold ) {
-			if( cs.after > 0 ) {
-				loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs.after,'='));
-			} else {
-				auto [ind,rel,rule] = _thy.rewriter()->make_rule(thm,false);
-				loc.add_thm(Thy::REWRITE+rel,thm,rule);
+			if( cs->cong ) {
+				_thy.register_cong(thm);
 			}
-		}
-		if( cs.fold ) {
-			auto resolver = Resolver(loc.rewriter(),_out_blast);
-			auto const& dual = _thy.dualize(thm,resolver);
-			if( cs.after > 0 ) {
-				loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs.after,'='));
-			} else {
-				auto [ind,rel,rule] = _thy.rewriter()->make_rule(dual,false);
-				loc.add_thm(Thy::REWRITE+rel,dual,rule);
+			if( cs->fallback ) {
+				_thy.register_fallback(thm);
 			}
-		}
-		if( cs.inflated ) {
-			auto blaster = loc.resolver(_out_blast);
-			blaster.inflate(loc,thm);
+			if( cs->elim ) {
+				loc.add_elim(thm);
+			}
+			if( cs->unfold ) {
+				if( cs->after > 0 ) {
+					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after,'='));
+				} else {
+					auto [ind,rel,rule] = _thy.rewriter()->make_rule(thm,false);
+					loc.add_thm(Thy::REWRITE+rel,thm,rule);
+				}
+			}
+			if( cs->fold ) {
+				auto resolver = Resolver(loc.rewriter(),_out_blast);
+				auto const& dual = _thy.dualize(thm,resolver);
+				if( cs->after > 0 ) {
+					loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs->after,'='));
+				} else {
+					auto [ind,rel,rule] = _thy.rewriter()->make_rule(dual,false);
+					loc.add_thm(Thy::REWRITE+rel,dual,rule);
+				}
+			}
+			if( cs->inflated ) {
+				auto blaster = loc.resolver(_out_blast);
+				blaster.inflate(loc,thm);
+			}
 		}
 	}
 	void print_goal( Thesis const& thesis, string pre = "goals " ) {
@@ -750,8 +741,13 @@ public:
 		}
 	}
 	Intro make_rule( Thm const& thm ) {
+		if( skips(">") ) {
+			auto n = get_int();
+			bool all = !skips("=");
+			return Intro::imp(thm,n,all);
+		}
 		if( skips("=") ) {
-			return Intro::axiom(thm);
+			return Intro::imp(thm,0,false);
 		} else {
 			return Intro::rule(thm);
 		}
@@ -760,9 +756,12 @@ public:
 		if( skips("by") ) {
 			auto resolver = _thy.resolver(_out_blast);
 			while( auto thm = gets_thm() ) {
-				bool weak = skips("?");
 				resolver.inflate(_thy,*thm);
-				_thy.add_thm( weak ? Thy::WEAK : Thy::INTRO, *thm, make_rule(*thm) );
+				if( auto cs = gets_claim_status() ) {
+					add_claim(_thy,{},cs,*thm);
+				} else {
+					add_forced(_thy,*thm,true);
+				}
 			}
 			while( skips("#") ) {
 				if( skips("elim") ) {
@@ -860,13 +859,16 @@ public:
 		return false;
 	}
 	void _note() {
-		auto cs = get_claim_status();
+		auto [name,cs] = _get_name_status();
 		auto thm = get_thm();
-		add_claim(_thy,cs,thm);
-		if MSG cout << "note " << cs << _thy.pretty(thm) << endl;
-		while( auto o = gets_thm() ) {
-			add_claim(_thy,cs,*o);
-			if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
+		add_claim(_thy,name,cs,thm);
+		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
+		if( !name ) {
+			cout << *cs << ' ' << _thy.pretty(thm) << endl;
+			while( auto o = gets_thm() ) {
+				add_claim(_thy,name,cs,*o);
+				if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
+			}
 		}
 		skip(".");
 	}
@@ -877,9 +879,31 @@ public:
 		_thy = prev_thy;
 		return ret;
 	}
-	Opt<pair<ClaimStatus,Thm>> _state() {
-		auto cs = get_claim_status();
-		if MSG cout << "showing " << cs << flush;
+	pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
+		auto ret = pair<Opt<string>,Opt<ClaimStatus>>();
+		ret.first = gets( Tokenizer::Word | Tokenizer::Number );
+		ret.second = gets_claim_status();
+		if( !ret.second ) {
+			skip(":");
+		}
+		return ret;
+	}
+	function<ostream&(ostream&)> _print_name_status( Opt<string> name, Opt<ClaimStatus> const& cs ) {
+		return [&]( ostream& os )->ostream& {
+			if( name ) cout << *name;
+			if( cs ) {
+				os << *cs;
+			} else {
+				os << ": ";
+			}
+			return os;
+		};
+	}
+	Opt<tuple<Opt<string>,Opt<ClaimStatus>,Thm>> _state() {
+		auto [name,cs] = _get_name_status();
+		if MSG {
+			cout << "showing " << _print_name_status(name,cs);
+		}
 		auto assm_thy = _thy.branch();
 		bool vars;
 		for(;;) {
@@ -904,17 +928,18 @@ public:
 						for(;;) {
 							auto t = get_term();
 							if MSG cout << _thy.pretty(t);
-							add_claim(assm_thy,ClaimStatus::INFLATED,assm_thy.assume(t));
+							add_claim(assm_thy,{},ClaimStatus::INFLATED,assm_thy.assume(t));
 							if( !skips(",") ) break;
 							if MSG cout << ", " << flush;
 						}
 						skip("]");
 						if MSG cout << " ] ";
 					} else {
-						auto cs = get_claim_status();
+						auto [name,cs] = _get_name_status();
 						auto t = get_term();
-						if MSG cout << cs << _thy.pretty(t) << ", " << flush;
-						add_claim(assm_thy,cs,assm_thy.assume(t));
+						if MSG cout << _print_name_status(name,cs) << _thy.pretty(t) << ", " << flush;
+						auto assm = assm_thy.assume(t);
+						add_claim(assm_thy,name,cs,assm);
 					}
 					if( !skips(",") ) break;
 				};
@@ -935,8 +960,8 @@ public:
 			_depth--;
 			if( o ) {
 				auto thm = o->intro();
-				add_claim(_thy,cs,thm);
-				return {{cs,thm}};
+				add_claim(_thy,name,cs,thm);
+				return {{name,cs,thm}};
 			} else {
 				if ERR cerr << "failed to prove " << cs << thesis.goal();
 				return {};
@@ -944,8 +969,8 @@ public:
 		}
 		skip(".");
 		auto thm = assm_thy.prove(goal).intro();
-		add_claim(_thy,cs,thm);
-		return {{cs,thm}};
+		add_claim(_thy,name,cs,thm);
+		return {{name,cs,thm}};
 	}
 	void _define( Thy& org_thy ) {
 		Opt<string> name_op;
@@ -981,9 +1006,16 @@ public:
 			return false;
 		}
 	}
+	struct Fix : string {};
+	struct Assume {
+		Opt<string> name;
+		Opt<ClaimStatus> cs;
+		Opt<Term> assm;
+	};
 	struct GoalPat {
-		ClaimStatus cs;
-		vector<Sum<string,pair<ClaimStatus,Opt<Term>>>> decls;
+		Opt<string> name;
+		Opt<ClaimStatus> cs;
+		vector<Sum<Fix,Assume>> decls;
 		Opt<Term> concl;
 		bool proof;
 	};
@@ -992,7 +1024,7 @@ public:
 		for(;;) {
 			if( skips("for") ) {
 				while( auto o = gets_sym() ) {
-					ret.decls.emplace_back(*o);
+					ret.decls.emplace_back(Fix{*o});
 				}
 				if( skips(",") ) {
 					ret.concl = {get_term()};
@@ -1003,9 +1035,10 @@ public:
 			}
 			if( skips("if") ) {
 				do {
-					auto const& cs = get_claim_status(false);
-					auto const& assm = gets_term();
-					ret.decls.emplace_back(pair<ClaimStatus,Opt<Term>>{cs,assm});
+					auto name = gets( Tokenizer::Word | Tokenizer::Number );
+					auto const& cs = gets_claim_status();
+					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
+					ret.decls.emplace_back(Assume{name,cs,assm});
 				} while( skips(",") );
 				if( skips("then") ) continue;
 			}
@@ -1024,14 +1057,14 @@ public:
 		auto loc = _thy.branch();
 		auto to_loc = *loc.parent();
 		auto loc_goal = goal.subst(to_loc);
-		auto css = vector<ClaimStatus>();
+		auto css = vector<pair<Opt<string>,Opt<ClaimStatus>>>();
 		for( auto const& decl : pat.decls ) {
-			if( auto const& var = decl.ref<0>() ) {
+			if( auto const& var = decl.ref<Fix>() ) {
 				auto all = loc_goal.cunary(ALL);
 				if( !all || !all->bind() ) return {false,{}};
 				loc_goal = all->inst(loc.fix(*var));
-			} else if( auto const& p = decl.ref<1>() ) {
-				auto const& [cs,stmt] = *p;
+			} else if( auto const& p = decl.ref<Assume>() ) {
+				auto const& [name,cs,stmt] = *p;
 				if( stmt ) {
 					size_t prev = loc.revision();
 					auto assm = loc.assume(*stmt);
@@ -1043,16 +1076,16 @@ public:
 					}
 					auto imp = loc_goal.cbinary(IMP);
 					if( !imp || *stmt != imp->first ) return {false,{}};
-					add_claim(loc,cs,assm);
+					add_claim(loc,name,cs,assm);
 					loc_goal = imp->second;
 				} else {
 					auto imp = loc_goal.cbinary(IMP);
 					if( !imp ) return {false,{}};
 					auto assm = loc.assume(imp->first);
-					add_claim(loc,cs,assm);
+					add_claim(loc,name,cs,assm);
 					loc_goal = imp->second;
 				}
-				css.push_back(cs);
+				css.emplace_back(name,cs);
 			} else {
 				assert(false);
 			}
@@ -1083,13 +1116,13 @@ public:
 						continue;
 					}
 					if( auto const& assm = loc.assumed(i) ) {
-						cout << "if " << *csi << _thy.pretty(*assm);
+						cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 						for(;;) {
 							i++;
 							csi++;
 							auto const assm = loc.assumed(i);
 							if( !assm ) break;
-							cout << ", " << *csi << _thy.pretty(*assm);
+							cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 						}
 						cout << ' ';
 						continue;
@@ -1105,12 +1138,12 @@ public:
 			_depth--;
 			if( !thm ) return {true,{}};
 			Thm ret = thm->intro();
-			add_claim(_thy,pat.cs,ret);
+			add_claim(_thy,pat.name,pat.cs,ret);
 			return {true,{ret}};
 		}
 		auto infer = loc.resolver(_out_blast);
 		Thm ret = infer.prove(loc,loc_goal,true).intro();
-		add_claim(_thy,pat.cs,ret);
+		add_claim(_thy,pat.name,pat.cs,ret);
 		return {true,{ret}};
 	}
 	bool _thy_decl() {
@@ -1154,8 +1187,8 @@ public:
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
 			if MSG if( o ) {
-				auto const& [cs,thm] = *o;
-				cout << "proved " << cs << _thy.pretty(thm) << endl;
+				auto const& [name,cs,thm] = *o;
+				cout << "proved " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 			}
 		} else if( skips("note") ) {
 			_note();
@@ -1189,7 +1222,7 @@ public:
 				if MSG print_goal(thesis);
 			} else if( skips("show") ) {
 				if( auto o = _state() ) {
-					auto [cs,thm] = *o;
+					auto [name,cs,thm] = *o;
 					for(;;) {
 						auto goal = thesis.has_goal();
 						if( !goal ) throw Error("\"no goal to matches\"")(thm);
@@ -1405,7 +1438,7 @@ public:
 					if CTXT cout << '.' << endl;
 					skip(".");
 				} else if( skips("assume") ) {
-					auto cs = get_claim_status();
+					auto [name,cs] = _get_name_status();
 					Ctxt assm_loc = _thy.Ctxt::fork().ctxt();
 					for(;;) {
 						if( skips("for") ) {
@@ -1423,11 +1456,11 @@ public:
 						}
 					}
 					auto assm = assm_loc.enclose(get_term()).intro();
-					Thm thm = cs.name ? _thy.add_assm(*cs.name,assm) : _thy.assume(assm);
-					add_claim(_thy,cs,thm);
+					Thm thm = name ? _thy.add_assm(*name,assm) : _thy.assume(assm);
+					add_claim(_thy,name,cs,thm);
 					if CTXT {
 						if( !MSG ) cout << _indent(' ');
-						cout << "assumed " << cs << _thy.pretty(assm) << ". " << endl;
+						cout << "assumed " << _print_name_status(name,cs) << _thy.pretty(assm) << ". " << endl;
 					}
 					skip(".");
 				} else if( skips("import") ) {
@@ -1451,7 +1484,7 @@ public:
 	void _obtain( Thy& org_thy ) {
 		string sym = get_sym();
 		vector<CTerm> props;
-		vector<pair<ClaimStatus,Thm>> prop_thms;
+		vector<tuple<Opt<string>,Opt<ClaimStatus>,Thm>> prop_thms;
 		Thy thesis_thy = _thy.branch();
 		CTerm var = thesis_thy.fix("_thesis");
 		Thy goal_thy = thesis_thy.branch();
@@ -1462,12 +1495,13 @@ public:
 		if( skips("where") ) {
 			if MSG cout << " where" << endl;
 			for(;;) {
-				auto [cs,t] = get_assm();
+				auto [name,cs] = _get_name_status();
+				auto t = get_term();
 				Thm thm = props_thy.assume(props_thy.fork().ctxt().enclose(t).intro());
-				add_claim(props_thy,cs,thm);
-				prop_thms.emplace_back(cs,thm);
+				add_claim(props_thy,name,cs,thm);
+				prop_thms.emplace_back(name,cs,thm);
 				props.push_back(goal_thy.fork().ctxt().enclose(t).intro());
-				if MSG cout << '\t' << cs << _thy.pretty(thm) << endl;
+				if MSG cout << '\t' << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 				if( !skips(",") ) break;
 			}
 		}
@@ -1486,10 +1520,10 @@ public:
 		if( thm ) {
 			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)),true);
 			// deriver: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
-			for( auto const& [cs,prop_thm] : prop_thms ) {
+			for( auto const& [name,cs,prop_thm] : prop_thms ) {
 				auto const& arg = prop_thm.intro();// props... ⟹ prop_i
 				Thm prop = deriver << arg;// prop_i
-				add_claim(_thy,cs,prop);
+				add_claim(_thy,name,cs,prop);
 			}
 			if MSG cout << "obtained " << sym << endl;
 		} else {

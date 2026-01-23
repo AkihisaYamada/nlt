@@ -49,7 +49,7 @@ lemma fun_cong: if fg: f = g then f x = g x;
 	by eq.cong_meta[of (h. h x), OF fg].
 
 context eq begin
-	lemma cong: for f x if fg: f = g then for y if xy: x = y then f x = g y;
+	lemma cong: if fg: f = g, xy: x = y then f x = g y;
 		have 1: f x = f y;
 			by arg_cong[OF xy].
 		apply trans[OF 1];
@@ -124,7 +124,7 @@ end
 theory Ex1:
 	fix (∃!).
 	assume ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x].
-	assume ex1_elim: if ∃!x. P.[x] then for Q if ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q.
+	assume ex1_elim: if ∃!x. P.[x], ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q.
 begin
 	lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
 		apply assm;
@@ -171,15 +171,11 @@ begin
 		apply iff_intro;
 		- if ex1;
 			apply ex_intro;
-			- for Q;
-				unfold and_imp_iff_imp_imp;
-				apply ex1_elim[OF ex1]=.
-			.
+			unfold and_imp_iff_imp_imp;
+			apply ex1_elim[OF ex1]=.
 		- if ex;
 			apply ex1_intro;
-			- for Q;
-				apply ex[unfolded ex_iff and_imp_iff_imp_imp]=.
-			.
+			apply ex[unfolded ex_iff and_imp_iff_imp_imp]=.
 		.
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
@@ -205,7 +201,7 @@ begin
 		theory ExIn:
 			import ExIn.
 		begin
-			lemma ExIn_cong_iff(cong)
+			lemma exIn_cong_iff(cong)
 				if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
 				then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
 				apply iff_intro;
@@ -224,8 +220,23 @@ begin
 		theory Ex1In:
 			fix (∃!∈).
 			import AllIn.
-			assume ex1In_intro1: for x A P if P.[x], x ∈ A, ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x].
-			assume ex1In_elim: if ∃!x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q.
+			import ExIn.
+			assume ex1In_iff: (∃!x ∈ A. P.[x]) ⟺ (∃x ∈ A. P.[x] ∧ (∀y ∈ A. P.[y] ⟹ y = x)).
+		begin
+			lemma ex1In_cong_iff(cong)
+				if iff: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x] then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. P'.[x]);
+				unfold ex1In_iff iff.
+			lemma ex1In_intro1:
+				for x A P if Px: P.[x], x: x ∈ A, uniq: ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x];
+				unfold ex1In_iff;
+				by exIn_intro1[of x] Px x uniq.
+
+			lemma ex1In_elim: if ex1: ∃!x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q;
+				apply ex1[unfolded ex1In_iff, THEN exIn_elim];
+				unfold and_imp_iff_imp_imp;
+				- for x;
+					by imp[of x].
+				.
 		end
 		theory TheIn:
 			fix THE.∈.
@@ -312,7 +323,7 @@ begin
 	interpret Id;
 		obtain id where id_eq: id x = x;
 			- for thesis;
-				apply abbrev[of (x. x)]=.
+				apply abbrev[of (x. x)]>0.
 			.
 		.
 	note(unfold) id_eq.
@@ -357,9 +368,7 @@ begin
 							by imp[of x] Px imp_eq.
 						.
 					- for P if ex1;
-						- for Q;
-							apply ex1[unfolded(=) eq]=.
-						.
+						apply ex1[unfolded(=) eq]=.
 					.
 				.
 			.

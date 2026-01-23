@@ -15,6 +15,8 @@ public:
 	Opt<std::string> gets_sym() &;
 	std::string get_sym() &;
 	Term nest_abs( Term const& bind, int level ) &;
+	size_t prev_token_line = 0;
+	size_t prev_token_col = 0;
 private:
 	Term _get_follow( Term ret, int level, Syntax const& syn ) &;
 };

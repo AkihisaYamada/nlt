@@ -115,7 +115,7 @@ lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
 	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
 		by nnimp_imp_nnot[OF nnimp P, unfolded nnnot_iff].
-	apply nnot_intro=.
+	by nnot_intro.
 
 lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q;
 	by imp nnot_intro.
@@ -326,17 +326,17 @@ lemma false_or_false_iff: false ∨ false ⟺ false;
 lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 	apply assm;
 	- for x;
-		apply ex_intro1=.
+		by ex_intro1[of x].
 	.
+
 lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, [∀x. P.[x]] then Q;
 	apply ex_elim[OF ex];
 	- for x if imp: P.[x] ⟹ Q;
 		by imp.
 	.
 lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
-	apply iff_intro;
-	-; apply ex_elim=.
-	apply ex_intro=.
+	apply iff_intro[OF ex_elim];
+	apply ex_intro>0.
 
 lemma ex_cong(cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
 	unfold ex_iff eq.
@@ -528,11 +528,6 @@ begin
 		by assm #unfold in_COLLECT_iff.
 	lemma in_COLLECT_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
 		by assm[unfolded in_COLLECT_iff].
-end
-
-theory Fun:
-	import Fun.
-	import .Membership.
 end
 
 theory Propositional:

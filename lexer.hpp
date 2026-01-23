@@ -157,7 +157,11 @@ private:
 	std::string const filename;
 	/** line counter */
 	size_t peeked_lines = 1;
-	size_t read_lines = 1;
+	size_t peeked_column = 1;
+	size_t read_line = 1;
+	size_t read_column = 1;
+	size_t prev_token_line = 1;
+	size_t prev_token_column = 1;
 	// input stream
 	std::istream* pis;
 	/** Lexical grammar */
@@ -169,19 +173,18 @@ private:
 	char buf[1024];
 	Lex::CharType fetched_char_type;
 	// write pointer
-	size_t wp;
+	size_t wp = 0;
 	// read pointer
-	size_t rp;
+	size_t rp = 0;
 	// writes one character into the buffer
 	int fetch_char();
 	void fetch_continue( Lex::CharType t );
 public:
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
-	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), wp(0), rp(0), fetched_char_type(Lex::Blank), buf() {}
+	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), fetched_char_type(Lex::Blank), buf() {}
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.
 	Lexer( Lexer const& ) = delete;
 	void reset() {
-		read_lines = peeked_lines;
 		token_type = Unset;
 	}
 	TokenType peeked_token_type() {
@@ -202,7 +205,7 @@ public:
 		return token_type;
 	}
 	std::string location() const {
-		return filename + ':' + std::to_string(read_lines);
+		return filename + ':' + std::to_string(prev_token_line) + ':' + std::to_string(prev_token_column);
 	}
 private:
 	bool _fetch_word_or_op();
