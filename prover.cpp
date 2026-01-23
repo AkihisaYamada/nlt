@@ -1146,6 +1146,25 @@ public:
 		add_claim(_thy,pat.name,pat.cs,ret);
 		return {true,{ret}};
 	}
+	CTerm _get_assm( Thy const& org_thy ) {
+		Ctxt assm_loc = org_thy.Ctxt::fork().ctxt();
+		for(;;) {
+			if( skips("for") ) {
+				while( auto const& sym = gets_sym() ) {
+					assm_loc.fix(*sym);
+				}
+				skips(",");
+			} else if( skips("if") ) {
+				do {
+					assm_loc.assume(get_term());
+				} while( skips(",") );
+				skip("then");
+			} else {
+				break;
+			}
+		}
+		return assm_loc.enclose(get_term()).intro();
+	}
 	bool _thy_decl() {
 		if( skips("theory") ) {
 			string name = get(Lexer::Word);
@@ -1249,6 +1268,15 @@ public:
 				thesis.apply(rules,min,max,safe,wide);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goal(thesis,"applied goals:\n\t");
+			} else if( skips("simp") ) {
+				auto resolver = _thy.resolver(_out_blast);
+				while( auto thm = gets_thm() ) {
+					_thy.add_rewrite_rule(resolver.rules,*thm,false);
+				}
+				bool more = _proof_follows();
+				resolver.rewrites(thesis,true,1,255,true,{},{});
+				if( !more ) return thesis.discharge_all();
+				if MSG print_goal( thesis, "simplified goal " );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_blast);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
@@ -1439,23 +1467,7 @@ public:
 					skip(".");
 				} else if( skips("assume") ) {
 					auto [name,cs] = _get_name_status();
-					Ctxt assm_loc = _thy.Ctxt::fork().ctxt();
-					for(;;) {
-						if( skips("for") ) {
-							while( auto const& sym = gets_sym() ) {
-								assm_loc.fix(*sym);
-							}
-							skips(",");
-						} else if( skips("if") ) {
-							do {
-								assm_loc.assume(get_term());
-							} while( skips(",") );
-							skip("then");
-						} else {
-							break;
-						}
-					}
-					auto assm = assm_loc.enclose(get_term()).intro();
+					auto assm = _get_assm(_thy);
 					Thm thm = name ? _thy.add_assm(*name,assm) : _thy.assume(assm);
 					add_claim(_thy,name,cs,thm);
 					if CTXT {
@@ -1496,11 +1508,11 @@ public:
 			if MSG cout << " where" << endl;
 			for(;;) {
 				auto [name,cs] = _get_name_status();
-				auto t = get_term();
-				Thm thm = props_thy.assume(props_thy.fork().ctxt().enclose(t).intro());
+				auto assm = _get_assm(props_thy);
+				Thm thm = props_thy.assume(assm);
 				add_claim(props_thy,name,cs,thm);
 				prop_thms.emplace_back(name,cs,thm);
-				props.push_back(goal_thy.fork().ctxt().enclose(t).intro());
+				props.push_back(goal_thy.cterm(assm));
 				if MSG cout << '\t' << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 				if( !skips(",") ) break;
 			}

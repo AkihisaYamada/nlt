@@ -28,9 +28,9 @@ lemma abbrev3: if assm: ∀f. (∀x y z. f x y z = F.[(x,y,z)]) ⟹ P then P;
 --- One can obtain type-free binary logical operators by abbreviation. ---
 interpret Iff;
 	obtain (⟺) where
-		iff_intro: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ (P ⟺ Q),
-		iff_elim1: (P ⟺ Q) ⟹ P ⟹ Q,
-		iff_elim2: (P ⟺ Q) ⟹ Q ⟹ P;
+		iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q,
+		iff_elim1: if P ⟺ Q, P then Q,
+		iff_elim2: if P ⟺ Q, Q then P;
 		- for thesis if assm;
 			apply abbrev2[of (p. ∀R. ((fst p ⟹ snd p) ⟹ (snd p ⟹ fst p) ⟹ R) ⟹ R)];
 			- for f if f;
@@ -65,14 +65,14 @@ interpret Intuitionistic;
 		- for thesis if assm;
 			apply assm[of (∀P. P ⟹ P)].
 		.
-	obtain false where false_elim: false ⟹ ∀P. P;
+	obtain false where false_elim: if false then P;
 		- for thesis if assm;
 			apply assm[of (∀P. P)].
 		.
 	obtain (∧) where
-		and_intro: P ⟹ Q ⟹ P ∧ Q,
-		and_elim1: P ∧ Q ⟹ P,
-		and_elim2: P ∧ Q ⟹ Q;
+		and_intro: for P Q if P, Q then P ∧ Q,
+		and_elim1: if P ∧ Q then P,
+		and_elim2: if P ∧ Q then Q;
 		- for thesis if assm;
 			apply abbrev2[of (p. ∀R. (fst p ⟹ snd p ⟹ R) ⟹ R)];
 			- for f if f;
@@ -80,9 +80,9 @@ interpret Intuitionistic;
 			.
 		.
 	obtain (∨) where
-		or_intro1: ∀P Q. P ⟹ P ∨ Q,
-		or_intro2: ∀P Q. Q ⟹ P ∨ Q,
-		or_elim: P ∨ Q ⟹ ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R;
+		or_intro1: for P Q if P then P ∨ Q,
+		or_intro2: for P Q if Q then P ∨ Q,
+		or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R;
 		- for thesis if assm;
 			apply abbrev2[of (p. ∀R. (fst p ⟹ R) ⟹ (snd p ⟹ R) ⟹ R)];
 			- for f if f;
@@ -94,8 +94,8 @@ interpret Intuitionistic;
 			.
 		.
 	obtain (¬) where
-		not_intro: (P ⟹ false) ⟹ ¬P,
-		not_imp_false: ¬P ⟹ P ⟹ false;
+		not_intro: if P ⟹ false then ¬P,
+		not_imp_false: if ¬P, P then false;
 		- for thesis if assm;
 			apply abbrev[of (P. P ⟹ false)];
 			- for f if f;
@@ -119,8 +119,8 @@ lemma curry: for f, ∃f'. ∀x y. f' x y = f (x,y);
 		by ex_intro1[of f'] #unfold f'.
 	.
 obtain inverts where
-	inverts_intro: (∀x. f (g x) = x) ⟹ inverts f g,
-	inverts_elim1: inverts f g ⟹ ∀x. f (g x) = x;
+	inverts_intro: if ∀x. f (g x) = x then inverts f g,
+	inverts_elim1: if inverts f g then f (g x) = x;
 	- for thesis if assm;
 		apply abbrev2[of (p. ∀x. fst p (snd p x) = x)];
 		- for f if f;

@@ -332,8 +332,8 @@ begin
 	---
 	interpret Ex;
 		obtain (∃) where
-			ex_intro1: ∀x P. P.[x] ⟹ ∃x. P.[x],
-			ex_elim: (∃x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q;
+			ex_intro1: for x P if P.[x] then ∃x. P.[x],
+			ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q;
 			- for thesis if assm;
 				apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
 				- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
@@ -356,8 +356,8 @@ begin
 		apply ex_intro[OF abbrev].
 	interpret Ex1;
 		obtain (∃!) where
-			ex1_intro1: ∀x P. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ ∃!x. P.[x],
-			ex1_elim: (∃!x. P.[x]) ⟹ ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q;
+			ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x],
+			ex1_elim: if ∃!x. P.[x], ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
 			- for thesis if assm;
 				apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
 				- for (∃!) if eq;
@@ -374,8 +374,8 @@ begin
 			.
 		.
 	obtain inj where
-		inj_elim1: inj f ⟹ ∀x y. f x = f y ⟹ x = y,
-		inj_intro: (∀x y. f x = f y ⟹ x = y) ⟹ inj f;
+		inj_elim1: if inj f, f x = f y then x = y,
+		inj_intro: if ∀x y. f x = f y ⟹ x = y then inj f;
 		- for thesis if assm;
 			apply abbrev[of (f. (∀x y. f x = f y ⟹ x = y))];
 			- for inj if eq;
@@ -389,7 +389,7 @@ begin
 		.
 	lemma id_inj: inj id;
 		by inj_intro.
-	lemma inj_imp_ex1: if f: inj f then for x, ∃!x'. f x' = f x;
+	lemma inj_imp_ex1: if f: inj f then ∃!x'. f x' = f x;
 		apply ex1_intro1[of x];
 		by inj_elim1[OF f].
 	---

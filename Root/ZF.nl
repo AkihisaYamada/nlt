@@ -67,20 +67,17 @@ import TheIn.
 ---
 note! ex1In_type TheIn_in.
 
-lemma ex1_upair: ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	unfold allIn_iff;
-	- if x! x ∈ Set, y! y ∈ Set;
-		apply ex_upair[unfolded allIn_iff, OF x y, THEN exIn_elim];
-		- for z if z! z ∈ Set, zall;
-			apply ex1In_intro1[of z];
-			-; apply zall.
-			-; by z.
-			-; apply allIn_intro;
-				- for z' if !, z'all;
-					apply set_eq_intro;
-					- for w if w!;
-						unfold z'all[THEN allIn_elim1] zall[THEN allIn_elim1].
-					.
+lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
+	apply ex_upair[unfolded allIn_iff, OF x y, THEN exIn_elim];
+	- for z if z! z ∈ Set, zall;
+		apply ex1In_intro1[of z];
+		-; by zall.
+		-; by z.
+		-; apply allIn_intro;
+			- for z' if !, z'all;
+				apply set_eq_intro;
+				- for w if w!;
+					unfold z'all[unfolded allIn_iff] zall.
 				.
 			.
 		.
@@ -89,17 +86,17 @@ lemma ex1_upair: ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. ∀w ∈ Set. w ∈ 
 Since we have admitted abbreviations, we can denote the 
 ---
 obtain upair where
-	upair_Set! ∀x ∈ Set. ∀y ∈ Set. upair x y ∈ Set,
-	upair_iff: ∀x ∈ Set. ∀y ∈ Set. ∀z ∈ Set. z ∈ upair x y ⟺ z = x ∨ z = y;
+	upair_Set! if x ∈ Set, y ∈ Set then upair x y ∈ Set,
+	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
 	- for thesis if assm;
 		apply abbrev2[of (p. THE u ∈ Set. ∀z ∈ Set. z ∈ u ⟺ z = fst p ∨ z = snd p)];
 		- for f if f;
 			apply assm[of f];
-			unfold f;
-note(cong)ex1In_cong_iff.
-			-; by TheIn_in ex1_upair.
-			-;
-note 1: TheIn_intro[OF ex1_upair].
+			-; by f(unfold) TheIn_in ex1_upair.
+			have: if !x ∈ Set, !y ∈ Set then ∀x' ∈ Set. x' ∈ (THE u ∈ Set. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x,y) ∨ z = snd (x,y)) ⟺ x' = fst (x,y) ∨ x' = snd (x,y);
+				note 1: TheIn_intro[of Set (u. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x , y) ∨ z = snd (x , y))];
+				simp;
+				apply ex1_upair.
 
 who
 	- for x y if !, !;
