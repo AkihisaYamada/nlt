@@ -92,7 +92,7 @@ obtain upair where
 		apply abbrev2[of (p. THE u ∈ Set. ∀z ∈ Set. z ∈ u ⟺ z = fst p ∨ z = snd p)];
 		- for f if f;
 			apply assm[of f];
-			-; by f(unfold) TheIn_in ex1_upair.
+			-; by f(simp) TheIn_in ex1_upair.
 			- if ! x ∈ Set, ! y ∈ Set, ! z ∈ Set;
 				note 1: TheIn_intro[of Set (u. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x , y) ∨ z = snd (x , y)), simplified, folded f].
 				apply 1[THEN allIn_elim1];
@@ -103,9 +103,10 @@ obtain upair where
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
+syntax {_} := singleton.
 obtain singleton where
-	singleton_Set! if x ∈ Set then singleton x ∈ Set,
-	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ singleton x ⟺ x = y;
+	singleton_Set! if x ∈ Set then {x} ∈ Set,
+	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
 	- for thesis if assm;
 		apply abbrev[of (x. upair x x)];
 		- for f if f;
@@ -181,47 +182,100 @@ obtain (∪) where
 	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
 	- for thesis if assm;
 		apply abbrev2[of (p. ⋃(upair (fst p) (snd p)))];
-		- for f if f;
-			apply assm[of f, simplified f UN_iff];
-foo
+		- for (∪) if cup_def;
+			apply assm[of (∪), simplified cup_def];
+			-; .
+			- if x! x ∈ Set, y! y ∈ Set, z! z ∈ Set then x ∈ ⋃(upair y z) ⟺ x ∈ y ∨ x ∈ z;
+				unfold UN_iff upair_iff;
+				apply iff_intro;
+				- if un;
+					apply un[THEN exIn_elim, simplified];
+					- if w! w ∈ Set, or: w = y ∨ w = z, xw: x ∈ w then x ∈ y ∨ x ∈ z;
+						apply or_elim[OF or];
+						- if wy;
+							by or_iff_true1(simp) xw[unfolded wy].
+						- if wz;
+							by or_iff_true2(simp) xw[unfolded wz].
+						.
+					.
+				- if or;
+					apply or_elim[OF or];
+					-; by exIn_intro1[of y].
+					-; by exIn_intro1[of z].
+					.
+				.
+			.
+		.
+	.
 
 ---
 ### Infinity
 ---
-assume infinity_axiom: ∃x ∈ Set. ∅ ∈ x ∧ (∀y ∈ x. y ∪ singleton y).
+assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
 
+---
+### Separation Schema
+---
+print.
+assume separation_schema:
+	if ∀x. x ∈ Set ⟹ P.[x] ∈ Prop
+	then ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ P.[z].
+
+lemma separation_ex1:
+	if P: ∀x. x ∈ Set ⟹ P.[x] ∈ Prop, x: x ∈ Set
+	then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ P.[z];
+	apply separation_schema[OF P, THEN allIn_elim1, OF x, THEN exIn_elim];
+	- for y if y, yspec;
+		apply+ ex1In_intro1[of y] allIn_intro y;
+		-; by yspec[THEN allIn_elim1](simp).
+		- for y' if y', y'spec;
+			by set_eq_intro y y' #unfold yspec[THEN allIn_elim1] y'spec[THEN allIn_elim1].
+		.
+	.
 ---
 ### Replacement
 ---
-assume replacement_axiom:
+assume replacement_schema:
 	if P ∈ Set → Set → Prop
 	then (∀x ∈ Set. ∃!y ∈ Set. P x y) ⟹ ∀w ∈ Set. ∃v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r).
 
-print.
 lemma replacement_ex1:
 	if P! P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w! w ∈ Set
 	then ∃!v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r);
 -- proof
-	apply replacement_axiom[OF P ex1, THEN all.elim1, OF w !, THEN ex.elim];
+	apply replacement_schema[OF P ex1, THEN allIn_elim1, OF w, THEN exIn_elim];
 	note! P[THEN fun_elim1, THEN fun_elim1].
 	- for v if v! v ∈ Set, in_v: ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r);
-		apply+ ex1_intro[of v] all.intro;
+		apply+ ex1In_intro1[of v] allIn_intro;
 		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s x);
-			by in_v[THEN all.elim1].
+			by in_v[THEN allIn_elim1].
 		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r) then x = v;
-			by set_eq_intro #unfold in_v[THEN all.elim1] in_x[THEN all.elim1].
+			by set_eq_intro #unfold in_v[THEN allIn_elim1] in_x[THEN allIn_elim1].
 		.
 	.
 -- qed
 
 obtain Replace where
-	Replace_type: P ∈ Set → Set → Prop ⟹ (∀x ∈ Set. ∃!y ∈ Set. P x y) ⟹ w ∈ Set ⟹ Replace P w ∈ Set,
-	Replace_iff: P ∈ Set → Set → Prop ⟹ (∀x ∈ Set. ∃!y ∈ Set. P x y) ⟹ w ∈ Set ⟹ r ∈ Set ⟹
-		r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P s r);
-- for thesis if assm;
-	apply assm[of (λP w. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r))];
+	Replace_Set! if P ∈ Set → Set → Prop, ∀x ∈ Set. ∃!y ∈ Set. P x y, w ∈ Set then Replace P w ∈ Set,
+	Replace_iff: if P ∈ Set → Set → Prop, ∀x ∈ Set. ∃!y ∈ Set. P x y, w ∈ Set, r ∈ Set
+		then r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P s r);
+	- for thesis if assm;
+		apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
+		- for f if f;
+			apply assm[of f];
+			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
+				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
+					by replacement_ex1[OF P ex1 w].
+				by TheIn_in[OF 1, folded f].
+			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
+				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
+					by replacement_ex1[OF P ex1 w].
+				by TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
+			.
+		.
+	.
 
 
 
-assume collect_in_iff: (∀x. x ∈ Set ⟹ P.[x] ∈ Prop) ⟹ A ∈ Set ⟹ 
+
 

@@ -76,6 +76,7 @@ int Lexer::fetch_char() {
 		}
 		if( n == 0 ) {// line comment
 			while( pis->get() != '\n' );
+			peeked_column = 0;
 			peeked_lines++;
 		} else {// block comment
 			unsigned int m;
@@ -84,8 +85,8 @@ int Lexer::fetch_char() {
 				if( c == pis->eof() ) {
 					break;
 				} else if( c == '\n' ) {
-					peeked_lines++;
 					peeked_column = 0;
+					peeked_lines++;
 				} else if( c == '-' ) {
 					m = 0;
 					while( pis->peek() == '-' ) {
@@ -107,8 +108,8 @@ int Lexer::fetch_char() {
 		return c;
 	}
 	if( c == '\n' ) {
-		peeked_lines++;
 		peeked_column = 0;
+		peeked_lines++;
 	}
 	char* start = &buf[wp];
 	int len = char_size(c);

@@ -205,7 +205,7 @@ public:
 		return token_type;
 	}
 	std::string location() const {
-		return filename + ':' + std::to_string(prev_token_line) + ':' + std::to_string(prev_token_column);
+		return filename + ':' + std::to_string(read_line) + ':' + std::to_string(read_column);
 	}
 private:
 	bool _fetch_word_or_op();

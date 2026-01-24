@@ -72,14 +72,14 @@ void add_forced( Thy& thy, Thm const& thm, bool allow_intro ) {
 		thy.add_thm(Thy::EXACT,thm);
 	}
 }
-void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool safe, bool wide ) & {
+void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool normalize, bool wide ) & {
 	for(;;) {
 		if( _goals == 0 ) {
 			if( suc < min ) throw Error("\"no more goal to apply on\"");
 			return;
 		}
 		if( suc == max ) {
-			if( !safe ) {
+			if( normalize ) {
 				throw Error("\"apply limit exceeded\"")(to_string(max));
 			}
 			return;
@@ -91,7 +91,7 @@ void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size
 		suc++;
 	}
 	if( wide && push() ) {
-		_apply(rules,suc,min,max,safe,wide);
+		_apply(rules,suc,min,max,normalize,wide);
 		pop();
 	}
 	if( suc < min ) throw Error("\"apply failed\"");

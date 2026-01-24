@@ -162,6 +162,8 @@ theory Minimal:
 	import Minimal.
 	import Ex1.
 begin
+	lemma eq_refl_iff(simp) x = x ⟺ true;
+		by iff_intro.
 	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
 		apply ex1_elim[OF ex1];
 		- for x;
@@ -326,7 +328,7 @@ begin
 				apply abbrev[of (x. x)]>0.
 			.
 		.
-	note(unfold) id_eq.
+	note(simp) id_eq.
 	---
 	One can obtain the type-free existential quantifier as a unary abbreviation.
 	---
@@ -439,8 +441,8 @@ end
 
 theory Pair: --- Syntactic Pairing ---
 	fix (,) fst snd.
-	assume fst(unfold) fst (x,y) = x.
-	assume snd(unfold) snd (x,y) = y.
+	assume fst(simp) fst (x,y) = x.
+	assume snd(simp) snd (x,y) = y.
 begin
 	interpret pair: MetaInjective (,);
 		- for x x' if eq: (,) x = (,) x' then x = x';

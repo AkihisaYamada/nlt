@@ -136,13 +136,13 @@ lemma nnot_not_imp_nimp: if nnP: ¬¬P, [¬Q] then ¬(P ⟹ Q);
 		by not_imp_false[OF nnQ].
 	.
 
-lemma not_true_iff(unfold) ¬true ⟺ false;
+lemma not_true_iff(simp) ¬true ⟺ false;
 	apply iff_intro;
 	- if nt: ¬true;
 		by not_imp_false[OF nt].
 	by not_intro.
 
-lemma not_false_iff(unfold) ¬false ⟺ true;
+lemma not_false_iff(simp) ¬false ⟺ true;
 	by iff_true[OF not_false].
 
 
@@ -175,7 +175,7 @@ end
 
 note(cong) iff.and.cong.
 
-lemma and_imp_iff_imp_imp: (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+lemma and_imp_iff_imp_imp(simp) (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
 
 lemma imp_and_iff1: if P: P then P ∧ Q ⟺ Q;
@@ -202,8 +202,6 @@ lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
 		- for x;
 			by and_elim2[OF ab].
 		.
-	unfold and_imp_iff_imp_imp;
-	- if ! ∀x. P.[x], ! ∀x. Q.[x].
 	.
 
 lemma nand_intro1: if nP: ¬P then ¬(P ∧ Q);
@@ -213,7 +211,7 @@ lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
 	by not_intro not_imp_false[OF nQ].
 
 lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	unfold not_iff_imp_false and_imp_iff_imp_imp.
+	simp not_iff_imp_false.
 
 lemma non_contradiction: ¬(P ∧ ¬P);
 	unfold nand_iff_imp_not;
@@ -253,10 +251,8 @@ lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	by assm[OF or_intro1 or_intro2].
 
-namespace or:
-	interpret MetaSymmetric (∨);
-		by or_intro #elim or_elim.
-end
+interpret or: MetaSymmetric (∨);
+	by or_intro #elim or_elim.
 
 lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
 	by iff_intro or_intro1.
@@ -282,7 +278,7 @@ context iff begin
 end
 
 note(cong) iff.or.cong.
-note(unfold) iff.or.left_absorb iff.or.right_absorb.
+note(simp) iff.or.left_absorb iff.or.right_absorb.
 
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), [P] then Q ∨ R;
 	by or[unfolded imp_imp_iff].

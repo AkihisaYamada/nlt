@@ -17,7 +17,7 @@ lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P ∈ Prop, [Q ∈ Prop] t
 	-; by PQ.
 	-; by nPQ.
 	.
-thms #intro.
+
 lemma nnot_iff: if [P ∈ Prop] then ¬¬P ⟺ P;
 	apply prop_cases[of P];
 	- if P: P;

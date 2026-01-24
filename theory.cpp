@@ -360,7 +360,7 @@ function<ostream&(ostream&)> Thy::print_name( bool ancestors ) const& {
 	}
 }
 
-function<ostream&(ostream&)> Thy::pretty( size_t n, bool scope, bool path ) const & {
+function<ostream&(ostream&)> Thy::pretty( size_t& n, bool scope, bool path ) const & {
 	return [&n,scope,path,this](ostream& os)->ostream& {
 		n++;
 		if( scope ) {
@@ -424,7 +424,8 @@ function<ostream&(ostream&)> Thy::print_thms( string_view const& name, string_vi
 function<ostream&(ostream&)> const Import::pretty( size_t indent ) const & {
 	return [&]( ostream& os )->ostream& {
 		if( _src.name() == "" ) {
-			return os << _src.pretty(indent+1);
+			indent++;
+			return os << _src.pretty(indent);
 		}
 		os << _src.print_name(true);
 		if( !ready() ) {

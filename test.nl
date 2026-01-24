@@ -1,5 +1,3 @@
-print load.
-import Class.
 import ZF.
 
 thy.

@@ -315,7 +315,7 @@ public:
 				cs.fallback = true;
 			} else if( skips("elim") ) {
 				cs.elim = true;
-			} else if( skips("unfold") ) {
+			} else if( skips("simp") ) {
 				cs.unfold = true;
 			} else if( skips("fold") ) {
 				cs.fold = true;
@@ -821,7 +821,8 @@ public:
 			} else {
 				string name = get();
 				skip(".");
-				cout << _thy.thy(name,reader()).source() << endl;
+				auto thy = _thy.thy(name,reader()).source();
+				cout << thy << endl;
 			}
 			return true;
 		} else if( skips("thm") ) {
@@ -870,7 +871,7 @@ public:
 		add_claim(_thy,name,cs,thm);
 		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 		if( !name ) {
-			cout << *cs << ' ' << _thy.pretty(thm) << endl;
+			if MSG cout << *cs << ' ' << _thy.pretty(thm) << endl;
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
 				if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
@@ -1258,11 +1259,11 @@ public:
 				}
 			} else if( skips("apply") ) {
 				int min, max;
-				bool safe, wide;
+				bool normalize, wide;
 				if( skips("+") ) {
-					max = 255; safe = false; wide = true;
+					max = 255; normalize = true; wide = true;
 				} else {
-					max = 0; safe = true; wide = false;
+					max = 0; normalize = false; wide = true;
 				}
 				auto rules = set<Intro>();
 				while( auto thm = gets_thm() ) {
@@ -1271,7 +1272,7 @@ public:
 				min = rules.size();
 				if( max == 0 ) max = min;
 				bool more = _proof_follows();
-				thesis.apply(rules,min,max,safe,wide);
+				thesis.apply(rules,min,max,normalize,wide);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goal(thesis,"applied goals:\n\t");
 			} else if( skips("simp") ) {

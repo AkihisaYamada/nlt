@@ -175,7 +175,7 @@ begin
 				by iff_intro #unfold f.
 			.
 		.
-	obtain (∋) where has_iff_in(unfold) X ∋ x ⟺ x ∈ X;
+	obtain (∋) where has_iff_in(simp) X ∋ x ⟺ x ∈ X;
 		- for thesis if assm;
 			apply abbrev2[of (p. snd p ∈ fst p)];
 			- for f if f;
@@ -263,7 +263,7 @@ begin
 				by assm[of f] #unfold f.
 			.
 		.
-	lemma in_Pow_iff(unfold) X ∈ Pow Y ⟺ X ⊆ Y;
+	lemma in_Pow_iff(simp) X ∈ Pow Y ⟺ X ⊆ Y;
 		by #unfold Pow_def in_COLLECT_iff.
 
 	-- Binary notation for classes requires extensionality.

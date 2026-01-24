@@ -160,7 +160,7 @@ public:
 	OptRef<Definer>& definer() &;
 	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
 	/** Pretty printer for the theory */
-	std::function<std::ostream&(std::ostream&)> pretty( size_t indent = 0, bool scope = false, bool path = true ) const &;
+	std::function<std::ostream&(std::ostream&)> pretty( size_t& indent, bool scope = false, bool path = true ) const &;
 	std::function<std::ostream&(std::ostream&)> print_name( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 };
@@ -273,8 +273,10 @@ inline Opt<Thm> Thy::find_thm(
 ) const {
 	return find_thm(name,self(),test);
 }
+auto operator<<(std::ostream& os, Thy && loc) = delete;
 inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
-	return os << loc.pretty();
+	size_t indent = 0;
+	return os << loc.pretty(indent);
 }
 
 #endif

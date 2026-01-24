@@ -86,9 +86,9 @@ public:
 		if( !_apply(rules,g,child) ) throw Error("\"not applicable\"")(g);
 	}
 	/** @brief Applies set of rules many times */
-	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool safe, bool wide ) & {
+	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool normalize, bool wide ) & {
 		size_t suc = 0;
-		_apply(rules,suc,min,max,safe,wide);
+		_apply(rules,suc,min,max,normalize,wide);
 	}
 	/** Automatically discharge a subgoal */
 	void auto_discharge() &;
@@ -150,7 +150,7 @@ class Resolver {
 	}
 public:
 	Rewrite::Rules rules;
-	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 1023 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool discharges( Thesis& thesis, bool rewrite ) & {
 		return _discharge(thesis,1,true,rewrite,elim_res.size());
 	}
