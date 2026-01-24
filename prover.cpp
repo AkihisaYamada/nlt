@@ -231,10 +231,16 @@ public:
 					while( auto x = gets(Lexer::Word) ) {
 						loc.fix(*x);
 					}
-				} else if( bool dir = false; skips("unfolded") || (dir = true, skips("folded")) ) {
-					auto inf = loc.resolver(_out_blast);
-					auto ctrl = _get_rewrite(inf,loc,dir);
-					ret = inf.rewrites(loc,ret,false);
+				} else if( int mode = skips("unfolded") ? 1 : skips("folded") ? 2 : 0 ) {
+					auto resolver = loc.resolver(_out_blast);
+					auto ctrl = _get_rewrite(resolver,loc,mode==2);
+					ret = resolver.rewrites(loc,ret,false);
+				} else if( skips("simplified") ) {
+					auto resolver = loc.resolver(_out_blast);
+					while( auto thm = gets_thm() ) {
+						loc.add_rewrite_rule(resolver.rules,*thm,false);
+					}
+					ret = resolver.rewrites(loc,ret,true);
 				} else if( skips("dual") ) {
 					auto resolver = Resolver(loc.rewriter(),_out_blast);
 					ret = loc.dualize(ret,resolver);

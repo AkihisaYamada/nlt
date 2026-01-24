@@ -161,7 +161,7 @@ lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
 context iff begin
 
 	interpret and: iff.MetaCompatible (∧);
-		- for P Q if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
+		- if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
 			by iff_intro #unfold P Q.
 		.
 
@@ -266,7 +266,7 @@ lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 
 context iff begin
 	interpret or: iff.MetaCompatible (∨);
-		- for P R if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
+		- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 			by iff_intro or_intro #elim or_elim #unfold PQ RS.
 		.
 	interpret or: iff.MetaCommAbsorb (∨) true;
@@ -275,6 +275,10 @@ context iff begin
 		.
 	interpret or: iff.MetaAssociative (∨);
 		by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
+	interpret or: iff.MetaIdempotent (∨);
+		- P ∨ P ⟺ P;
+			by iff_intro or_intro or_elim(elim).
+		.
 end
 
 note(cong) iff.or.cong.

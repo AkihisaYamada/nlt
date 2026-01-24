@@ -43,12 +43,12 @@ assume ex_empty: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
 syntax {} := Empty.
 obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
-- for thesis if assm;
-	apply exIn_elim[OF ex_empty];
-	- for e;
-		by assm[of e].
+	- for thesis if assm;
+		apply exIn_elim[OF ex_empty];
+		- for e;
+			by assm[of e].
+		.
 	.
-.
 
 ---
 ### Unordered pairs
@@ -83,7 +83,7 @@ lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set.
 		.
 	.
 ---
-Since we have admitted abbreviations, we can denote the 
+Since we have admitted abbreviations and `THE` operator, we can obtain the function for unordered pair.
 ---
 obtain upair where
 	upair_Set! if x ∈ Set, y ∈ Set then upair x y ∈ Set,
@@ -93,67 +93,57 @@ obtain upair where
 		- for f if f;
 			apply assm[of f];
 			-; by f(unfold) TheIn_in ex1_upair.
-			have: if !x ∈ Set, !y ∈ Set then ∀x' ∈ Set. x' ∈ (THE u ∈ Set. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x,y) ∨ z = snd (x,y)) ⟺ x' = fst (x,y) ∨ x' = snd (x,y);
-				note 1: TheIn_intro[of Set (u. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x , y) ∨ z = snd (x , y))];
-				simp;
+			- if ! x ∈ Set, ! y ∈ Set, ! z ∈ Set;
+				note 1: TheIn_intro[of Set (u. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x , y) ∨ z = snd (x , y)), simplified, folded f].
+				apply 1[THEN allIn_elim1];
 				apply ex1_upair.
-
-who
-	- for x y if !, !;
-		unfold f.
-	- for x y z if x!, y!, z!;
-		unfold f;
-		by ex1_imp_THE[OF upair_ex1[OF x y] ! !, THEN all.elim1, OF z ! !].
-	by #unfold f.
-by #unfold f.
+			.
+		.
+	.
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
 obtain singleton where
-	singleton_Set! ∀x. x ∈ Set ⟹ singleton x ∈ Set,
-	singleton_iff: ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ y ∈ singleton x ⟺ x = y;
-- for thesis if assm;
-	apply assm[of (λx. upair x x)];
-	- for x if x!;
-		unfold(=) beta.
-	- for x y if x!, y!;
-		unfold(=) beta;
-		unfold upair_iff iff.or.idem;
-		apply iff.intro;
-		- if xy;
-			by #unfold xy.
-		- if yx;
-			by #unfold yx.
+	singleton_Set! if x ∈ Set then singleton x ∈ Set,
+	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ singleton x ⟺ x = y;
+	- for thesis if assm;
+		apply abbrev[of (x. upair x x)];
+		- for f if f;
+			apply assm[of f, unfolded f];
+			-; .
+			- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
+				unfold upair_iff iff.or.idem;
+				by iff.eq.commute.
+			.
 		.
 	.
-.
 ---
 ### Power Set
 ---
 assume Pow_axiom: ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x).
 
 lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x);
-apply Pow_axiom[THEN all.elim1, OF x ! !, THEN ex.elim];
-- for X if X!, Xspec;
-	apply ex1_intro[of X];
-	apply Xspec;
-	apply all.intro;
-	- for X' if X'!, X'spec;
-		by set_eq_intro #unfold Xspec[THEN all.elim1] X'spec[THEN all.elim1].
+	apply Pow_axiom[THEN allIn_elim1, OF x, THEN exIn_elim];
+	- for X if X!, Xspec;
+		apply ex1In_intro1[of X];
+		apply Xspec;
+		apply X;
+		apply allIn_intro;
+		- for X' if X'!, X'spec;
+			by set_eq_intro #unfold Xspec[THEN allIn_elim1] X'spec[THEN allIn_elim1].
+		.
 	.
-.
 
 obtain Pow where
-	Pow_Set! ∀x. x ∈ Set ⟹ Pow x ∈ Set,
-	Pow_iff: ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
-- for thesis if assm;
-	apply assm[of (λx. THE X ∈ Set. ∀y ∈ Set. y ∈ X ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x))];
-	-; by #unfold(=) beta.
-	- for x y if x!, y!;
-		unfold(=) beta;
-		apply ex1_imp_THE[OF Pow_ex1[OF x] ! !, THEN all.elim1, OF y ! !].
+	Pow_Set! if x ∈ Set then Pow x ∈ Set,
+	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
+	- for thesis if assm;
+		apply abbrev[of (x. THE X ∈ Set. ∀y ∈ Set. y ∈ X ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x))];
+		- for f if f;
+			apply assm[of f];
+			by Pow_ex1[THEN TheIn_in, folded f] Pow_ex1[THEN TheIn_intro, folded f, THEN allIn_elim1].
+		.
 	.
-.
 
 ---
 ### Unions
@@ -161,64 +151,39 @@ obtain Pow where
 assume UN_axiom: ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w).
 
 lemma UN_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w);
-apply UN_axiom[THEN all.elim1, OF x ! !, THEN ex.elim];
-- for y if y!, yspec;
-	apply ex1_intro[of y];
-	apply yspec;
-	apply all.intro;
-	- for y' if y'!, y'spec;
-		apply set_eq_intro;
-		- for z if z!;
-			unfold yspec[THEN all.elim1] y'spec[THEN all.elim1].
+	apply UN_axiom[THEN allIn_elim1, OF x, THEN exIn_elim];
+	- for y if y!, yspec;
+		apply ex1In_intro1[of y];
+		-; apply yspec.
+		-; apply y.
+		apply allIn_intro;
+		- for y' if y'!, y'spec;
+			apply set_eq_intro;
+			- for z if z!;
+				unfold yspec[THEN allIn_elim1] y'spec[THEN allIn_elim1].
+			.
 		.
 	.
-.
 
 obtain (⋃) where
-	UN_Set! ∀x. x ∈ Set ⟹ ⋃x ∈ Set,
-	UN_iff: ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ y ∈ ⋃x ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z);
-- for thesis if assm;
-	apply assm[of (λx. THE U ∈ Set. ∀y ∈ Set. y ∈ U ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z))];
-	- for x if x!;
-		unfold(=) beta.
-	- for x y if x!, y!;
-		unfold(=) beta;
-		apply ex1_imp_THE[OF UN_ex1[OF x] ! !, THEN all.elim1, OF y ! !].
-	.
-.
-
-obtain (∪) where
-	un_Set! ∀x y. x ∈ Set ⟹ y ∈ Set ⟹ x ∪ y ∈ Set,
-	un_iff: ∀x y z. x ∈ Set ⟹ y ∈ Set ⟹ z ∈ Set ⟹ x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
-- for thesis if assm;
-	apply assm[of (λy z. ⋃(upair y z))];
-	- for x y if x!, y!;
-		unfold(=) beta.
-	- for x y z if x!, y!, z!;
-		unfold(=) beta;
-		unfold UN_iff upair_iff;
-		apply iff.intro;
-		- if ex;
-			apply ex.elim[OF ex];
-			- for w if !, and;
-				apply and.elim[OF and];
-				- if or, xw;
-					apply or.elim[OF or];
-					- if eq: w = y;
-						by xw[unfolded eq] #unfold or_iff_true1.
-					- if eq: w = z;
-						by xw[unfolded eq] #unfold or_iff_true2.
-					.
-				.
-			.
-		- if or;
-			apply or.elim[OF or];
-			-; by and.intro ex.intro1[of y] #unfold or_iff_true1.
-			-; by and.intro ex.intro1[of z] #unfold or_iff_true2.
-			.
+	UN_Set! if x ∈ Set then ⋃x ∈ Set,
+	UN_iff: if x ∈ Set, y ∈ Set then y ∈ ⋃x ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z);
+	- for thesis if assm;
+		apply abbrev[of (x. THE U ∈ Set. ∀y ∈ Set. y ∈ U ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z))];
+		- for f if f;
+			apply assm[of f];
+			by UN_ex1[THEN TheIn_in, folded f] UN_ex1[THEN TheIn_intro, folded f, THEN allIn_elim1].
 		.
 	.
-.
+
+obtain (∪) where
+	cup_Set! if x ∈ Set, y ∈ Set then x ∪ y ∈ Set,
+	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
+	- for thesis if assm;
+		apply abbrev2[of (p. ⋃(upair (fst p) (snd p)))];
+		- for f if f;
+			apply assm[of f, simplified f UN_iff];
+foo
 
 ---
 ### Infinity

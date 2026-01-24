@@ -133,7 +133,7 @@ begin
 
 	theory MetaCompatible:
 		fix (*).
-		assume cong: for x y if x ~ x', y ~ y' then x * y ~ x' * y'.
+		assume cong: if x ~ x', y ~ y' then x * y ~ x' * y'.
 	end
 
 	theory MetaCommutative:
@@ -144,6 +144,11 @@ begin
 	theory MetaAssociative:
 		fix (*).
 		assume assoc: x * y * z ~ x * (y * z).
+	end
+
+	theory MetaIdempotent:
+		fix (*).
+		assume idem: x * x ~ x.
 	end
 
 	theory MetaLeftNeutral:
@@ -213,7 +218,7 @@ lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
 		by PQ.
 	.
 
-lemma imp_all: if imp: P ⟹ ∀x. Q.[x] then for x if P: P then Q.[x];
+lemma imp_all: if imp: P ⟹ ∀x. Q.[x], P: P then Q.[x];
 	by imp[OF P].
 
 lemma all_imp: if all: ∀x. P ⟹ Q.[x], [P] then ∀x. Q.[x];
@@ -223,13 +228,13 @@ lemma all_all_imp: if [∀x. P.[x]], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x]
 	by imp.
 
 lemma make_elim:
-	if PQ: ∀x. P.[x] ⟹ Q.[x] then for x if P: P.[x] then for R if QR: Q.[x] ⟹ R then R;
+	if PQ: ∀x. P.[x] ⟹ Q.[x], P: P.[x], QR: Q.[x] ⟹ R then R;
 	by QR PQ P.
 
 theory Ex:
 	fix (∃).
 	assume ex_intro1: for x P if P.[x] then ∃x. P.[x].
-	assume ex_elim: if ∃x. P.[x] then for Q if ∀x. P.[x] ⟹ Q then Q.
+	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 begin
 	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 		apply assm;
