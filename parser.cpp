@@ -129,12 +129,11 @@ Term Parser::_get_follow( Term ret, int level, Syntax const& syn ) & {
 			auto [sym,op] = *x;
 			if( op.level < level ) return ret;
 			if( lastlevel < op.llevel ) return ret;
-			ret = Term(sym)(ret);
 			ignore_token();
 			auto const& r = gets_term(op.rlevel);
-			if( !r ) return ret;
+			if( !r ) return Term(sym)(ret);
 			lastlevel = op.level;
-			ret = ret(*r);
+			ret = Term(sym)(ret)(*r);
 		} else {
 			if( 1000 <= level ) return ret;
 			auto const& r = gets_term(1000);

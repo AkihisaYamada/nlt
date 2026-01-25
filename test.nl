@@ -1,6 +1,6 @@
-import ZF.
+import Class.
 
-thy.
+thy Class.
 
 end
 

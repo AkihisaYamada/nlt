@@ -64,12 +64,17 @@ note(fallback) eq.cong.
 
 theory Id: -- I combinator
 	fix id.
-	assume id_eq: id x = x.
+	assume id_eq(simp) id x = x.
 end
 
 theory Const: -- K combinator
 	fix const.
-	assume const_eq: const x y = x.
+	assume const_eq(simp) const x y = x.
+end
+
+theory Dual:
+	fix dual.
+	assume dual_eq(simp) dual f x y = f y x.
 end
 
 theory TwoValued:
@@ -153,7 +158,7 @@ theory Iff:
 	import Iff.
 begin
 	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
-		unfold(=) eq;
+		unfold[on (=)] eq;
 		.
 end
 
@@ -182,6 +187,14 @@ begin
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
+	theory MetaReflexive:
+		import Minimal.MetaReflexive.
+	end
+	theory MetaPreorder:
+		import Minimal.MetaPreorder.
+	begin
+		interpret .MetaReflexive.
+	end
 	theory Membership:
 		import Membership.
 	begin
@@ -261,15 +274,15 @@ begin
 
 	theory Class:
 		import Collect.
-		assume COLLECT_eq_intro: if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
+		assume Collect_eq_intro: if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
 	begin
-		lemma COLLECT_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
+		lemma Collect_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
 			apply iff_intro;
 			- if eq;
 				have in_iff: for x, x ∈ {x. P.[x]} ⟺ x ∈ {x. Q.[x]};
-					unfold(=) eq.
-				by in_iff[unfolded in_COLLECT_iff].
-			by COLLECT_eq_intro[of P Q].
+					unfold eq.
+				by in_iff[unfolded in_Collect_iff].
+			by Collect_eq_intro[of P Q].
 	end
 
 	theory Propositional:
@@ -370,7 +383,7 @@ begin
 							by imp[of x] Px imp_eq.
 						.
 					- for P if ex1;
-						apply ex1[unfolded(=) eq]=.
+						apply ex1[unfolded eq]=.
 					.
 				.
 			.

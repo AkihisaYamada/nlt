@@ -42,7 +42,10 @@ lemma true_iff_iff: (true ⟺ P) ⟺ P;
 lemma iff_true_iff: (P ⟺ true) ⟺ P;
 	by iff_intro #elim iff_elim.
 
-lemma imp_refl_iff: (P ⟹ P) ⟺ true;
+lemma imp_refl_iff(simp) (P ⟹ P) ⟺ true;
+	unfold iff_true_iff.
+
+lemma iff_refl_iff(simp) (P ⟺ P) ⟺ true;
 	unfold iff_true_iff.
 
 ---
@@ -95,11 +98,11 @@ lemma imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
 	by iff_intro[OF imp_not_sym imp_not_sym].
 
 lemma nnnot_iff: ¬¬¬P ⟺ ¬P;
-	unfold not_iff_imp_false;
+	unfold+ not_iff_imp_false;
 	by imp3_iff.
 
 lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
-	unfold^1 imp_not_commute;
+	unfold imp_not_commute;
 	unfold nnnot_iff.
 
 lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), [P] then ¬¬Q;
@@ -174,6 +177,7 @@ context iff begin
 end
 
 note(cong) iff.and.cong.
+note(simp) iff.and.left_neutral iff.and.right_neutral.
 
 lemma and_imp_iff_imp_imp(simp) (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
@@ -184,14 +188,22 @@ lemma imp_and_iff1: if P: P then P ∧ Q ⟺ Q;
 lemma imp_and_iff2: if Q: Q then P ∧ Q ⟺ P;
 	by iff_intro Q.
 
-lemma true_and_true: true ∧ true;
+lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
+	by iff_intro #elim iff_elim.
+
+lemma imp_and_distrib: (P ⟹ Q ∧ R) ⟺ (P ⟹ Q) ∧ (P ⟹ R);
+	apply iff_intro;
+	- if imp;
+		apply and_intro;
+		- if P;
+			apply and_elim[OF imp[OF P]].
+		- if P;
+			apply and_elim[OF imp[OF P]].
+		.
 	.
 
 lemma false_and_false_iff: false ∧ false ⟺ false;
 	by iff_intro.
-
-lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	by iff_intro #elim iff_elim.
 
 lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
 	apply iff_intro;
@@ -211,19 +223,19 @@ lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
 	by not_intro not_imp_false[OF nQ].
 
 lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	simp not_iff_imp_false.
+	by iff_intro not_iff_imp_false(simp).
 
 lemma non_contradiction: ¬(P ∧ ¬P);
 	unfold nand_iff_imp_not;
 	by nnot_intro.
 
 lemma nand_nnot_iff: ¬(P ∧ ¬¬Q) ⟺ ¬(P ∧ Q);
-	unfold nand_iff_imp_not nnnot_iff.
+	unfold+ nand_iff_imp_not nnnot_iff.
 
 lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
-	unfold^1 iff.and.commute;
+	unfold iff.and.commute;
 	unfold nand_nnot_iff;
-	unfold^1 iff.and.commute.
+	unfold iff.and.commute.
 
 lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
@@ -238,8 +250,8 @@ lemma raw_nor_iff_and: ¬(∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟺ ¬P ∧ ¬Q;
 	by raw_or_imp_iff.
 
 lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
-	fold^1 nnot_nand_iff;
-	fold^1 nand_nnot_iff;
+	fold nnot_nand_iff;
+	fold nand_nnot_iff;
 	fold raw_nor_iff_and;
 	unfold nnnot_iff;
 	unfold raw_nor_iff_and.
@@ -341,23 +353,28 @@ lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 lemma ex_cong(cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
 	unfold ex_iff eq.
 
-lemma all_imp_iff_ex: (∀x. P.[x] ⟹ Q) ⟺ ((∃x. P.[x]) ⟹ Q);
+lemma ex_indep(simp) (∃x. P) ⟺ P;
 	apply iff_intro;
+	-; by ex_elim(elim).
+	- if P; by ex_intro1 P.
+	.
+
+lemma ex_imp_iff_all(simp) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+	apply iff_intro;
+	- if imp: (∃x. P.[x]) ⟹ Q;
+		- for x if Px: P.[x];
+			by imp ex_intro1[OF Px].
+		.
 	- if imp: ∀x. P.[x] ⟹ Q, ex: ∃x. P.[x];
 		obtain x where Px: P.[x];
 			- for thesis;
 				apply ex[unfolded ex_iff, of thesis]=.
 			.
 		by imp[OF Px].
-	- if imp: (∃x. P.[x]) ⟹ Q;
-		- for x if Px: P.[x];
-			by imp ex_intro1[OF Px].
-		.
 	.
 
 lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
-	unfold not_iff_imp_false;
-	fold all_imp_iff_ex.
+	simp not_iff_imp_false.
 
 ---
 ### Russel's Paradox
@@ -419,9 +436,24 @@ lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
 ---
 ## Theories
 
-The logical operators allow us to define some properties.
 ---
 
+theory MetaReflexive:
+	import MetaReflexive.
+begin
+	lemma refl_iff_true: x ≤ x ⟺ true;
+		by iff_intro refl.
+end
+
+theory MetaPreorder:
+	import MetaPreorder.
+begin
+	interpret .MetaReflexive.
+end
+
+---
+The logical operators allow us to define some properties.
+---
 theory MetaIrreflexive:
 	fix (<).
 	assume irrefl: ¬ x < x.
@@ -505,7 +537,7 @@ begin
 		assume exIn_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
 	begin
 		interpret ExIn;
-			- for x if Px: P.[x], x: x ∈ A then ∃x ∈ A. P.[x];
+			- for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
 				unfold exIn_iff;
 				apply ex_intro1[of x];
 				by x Px.
@@ -520,14 +552,14 @@ end
 
 theory Collect:
 	import Membership.
-	fix COLLECT.
-	syntax {_. _} := COLLECT.
-	assume in_COLLECT_iff: x ∈ {x. P.[x]} ⟺ P.[x].
+	fix Collect.
+	syntax {_. _} := Collect.
+	assume in_Collect_iff: x ∈ {x. P.[x]} ⟺ P.[x].
 begin
-	lemma in_COLLECT_intro: if assm: P.[x] then x ∈ {x. P.[x]};
-		by assm #unfold in_COLLECT_iff.
-	lemma in_COLLECT_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
-		by assm[unfolded in_COLLECT_iff].
+	lemma in_Collect_intro: if assm: P.[x] then x ∈ {x. P.[x]};
+		by assm #unfold in_Collect_iff.
+	lemma in_Collect_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
+		by assm[unfolded in_Collect_iff].
 end
 
 theory Propositional:

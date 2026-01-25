@@ -26,6 +26,11 @@
 
 using namespace std;
 
+/** ∀F P. (∀f. (∀x. f x = F.[x]) ⟹ P) ⟹ P */
+static std::string const ABBREV1 = "abbrev1";
+/** ∀F P. (∀f. (∀x y. f x y = F.[(x,y)]) ⟹ P) ⟹ P */
+static std::string const ABBREV2 = "abbrev2";
+
 struct ClaimStatus {
 	bool weak = false, intro = false, elim = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, followable = true;
 	short after = 0;
@@ -136,26 +141,38 @@ public:
 		RewriteCtrl ret;
 		auto const& rew = _thy.rewriter();
 		if( !rew ) throw Error("\"rewriter not set\"");
-		if( skips("(") ) {
-			ret.rel = {get()};
-			skip(")");
+		size_t rep = 0;
+		if( skips("[") ) {
+			do {
+				if( skips("at") ) {// parse position
+					while( auto i = gets_int() ) {
+						ret.pos.push_back(*i);
+					}
+				} else if( skips("on") ) {
+					ret.rel = {get_sym()};
+				} else if( skips("repeat") ) {
+					rep = get_nat();
+				} else {
+					break;
+				}
+			} while( skips(",") );
+			skip("]");
 		}
-		if( skips("[") ) {// parse position
-			while( !skips("]") ) {
-				ret.pos.push_back(get_int());
-			}
-		}
-		if( skips("^") ) {
-			ret.min = ret.max = get_nat(); ret.normalize = false;
-		} else {
-			ret.min = 1; ret.max = 255; ret.normalize = true;
-		}
+		ret.min = 1;
+		ret.max = 0;
+		ret.normalize = skips("+");
 		while( auto const& arg = _gets_thm(loc) ) {
 			auto rule = *arg;
 			if( rev ) {
 				rule = loc.dualize(rule,resolver);
 			}
 			loc.add_rewrite_rule(resolver.rules,rule,false);
+			ret.max++;
+		}
+		if( rep > 0 ) {
+			ret.min = ret.max = rep;
+		} else if( ret.normalize ) {
+			ret.max = 255;
 		}
 		return ret;
 	}
@@ -344,10 +361,10 @@ public:
 				}
 			}
 			if( cs->cong ) {
-				_thy.register_cong(thm);
+				loc.register_cong(thm);
 			}
 			if( cs->fallback ) {
-				_thy.register_fallback(thm);
+				loc.register_fallback(thm);
 			}
 			if( cs->elim ) {
 				loc.add_elim(thm);
@@ -356,17 +373,17 @@ public:
 				if( cs->after > 0 ) {
 					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after,'='));
 				} else {
-					auto [ind,rel,rule] = _thy.rewriter()->make_rule(thm,false);
+					auto [ind,rel,rule] = loc.rewriter()->make_rule(thm,false);
 					loc.add_thm(Thy::REWRITE+rel,thm,rule);
 				}
 			}
 			if( cs->fold ) {
 				auto resolver = Resolver(loc.rewriter(),_out_blast);
-				auto const& dual = _thy.dualize(thm,resolver);
+				auto const& dual = loc.dualize(thm,resolver);
 				if( cs->after > 0 ) {
 					loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs->after,'='));
 				} else {
-					auto [ind,rel,rule] = _thy.rewriter()->make_rule(dual,false);
+					auto [ind,rel,rule] = loc.rewriter()->make_rule(dual,false);
 					loc.add_thm(Thy::REWRITE+rel,dual,rule);
 				}
 			}
@@ -809,6 +826,81 @@ public:
 		if( skips("proof") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY | FLAG_PRF;
 		skips("default");
 		return FLAGS_DEFAULT;
+	}
+	/** unused */
+	void _abbrev( Thy& thy ) {
+		auto lhs = get_term();
+		if( auto sym = lhs.sym() ) {
+			auto abbrev = thy.find_thm(ABBREV1);
+		}
+		auto loc = thy.fork().ctxt();
+		auto t = loc.fix( avoid( "_", [&]( string_view const& x ){ return _thy.has_constant(x); } ) );
+		auto fst = loc.cterm("fst");
+		auto snd = loc.cterm("snd");
+		auto subst = Subst(loc);
+		auto val = t;
+		for(;;) {
+			if( auto sym = lhs.sym() ) {
+			} else if( auto app = lhs.app() ) {
+				auto [fun,param] = *app;
+				if( auto var = param.sym() ) {
+					if( subst.contains(*var) ) throw Error("\"duplicate variable\"")(param);
+					subst.assign(*var,val);
+				} else throw Error("\"unsupported parameter\"")(param);
+			}
+		}
+	}
+	/** unused */
+	void _parse_pattern( StrMap<string>& map, string& addr, Term const& pat ) {
+		if( auto sym = pat.sym() ) {
+			if( _thy.has_constant(*sym) ) throw Error("\"binding fixed\"")(pat);
+			if( map.contains(*sym) ) throw Error("\"nonlinear binding\"")(pat);
+			map.emplace(*sym,addr);
+		} else if( auto pair = pat.binary(",") ) {
+			addr.push_back('0');
+			_parse_pattern(map,addr,pair->first);
+			addr.back() = '1';
+			_parse_pattern(map,addr,pair->second);
+			addr.pop_back();
+		} else {
+			throw Error("\"invalid pattern\"")(pat);
+		}
+	}
+	/** unused */
+	CTerm _tuple_bind( Term const& pat, Term const& body, Ctxt const& ctxt ) {
+		auto map = StrMap<string>{};
+		auto addr = string();
+		_parse_pattern(map,addr,pat);
+		auto loc = ctxt.fork().ctxt();
+		auto t = loc.fix( avoid( "_", [&]( string_view const& x ){ return _thy.has_constant(x); } ) );
+		auto fst = loc.cterm("fst");
+		auto snd = loc.cterm("snd");
+		auto subst = Subst(loc);
+		for( auto const& [var,addr] : map ) {
+			auto val = t;
+			for( auto const& pos : addr ) {
+				val = ( pos == '0' ? fst : snd )(val);
+			}
+			subst.assign(var,val);
+		}
+		
+	}
+	/** unused */
+	CTerm _proc_term( Term const& t, Ctxt const& ctxt ) {
+		if( auto const& sym = t.sym() ) {
+		} else if( auto const& app = t.app() ) {
+			auto const& [fun,arg] = *app;
+			if( auto const& app1 = fun.app() ) {
+				auto const& [fun1,arg1] = *app1;
+				if( fun1 == "." ) {
+					return _tuple_bind(arg1,arg,ctxt);
+				}
+			}
+			return _proc_term(app->first,ctxt)(_proc_term(app->second,ctxt));
+		} else if( auto const& bind = t.bind() ) {
+		} else if( auto const& unbind = t.unbind() ) {
+			
+		}
 	}
 	bool _stats() {
 		if( skips("ctxt") ) {

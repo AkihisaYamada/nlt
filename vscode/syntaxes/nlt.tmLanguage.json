@@ -36,7 +36,7 @@
     "proof-steps": {
       "patterns": [{
         "name": "keyword.control.nlt",
-        "match": ";|\\b(by|done|apply|(un)?fold)\\b"
+        "match": ";|\\b(by|simp|apply|(un)?fold)\\b"
       }]
     },
     "proof-structures": {

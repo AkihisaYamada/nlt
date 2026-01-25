@@ -30,7 +30,7 @@ assume extensionality_axiom: ∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A 
 ---
 As an inference rule:
 ---
-lemma set_eq_intro: for A B if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A ∈ Set, B! B ∈ Set then A = B;
+lemma set_eq_intro: if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A ∈ Set, B! B ∈ Set then A = B;
 	apply extensionality_axiom[THEN allIn_elim1, OF A, THEN allIn_elim1, OF B];
 	by allIn_intro eq.
 
@@ -56,7 +56,7 @@ obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {
 We need to admit more assumptions for more constructions;
 for instance, the unordered pair $\{x,y\}$ is axiomatized by
 ---
-assume ex_upair: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
+assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
 ---
 Informally, then one assumes granted a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) `z`.
@@ -68,7 +68,7 @@ import TheIn.
 note! ex1In_type TheIn_in.
 
 lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	apply ex_upair[unfolded allIn_iff, OF x y, THEN exIn_elim];
+	apply upair_axiom[unfolded allIn_iff, OF x y, THEN exIn_elim];
 	- for z if z! z ∈ Set, zall;
 		apply ex1In_intro1[of z];
 		-; by zall.
@@ -189,7 +189,7 @@ obtain (∪) where
 				unfold UN_iff upair_iff;
 				apply iff_intro;
 				- if un;
-					apply un[THEN exIn_elim, simplified];
+					apply un[THEN exIn_elim, simplified and_imp_iff_imp_imp];
 					- if w! w ∈ Set, or: w = y ∨ w = z, xw: x ∈ w then x ∈ y ∨ x ∈ z;
 						apply or_elim[OF or];
 						- if wy;
@@ -215,16 +215,18 @@ assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
 
 ---
 ### Separation Schema
+
+The separation schema assumes for any set and any predicate,
+the existence of the subset of the former whose elements satisfy the latter.
 ---
-print.
 assume separation_schema:
-	if ∀x. x ∈ Set ⟹ P.[x] ∈ Prop
-	then ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ P.[z].
+	if p ∈ Set → Prop
+	then ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ p z.
 
 lemma separation_ex1:
-	if P: ∀x. x ∈ Set ⟹ P.[x] ∈ Prop, x: x ∈ Set
-	then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ P.[z];
-	apply separation_schema[OF P, THEN allIn_elim1, OF x, THEN exIn_elim];
+	if p: p ∈ Set → Prop, x: x ∈ Set
+	then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ p z;
+	apply separation_schema[OF p, THEN allIn_elim1, OF x, THEN exIn_elim];
 	- for y if y, yspec;
 		apply+ ex1In_intro1[of y] allIn_intro y;
 		-; by yspec[THEN allIn_elim1](simp).
@@ -232,6 +234,22 @@ lemma separation_ex1:
 			by set_eq_intro y y' #unfold yspec[THEN allIn_elim1] y'spec[THEN allIn_elim1].
 		.
 	.
+
+obtain separation where
+	separation_Set! if p ∈ Set → Prop, x ∈ Set then separation x p ∈ Set,
+	separation_iff: if p ∈ Set → Prop, x ∈ Set, z ∈ Set then z ∈ separation x p ⟺ z ∈ x ∧ p z;
+	- for thesis if assm;
+		apply abbrev2[of (p. THE y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst p ∧ snd p z)];
+		- for f if f;
+			apply assm[of f, folded and_imp_iff_imp_imp all_and_iff imp_and_distrib];
+			- if p: p ∈ Set → Prop, x: x ∈ Set;
+				have 1: ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst (x,p) ∧ snd (x,p) z;
+					by separation_ex1[OF p x].
+				by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
+			.
+		.
+	.
+
 ---
 ### Replacement
 ---
@@ -262,20 +280,18 @@ obtain Replace where
 	- for thesis if assm;
 		apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
 		- for f if f;
-			apply assm[of f];
+			apply assm[of f, folded and_imp_iff_imp_imp all_and_iff imp_and_distrib, unfolded and_imp_iff_imp_imp];
 			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
 				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
 					by replacement_ex1[OF P ex1 w].
-				by TheIn_in[OF 1, folded f].
-			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
-				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
-					by replacement_ex1[OF P ex1 w].
-				by TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
+				by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
 			.
 		.
 	.
 
+---
+### Foundation
+---
+assume foundation_axiom: ∀x ∈ Set. x ≠ {} ⟹ ∃y ∈ Set. x ∈ y ∧ (∀z ∈ Set. z ∈ x ⟹ z ∉ y).
 
-
-
-
+begin

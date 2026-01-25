@@ -31,13 +31,16 @@ syntax ∃!_ ∈ _. _ := ∃!∈.
 syntax THE _ ∈ _. _ := THE.∈.
 syntax SOME _ ∈ _. _ := SOME.∈.
 
+infix ⊆ 51 51 50.
+syntax ∀_ ⊆ _. _ := ∀⊆.
+syntax ∃_ ⊆ _. _ := ∃⊆.
+
 infix = 51 51 50.
 infix ≡ 51 51 50.
 infix ≠ 51 51 50.
 infix ~ 51 51 50.
 infix ∋ 51 51 50.
 infix ∉ 51 51 50.
-infix ⊆ 51 51 50.
 infix ⊂ 51 51 50.
 infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
@@ -212,7 +215,7 @@ lemma imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;
 	by PQ RP.
 
-lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
+lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P! P then R;
 	apply PQQR;
 	- if PQ: P ⟹ Q then Q;
 		by PQ.
@@ -221,7 +224,7 @@ lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, [P] then R;
 lemma imp_all: if imp: P ⟹ ∀x. Q.[x], P: P then Q.[x];
 	by imp[OF P].
 
-lemma all_imp: if all: ∀x. P ⟹ Q.[x], [P] then ∀x. Q.[x];
+lemma all_imp: if all: ∀x. P ⟹ Q.[x], P! P then ∀x. Q.[x];
 	by all.
 
 lemma all_all_imp: if [∀x. P.[x]], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];

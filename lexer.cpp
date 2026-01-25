@@ -253,7 +253,6 @@ void Lexer::_fetch_follower() {
 }
 bool Lexer::_fetch_word_or_op() {
 	if( fetched_char_type == Lex::MultiOp ) {
-		
 		fetch_continue( Lex::MultiOp );
 		return true;
 	} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {

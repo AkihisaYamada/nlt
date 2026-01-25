@@ -121,7 +121,7 @@ end
 
 theory ExIn:
 	fix (∃∈).
-	assume exIn_intro1: for x if P.[x], x ∈ A then ∃x ∈ A. P.[x].
+	assume exIn_intro1: for x if x ∈ A, P.[x] then ∃x ∈ A. P.[x].
 	assume exIn_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q.
 begin
 	lemma exIn_intro: if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
