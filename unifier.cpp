@@ -113,13 +113,12 @@ private:
 	}
 	// when lhs is not but rhs is a symbol
 	void unify_rsym(CTerm const& l, string const& y) {
-		if( auto rind = inds[1].finds(y) ) { // bound variable cannot match other things
-			if( auto lunbind = l.unbind() )// lhs can be higher order pattern
+		if( auto rind = inds[1].finds(y) ) { // bound variable y can only be unified with X.[y]
+			if( auto lunbind = l.unbind() )
 			if( fvar(lunbind->first) )
 			if( auto argsym = lunbind->second.sym() )
 			if( auto const& lind = inds[0].finds(*argsym) )
-			if( rind->second == lind->second ) {
-				StrSet bounds;
+			if( rind->second == lind->second ) {// X.[y] matches y by X := _. _
 				subst.assign(lunbind->first,"_"/=Term("_"));
 				return;
 			}
@@ -134,6 +133,12 @@ private:
 		if( fvar(y) ) {// free variables can be assigned
 			StrSet bounds;
 			subst.assign(y,sanitize(l,bounds,avoids[0],inds[0]));
+			return;
+		}
+		// y is a constant. lhs can be a free unbinding
+		if( auto lunbind = l.unbind() )
+		if( fvar(lunbind->first) ) {// X.[s] matches y by X := _. y
+			subst.assign(lunbind->first,"_"/=Term(y));
 			return;
 		}
 		throw Mismatch();
