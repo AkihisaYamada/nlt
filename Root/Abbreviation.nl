@@ -126,21 +126,35 @@ interpret Const;
 		.
 	.
 
-interpret Dual;
-	obtain dual where dual_eq: dual f x y = f y x;
-		- for thesis if assm;
-			apply abbrev3[of (p. fst p (snd (snd p)) (fst (snd p)))];
-			- for f if (simp);
-				apply assm[of f].
-			.
-		.
-	.
-
 lemma curry: for f, ∃f'. ∀x y. f' x y = f (x,y);
 	apply abbrev2[of (p. f p)];
 	- for f' if f';
 		by ex_intro1[of f'] #unfold f'.
 	.
+
+obtain dual where dual_eq(simp) dual f x y = f y x;
+	- for thesis if assm;
+		apply abbrev3[of (p. fst p (snd (snd p)) (fst (snd p)))];
+		- for f if (simp);
+			apply assm[of f].
+		.
+	.
+
+obtain sym where sym_iff: sym f x y ⟺ (f x y ∧ f y x);
+	- for thesis if assm;
+		apply abbrev3[of (p. fst p (fst (snd p)) (snd (snd p)) ∧ fst p (snd (snd p)) (fst (snd p)))];
+		- for rep if (simp);
+			apply assm[of rep];
+			simp;.
+		.
+	.
+
+note sym_intro: sym_iff[THEN iff_elim2, unfolded and_imp_iff_imp_imp].
+
+lemma sym_elim: if sym: sym f x y, assm: f x y ⟹ f y x ⟹ thesis then thesis;
+	apply sym[unfolded sym_iff, THEN and_elim];
+	by assm.
+
 obtain inverts where
 	inverts_intro: if ∀x. f (g x) = x then inverts f g,
 	inverts_elim1: if inverts f g then f (g x) = x;
@@ -303,6 +317,10 @@ begin
 		unfold in_bigcup_iff;
 		by exIn_intro1[of X] x X.
 	note in_bigcup_elim1: in_bigcup_iff[THEN iff_elim1].
+print.
+	lemma bigcup_subseteq_iff: ⋃XX ⊆ Y ⟺ (∀X ∈ XX. X ⊆ Y);
+		simp subseteq_iff in_bigcup_iff allIn_iff imp_all_iff;
+		by iff_intro #unfold.
 
 	obtain (⋂) where bigcap_def: ⋂XX = {x. ∀X ∈ XX. x ∈ X};
 		- for thesis if assm;
@@ -368,6 +386,11 @@ begin
 				apply assm[of f].
 			.
 		.
+	lemma bound_intro: if all: ∀x. x ∈ X ⟹ x ≤ b then bound X (≤) b;
+		by all #unfold bound_iff.
+
+	lemma bound_elim1: for x if b: bound X (≤) b, x: x ∈ X then x ≤ b;
+		by b[unfolded bound_iff, THEN allIn_elim1, OF x].
 
 	obtain extreme where extreme_iff: extreme X (≤) e ⟺ bound X (≤) e ∧ e ∈ X;
 		- for thesis if assm;
@@ -376,16 +399,10 @@ begin
 				apply assm[of f]; .
 			.
 		.
-
-	obtain extreme_bound where
-		extreme_bound_iff: extreme_bound A (≤) X s ⟺ extreme {b. b ∈ A ∧ bound X (≤) b} (dual (≤)) s;
-		- for thesis if assm;
-			apply abbrev4[of (p. extreme {b. b ∈ fst p ∧ bound (fst (snd (snd p))) (fst (snd p)) b} (dual (fst (snd p))) (snd (snd (snd p))))];
-			- for f if (simp);
-				apply assm[of f];
-				simp extreme_iff bound_iff allIn_Collect_iff in_Collect_iff; .
-			.
-		.
+	lemma extreme_closed: extreme X (≤) e ⟹ e ∈ X;
+		simp extreme_iff.
+	lemma extreme_imp_bound: extreme X (≤) e ⟹ bound X (≤) e;
+		simp extreme_iff.
 
 	obtain well_related where
 		well_related_iff: well_related A (≤) ⟺ (∀X ⊆ A. X ≠ {} ⟹ ∃b ∈ X. bound X (dual (≤)) b);
@@ -400,15 +417,6 @@ begin
 		monotone_iff: monotone A (≤) (⊑) f ⟺ (∀x ∈ A. ∀y ∈ A. x ≤ y ⟹ f x ⊑ f y);
 		- for thesis if assm;
 			apply abbrev4[of (p. ∀x ∈ fst p. ∀y ∈ fst p. fst (snd p) x y ⟹ fst (snd (snd p)) (snd (snd (snd p)) x) (snd (snd (snd p)) y))];
-			- for f if (simp);
-				apply assm[of f].
-			.
-		.
-
-	obtain complete where
-		complete_iff: complete C A (≤) ⟺ (∀X ⊆ A. C X (≤) ⟹ ∃s. extreme_bound A (≤) X s);
-		- for thesis if assm;
-			apply abbrev3[of (p. (∀X ⊆ fst (snd p). fst p X (snd (snd p)) ⟹ ∃s. extreme_bound (fst (snd p)) (snd (snd p)) X s))];
 			- for f if (simp);
 				apply assm[of f].
 			.

@@ -61,13 +61,17 @@ obtain Collect.∈ where CollectIn_def: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]
 			by #unfold f cap_def in_Collect_iff.
 		.
 	.
-lemma CollectIn_cong:
+
+lemma in_CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
+	simp CollectIn_def in_Collect_iff;.
+
+lemma CollectIn_cong(cong)
 	if X: X = X', P: ∀x. x ∈ X' ⟹ P.[x] ⟺ P'.[x] then {x ∈ X. P.[x]} = {x ∈ X'. P'.[x]};
 	by #unfold X P CollectIn_def #cong iff.and_cong1.
 
 lemma allIn_CollectIn_iff(simp)
 	(∀x ∈ {x ∈ X. P.[x]}. Q.[x]) ⟺ (∀x. x ∈ X ⟹ P.[x] ⟹ Q.[x]);
-	simp allIn_iff CollectIn_def in_Collect_iff.
+	simp allIn_iff in_CollectIn_iff.
 
 syntax {_ ⊆ _. _} := Collect.⊆.
 obtain Collect.⊆ where CollectSub_def: {X ⊆ A. P.[X]} = {X. X ⊆ A ∧ P.[X]};
@@ -84,6 +88,11 @@ lemma in_CollectSub_iff: X ∈ {X ⊆ A. P.[X]} ⟺ X ⊆ A ∧ P.[X];
 
 lemma allIn_CollectSub_iff(simp) (∀X ∈ {X ⊆ A. P.[X]}. Q.[X]) ⟺ (∀X. X ⊆ A ⟹ P.[X] ⟹ Q.[X]);
 	simp allIn_iff in_Collect_iff in_CollectSub_iff allSub_iff.
+
+lemma CollectSub_cong(cong)
+	if A: A = A', P: ∀X. X ⊆ A' ⟹ P.[X] ⟺ P'.[X] then {X ⊆ A. P.[X]} = {X ⊆ A'. P'.[X]};
+	note(cong) iff.and_cong1.
+	simp CollectSub_def A P.
 
 obtain class where class_def: class A (⊑) x = {y ∈ A. x ⊑ y};
 	- for thesis if assm;
@@ -192,12 +201,55 @@ lemma nnot_Decided: ¬ ¬ x ∈ Decided;
 ## Fixed Points
 ---
 print.
+
+obtain extreme_bound where
+	extreme_bound_iff: extreme_bound A (≤) X s ⟺ extreme {b ∈ A. bound X (≤) b} (dual (≤)) s;
+	- for thesis if assm;
+		apply abbrev4[of (p. extreme {b ∈ fst p. bound (fst (snd (snd p))) (fst (snd p)) b} (dual (fst (snd p))) (snd (snd (snd p))))];
+		- for f if (simp);
+			apply assm[of f];
+			simp extreme_iff bound_iff allIn_Collect_iff in_Collect_iff; .
+		.
+	.
+
+lemma extreme_bound_closed: extreme_bound A (≤) X s ⟹ s ∈ A;
+	simp extreme_bound_iff extreme_iff in_CollectIn_iff.
+
+lemma extreme_bound_imp_bound: extreme_bound A (≤) X s ⟹ bound X (≤) s;
+	simp extreme_bound_iff extreme_iff in_CollectIn_iff.
+
+lemma extreme_bound_bound_imp: if sup: extreme_bound A (≤) X s, bound: bound X (≤) b, bA: b ∈ A then s ≤ b;
+	have 1: b ∈ {b ∈ A. bound X (≤) b};
+		by bound bA #unfold in_CollectIn_iff.
+	note 2: sup[unfolded extreme_bound_iff, THEN extreme_imp_bound, THEN bound_elim1, OF 1].
+	by 2[simplified].
+
+print.
+lemma extreme_bound_intro:
+	if sA: s ∈ A, Xs: bound X (≤) s, sB: ∀b ∈ A. bound X (≤) b ⟹ s ≤ b then extreme_bound A (≤) X s;
+	simp extreme_bound_iff extreme_iff bound_iff[of _ (dual (≤))] in_CollectIn_iff;
+	by sA Xs sB[THEN allIn_elim1].
+
+lemma bigcup_extreme_bound: extreme_bound UNIV (⊆) XX (⋃XX);
+	apply+ extreme_bound_intro bound_intro in_UNIV allIn_intro;
+simp subseteq_bigcap_iff;
+.
+
+
+obtain complete where
+	complete_iff: complete C A (≤) ⟺ (∀X ⊆ A. C X (≤) ⟹ ∃s. extreme_bound A (≤) X s);
+	- for thesis if assm;
+		apply abbrev3[of (p. (∀X ⊆ fst (snd p). fst p X (snd (snd p)) ⟹ ∃s. extreme_bound (fst (snd p)) (snd (snd p)) X s))];
+		- for f if (simp);
+			apply assm[of f].
+		.
+	.
+
 obtain extreme_bounds where extreme_bounds_def: extreme_bounds A (≤) X = {s. extreme_bound A (≤) X s};
 	- for thesis if assm;
 		apply abbrev3[of (p. {s. extreme_bound (fst p) (fst (snd p)) (snd (snd p)) s})];
 		- for f if (simp);
-			apply assm[of f];
-			.
+			apply assm[of f].
 		.
 	.
 lemma in_extreme_bounds_iff: s ∈ extreme_bounds A (≤) X ⟺ extreme_bound A (≤) X s;
@@ -205,51 +257,93 @@ lemma in_extreme_bounds_iff: s ∈ extreme_bounds A (≤) X ⟺ extreme_bound A 
 
 lemma extreme_bounds_subseteq_carrier: extreme_bounds A (≤) X ⊆ A;
 	apply subseteq_intro;
-	simp extreme_bounds_def in_Collect_iff extreme_bound_iff extreme_iff.
+	simp extreme_bounds_def in_Collect_iff in_CollectIn_iff extreme_bound_iff extreme_iff.
 
-theory Monotone:
-	fix A (≤) f.
-	assume range: f ` A ⊆ A.
-	assume mono: monotone A (≤) (≤) f.
-begin
-	obtain Complete where
-		Complete_def: Complete = {X ⊆ A. f ` X ⊆ X ∧ (∀Y ⊆ X. extreme_bounds A (≤) Y ⊆ X)};
-		- for thesis if assm;
-			apply assm[OF eq.refl].
+obtain Complete where
+	Complete_def: Complete A (≤) f = {X ⊆ A. f ` X ⊆ X ∧ (∀Y ⊆ X. extreme_bounds A (≤) Y ⊆ X)};
+	- for thesis if assm;
+		apply abbrev3[of (p. {X ⊆ fst p. snd (snd p) ` X ⊆ X ∧ (∀Y ⊆ X. extreme_bounds (fst p) (fst (snd p)) Y ⊆ X)})];
+		- for f if (simp);
+			apply assm[of f].
 		.
-	lemma Complete_carrier: X ∈ Complete ⟹ X ⊆ A;
-		simp Complete_def in_CollectSub_iff.
-	lemma Complete_closed: X ∈ Complete ⟹ f ` X ⊆ X;
-		simp Complete_def in_CollectSub_iff.
-	lemma Complete_complete: X ∈ Complete ⟹ ∀Y ⊆ X. extreme_bounds A (≤) Y ⊆ X;
-		simp Complete_def in_CollectSub_iff.
+	.
+lemma Complete_carrier: X ∈ Complete A (≤) f ⟹ X ⊆ A;
+	simp Complete_def in_CollectSub_iff.
+lemma Complete_closed: X ∈ Complete A (≤) f ⟹ f ` X ⊆ X;
+	simp Complete_def in_CollectSub_iff.
+lemma Complete_complete: X ∈ Complete A (≤) f ⟹ ∀Y ⊆ X. extreme_bounds A (≤) Y ⊆ X;
+	simp Complete_def in_CollectSub_iff.
+lemma Complete_imp_extreme_bounds: if X: X ∈ Complete A (≤) f, YX: Y ⊆ X then extreme_bounds A (≤) Y ⊆ X;
+	by Complete_complete[OF X, THEN allSub_elim1, OF YX].
 
-	lemma domain_in_Complete: A ∈ Complete;
+obtain MonoFP where MonoFP_def: MonoFP A (≤) f = extreme_bounds A (≤) (⋂(Complete A (≤) f));
+	- for thesis if assm;
+		apply abbrev3[of (p. extreme_bounds (fst p) (fst (snd p)) (⋂(Complete (fst p) (fst (snd p)) (snd (snd p)))))];
+		- for rep if (simp);
+			apply assm[of rep].
+		.
+	.
+
+theory EndoFun:
+	fix A f.
+	assume range: f ` A ⊆ A.
+begin
+
+	lemma domain_in_Complete: A ∈ Complete A (≤) f;
 		simp Complete_def in_CollectSub_iff iff_true[OF range] iff_true[OF extreme_bounds_subseteq_carrier];.
-		
-	lemma core_in_Complete: ⋂Complete ∈ Complete;
+
+	lemma core_in_Complete: ⋂(Complete A (≤) f) ∈ Complete A (≤) f;
 		unfold[on (=), at 1] Complete_def;
 		unfold in_CollectSub_iff;
 		apply+ and_intro allSub_intro subseteq_intro;
-		- for x if x: x ∈ ⋂Complete;
+		- for x if x: x ∈ ⋂(Complete A (≤) f);
 			apply in_bigcap_elim1[OF x domain_in_Complete].
 		simp in_image_iff allIn_iff subseteq_iff;
-		- for y x if x: x ∈ ⋂Complete, y: y = f x then y ∈ ⋂Complete;
+		- for y x if x: x ∈ ⋂(Complete A (≤) f), y: y = f x then y ∈ ⋂(Complete A (≤) f);
 			apply in_bigcap_intro;
-			- if X: X ∈ Complete then y ∈ X;
+			- if X: X ∈ Complete A (≤) f then y ∈ X;
 				have xX: x ∈ X;
 					by in_bigcap_elim1[OF x] X.
 				apply Complete_closed[OF X, THEN subseteq_elim1];
 				unfold y;
 				by in_image xX.
 			.
-		- for X if X: X ⊆ ⋂ Complete then extreme_bounds A (≤) X ⊆ ⋂ Complete;
+		- for X if X: X ⊆ ⋂(Complete A (≤) f) then extreme_bounds A (≤) X ⊆ ⋂(Complete A (≤) f);
 			unfold subseteq_bigcap_iff;
 			apply allIn_intro;
-			- for Y if Y: Y ∈ Complete then extreme_bounds A (≤) X ⊆ Y;
+			- for Y if Y: Y ∈ Complete A (≤) f then extreme_bounds A (≤) X ⊆ Y;
 				apply Complete_complete[OF Y, THEN allSub_elim1];
 				by X[unfolded subseteq_bigcap_iff, THEN allIn_elim1, OF Y].
 			.
 		.
+	lemma MonoFP_subseteq: MonoFP A (≤) f ⊆ ⋂(Complete A (≤) f);
+		simp MonoFP_def;
+		apply Complete_imp_extreme_bounds[OF core_in_Complete].
+	lemma MonoFP_closed: f ` MonoFP A (≤) f ⊆ MonoFP A (≤) f;
+		
+
+	theory SupOfCore:
+		fix (≤) p.
+		assume sup: extreme_bound A (≤) (⋂(Complete A (≤) f)) p.
+	begin
+		lemma in_carrier: p ∈ A;
+			by extreme_bound_closed[OF sub].
+		lemma in_core: p ∈ ⋂(Complete A (≤) f);
+
+	end
+
+end
+
+theory MonotoneFixedPoint:
+	fix A (≤) f p.
+	import EndoFun.
+	import SupOfCore.
+	assume mono: monotone A (≤) (≤) f.
+begin
+
+	lemma qfp_as_sup: sym (≤) (f p) p;
+		apply sym_intro;
+		- f p ≤ p;
+			
 end
 

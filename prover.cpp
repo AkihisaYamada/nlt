@@ -393,7 +393,7 @@ public:
 			}
 		}
 	}
-	void print_goal( Thesis const& thesis, string pre = "goals " ) {
+	void print_goals( Thesis const& thesis, string pre = "goals " ) {
 		Term acc = thesis.thm();
 		size_t i = 0;
 		while( i < thesis.goal_count() ) {
@@ -404,6 +404,13 @@ public:
 			pre = "\t";
 		}
 		if( i == 0 ) {
+			cout << "no goal" << endl;
+		}
+	}
+	void print_goal( Thesis const& thesis, string_view const& pre ) {
+		if( auto goal = thesis.has_goal() ) {
+			cout << pre << _thy.pretty(*goal) << endl;
+		} else {
 			cout << "no goal" << endl;
 		}
 	}
@@ -737,7 +744,7 @@ public:
 					if( skips(";") ) {
 						_depth++;
 						if MSG {
-							print_goal(thesis);
+							print_goals(thesis);
 							_indent();
 						}
 						auto prf = _prove(thesis);
@@ -1334,10 +1341,13 @@ public:
 				_note();
 			} else if( skips("goal") ) {
 				skip(".");
-				if STA print_goal(thesis);
+				if STA print_goal(thesis,"goal: ");
+			} else if( skips("goals") ) {
+				skip(".");
+				if STA print_goals(thesis);
 			} else if( skips("have") ) {
 				_state();
-				if MSG print_goal(thesis);
+				if MSG print_goals(thesis);
 			} else if( skips("show") ) {
 				if( auto o = _state() ) {
 					auto [name,cs,thm] = *o;
@@ -1366,7 +1376,7 @@ public:
 				bool more = _proof_follows();
 				thesis.apply(rules,min,max,normalize,wide);
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goal(thesis,"applied goals:\n\t");
+				if MSG print_goals(thesis,"applied goals:\n\t");
 			} else if( skips("simp") ) {
 				auto resolver = _thy.resolver(_out_blast);
 				while( auto thm = gets_thm() ) {
@@ -1375,14 +1385,14 @@ public:
 				bool more = _proof_follows();
 				resolver.rewrites(thesis,true,1,255,true,{},{});
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goal( thesis, "simplified goal " );
+				if MSG print_goals( thesis, "simplified goal " );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_blast);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
 				bool more = _proof_follows();
 				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goal( thesis, mode == 2 ? "folded goal " : "unfolded goal " );
+				if MSG print_goals( thesis, mode == 2 ? "folded goal " : "unfolded goal " );
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
 				for(;;) {
@@ -1400,9 +1410,33 @@ public:
 						thesis.auto_discharge();
 					}
 				}
-				if MSG print_goal(thesis,"next goals ");
+				if MSG print_goals(thesis,"next goals ");
 			} else if( auto infer = gets_concluder() ) {
 				return infer->discharge_all(thesis);
+			} else if( skips("use") ) {
+				auto thy2in = _thy.fork();
+				auto in = thy2in.ctxt();
+				auto tmp = in.fix("#TMP");
+				auto facts = vector<Thm>();
+				size_t n = 0;
+				while( auto const& thm = gets_thm() ) {
+					facts.push_back(thm->subst(thy2in));
+					n++;
+				}
+				bool more = _proof_follows();
+				auto newgoal = tmp;
+				while( n > 0 ) {
+					n--;
+					newgoal = facts[n] >>= newgoal;
+				}
+				auto goal = in.assume(newgoal);// φ ⟹ ... ⟹ #TMP
+				for( auto const& fact : facts ) {
+					goal = goal.discharge(fact);
+				}// goal = #TMP
+				auto rule = Intro::rule(goal.intro());
+				thesis.apply(rule);
+				if( !more ) return thesis.discharge_all();
+				if MSG print_goal( thesis, "used goal: " );
 			} else if( skips("oops") ) {
 				return {};
 			} else if( skips("") ) {

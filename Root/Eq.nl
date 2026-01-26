@@ -72,11 +72,6 @@ theory Const: -- K combinator
 	assume const_eq(simp) const x y = x.
 end
 
-theory Dual:
-	fix dual.
-	assume dual_eq(simp) dual f x y = f y x.
-end
-
 theory TwoValued:
 	assume imp_imp_eq: if P, Q then P = Q.
 	assume imp_eq: if P then (P ⟹ Q) = Q.
