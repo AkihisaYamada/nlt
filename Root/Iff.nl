@@ -11,7 +11,7 @@ assume iff_elim2: if P ⟺ Q, Q then P.
 
 begin
 
-lemma iff_elim: if PQ: P ⟺ Q then for R if imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
+lemma iff_elim: if PQ: P ⟺ Q, imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
 	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
 
 namespace iff:

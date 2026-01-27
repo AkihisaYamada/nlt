@@ -157,6 +157,38 @@ begin
 		.
 end
 
+theory Membership:
+	import Membership.
+begin
+	theory Antisymmetric:
+		fix A (≤).
+		assume antisym: if x ≤ y, y ≤ x, x ∈ A, y ∈ A then x = y.
+	begin
+		interpret Attractive;
+			- if xy: x ≤ y, yx: y ≤ x, yz: y ≤ z, x: x ∈ A, y: y ∈ A, z: z ∈ A then x ≤ z;
+				unfold antisym[OF xy yx x y];
+				by yz.
+			- if xy: x ≤ y, yx: y ≤ x, xz: x ≤ z, x: x ∈ A, y: y ∈ A, z: z ∈ A then y ≤ z;
+				unfold antisym[OF yx xy y x];
+				by xz.
+			.
+	end
+	theory PseudoOrder:
+		import Reflexive.
+		import Antisymmetric.
+	end
+	theory Order:
+		import Preorder.
+		import Antisymmetric.
+	begin
+		interpret PseudoOrder.
+	end
+	theory Idempotent:
+		fix A (*).
+		assume idem: if x ∈ A then x * x = x.
+	end
+end
+
 theory Minimal:
 	import Iff.
 	import Minimal.
@@ -274,7 +306,7 @@ begin
 		lemma Collect_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
 			apply iff_intro;
 			- if eq;
-				have in_iff: for x, x ∈ {x. P.[x]} ⟺ x ∈ {x. Q.[x]};
+				have in_iff: x ∈ {x. P.[x]} ⟺ x ∈ {x. Q.[x]};
 					unfold eq.
 				by in_iff[unfolded in_Collect_iff].
 			by Collect_eq_intro[of P Q].

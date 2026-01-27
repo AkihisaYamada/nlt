@@ -116,6 +116,18 @@ interpret Intuitionistic;
 		.
 	.
 
+---
+Russel's paradox: unrestricted excluded middle is inconsistent.
+---
+theorem Russel_paradox: ∃P. ¬(P ∨ ¬P);
+	apply Russel_paradox_abst;
+	- for F;
+		apply abbrev[of F];
+		- for f if (simp);
+			by ex_intro1[of f].
+		.
+	.
+
 interpret Const;
 	obtain const where const_eq: const x y = x;
 		- for thesis if assm;
@@ -126,7 +138,7 @@ interpret Const;
 		.
 	.
 
-lemma curry: for f, ∃f'. ∀x y. f' x y = f (x,y);
+lemma curry: for f then ∃f'. ∀x y. f' x y = f (x,y);
 	apply abbrev2[of (p. f p)];
 	- for f' if f';
 		by ex_intro1[of f'] #unfold f'.
@@ -199,27 +211,7 @@ obtain inf_pred where inf_pred_iff: inf_pred P Q x ⟺ P x ∧ Q x;
 theory Membership:
 	import Membership.
 begin
-	obtain (⊆) where subseteq_iff: X ⊆ Y ⟺ (∀x. x ∈ X ⟹ x ∈ Y);
-		- for thesis if assm;
-			apply abbrev2[of (p. ∀x. x ∈ fst p ⟹ x ∈ snd p)];
-			- for f if f;
-				by assm[of f] #unfold f.
-			.
-		.
-	note subseteq_intro: subseteq_iff[THEN iff_elim2].
-	note subseteq_elim1: subseteq_iff[THEN iff_elim1].
-	interpret subseteq: Minimal.MetaPreorder (⊆);
-		-; by subseteq_intro.
-		- if XY: X ⊆ Y, YZ: Y ⊆ Z then X ⊆ Z;
-			apply subseteq_intro;
-			- if X: x ∈ X then x ∈ Z;
-				note Y: subseteq_elim1[OF XY X].
-				by subseteq_elim1[OF YZ Y].
-			.
-		.
-	note(simp) subseteq.refl_iff_true.
-
-	obtain (∉) where notin_iff: x ∉ X ⟺ ¬ x ∈ X;
+	obtain (∉) where notIn_iff: x ∉ X ⟺ ¬ x ∈ X;
 		- for thesis if assm;
 			apply abbrev2[of (p. ¬ fst p ∈ snd p)];
 			- for f if f;
@@ -239,9 +231,9 @@ begin
 end
 
 theory Collect:
-	import Membership.
 	import Collect.
 begin
+	interpret .Membership.
 	syntax {} := Empty.
 	obtain Empty where Empty_def: {} = {x. false};
 		- for thesis if assm;
@@ -282,8 +274,35 @@ begin
 	lemma allIn_cong(cong)
 		if A: A = A', P: ∀x. x ∈ A' ⟹ P.[x] ⟺ P'.[x] then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ A'. P'.[x]);
 		simp allIn_iff A P.
+
 	lemma allIn_Collect_iff(simp) (∀x ∈ {x. P.[x]}. Q.[x]) ⟺ (∀x. P.[x] ⟹ Q.[x]);
 		simp allIn_iff in_Collect_iff.
+
+	lemma allIn_and_distrib: (∀x ∈ X. P.[x] ∧ Q.[x]) ⟺ (∀x ∈ X. P.[x]) ∧ (∀x ∈ X. Q.[x]);
+		simp allIn_iff imp_and_distrib all_and_distrib.
+
+	obtain (⊆) where subseteq_iff_allIn: X ⊆ Y ⟺ (∀x ∈ X. x ∈ Y);
+		- for thesis if assm;
+			apply abbrev2[of (p. ∀x ∈ fst p. x ∈ snd p)];
+			- for f if f;
+				by assm[of f] #unfold f.
+			.
+		.
+	note subseteq_iff: subseteq_iff_allIn[unfolded allIn_iff].
+	note subseteq_intro: subseteq_iff[THEN iff_elim2].
+	note subseteq_elim1: subseteq_iff[THEN iff_elim1].
+	interpret subseteq: Minimal.MetaPreorder (⊆);
+		-; by subseteq_intro.
+		- if XY: X ⊆ Y, YZ: Y ⊆ Z then X ⊆ Z;
+			apply subseteq_intro;
+			- if X: x ∈ X then x ∈ Z;
+				note Y: subseteq_elim1[OF XY X].
+				by subseteq_elim1[OF YZ Y].
+			.
+		.
+	note(simp) subseteq.refl_iff_true.
+	lemma subseteq_Collect_iff_allIn(simp) X ⊆ {x. P.[x]} ⟺ (∀x ∈ X. P.[x]);
+		simp subseteq_iff_allIn in_Collect_iff.
 
 	interpret ExIn;
 		obtain (∃∈) where exIn_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]);
@@ -313,14 +332,21 @@ begin
 		.
 	lemma in_bigcup_iff: x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X);
 		unfold bigcup_def in_Collect_iff.
-	lemma in_bigcup_intro1: if x: x ∈ X, X: X ∈ XX then x ∈ ⋃XX;
+	lemma in_bigcup_intro1: for X if x: x ∈ X, X: X ∈ XX then x ∈ ⋃XX;
 		unfold in_bigcup_iff;
 		by exIn_intro1[of X] x X.
 	note in_bigcup_elim1: in_bigcup_iff[THEN iff_elim1].
-print.
+
+	lemma allIn_bigcup_iff(simp) (∀x ∈ ⋃XX. P.[x]) ⟺ (∀X ∈ XX. ∀x ∈ X. P.[x]);
+		unfold bigcup_def allIn_Collect_iff;
+		simp allIn_iff imp_all_iff;
+		apply iff_intro;
+		- if l for X x; by l[of x X].
+		- if r for x X; by r[of X x].
+		.
+
 	lemma bigcup_subseteq_iff: ⋃XX ⊆ Y ⟺ (∀X ∈ XX. X ⊆ Y);
-		simp subseteq_iff in_bigcup_iff allIn_iff imp_all_iff;
-		by iff_intro #unfold.
+		simp subseteq_iff_allIn.
 
 	obtain (⋂) where bigcap_def: ⋂XX = {x. ∀X ∈ XX. x ∈ X};
 		- for thesis if assm;
@@ -329,14 +355,16 @@ print.
 				by assm[of f] #unfold f.
 			.
 		.
-	lemma in_bigcap_iff: x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
+	lemma in_bigcap_iff_allIn: x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
 		by #unfold bigcap_def in_Collect_iff.
+	note in_bigcap_iff: in_bigcap_iff_allIn[unfolded allIn_iff].
 	lemma in_bigcap_intro: if all: ∀X. X ∈ XX ⟹ x ∈ X then x ∈ ⋂XX;
-		by in_bigcap_iff[THEN iff_elim2] allIn_intro all.
+		by in_bigcap_iff[THEN iff_elim2] all.
 	lemma in_bigcap_elim1: if x: x ∈ ⋂XX, X: X ∈ XX then x ∈ X;
-		by x[unfolded in_bigcap_iff, THEN allIn_elim1, OF X].
-	lemma subseteq_bigcap_iff: X ⊆ ⋂YY ⟺ (∀Y ∈ YY. X ⊆ Y);
-		by iff_intro #unfold subseteq_iff in_bigcap_iff allIn_iff.
+		by x[unfolded in_bigcap_iff, OF X].
+	lemma subseteq_bigcap_iff_allIn: X ⊆ ⋂YY ⟺ (∀Y ∈ YY. X ⊆ Y);
+		by iff_intro #unfold subseteq_iff_allIn in_bigcap_iff allIn_iff.
+	note subseteq_bigcap_iff: subseteq_bigcap_iff_allIn[unfolded allIn_iff].
 	---
 	One can obtain union so that the membership is as expected, but we need extensionality to
 	ensure that union is *equal* to the expected collection.
@@ -392,6 +420,9 @@ print.
 	lemma bound_elim1: for x if b: bound X (≤) b, x: x ∈ X then x ≤ b;
 		by b[unfolded bound_iff, THEN allIn_elim1, OF x].
 
+	lemma bigcup_subseteq_iff_bound: ⋃XX ⊆ X ⟺ bound XX (⊆) X;
+		unfold bigcup_subseteq_iff bound_iff.
+
 	obtain extreme where extreme_iff: extreme X (≤) e ⟺ bound X (≤) e ∧ e ∈ X;
 		- for thesis if assm;
 			apply abbrev3[of (p. bound (fst p) (fst (snd p)) (snd (snd p)) ∧ snd (snd p) ∈ fst p)];
@@ -421,6 +452,8 @@ print.
 				apply assm[of f].
 			.
 		.
+	note monotone_elim1: monotone_iff[THEN iff_elim1, THEN allIn_elim1, THEN allIn_elim1].
+
 
 end
 ---

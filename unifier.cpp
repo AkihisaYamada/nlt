@@ -213,7 +213,7 @@ private:
 	}
 	// lhs is an unbinding and rhs is not a symbol
 	void unify_lunbind( string const& x, CTerm const& larg, CTerm const& r ) {
-		if( auto xval = subst.get(x) ) {// context must be substituted
+		if( auto xval = subst.get(x) ) {// context is already instantiated
 			avoids[1].insert(x);// this lhs cannot be unified with rhs containing x
 			if( auto vsym = xval->sym() ) {
 				unify_lunbind(*vsym,larg,r);
@@ -225,7 +225,7 @@ private:
 			avoids[1].erase(x);
 			return;
 		}
-		// if rhs is has same context variable, then the arguments are unified
+		// if rhs is the same context variable, then the arguments are unified
 		if( auto const& runbind = r.cunbind() ) {
 			auto const& [y,_,rarg] = *runbind;
 			if( eq_syms(x,y) ) {

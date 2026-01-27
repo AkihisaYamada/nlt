@@ -81,6 +81,7 @@ void init_syntax( Syntax& syntax ) {
 	syntax.prefix("if",-1,-2);
 	syntax.infix("then",-2,-1,-2);
 	syntax.infix("else",-2,-2,-1);
+	syntax.prefix("for",-1,-1);
 }
 
 static Error const ProofMismatch = Error("#proof-mismatch");
@@ -969,7 +970,7 @@ public:
 		auto thm = get_thm();
 		add_claim(_thy,name,cs,thm);
 		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
-		if( !name ) {
+		if( !name && cs ) {
 			if MSG cout << *cs << ' ' << _thy.pretty(thm) << endl;
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
@@ -1011,17 +1012,19 @@ public:
 			cout << "showing " << _print_name_status(name,cs);
 		}
 		auto assm_thy = _thy.branch();
-		bool vars;
+		bool needthen = false;
+		bool vars = false;
 		for(;;) {
 			if( skips("for") ) {
+				needthen = true;
 				vars = true;
 				if MSG cout << "for" << flush;
 				while( auto const& sym = gets_sym() ) {
 					if MSG cout << ' ' << *sym << flush;
 					assm_thy.fix(*sym);
 				}
-				skips(",");
 			} else if( skips("if") ) {
+				needthen = true;
 				if MSG {
 					if( vars ) {
 						cout << ' ';
@@ -1049,11 +1052,13 @@ public:
 					}
 					if( !skips(",") ) break;
 				};
-				skip("then");
-				if MSG cout << "then ";
 			} else {
 				break;
 			}
+		}
+		if( needthen ) {
+			skip("then");
+			if MSG cout << "then ";
 		}
 		Term t = get_term(0);
 		CTerm goal = assm_thy.enclose(t);
@@ -1132,28 +1137,19 @@ public:
 				while( auto o = gets_sym() ) {
 					ret.decls.emplace_back(Fix{*o});
 				}
-				if( skips(",") ) {
-					ret.concl = {get_term()};
-					ret.proof = _proof_follows();
-					return ret;
-				}
-				continue;
-			}
-			if( skips("if") ) {
+			} else if( skips("if") ) {
 				do {
 					auto name = gets( Tokenizer::Word | Tokenizer::Number );
 					auto const& cs = gets_claim_status();
 					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
 					ret.decls.emplace_back(Assume{name,cs,assm});
 				} while( skips(",") );
-				if( skips("then") ) continue;
+			} else {
+				break;
 			}
-			break;
 		}
-		if( auto const& concl = gets_term() ) {
-			ret.concl = {concl};
-			ret.proof = _proof_follows();
-			return ret;
+		if( skips("then") ) {
+			ret.concl = {get_term()};
 		}
 		ret.proof = _proof_follows();
 		return ret;
@@ -1167,7 +1163,9 @@ public:
 		for( auto const& decl : pat.decls ) {
 			if( auto const& var = decl.ref<Fix>() ) {
 				auto all = loc_goal.cunary(ALL);
-				if( !all || !all->bind() ) return {false,{}};
+				if( !all || !all->bind() ) {
+					return {false,{}};
+				}
 				loc_goal = all->inst(loc.fix(*var));
 			} else if( auto const& p = decl.ref<Assume>() ) {
 				auto const& [name,cs,stmt] = *p;
@@ -1176,17 +1174,23 @@ public:
 					auto assm = loc.assume(*stmt);
 					while( auto const& v = loc.fixed(prev) ) {
 						auto all = loc_goal.cunary(ALL);
-						if( !all || !all->bind() ) return {false,{}};
+						if( !all || !all->bind() ) {
+							return {false,{}};
+						}
 						loc_goal = all->inst(loc.cterm(*v));
 						prev++;
 					}
 					auto imp = loc_goal.cbinary(IMP);
-					if( !imp || *stmt != imp->first ) return {false,{}};
+					if( !imp || *stmt != imp->first ) {
+						return {false,{}};
+					}
 					add_claim(loc,name,cs,assm);
 					loc_goal = imp->second;
 				} else {
 					auto imp = loc_goal.cbinary(IMP);
-					if( !imp ) return {false,{}};
+					if( !imp ) {
+						return {false,{}};
+					}
 					auto assm = loc.assume(imp->first);
 					add_claim(loc,name,cs,assm);
 					loc_goal = imp->second;

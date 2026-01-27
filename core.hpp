@@ -300,8 +300,8 @@ struct Error : public std::exception, Term {
 		return Term::operator()(arg);
 	}
 };
-struct UnboundVariable : public Error {
-	UnboundVariable( std::string_view const& name ) : Error(Term("#ctxt")("\"unbound variable\"")(name)) {}
+struct UnboundVariable : public Term {
+	UnboundVariable( std::string_view const& name ) : Term(Term("#ctxt")("\"unbound variable\"")(name)) {}
 };
 /** @brief Context */
 class Ctxt {

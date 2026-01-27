@@ -168,11 +168,14 @@ context iff begin
 			by iff_intro #unfold P Q.
 		.
 
-	interpret and: iff.MetaCommMonoid (∧) true;
-		by iff_intro.
-
 	lemma and_cong1: if P: P ⟺ P', Q: P' ⟹ Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
 		by iff_intro #unfold P Q.
+
+	interpret and: iff.MetaIdempotent (∧);
+		by iff_intro.
+
+	interpret and: iff.MetaCommMonoid (∧) true;
+		by iff_intro.
 
 end
 
@@ -205,7 +208,7 @@ lemma imp_and_distrib: (P ⟹ Q ∧ R) ⟺ (P ⟹ Q) ∧ (P ⟹ R);
 lemma false_and_false_iff: false ∧ false ⟺ false;
 	by iff_intro.
 
-lemma all_and_iff: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
+lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
 	apply iff_intro;
 	- if ab: ∀x. P.[x] ∧ Q.[x];
 		apply and_intro;
@@ -284,7 +287,7 @@ context iff begin
 	interpret or: iff.MetaAssociative (∨);
 		by iff_intro #elim or_elim #unfold or_iff_true1 or_iff_true2.
 	interpret or: iff.MetaIdempotent (∨);
-		- P ∨ P ⟺ P;
+		- then P ∨ P ⟺ P;
 			by iff_intro or_intro or_elim(elim).
 		.
 end
@@ -382,25 +385,23 @@ lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
 Minimal logic with unary abstraction is enough to derive Russel's paradox;
 it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
 ---
-theorem Russel_paradox_pred:
-	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ¬(∀P. P ∨ ¬P);
-	apply not_intro;
-	- if or: ∀P. P ∨ ¬P;
-		obtain R where R_def: R x ⟺ (¬ x x);
-			- for thesis if elim;
-				apply abst[of (x. ¬ x x), THEN ex_elim];
-				- for R if iff;
-					apply elim[of R];
-					- for x;
-						unfold iff.
-					.
+theorem Russel_paradox_abst:
+	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ∃P. ¬(P ∨ ¬P);
+	obtain R where R_def: R x ⟺ (¬ x x);
+		- for thesis if elim;
+			apply abst[of (x. ¬ x x), THEN ex_elim];
+			- for R if iff;
+				apply elim[of R];
+				- for x;
+					unfold iff.
 				.
 			.
-		have iff: R R ⟺ (¬ R R);
-			by R_def.
-		have Ror: R R ∨ ¬ R R;
-			by or.
-		apply or_elim[OF Ror];
+		.
+	have iff: R R ⟺ (¬ R R);
+		by R_def.
+	apply ex_intro1[of (R R)] not_intro;
+	- if or: R R ∨ ¬ R R;
+		apply or_elim[OF or];
 		- if RR: R R;
 			have nRR: ¬ R R;
 				fold iff;
