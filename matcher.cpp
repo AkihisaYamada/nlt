@@ -81,7 +81,7 @@ struct Matcher {
 		}
 		return {};
 	}
-	bool abs( Term const& l, Term const& r, function<bool( Term const&, Term const& )> const& inner ) {
+	bool bind( Term const& l, Term const& r, function<bool( Term const&, Term const& )> const& inner ) {
 		if( auto const& labs = l.bind() ) {
 			if( auto const& rabs = r.bind() ) {
 				auto const& [x,pat2] = *labs;
@@ -120,7 +120,6 @@ struct Matcher {
 		}
 		return false;
 	}
-
 	bool match( Term const& pat, Term const& val, Opt<Subst const&> subst ) {
 		if( auto sym = pat.sym() ) {// pat is a symbol
 			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
@@ -184,7 +183,6 @@ struct Matcher {
 							matcher.assign(x,*abs);
 							return true;
 						}
-DEB( (rbvars[ind->second]/=val) );
 						return false;
 					}
 					// otherwise, val must also be abstraction
@@ -209,12 +207,15 @@ DEB( (rbvars[ind->second]/=val) );
 				return false;
 			}
 			auto [y,val2] = *vfix;
-			if( x != y ) {
-				return false;
+			if( auto lind = linds.finds(x) ) {// x is a bound variable
+				if( rinds.finds(y) != lind ) return false;
+			} else {// x is a constant
+				if( rinds.finds(y) ) return false;
+				if( x != y ) return false;
 			}
 			return match(pat2,val2,subst);
 		}
-		return abs(pat, val, [this,&subst]( auto pat, auto val ){ return match(pat,val,subst); } );
+		return bind(pat, val, [this,&subst]( auto pat, auto val ){ return match(pat,val,subst); } );
 	}
 	bool eq_upto( Opt<Subst const&> subst, Term const& l, Term const& r, string const& var, Term const& pat ) {
 		if( auto const& sym = l.sym() ) {
@@ -232,7 +233,7 @@ DEB( (rbvars[ind->second]/=val) );
 			auto const& rfix = r.unbind();
 			return rfix && lfix->first == rfix->first && eq_upto(subst,lfix->second,rfix->second,var,pat);
 		}
-		return abs(l, r, [&]( auto l, auto r ){ return eq_upto(subst,l,r,var,pat); } );
+		return bind(l, r, [&]( auto l, auto r ){ return eq_upto(subst,l,r,var,pat); } );
 	}
 };
 
