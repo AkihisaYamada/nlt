@@ -66,9 +66,9 @@ import TheIn.
 ---
 ---
 note! ex1In_type TheIn_in.
-
+print.
 lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	apply upair_axiom[unfolded allIn_iff, OF x y, THEN exIn_elim];
+	apply upair_axiom[unfolded+ allIn_iff, OF x y, THEN exIn_elim];
 	- for z if z! z ∈ Set, zall;
 		apply ex1In_intro1[of z];
 		-; by zall.
@@ -241,7 +241,7 @@ obtain separation where
 	- for thesis if assm;
 		apply abbrev2[of (p. THE y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst p ∧ snd p z)];
 		- for f if f;
-			apply assm[of f, folded and_imp_iff_imp_imp all_and_iff imp_and_distrib];
+			apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib];
 			- if p: p ∈ Set → Prop, x: x ∈ Set;
 				have 1: ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst (x,p) ∧ snd (x,p) z;
 					by separation_ex1[OF p x].
@@ -280,7 +280,7 @@ obtain Replace where
 	- for thesis if assm;
 		apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
 		- for f if f;
-			apply assm[of f, folded and_imp_iff_imp_imp all_and_iff imp_and_distrib, unfolded and_imp_iff_imp_imp];
+			apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib, unfolded and_imp_iff_imp_imp];
 			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
 				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
 					by replacement_ex1[OF P ex1 w].
