@@ -1,104 +1,12 @@
 ---
-# Naive Class Theory
+# Collection
 
 We assume comprehensions `{x. P.[x]}` and they are identified by the membership.
 ---
-import Abbreviation.
-import Collect.
-assume Collect_ext(cong) (∀x. P.[x] ⟺ Q.[x]) ⟹ {x. P.[x]} = {x. Q.[x]}.
-
+import Minimal.Collection.
 begin
 
-lemma Collect_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
-	apply iff_intro;
-	- if eq;
-		fold in_Collect_iff;
-		unfold eq.
-	apply Collect_ext>0.
-
----
-Let us call terms of form `{x. P.[x]}` *collections*.
----
-obtain COLLECT where COLLECT_def: COLLECT = {C. ∃P. C = {x. P.[x]}};
-	- for thesis if assm;
-		apply assm[OF eq.refl].
-	.
-
-lemma in_COLLECT_iff_ex: X ∈ COLLECT ⟺ (∃P. X = {x. P.[x]});
-	unfold COLLECT_def in_Collect_iff;.
-
-lemma Collect_in_COLLECT: {x. P.[x]} ∈ COLLECT;
-	unfold in_COLLECT_iff_ex;
-	apply ex_intro;
-	- for thesis if assm;
-		apply assm[OF eq.refl].
-	.
-
-lemma COLLECT_elim: if A: A ∈ COLLECT, assm: ∀P. A = {x. P.[x]} ⟹ Q then Q;
-	apply A[unfolded in_COLLECT_iff_ex, THEN ex_elim, OF assm].
-
-lemma Collect_in_eq: if A: A ∈ COLLECT then {x. x ∈ A} = A;
-	apply COLLECT_elim[OF A];
-	- for P if (simp);
-		simp in_Collect_iff.
-	.
-
-lemma COLLECT_eq_iff: if A: A ∈ COLLECT, B: B ∈ COLLECT then A = B ⟺ (∀x. x ∈ A ⟺ x ∈ B);
-	apply COLLECT_elim[OF A];
-	- for P if (simp);
-		apply COLLECT_elim[OF B];
-		- for Q if (simp);
-			simp Collect_eq_iff in_Collect_iff.
-		.
-	.
----
-We will take `(=)` as the equivalence in `COLLECT`.
----
-namespace COLLECT:
-	interpret Equivalence COLLECT (=);
-		-; .
-		- if xy: x = y; unfold xy.
-		- if xy: x = y; unfold xy.
-		.
-	interpret empty: Member {} COLLECT;
-		by empty_def(simp) Collect_in_COLLECT.
-	interpret UNIV: Member UNIV COLLECT;
-		by UNIV_def(simp) Collect_in_COLLECT.
-end
-
----
-The collections form a collection.
----
-lemma COLLECT_COLLECT: COLLECT ∈ COLLECT;
-	unfold[at 0 0 0] COLLECT_def;
-	by Collect_in_COLLECT.
-
----
-It is crucial that collections are not classes; membership is not decided.
----
-lemma Russels_paradox_COLLECT: ∃X ∈ COLLECT. ∃x ∈ COLLECT. ¬(x ∈ X ∨ x ∉ X);
-	obtain R where R_def: R = {X. X ∉ X};
-		- for thesis if assm;
-			apply assm[OF eq.refl].
-		.
-	have RC: R ∈ COLLECT;
-		by Collect_in_COLLECT #unfold R_def.
-	have iff: R ∈ R ⟺ R ∉ R;
-		unfold[at 0 0 1] R_def;
-		unfold in_Collect_iff.
-	apply+ exIn_intro1[OF RC] not_intro;
-	- if or: R ∈ R ∨ R ∉ R then false;
-		apply or_elim[OF or];
-		- if 1: R ∈ R;
-			by not_imp_false[OF 1[unfolded iff, unfolded notIn_iff] 1].
-		- if 0: R ∉ R;
-			by not_imp_false[OF 0[unfolded notIn_iff] 0[folded iff]].
-		.
-	.
-
-lemma bigcup_in_COLLECT: ⋃XX ∈ COLLECT;
-	unfold bigcup_def;
-	apply Collect_in_COLLECT.
+interpret .Collect.
 
 lemma bigcup_empty(simp) ⋃{} = {};
 	simp bigcup_def empty_def Collect_eq_iff.
@@ -106,6 +14,9 @@ lemma bigcup_empty(simp) ⋃{} = {};
 lemma bigcap_empty(simp) ⋂{} = UNIV;
 	simp bigcap_def empty_def Collect_eq_iff UNIV_def.
 
+---
+## Binary Union
+---
 obtain (∪) where cup_def: X ∪ Y = {x. x ∈ X ∨ x ∈ Y};
 	- for thesis if assm;
 		apply abbrev2[of (p. {x. x ∈ fst p ∨ x ∈ snd p})];
@@ -129,8 +40,8 @@ note(simp) cup.left_absorb cup.right_absorb.
 ---
 Within `COLLECT`, `(∪)` satisfies better algebraic properties.
 ---
-context COLLECT begin
-	interpret cup: CommMonoidAbsorb (∪) UNIV {};
+namespace COLLECT:
+	interpret cup: COLLECT.CommMonoidAbsorb (∪) UNIV {};
 		-; by Collect_in_COLLECT #unfold cup_def.
 		-; by COLLECT.empty.closed.
 		- for X if X: X ∈ COLLECT then {} ∪ X = X;

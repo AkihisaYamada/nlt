@@ -62,16 +62,6 @@ note(fallback) eq.cong.
 ## Theories
 ---
 
-theory Id: -- I combinator
-	fix id.
-	assume id_eq(simp) id x = x.
-end
-
-theory Const: -- K combinator
-	fix const.
-	assume const_eq(simp) const x y = x.
-end
-
 theory TwoValued:
 	assume imp_imp_eq: if P, Q then P = Q.
 	assume imp_eq: if P then (P ⟹ Q) = Q.
@@ -183,10 +173,6 @@ begin
 		import Antisymmetric.
 	begin
 		interpret PseudoOrder.
-	end
-	theory Idempotent:
-		fix A (*).
-		assume idem: if x ∈ A then x * x = x.
 	end
 end
 
@@ -300,17 +286,122 @@ begin
 		end
 	end
 
-	theory Class:
+	theory Collect:
 		import Collect.
-		assume Collect_eq_intro: if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
 	begin
+		interpret .Membership.
+		---
+		Let us call terms of form `{x. P.[x]}` *collections*.
+		---
+		obtain COLLECT where COLLECT_def: COLLECT = {C. ∃P. C = {x. P.[x]}};
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+
+		lemma in_COLLECT_iff_ex: X ∈ COLLECT ⟺ (∃P. X = {x. P.[x]});
+			unfold COLLECT_def in_Collect_iff;.
+
+		lemma Collect_in_COLLECT: {x. P.[x]} ∈ COLLECT;
+			unfold in_COLLECT_iff_ex;
+			apply ex_intro;
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+
+		lemma COLLECT_elim: if A: A ∈ COLLECT, assm: ∀P. A = {x. P.[x]} ⟹ Q then Q;
+			apply A[unfolded in_COLLECT_iff_ex, THEN ex_elim, OF assm].
+
+		syntax {} := empty.
+		obtain empty where empty_def: {} = {x. false};
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+		lemma in_empty_iff(simp) x ∈ {} ⟺ false;
+			simp empty_def in_Collect_iff.
+
+		obtain UNIV where UNIV_def: UNIV = {x. true};
+			- for thesis if assm;
+				apply assm[OF eq.refl].
+			.
+		lemma in_UNIV: x ∈ UNIV;
+			unfold UNIV_def in_Collect_iff.
+		lemma in_UNIV_iff(simp) x ∈ UNIV ⟺ true;
+			by iff_intro in_UNIV.
+
+		---
+		We will take `(=)` as the equivalence in `COLLECT`.
+		---
+		namespace COLLECT:
+			interpret Equivalence COLLECT (=);
+				-; .
+				- if xy: x = y; unfold xy.
+				- if xy: x = y; unfold xy.
+				.
+			interpret empty: Member {} COLLECT;
+				by empty_def(simp) Collect_in_COLLECT.
+			interpret UNIV: Member UNIV COLLECT;
+				by UNIV_def(simp) Collect_in_COLLECT.
+		end
+
+		---
+		The collections form a collection.
+		---
+		lemma COLLECT_COLLECT: COLLECT ∈ COLLECT;
+			unfold[at 0 0 0] COLLECT_def;
+			by Collect_in_COLLECT.
+
+		---
+		It is crucial that collections are not /classes/; membership is not decided.
+		---
+		lemma Russel_paradox_COLLECT: ∃X x. X ∈ COLLECT ∧ x ∈ COLLECT ∧ ¬(x ∈ X ∨ ¬ x ∈ X);
+			obtain R where R_def: R = {X. ¬ X ∈ X};
+				- for thesis if assm;
+					apply assm[OF eq.refl].
+				.
+			have RC: R ∈ COLLECT;
+				by Collect_in_COLLECT #unfold R_def.
+			have iff: R ∈ R ⟺ ¬ R ∈ R;
+				unfold[at 0 0 1] R_def;
+				unfold in_Collect_iff.
+			apply+ ex_intro1[of R] RC and_intro not_intro;
+			- if or: R ∈ R ∨ ¬ R ∈ R then false;
+				apply or_elim[OF or];
+				- if 1: R ∈ R;
+					by not_imp_false[OF 1[unfolded iff] 1].
+				- if 0: ¬ R ∈ R;
+					by not_imp_false[OF 0 0[folded iff]].
+				.
+			.
+
+	end
+
+	theory Collection:
+		import Collect.
+		assume Collect_ext(cong) if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
+	begin
+
 		lemma Collect_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
 			apply iff_intro;
 			- if eq;
-				have in_iff: x ∈ {x. P.[x]} ⟺ x ∈ {x. Q.[x]};
-					unfold eq.
-				by in_iff[unfolded in_Collect_iff].
-			by Collect_eq_intro[of P Q].
+				fold in_Collect_iff;
+				unfold eq.
+			apply Collect_ext>0.
+
+		lemma Collect_in_eq: if A: A ∈ COLLECT then {x. x ∈ A} = A;
+			apply COLLECT_elim[OF A];
+			- for P if (simp);
+				simp in_Collect_iff.
+			.
+
+		lemma COLLECT_eq_iff: if A: A ∈ COLLECT, B: B ∈ COLLECT then A = B ⟺ (∀x. x ∈ A ⟺ x ∈ B);
+			apply COLLECT_elim[OF A];
+			- for P if (simp);
+				apply COLLECT_elim[OF B];
+				- for Q if (simp);
+					simp Collect_eq_iff in_Collect_iff.
+				.
+			.
+
 	end
 
 	theory Propositional:
@@ -354,130 +445,6 @@ end
 theory Ext:
 	assume ext: if ∀x ∈ A. f x = g x, A ∈ EQTYPE, B ∈ EQTYPE, f ∈ A → B, g ∈ A → B
 	then f = g.
-end
-
-theory UnaryAbbreviation:
-	---
-	For any term with a free variable `x`,
-	we assume one can introduce a symbol `f` such that `f x` is equal to the term.
-	---
-	assume abbrev: if ∀f. (∀x. f x = F.[x]) ⟹ P then P.
-begin
-	interpret Id;
-		obtain id where id_eq: id x = x;
-			- for thesis;
-				apply abbrev[of (x. x)]>0.
-			.
-		.
-	note(simp) id_eq.
-	---
-	One can obtain the type-free existential quantifier as a unary abbreviation.
-	---
-	interpret Ex;
-		obtain (∃) where
-			ex_intro1: for x P if P.[x] then ∃x. P.[x],
-			ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q;
-			- for thesis if assm;
-				apply abbrev[of (P. (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q))];
-				- for (∃) if eq: ∀P. (∃) P = (∀ Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
-					apply assm[of (∃)];
-					- for x P if Px: P.[x] then ∃x. P.[x];
-						unfold eq;
-						- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
-							by imp[OF Px].
-						.
-					- for P if ex: ∃x. P.[x];
-						- for Q if imp: ∀x. P.[x] ⟹ Q then Q;
-							apply ex[unfolded eq];
-							by #elim imp.
-						.
-					.
-				.
-			.
-		.
-	lemma ex_abbrev: ∃f. ∀x. f x = F.[x];
-		apply ex_intro[OF abbrev].
-	interpret Ex1;
-		obtain (∃!) where
-			ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x],
-			ex1_elim: if ∃!x. P.[x], ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
-			- for thesis if assm;
-				apply abbrev[of (P. ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q)];
-				- for (∃!) if eq;
-					apply assm[of (∃!)];
-					- for x P if Px, imp_eq;
-						unfold eq;
-						- for Q if imp;
-							by imp[of x] Px imp_eq.
-						.
-					- for P if ex1;
-						apply ex1[unfolded eq]=.
-					.
-				.
-			.
-		.
-	obtain inj where
-		inj_elim1: if inj f, f x = f y then x = y,
-		inj_intro: if ∀x y. f x = f y ⟹ x = y then inj f;
-		- for thesis if assm;
-			apply abbrev[of (f. (∀x y. f x = f y ⟹ x = y))];
-			- for inj if eq;
-				apply assm[of inj];
-				- for f;
-					unfold eq.
-				- for f;
-					unfold eq.
-				.
-			.
-		.
-	lemma id_inj: inj id;
-		by inj_intro.
-	lemma inj_imp_ex1: if f: inj f then ∃!x'. f x' = f x;
-		apply ex1_intro1[of x];
-		by inj_elim1[OF f].
-	---
-	There exists an injection, as exemplified by `id`.
-	---
-	lemma ex_inj: ∃f. inj f;
-		apply ex_intro;
-		- for P if assm;
-			apply assm[OF id_inj].
-		.
-	---
-	Having operator `THE` allows one to pick an inverse of an injection.
-	---
-	theory The:
-		import The.
-	begin
-		lemma inj_imp_ex_inv: if f: inj f then ∃g. ∀x. g (f x) = x;
-			apply ex_intro;
-			- for thesis if assm;
-				apply abbrev[of (y. THE z. f z = y)];
-				- for g if eq;
-					apply assm[of g];
-					- for x;
-						unfold eq;
-						apply inj_elim1[OF f];
-						apply ex1_imp_THE[of (z. f z = f x)];
-						apply inj_imp_ex1[OF f].
-					.
-				.
-			.
-			--- obtain (∋) where
-				Collect_has_intro: P x ⟹ Collect P ∋ x,
-				Collect_has_elim1: Collect P ∋ x ⟹ P x;
-				- for thesis if assm;
-					apply Collect_inj[THEN inj_imp_ex_inv, THEN ex_elim];
-					- for (∋) if eq;
-						apply assm[of (∋)];
-						- for P x;
-							unfold eq.
-						- for P x;
-							unfold eq.
-						.
-					.
-				. ---
-	end
 end
 
 theory Pair: --- Syntactic Pairing ---

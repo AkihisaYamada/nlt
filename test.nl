@@ -1,4 +1,4 @@
-import FixedPoint.
+import Lambda.
 
 thy FixedPoint.
 

@@ -513,11 +513,11 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 	if( log > 1 ) _log() << "rewritten goal to: " << thesis << endl;
 	return true;
 }
-Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min ) & {
+Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
 	size_t ind = rew->_default_ind;
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
-	auto steps = _steps(thy,source,simp,min,255,true,{},ind);
+	auto steps = _steps(thy,source,simp,min,max,normalize,pos,ind);
 	if( !steps ) {
 		return source;
 	}

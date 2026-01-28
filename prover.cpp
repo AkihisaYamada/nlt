@@ -252,13 +252,13 @@ public:
 				} else if( int mode = skips("unfolded") ? 1 : skips("folded") ? 2 : 0 ) {
 					auto resolver = loc.resolver(_out_blast);
 					auto ctrl = _get_rewrite(resolver,loc,mode==2);
-					ret = resolver.rewrites(loc,ret,false);
+					ret = resolver.rewrites(loc,ret,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
 				} else if( skips("simplified") ) {
 					auto resolver = loc.resolver(_out_blast);
 					while( auto thm = gets_thm() ) {
 						loc.add_rewrite_rule(resolver.rules,*thm,false);
 					}
-					ret = resolver.rewrites(loc,ret,true);
+					ret = resolver.rewrites(loc,ret,true,1,255,true,{});
 				} else if( skips("dual") ) {
 					auto resolver = Resolver(loc.rewriter(),_out_blast);
 					ret = loc.dualize(ret,resolver);
@@ -706,7 +706,7 @@ public:
 			} else {
 				throw Error("\"Unexpected\"")(get());
 			}
-		} catch( ::Error const& e ) {
+		} catch( Term const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
 			if MSG cout << _indent();
@@ -1450,7 +1450,7 @@ public:
 				throw Error("\"unexpected\"")(get());
 			}
 			if MSG cout << _indent();
-		} catch ( ::Error const& e ) {
+		} catch ( Term const& e ) {
 			if( _through_error ) throw e;
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if MSG cout << _indent();
@@ -1624,7 +1624,7 @@ public:
 				throw Error("\"unexpected\"")(get());
 			}
 			if MSG cout << _indent();
-		} catch ( ::Error const& e ) {
+		} catch ( Term const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
 			if MSG cout << _indent();
@@ -1700,7 +1700,7 @@ void run( istream& is, string_view const& name, bool exit_on_error, char out ) {
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	try {
 		prover.loop();
-	} catch( Error const& e ) {
+	} catch( Term const& e ) {
 		exit(-1);
 	}
 }

@@ -197,7 +197,7 @@ public:
 	/** @brief applies rewriting */
 	bool rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
 	/** @brief Rewrites a theorem */
-	Thm rewrites( Thy const& thy, Thm const& source, bool simp, size_t min = 0 ) &;
+	Thm rewrites( Thy const& thy, Thm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
 	/**
 	 * @brief returns a rewrite equation for the given source term at given position.
 	 * 

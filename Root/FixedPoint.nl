@@ -1,7 +1,8 @@
 ---
 # Fixed Points
 ---
-import Class.
+import Abbreviation.
+import Collection.
 
 begin
 

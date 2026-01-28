@@ -200,7 +200,7 @@ bool Resolver::_discharge(
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
 		if( rewrite && rew ) {// rewrite the assumption
-			assm = rewrites(subthy,assm,true);
+			assm = rewrites(subthy,assm,true,0,255,true,{});
 		}
 		// checks if an elimination rule matches
 		if( subthy.find_thm( Thy::ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{

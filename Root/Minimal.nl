@@ -566,7 +566,7 @@ theory Collect:
 begin
 	lemma in_Collect_intro: if assm: P.[x] then x ∈ {x. P.[x]};
 		by assm #unfold in_Collect_iff.
-	lemma in_Collect_elim1: if assm: x ∈ {x. P.[x]} then P.[x];
+	lemma in_Collect_elim: if assm: x ∈ {x. P.[x]} then P.[x];
 		by assm[unfolded in_Collect_iff].
 end
 
