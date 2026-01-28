@@ -356,7 +356,7 @@ public:
 		if( cs ) {
 			if( cs->intro ) {
 				if( cs->after > 0 ) {
-					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after,'i'));
+					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after-1,'i'));
 				} else {
 					add_forced(loc,thm,true);
 				}

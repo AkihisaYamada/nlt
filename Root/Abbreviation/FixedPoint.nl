@@ -1,7 +1,6 @@
 ---
 # Fixed Points
 ---
-import Abbreviation.
 import Collection.
 
 begin

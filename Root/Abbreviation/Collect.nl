@@ -1,3 +1,8 @@
+---
+# Set Comprehension
+
+This theory assumes set comprehension `{x. P.[x]}`.
+---
 import Minimal.Collect.
 
 begin
@@ -6,6 +11,10 @@ interpret .Membership.
 
 lemma notIn_empty: x ∉ {};
 	by #unfold empty_def notIn_iff in_Collect_iff const_eq.
+
+---
+## Set Theoretic Notations
+---
 
 interpret AllIn;
 	obtain (∀∈) where allIn_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]);
@@ -76,7 +85,6 @@ note(simp) subseteq.refl_iff_true.
 lemma subseteq_Collect_iff_allIn(simp) X ⊆ {x. P.[x]} ⟺ (∀x ∈ X. P.[x]);
 	simp subseteq_iff_allIn in_Collect_iff.
 
-
 obtain (∀⊆) where allSub_iff: (∀X ⊆ A. P.[X]) ⟺ (∀X. X ⊆ A ⟹ P.[X]);
 	- for thesis if assm;
 		apply abbrev2[of (p. ∀x. x ⊆ fst p ⟹ x ∈ Collect (snd p))];
@@ -85,6 +93,7 @@ obtain (∀⊆) where allSub_iff: (∀X ⊆ A. P.[X]) ⟺ (∀X. X ⊆ A ⟹ P.[
 			by #unfold f in_Collect_iff.
 		.
 	.
+
 lemma allSub_cong(cong)
 	if A: A = A', P: ∀X. X ⊆ A' ⟹ P.[X] ⟺ P'.[X] then (∀X ⊆ A. P.[X]) ⟺ (∀X ⊆ A'. P'.[X]);
 	simp allSub_iff A P.
@@ -100,9 +109,64 @@ lemma allSub_indep(simp) (∀X ⊆ A. P) ⟺ P;
 	by iff_intro allSub_intro.
 
 ---
-## Some collections
+## Notions for Order Theory
 ---
 
+obtain bound where bound_iff: bound X (≤) b ⟺ (∀x ∈ X. x ≤ b);
+	- for thesis if assm;
+		apply abbrev3[of (p. ∀x ∈ fst p. fst (snd p) x (snd (snd p)))];
+		- for f if (simp);
+			apply assm[of f].
+		.
+	.
+
+lemma bound_intro: if all: ∀x. x ∈ X ⟹ x ≤ b then bound X (≤) b;
+	by all #unfold bound_iff.
+
+lemma bound_elim1: for x if b: bound X (≤) b, x: x ∈ X then x ≤ b;
+	by b[unfolded bound_iff, THEN allIn_elim1, OF x].
+
+obtain extreme where extreme_iff: extreme X (≤) e ⟺ bound X (≤) e ∧ e ∈ X;
+	- for thesis if assm;
+		apply abbrev3[of (p. bound (fst p) (fst (snd p)) (snd (snd p)) ∧ snd (snd p) ∈ fst p)];
+		- for f if (simp);
+			apply assm[of f]; .
+		.
+	.
+lemma extreme_closed: extreme X (≤) e ⟹ e ∈ X;
+	simp extreme_iff.
+lemma extreme_imp_bound: extreme X (≤) e ⟹ bound X (≤) e;
+	simp extreme_iff.
+
+obtain well_related where
+	well_related_iff: well_related A (≤) ⟺ (∀X ⊆ A. X ≠ {} ⟹ ∃b ∈ X. bound X (dual (≤)) b);
+	- for thesis if assm;
+		apply abbrev2[of (p. ∀X ⊆ fst p. X ≠ {} ⟹ ∃b ∈ X. bound X (dual (snd p)) b)];
+		- for f if (simp);
+			apply assm[of f].
+		.
+	.
+
+obtain monotone where
+	monotone_iff: monotone A (≤) (⊑) f ⟺ (∀x ∈ A. ∀y ∈ A. x ≤ y ⟹ f x ⊑ f y);
+	- for thesis if assm;
+		apply abbrev4[of (p. ∀x ∈ fst p. ∀y ∈ fst p. fst (snd p) x y ⟹ fst (snd (snd p)) (snd (snd (snd p)) x) (snd (snd (snd p)) y))];
+		- for f if (simp);
+			apply assm[of f].
+		.
+	.
+note monotone_elim1: monotone_iff[THEN iff_elim1, THEN allIn_elim1, THEN allIn_elim1].
+
+---
+## Some Collections
+
+Here we define some collections.
+Note that we do not define binary operators here:
+one can obtain them so that the membership is as expected, but we need extensionality to
+ensure that they are *equal* to the collection.
+
+### Singleton
+---
 syntax {_} := singleton.
 obtain singleton where singleton_def: {x} = {y. x = y};
 	- for thesis if assm;
@@ -119,7 +183,9 @@ lemma in_singleton_iff(simp) x ∈ {y} ⟺ x = y;
 lemma singleton_in_COLLECT! {x} ∈ COLLECT;
 	unfold singleton_def;
 	apply Collect_in_COLLECT.
-
+---
+### Big Union
+---
 obtain (⋃) where bigcup_def: ⋃XX = {x. ∃X ∈ XX. x ∈ X};
 	- for thesis if assm;
 		apply abbrev[of (XX. {x. ∃X ∈ XX. x ∈ X})];
@@ -152,6 +218,12 @@ lemma allIn_bigcup_iff(simp) (∀x ∈ ⋃XX. P.[x]) ⟺ (∀X ∈ XX. ∀x ∈ 
 lemma bigcup_subseteq_iff: ⋃XX ⊆ Y ⟺ (∀X ∈ XX. X ⊆ Y);
 	simp subseteq_iff_allIn.
 
+lemma bigcup_subseteq_iff_bound: ⋃XX ⊆ X ⟺ bound XX (⊆) X;
+	unfold bigcup_subseteq_iff bound_iff.
+
+---
+### Big Intersection
+---
 obtain (⋂) where bigcap_def: ⋂XX = {x. ∀X ∈ XX. x ∈ X};
 	- for thesis if assm;
 		apply abbrev[of (XX. {x. ∀X ∈ XX. x ∈ X})];
@@ -179,19 +251,10 @@ lemma subseteq_bigcap_iff_allIn: X ⊆ ⋂YY ⟺ (∀Y ∈ YY. X ⊆ Y);
 	by iff_intro #unfold subseteq_iff_allIn in_bigcap_iff allIn_iff.
 
 note subseteq_bigcap_iff: subseteq_bigcap_iff_allIn[unfolded allIn_iff].
----
-One can obtain union so that the membership is as expected, but we need extensionality to
-ensure that union is *equal* to the expected collection.
----
-obtain (∪) where cup_eq_sup_pred: X ∪ Y = {x. sup_pred (X ∋) (Y ∋)};
-	- for thesis if assm;
-		apply abbrev2[of (p. {x. sup_pred (fst p ∋) (snd p ∋)})];
-		- for f if (simp);
-			apply assm[of f];
-			oops
-		oops
-	oops
 
+---
+### Power Set
+---
 obtain Pow where Pow_def: Pow X = {Y. Y ⊆ X};
 	- for thesis if assm;
 		apply abbrev[of (X. {Y. Y ⊆ X})];
@@ -206,51 +269,3 @@ lemma Pow_in_COLLECT! Pow X ∈ COLLECT;
 
 lemma in_Pow_iff(simp) X ∈ Pow Y ⟺ X ⊆ Y;
 	by #unfold Pow_def in_Collect_iff.
-
-obtain bound where bound_iff: bound X (≤) b ⟺ (∀x ∈ X. x ≤ b);
-	- for thesis if assm;
-		apply abbrev3[of (p. ∀x ∈ fst p. fst (snd p) x (snd (snd p)))];
-		- for f if (simp);
-			apply assm[of f].
-		.
-	.
-
-lemma bound_intro: if all: ∀x. x ∈ X ⟹ x ≤ b then bound X (≤) b;
-	by all #unfold bound_iff.
-
-lemma bound_elim1: for x if b: bound X (≤) b, x: x ∈ X then x ≤ b;
-	by b[unfolded bound_iff, THEN allIn_elim1, OF x].
-
-lemma bigcup_subseteq_iff_bound: ⋃XX ⊆ X ⟺ bound XX (⊆) X;
-	unfold bigcup_subseteq_iff bound_iff.
-
-obtain extreme where extreme_iff: extreme X (≤) e ⟺ bound X (≤) e ∧ e ∈ X;
-	- for thesis if assm;
-		apply abbrev3[of (p. bound (fst p) (fst (snd p)) (snd (snd p)) ∧ snd (snd p) ∈ fst p)];
-		- for f if (simp);
-			apply assm[of f]; .
-		.
-	.
-lemma extreme_closed: extreme X (≤) e ⟹ e ∈ X;
-	simp extreme_iff.
-lemma extreme_imp_bound: extreme X (≤) e ⟹ bound X (≤) e;
-	simp extreme_iff.
-
-obtain well_related where
-	well_related_iff: well_related A (≤) ⟺ (∀X ⊆ A. X ≠ {} ⟹ ∃b ∈ X. bound X (dual (≤)) b);
-	- for thesis if assm;
-		apply abbrev2[of (p. ∀X ⊆ fst p. X ≠ {} ⟹ ∃b ∈ X. bound X (dual (snd p)) b)];
-		- for f if (simp);
-			apply assm[of f].
-		.
-	.
-
-obtain monotone where
-	monotone_iff: monotone A (≤) (⊑) f ⟺ (∀x ∈ A. ∀y ∈ A. x ≤ y ⟹ f x ⊑ f y);
-	- for thesis if assm;
-		apply abbrev4[of (p. ∀x ∈ fst p. ∀y ∈ fst p. fst (snd p) x y ⟹ fst (snd (snd p)) (snd (snd (snd p)) x) (snd (snd (snd p)) y))];
-		- for f if (simp);
-			apply assm[of f].
-		.
-	.
-note monotone_elim1: monotone_iff[THEN iff_elim1, THEN allIn_elim1, THEN allIn_elim1].

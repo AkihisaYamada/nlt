@@ -1,7 +1,7 @@
 ---
 # Collection
 
-We assume comprehensions `{x. P.[x]}` and they are identified by the membership.
+In addition to assuming comprehensions, they are identified by the membership.
 ---
 import Minimal.Collection.
 begin
@@ -57,6 +57,9 @@ namespace COLLECT:
 		by #unfold cup_def iff.or.idem Collect_in_eq.
 end
 
+---
+## Binary Intersection
+---
 obtain (∩) where cap_def: X ∩ Y = {x. x ∈ X ∧ x ∈ Y};
 	- for thesis if assm;
 		apply abbrev2[of (p. {x. x ∈ fst p ∧ x ∈ snd p})];
@@ -64,14 +67,19 @@ obtain (∩) where cap_def: X ∩ Y = {x. x ∈ X ∧ x ∈ Y};
 			by assm[of f] #unfold f.
 		.
 	.
+
 lemma in_cap_iff: x ∈ X ∩ Y ⟺ x ∈ X ∧ x ∈ Y;
 	by #unfold cap_def in_Collect_iff.
 
 lemma Collect_in_cap(simp) {x. P.[x]} ∩ {x. Q.[x]} = {x. P.[x] ∧ Q.[x]};
 	by #unfold cap_def in_Collect_iff.
 
-interpret COLLECT.cap: Idempotent COLLECT (∩);
+context COLLECT begin
+
+interpret cap: Idempotent COLLECT (∩);
 	by #unfold cap_def iff.and.idem Collect_in_eq.
+
+end
 
 lemma subseteq_cap_iff: X ⊆ Y ∩ Z ⟺ X ⊆ Y ∧ X ⊆ Z;
 	simp subseteq_iff in_cap_iff imp_and_distrib all_and_distrib.
@@ -83,6 +91,7 @@ obtain (`) where image_def: f ` X = {y. ∃x ∈ X. y = f x};
 			by assm[of f] #unfold f.
 		.
 	.
+
 lemma in_image_iff: x ∈ f ` A ⟺ (∃a ∈ A. x = f a);
 	unfold image_def in_Collect_iff.
 
@@ -113,6 +122,10 @@ lemma image_mono: if AB: A ⊆ B then f ` A ⊆ f ` B;
 		apply in_image;
 		apply subseteq_elim1[OF AB] a.
 	.
+
+---
+## Restriction
+---
 
 syntax {_ ∈ _. _} := Collect.∈.
 obtain Collect.∈ where CollectIn_def: {x ∈ X. P.[x]} = {x. x ∈ X ∧ P.[x]};
@@ -159,6 +172,9 @@ lemma Collect_cap_CollectIn(simp)
 	{x. P.[x]} ∩ {x ∈ A. Q.[x]} = {x ∈ A. P.[x] ∧ Q.[x]};
 	by Collect_ext iff_intro #unfold CollectIn_def iff.and.assoc.
 
+---
+## Subset Restriction
+---
 syntax {_ ⊆ _. _} := Collect.⊆.
 obtain Collect.⊆ where CollectSub_def: {X ⊆ A. P.[X]} = {X. X ⊆ A ∧ P.[X]};
 	- for thesis if assm;
@@ -180,6 +196,8 @@ lemma CollectSub_cong(cong)
 	note(cong) iff.and_cong1.
 	simp CollectSub_def A P.
 
+---
+---
 obtain class where class_def: class A (⊑) x = {y ∈ A. x ⊑ y};
 	- for thesis if assm;
 		apply abbrev3[of (p. {y ∈ fst p. fst (snd p) (snd (snd p)) y})];
@@ -207,78 +225,3 @@ interpret Fun;
 
 lemma in_fun_intro: if f: ∀x. x ∈ A ⟹ f x ∈ B then f ∈ A → B;
 	by f allIn_intro #unfold fun_def in_Collect_iff.
-
----
-## The Classical Propositional Logic
-
-The class of *decided* terms form classical propositional logic.
----
-
-obtain Decided where Decided_def: Decided = {x. x ∨ ¬x};
-	- for thesis if assm;
-		apply assm[OF eq.refl].
-	.
-
-lemma in_Decided_iff: P ∈ Decided ⟺ P ∨ ¬P;
-	unfold Decided_def in_Collect_iff.
-
-lemma in_Decided_cong: if P: P ⟺ P' then P ∈ Decided ⟺ P' ∈ Decided;
-	unfold in_Decided_iff P.
-
-namespace Decided:
-interpret Classical;
-	instantiate Prop := Decided.
-	note! not_intro and_intro iff_intro.
-	note(elim) and_elim iff_elim false_elim.
-	note(intro 1) not_elim.
-	note(cong) in_Decided_cong.
-	interpret imp: Magma Decided (⟹);
-		- for P Q if P: P ∈ Decided, Q: Q ∈ Decided then (P ⟹ Q) ∈ Decided;
-			unfold in_Decided_iff;
-			apply or_elim[OF P[unfolded in_Decided_iff]];
-			- if P: P;
-				by Q[unfolded in_Decided_iff] #unfold imp_imp_iff[OF P].
-			-; by or_intro1.
-			.
-		.
-	interpret and: Magma Decided (∧);
-		- for P Q if P: P ∈ Decided, Q: Q ∈ Decided then (P ∧ Q) ∈ Decided;
-			apply P[unfolded in_Decided_iff, THEN or_elim];
-			- if P1: P;
-				unfold in_Decided_iff;
-				apply Q[unfolded in_Decided_iff, THEN or_elim];
-				- if Q1: Q; by or_intro1 P1 Q1.
-				- if Q0: ¬Q; by or_intro2 nand_intro2[OF Q0].
-				.
-			- if P0: ¬P;
-				by in_fun_intro or_intro2 nand_intro1[OF P0] #unfold in_Decided_iff.
-			.
-		.
-	- then true ∈ Decided;
-		by #unfold in_Decided_iff.
-	- then false ∈ Decided;
-		by #unfold in_Decided_iff.
-	- for P Q if ! P ∈ Decided, ! Q ∈ Decided then (P ⟺ Q) ∈ Decided;
-		by in_fun_intro and.closed imp.closed #unfold iff_iff_and.
-	- for P Q if P: P ∈ Decided, Q: Q ∈ Decided then (P ∨ Q) ∈ Decided;
-		apply P[unfolded in_Decided_iff, THEN or_elim];
-		- if P1: P;
-			by in_fun_intro #unfold in_Decided_iff iff_true[OF P1].
-		- if P0: ¬P;
-			apply Q[unfolded in_Decided_iff, THEN or_elim];
-			- if Q1: Q;
-				by #unfold in_Decided_iff iff_true[OF Q1].
-			- if Q0: ¬Q;
-				by or_intro2 P0 Q0 #unfold in_Decided_iff nor_iff.
-			.
-		.
-	- then P ∈ Decided ⟹ (¬ P) ∈ Decided;
-		by or_intro nnot_intro #elim or_elim #unfold in_Decided_iff.
-	- then P ∈ Decided ⟹ P ∨ ¬ P;
-		unfold in_Decided_iff.
-	.
-end
-
-lemma nnot_Decided: ¬ ¬ x ∈ Decided;
-	unfold in_Decided_iff;
-	by nnot_excluded_middle.

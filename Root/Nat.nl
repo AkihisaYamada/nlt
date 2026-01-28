@@ -1,62 +1,59 @@
-import Lambda.
+import Abbreviation.
+import Collection.
 
-fix nat (0) suc rec.
+fix ℕ (0) suc rec.
 
-import zero: Member nat 0.
-import suc: Unary suc nat nat.
+import zero: Member ℕ 0.
+import suc: Unary suc ℕ ℕ.
 
-assume suc_inj: suc x = suc y ⟹ nat x ⟹ nat y ⟹ x = y.
+assume suc_inj: if suc x = suc y, x ∈ ℕ, y ∈ ℕ then x = y.
 
-assume induct: P 0 ⟹ (∀x. P x ⟹ nat x ⟹ P (suc x)) ⟹ ∀x. nat x ⟹ P x.
+assume induction: if P.[0], ∀x ∈ ℕ. P.[x] ⟹ P.[suc x] then ∀x ∈ ℕ. P.[x].
 assume rec_zero: rec z s 0 = z.
-assume rec_suc: nat x ⟹ rec z s (suc x) = s x (rec z s x).
+assume rec_suc: if x ∈ ℕ then rec z s (suc x) = s x (rec z s x).
 
 begin
 
-setup rewrite eq_prop1 eq_prop2 eq.refl eq.trans.
-setup dual eq.sym.
+note! zero.closed.
+note! suc.closed.
 
-setup define beta.
-
-note! zero.type.
-note! suc.type.
-
-lemma induction:
-	if 0: α.[0], suc: ∀x. α.[x] ⟹ nat x ⟹ α.[suc x] then ∀x. nat x ⟹ α.[x];
-	define P x := α.[x].
-	have z': P 0;
-		unfold(=) P_def,
-		apply 0.
-	have suc': for x, P x ⟹ nat x ⟹ P (suc x);
-		unfold(=) P_def,
-		apply suc(x)=.
-	- for x;
-		apply induct(P)[OF z' suc'](x)[unfolded(=) P_def]=.
+print.
+interpret Equivalence ℕ (=);
+	-; .
+	-; by eq.sym(intro 1).
+	-; by eq.trans(intro 2).
 	.
 
 lemma induction_rule:
-	if xt: nat x, 0: α.[0], suc: ∀x. α.[x] ⟹ nat x ⟹ α.[suc x] then α.[x];
-	by induction[OF 0 suc xt].
-
-obtain (+) where
-	zero_add: nat x ⟹ 0 + x = x,
-	suc_add: nat x ⟹ nat y ⟹ suc x + y = suc (x + y);
-	- for thesis, if assm;
-		apply assm(λx y. rec y (λx' z. suc z) x),
-		by #unfold(=)+ beta rec_zero rec_suc.
+	if x: x ∈ ℕ, 0: P.[0], suc: ∀x. P.[x] ⟹ x ∈ ℕ ⟹ P.[suc x] then P.[x];
+	apply induction[THEN allIn_elim1];
+	-; by 0.
+	-; by allIn_intro suc.
+	-; by x.
 	.
 
-interpret add: Monoid nat (+);
-	show! for x y, if xt: nat x, !nat y then nat (x + y);
-		apply induction_rule[OF xt](x. nat (x + y)),
-		by #unfold(=) zero_add suc_add.
-	show: for x y z, if xt: nat x, ! nat y, ! nat z then x + y + z = x + (y + z);
-		apply induction_rule[OF xt](x. x + y + z = x + (y + z)),
-		- by #unfold(=) zero_add.
-		- for x', if IH: x' + y + z = x' + (y + z), ! nat x';
-			by #unfold(=) suc_add IH.
+obtain (+) where
+	zero_add: if x ∈ ℕ then 0 + x = x,
+	suc_add: if x ∈ ℕ, y ∈ ℕ then suc x + y = suc (x + y);
+	- for thesis if assm;
+		apply abbrev2[of (p. rec (snd p) (const suc) (fst p))];
+		- for f if (simp);
+			apply assm[of f];
+			by #unfold rec_zero rec_suc.
 		.
-	show: for x, if ! nat x then 0 + x = x;
+	.
+
+interpret add: CommMonoid (+) 0;
+	show! if xt: x ∈ ℕ, !y ∈ ℕ then x + y ∈ ℕ;
+		apply induction_rule[OF xt, of (x. x + y ∈ ℕ)];
+		by #unfold zero_add suc_add.
+	- if xt: x ∈ ℕ, ! y ∈ ℕ, ! z ∈ ℕ then x + y + z = x + (y + z);
+		apply induction_rule[OF xt, of (x. x + y + z = x + (y + z))];
+		- by #unfold zero_add.
+		- for x' if IH: x' + y + z = x' + (y + z), ! nat x';
+			by #unfold suc_add IH.
+		.
+	- if ! nat x then 0 + x = x;
 		by #unfold(=) zero_add.
 	show: ∀x. nat x ⟹ x + 0 = x;
 		apply induction!2,

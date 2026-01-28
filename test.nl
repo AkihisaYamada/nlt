@@ -1,6 +1,6 @@
-import Lambda.
+import Nat.
 
-thy FixedPoint.
+thy Nat.
 
 end
 

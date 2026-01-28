@@ -18,12 +18,12 @@ end
 
 theory Unary:
 	fix f A B.
-	assume closed: x ∈ A ⟹ f x ∈ B.
+	assume closed: if x ∈ A then f x ∈ B.
 end
 
 theory Binary:
 	fix f A B C.
-	assume closed: x ∈ A ⟹ y ∈ B ⟹ f x y ∈ C.
+	assume closed: if x ∈ A, y ∈ B then f x y ∈ C.
 end
 
 theory Magma:
