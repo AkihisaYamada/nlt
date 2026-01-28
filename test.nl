@@ -1,6 +1,6 @@
-import Class.
+import FixedPoint.
 
-thy Class.
+thy FixedPoint.
 
 end
 

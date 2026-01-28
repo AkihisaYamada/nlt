@@ -4,18 +4,6 @@
 The combination the `λ` and `THE` operators is sufficient to start mathematics.
 ---
 import Lambda.
----
-By `λ` we can specify the unique existence `∃!`:
----
-interpret UnaryAbstraction;
-	- for F P if assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
-		apply assm[of (λx. F.[x])];
-		by #unfold beta.
-	.
-
----
-Then we axiomatize the `THE` operator.
----
 import The.
 
 begin
@@ -25,8 +13,8 @@ First we obtain if-then-else.
 ---
 interpret If;
 	obtain If where
-		If_then: P ⟹ If P x y = x,
-		If_else: (P ⟹ x = y) ⟹ If P x y = y;
+		If_then: if P then If P x y = x,
+		If_else: if P ⟹ x = y then If P x y = y;
 		- for thesis if assm;
 			define If P x y := THE z. ∀Q. ((P ⟹ z = x) ⟹ ((P ⟹ x = y) ⟹ z = y) ⟹ Q) ⟹ Q.
 			apply assm[of If];
@@ -64,9 +52,8 @@ interpret If;
 	.
 ---
 This yields the pair constructor `(,)` and projections.
-Since Currying is derivable, this is enough to obtain logic.
 ---
-interpret Abstraction;
+interpret Abbreviation;
 	- for F Q if assm: ∀f'. (∀ x y. f' x y = F.[(x, y)]) ⟹ Q then Q;
 		apply assm[of (λx y. F.[(x,y)])];
 		- for x y;

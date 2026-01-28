@@ -1,5 +1,8 @@
 ---
-# Type-Free Intuitionistic Logic via Binary Abbreviation
+# Abbreviation
+
+This fundamental theory assumes binary abbreviation, which is sufficient for obtaining logic.
+To formulate binary abbreviation, we need syntactic equality and syntactic pairs.
 ---
 import Eq.
 import Pair.
@@ -7,7 +10,6 @@ assume abbrev2: if ∀f. (∀x y. f x y = F.[(x,y)]) ⟹ P then P.
 
 begin
 
---- Binary abbreviation allows unary and multi-ary abbreviations. ---
 interpret UnaryAbbreviation;
 	- for F P if assm;
 		note(cong) eq.cong_meta[of F].
@@ -234,13 +236,15 @@ theory Collect:
 	import Collect.
 begin
 	interpret .Membership.
-	syntax {} := Empty.
-	obtain Empty where Empty_def: {} = {x. false};
+	syntax {} := empty.
+	obtain empty where empty_def: {} = {x. false};
 		- for thesis if assm;
 			apply assm[OF eq.refl].
 		.
-	lemma not_in_Empty: ¬ x ∈ {};
-		by #unfold Empty_def in_Collect_iff const_eq.
+	lemma notIn_empty: x ∉ {};
+		by #unfold empty_def notIn_iff in_Collect_iff const_eq.
+	lemma in_empty_iff(simp) x ∈ {} ⟺ false;
+		simp empty_def in_Collect_iff.
 
 	syntax {_} := Singleton.
 	obtain Singleton where Singleton_def: {x} = {y. x = y};
@@ -258,9 +262,10 @@ begin
 		- for thesis if assm;
 			apply assm[OF eq.refl].
 		.
-	lemma in_UNIV! x ∈ UNIV;
+	lemma in_UNIV: x ∈ UNIV;
 		unfold UNIV_def in_Collect_iff.
-
+	lemma in_UNIV_iff(simp) x ∈ UNIV ⟺ true;
+		by iff_intro in_UNIV.
 	interpret AllIn;
 		obtain (∀∈) where allIn_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]);
 			- for thesis if assm;

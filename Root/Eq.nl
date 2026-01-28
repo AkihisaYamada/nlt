@@ -160,6 +160,7 @@ end
 theory Membership:
 	import Membership.
 begin
+	interpret Magmas.
 	theory Antisymmetric:
 		fix A (≤).
 		assume antisym: if x ≤ y, y ≤ x, x ∈ A, y ∈ A then x = y.

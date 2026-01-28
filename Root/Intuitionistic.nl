@@ -16,12 +16,21 @@ lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
 lemma false_imp_iff(simp) (false ⟹ P) ⟺ true;
 	by iff_true #elim false_elim.
 
-lemma false_and_iff(simp) false ∧ P ⟺ false;
-	by iff_intro #elim and_elim false_elim.
+namespace iff:
+	interpret iff.
+	interpret and: iff.MetaCommMonoidAbsorb (∧) false true;
+		- for P then false ∧ P ⟺ false;
+			by iff_intro #elim false_elim.
+		.
+	interpret or: iff.MetaCommMonoidAbsorb (∨) true false;
+		- for P then false ∨ P ⟺ P;
+			by iff_intro or_intro #elim or_elim false_elim.
+		.
+end
 
-lemma and_false_iff(simp) P ∧ false ⟺ false;
-	unfold iff.and.commute;
-	by false_and_iff.
+note(simp)
+	iff.and.left_absorb iff.and.right_absorb
+	iff.or.left_neutral iff.or.right_neutral.
 
 lemma not_elim: if nP: ¬P, P: P then Q;
 	by false_elim[OF not_imp_false[OF nP P]].

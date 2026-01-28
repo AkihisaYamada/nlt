@@ -275,7 +275,14 @@ lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
 lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
 
+---
+Algebraic properties of `(∨)`, with respect to `(⟺)`:
+---
 context iff begin
+	---
+	Minimal logic does not allow false to be neutral of or: `false ∨ P ⟺ P`,
+	because the `false` case does not ensure `P`.
+	---
 	interpret or: iff.MetaCompatible (∨);
 		- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 			by iff_intro or_intro #elim or_elim #unfold PQ RS.

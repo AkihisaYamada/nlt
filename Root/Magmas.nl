@@ -2,7 +2,7 @@
 # Properties for Magmas
 ----
 fix (=).
-import Fun.
+import Membership.
 begin
 
 theory Compatible:
@@ -10,8 +10,7 @@ theory Compatible:
 	assume comp: if x = x', y = y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y = x' * y'.
 begin
 	lemma cong:
-		if !x ∈ A, !y ∈ A then
-		if ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
+		if !x ∈ A, !y ∈ A, ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
 	--
 		apply comp.
 
