@@ -113,3 +113,51 @@ lemma imp_all_iff: (P ⟹ ∀x. Q.[x]) ⟺ (∀x. P ⟹ Q.[x]);
 
 lemma imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q;
 	by iff_intro #elim iff_elim.
+
+---
+## Deriving Restricted Universal Quantifier via `(⟺)`
+---
+theory AllRel:
+	fix (∀<) (<).
+	assume def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]).
+begin
+	interpret AllRel;
+		- if all: ∀x. x < a ⟹ P.[x] then ∀x < a. P.[x];
+			by all[folded def].
+		- if allIn: ∀x < a. P.[x], x: x < a then P.[x];
+			by allIn[unfolded def, OF x].
+		.
+	lemma strong_cong:
+		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
+		then (∀x < a. P.[x]) ⟺ (∀x < a'. P'.[x]);
+		unfold+ def a P.
+	lemma weak_cong:
+		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∀x < a. P.[x]) ⟺ (∀x < a. P'.[x]);
+		unfold+ def P.
+end
+
+theory ExRel:
+	fix (∃<) (<).
+	assume def: (∃x < a. P.[x]) ⟺ (∀Q. (∀x. x < a ⟹ P.[x] ⟹ Q) ⟹ Q).
+begin
+	interpret ExRel;
+		- if x: x < a, Px: P.[x] then ∃x < a. P.[x];
+			unfold def;
+			- for thesis if assm;
+				apply assm[of x];
+				by x Px.
+			.
+		- if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
+			apply ex[unfolded def];
+			- for x;
+				by imp[of x].
+			.
+		.
+	lemma strong_cong:
+		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
+		then (∃x < a. P.[x]) ⟺ (∃x < a'. P'.[x]);
+		unfold+ def a P.
+	lemma weak_cong:
+		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∃x < a. P.[x]) ⟺ (∃x < a. P'.[x]);
+		unfold+ def P.
+end

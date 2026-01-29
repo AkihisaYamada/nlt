@@ -387,10 +387,31 @@ lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
 	simp not_iff_imp_false.
 
 ---
+### Double negation and universal quantification.
+
+The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
+---
+lemma nnall_imp: if nnall: ¬¬(∀x. P.[x]) then ∀x. ¬¬P.[x];
+	- for x;
+		apply not_intro;
+		- if nPx: ¬P.[x];
+			by not_imp_false[OF nnall] not_imp_not_all[OF nPx].
+		.
+	.
+
+---
+The other direction is provable if inside the quantification has negation.
+---
+lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
+	fold nex_iff_all_not;
+	by nnnot_iff.
+
+---
 ### Russel's Paradox
 
 Minimal logic with unary abstraction is enough to derive Russel's paradox;
 it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
+(Actually, unrestricted abstraction is inconsistent even intuitionistically, as exemplified by Girard's paradox.)
 ---
 theorem Russel_paradox_abst:
 	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ∃P. ¬(P ∨ ¬P);
@@ -422,30 +443,24 @@ theorem Russel_paradox_abst:
 	.
 
 ---
-### Double negation and universal quantification.
-
-The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
----
-lemma nnall_imp: if nnall: ¬¬(∀x. P.[x]) then ∀x. ¬¬P.[x];
-	- for x;
-		apply not_intro;
-		- if nPx: ¬P.[x];
-			by not_imp_false[OF nnall] not_imp_not_all[OF nPx].
-		.
-	.
-
----
-The other direction is provable if inside the quantification has negation.
----
-lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
-	fold nex_iff_all_not;
-	by nnnot_iff.
-
----
 ## Theories
-
 ---
 
+theory AllExRel:
+	fix (∀<) (∃<) (<).
+	import all: AllRel.
+	import ex: ExRel.
+begin
+	lemma ex_iff_ex: (∃x < y. P.[x]) ⟺ (∃x. x < y ∧ P.[x]);
+		unfold ex.def ex_iff.
+	lemma nex_iff_all_not: ¬(∃x < y. P.[x]) ⟺ (∀x < y. ¬ P.[x]);
+		unfold ex_iff_ex all.def .nex_iff_all_not nand_iff_imp_not.
+
+end
+
+---
+The logical operators allow us to define some properties.
+---
 theory MetaReflexive:
 	import MetaReflexive.
 begin
@@ -459,9 +474,6 @@ begin
 	interpret .MetaReflexive.
 end
 
----
-The logical operators allow us to define some properties.
----
 theory MetaIrreflexive:
 	fix (<).
 	assume irrefl: ¬ x < x.
@@ -491,74 +503,15 @@ end
 
 theory Membership:
 	import ..Membership.
+	fix (∀∈) (∃∈) (⊆) (∀⊆) (∃⊆).
+	import in: AllExRel (∀∈) (∃∈) (∈).
+	assume subseteq_iff_allIn: A ⊆ B ⟺ (∀x ∈ A. x ∈ B).
+	import sub: AllExRel (∀⊆) (∃⊆) (⊆).
 begin
-	theory Irreflexive:
-		fix A (<).
-		assume irrefl: if x ∈ A then ¬ x < x.
-	end
-	theory Asymmetric:
-		fix A (<).
-		assume asym: if x < y, x ∈ A, y ∈ A then ¬ y < x.
-	end
-	theory StrictOrder:
-		import Irreflexive.
-		import Transitive A (<).
-	begin
-		interpret Asymmetric;
-			- for x y if xy: x < y, x! x ∈ A, !y ∈ A then ¬ y < x;
-				apply not_intro;
-				- if yx: y < x;
-					have xx: x < x;
-						by trans[OF xy yx].
-					by not_imp_false[OF irrefl[OF x] xx].
-				.
-			.
-	end
-	theory Connex:
-		fix A (≤).
-		assume comparable: if x ∈ A, y ∈ A then x ≤ y ∨ y ≤ x.
-	begin
-		interpret Reflexive;
-			- for x if x! x ∈ A then x ≤ x;
-				apply or_elim[OF comparable[OF x x]].
-			.
-	end
-	theory TotalPreorder:
-		import Connex.
-		import Transitive.
-	begin
-		interpret Preorder.
-	end
-	theory AllIn:
-		fix (∀∈).
-		assume allIn_iff: (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]).
-	begin
-		interpret AllIn;
-			- if all: ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x];
-				by all[folded allIn_iff].
-			- if allin: ∀x ∈ A. P.[x], x: x ∈ A then P.[x];
-				by allin[unfolded allIn_iff, OF x].
-			.
-	end
-	theory ExIn:
-		fix (∃∈).
-		assume exIn_iff: (∃x ∈ A. P.[x]) ⟺ (∃x. x ∈ A ∧ P.[x]).
-	begin
-		interpret ExIn;
-			- for x if x: x ∈ A, Px: P.[x] then ∃x ∈ A. P.[x];
-				unfold exIn_iff;
-				apply ex_intro1[of x];
-				by x Px.
-			- for A P if exIn: ∃x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q;
-				apply exIn[unfolded exIn_iff ex_iff];
-				- for x;
-					by imp[of x].
-				.
-			.
-	end
+
 end
 
-theory Collect:
+theory Collect:-- should be inconsistent!
 	import Membership.
 	fix Collect.
 	syntax {_. _} := Collect.
@@ -573,6 +526,7 @@ end
 theory Propositional:
 	fix Prop.
 	import Fun.
+	import .Membership.
 	import true: Member true Prop.
 	import false: Member false Prop.
 	import imp: Magma Prop (⟹).
@@ -587,8 +541,6 @@ end
 theory FirstOrder:
 	fix QTYPE.
 	import Propositional.
-	import AllIn.
-	import ExIn.
 	assume allIn_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
 	assume exIn_prop: if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
 begin

@@ -13,7 +13,7 @@
     "comments": {
       "patterns": [{
         "name": "comment.line.double-dash",
-        "match": "(^|(?=[^-]))--([^-].*)?\\n"
+        "match": "--([^-].*)?\\n"
       }]
     },
     "block-comments": {

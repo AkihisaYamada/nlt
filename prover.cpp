@@ -41,10 +41,26 @@ inline ClaimStatus const ClaimStatus::INFLATED =
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.intro ) {
-		os << '!';
+		os << "(intro";
+		if( cs.after > 0 ) {
+			os << ' ' << cs.after;
+		}
+		os << ')';
 	}
 	if( cs.weak ) {
-		os << '?';
+		os << "(weak)";
+	}
+	if( cs.elim ) {
+		os << "(elim)";
+	}
+	if( cs.unfold ) {
+		os << "(unfold)";
+	}
+	if( cs.fold ) {
+		os << "(fold)";
+	}
+	if( cs.cong ) {
+		os << "(cong)";
 	}
 	return os << ": ";
 }
@@ -971,10 +987,9 @@ public:
 		add_claim(_thy,name,cs,thm);
 		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 		if( !name && cs ) {
-			if MSG cout << *cs << ' ' << _thy.pretty(thm) << endl;
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
-				if MSG cout << "\t" << cs << _thy.pretty(*o) << endl;
+				if MSG cout << "\t" << *cs << _thy.pretty(*o) << endl;
 			}
 		}
 		skip(".");

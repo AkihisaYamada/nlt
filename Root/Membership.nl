@@ -33,15 +33,15 @@ begin
 	note! closed.
 end
 
-theory SubEq:
+theory SubsetEq:
 	fix (⊆).
-	assume elim1: if A ⊆ B, x ∈ A then x ∈ B.
-	assume intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
+	assume subseteq_elim1: if A ⊆ B, x ∈ A then x ∈ B.
+	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
 	interpret MetaPreorder (⊆);
-		-; by intro.
+		-; by subseteq_intro.
 		- if AB: A ⊆ B, BC: B ⊆ C;
-			by intro BC[THEN elim1] AB[THEN elim1].
+			by subseteq_intro BC[THEN subseteq_elim1] AB[THEN subseteq_elim1].
 		.
 end
 
@@ -108,25 +108,4 @@ theory Equivalence:
 begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
-end
-
-theory AllIn:
-	fix (∀∈).
-	assume allIn_intro! if ∀x. x ∈ A ⟹ P.[x] then ∀x ∈ A. P.[x].
-	assume allIn_elim1: if ∀x ∈ A. P.[x], x ∈ A then P.[x].
-begin
-	lemma allIn_elim: if all: ∀x ∈ A. P.[x], imp: (∀x. x ∈ A ⟹ P.[x]) ⟹ Q then Q;
-		by imp allIn_elim1[OF all].
-end
-
-theory ExIn:
-	fix (∃∈).
-	assume exIn_intro1: for x if x ∈ A, P.[x] then ∃x ∈ A. P.[x].
-	assume exIn_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q.
-begin
-	lemma exIn_intro: if assm: ∀Q. (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ∈ A. P.[x];
-		apply assm;
-		- for x;
-			by exIn_intro1[of x].
-		.
 end

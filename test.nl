@@ -1,6 +1,5 @@
-import Nat.
+import Orders.
 
-thy Nat.
 
 end
 

@@ -44,9 +44,16 @@ infix ∉ 51 51 50.
 infix ⊂ 51 51 50.
 infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
+
 infix < 51 51 50.
-infix > 51 51 50.
+syntax ∀_ < _. _ := ∀<.
+syntax ∃_ < _. _ := ∃<.
+
 infix ≤ 51 51 50.
+syntax ∀_ ≤ _. _ := ∀≤.
+syntax ∃_ ≤ _. _ := ∃≤.
+
+infix > 51 51 50.
 infix ≥ 51 51 50.
 infix ⊑ 51 51 50.
 infix ⊒ 51 51 50.
@@ -243,5 +250,26 @@ begin
 		apply assm;
 		- for x;
 			by ex_intro1[of x].
+		.
+end
+
+theory AllRel:
+	fix (∀<) (<).
+	assume intro! if ∀x. x < A ⟹ P.[x] then ∀x < A. P.[x].
+	assume elim1: if ∀x < A. P.[x], x < A then P.[x].
+begin
+	lemma elim: if all: ∀x < A. P.[x], imp: (∀x. x < A ⟹ P.[x]) ⟹ Q then Q;
+		by imp elim1[OF all].
+end
+
+theory ExRel:
+	fix (∃<) (<).
+	assume intro1: for x if x < A, P.[x] then ∃x < A. P.[x].
+	assume elim: if ∃x < A. P.[x], ∀x. x < A ⟹ P.[x] ⟹ Q then Q.
+begin
+	lemma intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
+		apply assm;
+		- for x;
+			by intro1[of x].
 		.
 end

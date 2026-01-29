@@ -136,7 +136,7 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 			Ctxt cond_ctxt = loc2cond.ctxt();
 			Term body = *assm;
 			bool abs;
-			if( auto all = body.binder(ALL) ) {// TODO: improve
+			if( auto all = body.binder(ALL) ) {// TODO: improve?
 				cond_ctxt.fix(all->first);
 				body = all->second;
 				abs = true;
@@ -157,6 +157,7 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 						auto cond_lhs = cond_ctxt.closed(s);
 						if( !cond_lhs ) throw Error("\"open condition lhs\"")(s)(thm);
 						auto cond = rule_ctxt.assume((Term)*assm);//TODO: reduce double-check
+						if( abs && !t.unbind() ) throw Error("\"unsupported condition\"")(t)(thm);
 						conds.emplace_back(ind,abs,true,cond);
 						cond_thms.emplace_back(std::move(cond));
 						break;

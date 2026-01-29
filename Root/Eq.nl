@@ -220,11 +220,11 @@ begin
 				then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
 				apply iff_intro;
 				- if PA;
-					apply allIn_intro;
-					by allIn_elim1[OF PA, unfolded AB] #fold PQ.
+					apply allIn.intro;
+					by allIn.elim1[OF PA, unfolded AB] #fold PQ.
 				- if QB;
-					apply allIn_intro;
-					by allIn_elim1[OF QB] #unfold AB PQ.
+					apply allIn.intro;
+					by allIn.elim1[OF QB] #unfold AB PQ.
 				.
 		end
 		theory ExIn:
@@ -235,14 +235,14 @@ begin
 				then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
 				apply iff_intro;
 				- if PA;
-					apply exIn_elim[OF PA];
+					apply exIn.elim[OF PA];
 					- for x;
-						by exIn_intro1[of x] #unfold AB #fold PQ.
+						by exIn.intro1[of x] #unfold AB #fold PQ.
 					.
 				- if QB;
-					apply exIn_elim[OF QB];
+					apply exIn.elim[OF QB];
 					- for x;
-						by exIn_intro1[of x] #unfold AB PQ.
+						by exIn.intro1[of x] #unfold AB PQ.
 					.
 				.
 		end
@@ -258,10 +258,10 @@ begin
 			lemma ex1In_intro1:
 				for x A P if Px: P.[x], x: x ∈ A, uniq: ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x];
 				unfold ex1In_iff;
-				by exIn_intro1[of x] Px x uniq.
+				by exIn.intro1[of x] Px x uniq.
 
 			lemma ex1In_elim: if ex1: ∃!x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q;
-				apply ex1[unfolded ex1In_iff, THEN exIn_elim];
+				apply ex1[unfolded ex1In_iff, THEN exIn.elim];
 				unfold and_imp_iff_imp_imp;
 				- for x;
 					by imp[of x].
@@ -276,7 +276,7 @@ begin
 			lemma TheIn_eq_intro: if ex1: ∃!y ∈ A. P.[y], Px: P.[x], xA: x ∈ A then (THE y ∈ A. P.[y]) = x;
 				apply ex1In_elim[OF ex1];
 				- for z if zA: z ∈ A, Pz: P.[z], 1: ∀y ∈ A. P.[y] ⟹ y = z;
-					note imp: 1[unfolded allIn_iff].
+					note imp: 1[unfolded allIn.iff].
 					have zT: (THE x ∈ A. P.[x]) = z;
 						by imp TheIn_intro ex1 TheIn_in.
 					unfold zT;
