@@ -4,7 +4,7 @@
 
 import Minimal.
 
-assume false_elim: if false then ∀P. P.
+assume false_elim: if false then P.
 
 begin
 

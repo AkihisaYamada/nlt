@@ -201,6 +201,63 @@ begin
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
+
+	theory AllRel:
+		import AllRel.
+	begin
+		lemma cong:
+			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+			then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
+			apply iff_intro;
+			- if PA;
+				apply intro;
+				by elim1[OF PA, unfolded AB] #fold PQ.
+			- if QB;
+				apply intro;
+				by elim1[OF QB] #unfold AB PQ.
+			.
+	end
+	theory ExRel:
+		import ExRel.
+	begin
+		lemma cong:
+			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
+			apply iff_intro;
+			- if PA;
+				apply elim[OF PA];
+				- for x;
+					by intro1[of x] #unfold AB #fold PQ.
+				.
+			- if QB;
+				apply elim[OF QB];
+				- for x;
+					by intro1[of x] #unfold AB PQ.
+				.
+			.
+	end
+	theory AllEx1Rel:
+		import AllExRel.
+		fix (∃!<).
+		assume ex1_iff: (∃!x < a. P.[x]) ⟺ (∃x < a. P.[x] ∧ (∀y < a. P.[y] ⟹ y = x)).
+	begin
+		interpret all: .AllRel.
+		interpret ex: .ExRel.
+		lemma ex1_cong:
+			if iff: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x] then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. P'.[x]);
+			unfold ex1_iff iff.
+		lemma ex1_intro1:
+			for x A P if Px: P.[x], x: x ∈ A, uniq: ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x];
+			unfold ex1_iff;
+			by ex.intro1[of x] Px x uniq.
+
+		lemma ex1_elim: if ex1: ∃!x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q;
+			apply ex1[unfolded ex1_iff, THEN ex.elim];
+			unfold and_imp_iff_imp_imp;
+			- for x;
+				by imp[of x].
+			.
+	end
 	theory MetaReflexive:
 		import Minimal.MetaReflexive.
 	end
@@ -212,61 +269,8 @@ begin
 	theory Membership:
 		import Membership.
 	begin
-		theory AllIn:
-			import AllIn.
-		begin
-			lemma allIn_cong_iff(cong)
-				if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-				then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
-				apply iff_intro;
-				- if PA;
-					apply allIn.intro;
-					by allIn.elim1[OF PA, unfolded AB] #fold PQ.
-				- if QB;
-					apply allIn.intro;
-					by allIn.elim1[OF QB] #unfold AB PQ.
-				.
-		end
-		theory ExIn:
-			import ExIn.
-		begin
-			lemma exIn_cong_iff(cong)
-				if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-				then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
-				apply iff_intro;
-				- if PA;
-					apply exIn.elim[OF PA];
-					- for x;
-						by exIn.intro1[of x] #unfold AB #fold PQ.
-					.
-				- if QB;
-					apply exIn.elim[OF QB];
-					- for x;
-						by exIn.intro1[of x] #unfold AB PQ.
-					.
-				.
-		end
-		theory Ex1In:
-			fix (∃!∈).
-			import AllIn.
-			import ExIn.
-			assume ex1In_iff: (∃!x ∈ A. P.[x]) ⟺ (∃x ∈ A. P.[x] ∧ (∀y ∈ A. P.[y] ⟹ y = x)).
-		begin
-			lemma ex1In_cong_iff(cong)
-				if iff: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x] then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. P'.[x]);
-				unfold ex1In_iff iff.
-			lemma ex1In_intro1:
-				for x A P if Px: P.[x], x: x ∈ A, uniq: ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x];
-				unfold ex1In_iff;
-				by exIn.intro1[of x] Px x uniq.
-
-			lemma ex1In_elim: if ex1: ∃!x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q;
-				apply ex1[unfolded ex1In_iff, THEN exIn.elim];
-				unfold and_imp_iff_imp_imp;
-				- for x;
-					by imp[of x].
-				.
-		end
+		interpret in: AllEx1Rel (∈) (∀∈) (∃∈) (∃!∈).
+		interpret sub: AllEx1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
 		theory TheIn:
 			fix THE.∈.
 			import Ex1In.
@@ -274,9 +278,9 @@ begin
 			assume TheIn_in: (∃!x ∈ A. P.[x]) ⟹ (THE x ∈ A. P.[x]) ∈ A.
 		begin
 			lemma TheIn_eq_intro: if ex1: ∃!y ∈ A. P.[y], Px: P.[x], xA: x ∈ A then (THE y ∈ A. P.[y]) = x;
-				apply ex1In_elim[OF ex1];
+				apply in.ex1_elim[OF ex1];
 				- for z if zA: z ∈ A, Pz: P.[z], 1: ∀y ∈ A. P.[y] ⟹ y = z;
-					note imp: 1[unfolded allIn.iff].
+					note imp: 1[unfolded in.all.iff].
 					have zT: (THE x ∈ A. P.[x]) = z;
 						by imp TheIn_intro ex1 TheIn_in.
 					unfold zT;
@@ -286,8 +290,8 @@ begin
 		end
 	end
 
-	theory Collect:
-		import Collect.
+	theory UnrestrictedComprehension:
+		import UnrestrictedComprehension.
 	begin
 		interpret .Membership.
 		---
@@ -344,34 +348,11 @@ begin
 		end
 
 		---
-		The collections form a collection.
+		The collections form a collection -- leading to Girard's paradox.
 		---
 		lemma COLLECT_COLLECT: COLLECT ∈ COLLECT;
 			unfold[at 0 0 0] COLLECT_def;
 			by Collect_in_COLLECT.
-
-		---
-		It is crucial that collections are not /classes/; membership is not decided.
-		---
-		lemma Russel_paradox_COLLECT: ∃X x. X ∈ COLLECT ∧ x ∈ COLLECT ∧ ¬(x ∈ X ∨ ¬ x ∈ X);
-			obtain R where R_def: R = {X. ¬ X ∈ X};
-				- for thesis if assm;
-					apply assm[OF eq.refl].
-				.
-			have RC: R ∈ COLLECT;
-				by Collect_in_COLLECT #unfold R_def.
-			have iff: R ∈ R ⟺ ¬ R ∈ R;
-				unfold[at 0 0 1] R_def;
-				unfold in_Collect_iff.
-			apply+ ex_intro1[of R] RC and_intro not_intro;
-			- if or: R ∈ R ∨ ¬ R ∈ R then false;
-				apply or_elim[OF or];
-				- if 1: R ∈ R;
-					by not_imp_false[OF 1[unfolded iff] 1].
-				- if 0: ¬ R ∈ R;
-					by not_imp_false[OF 0 0[folded iff]].
-				.
-			.
 
 	end
 

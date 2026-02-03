@@ -118,7 +118,7 @@ lemma imp_iff_iff1: if [P] then (P ⟺ Q) ⟺ Q;
 ## Deriving Restricted Universal Quantifier via `(⟺)`
 ---
 theory AllRel:
-	fix (∀<) (<).
+	fix (<) (∀<).
 	assume def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]).
 begin
 	interpret AllRel;
@@ -137,7 +137,7 @@ begin
 end
 
 theory ExRel:
-	fix (∃<) (<).
+	fix (<) (∃<).
 	assume def: (∃x < a. P.[x]) ⟺ (∀Q. (∀x. x < a ⟹ P.[x] ⟹ Q) ⟹ Q).
 begin
 	interpret ExRel;

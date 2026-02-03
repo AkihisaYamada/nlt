@@ -226,7 +226,7 @@ lemma nand_intro2: if nQ: ¬Q then ¬(P ∧ Q);
 	by not_intro not_imp_false[OF nQ].
 
 lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-	by iff_intro not_iff_imp_false(simp).
+	simp not_iff_imp_false.
 
 lemma non_contradiction: ¬(P ∧ ¬P);
 	unfold nand_iff_imp_not;
@@ -239,25 +239,6 @@ lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
 	unfold iff.and.commute;
 	unfold nand_nnot_iff;
 	unfold iff.and.commute.
-
-lemma raw_or_imp_iff: ((∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S) ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
-	apply iff_intro;
-	- if or_imp;
-		by or_imp.
-	- if and: (P ⟹ R) ∧ (Q ⟹ R), or: (∀S. (P ⟹ S) ⟹ (Q ⟹ S) ⟹ S);
-		by or[OF and_elim1[OF and] and_elim2[OF and]].
-	.
-
-lemma raw_nor_iff_and: ¬(∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R) ⟺ ¬P ∧ ¬Q;
-	unfold not_iff_imp_false;
-	by raw_or_imp_iff.
-
-lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
-	fold nnot_nand_iff;
-	fold nand_nnot_iff;
-	fold raw_nor_iff_and;
-	unfold nnnot_iff;
-	unfold raw_nor_iff_and.
 
 ---
 ### Disjunction
@@ -338,6 +319,13 @@ lemma or_imp_nand: if PQ: P ∨ Q then ¬(¬P ∧ ¬Q);
 		.
 	.
 
+lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
+	fold nnot_nand_iff;
+	fold nand_nnot_iff;
+	fold nor_iff;
+	unfold nnnot_iff;
+	unfold nor_iff.
+
 lemma false_or_false_iff: false ∨ false ⟺ false;
 	by iff_intro or_intro #elim or_elim.
 
@@ -407,47 +395,11 @@ lemma nnall_not_iff: ¬¬(∀x. ¬P.[x]) ⟺ (∀x. ¬P.[x]);
 	by nnnot_iff.
 
 ---
-### Russel's Paradox
-
-Minimal logic with unary abstraction is enough to derive Russel's paradox;
-it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
-(Actually, unrestricted abstraction is inconsistent even intuitionistically, as exemplified by Girard's paradox.)
----
-theorem Russel_paradox_abst:
-	if abst: ∀F. ∃f. ∀x. f x ⟺ F.[x] then ∃P. ¬(P ∨ ¬P);
-	obtain R where R_def: R x ⟺ (¬ x x);
-		- for thesis if elim;
-			apply abst[of (x. ¬ x x), THEN ex_elim];
-			- for R if iff;
-				apply elim[of R];
-				- for x;
-					unfold iff.
-				.
-			.
-		.
-	have iff: R R ⟺ (¬ R R);
-		by R_def.
-	apply ex_intro1[of (R R)] not_intro;
-	- if or: R R ∨ ¬ R R;
-		apply or_elim[OF or];
-		- if RR: R R;
-			have nRR: ¬ R R;
-				fold iff;
-				by RR.
-			by not_imp_false[OF nRR RR].
-		- if nRR: ¬ R R;
-			have RR: R R;
-				by nRR[folded iff].
-			by not_imp_false[OF nRR RR].
-		.
-	.
-
----
 ## Theories
 ---
 
 theory AllExRel:
-	fix (∀<) (∃<) (<).
+	fix (<) (∀<) (∃<).
 	import all: AllRel.
 	import ex: ExRel.
 begin
@@ -504,23 +456,11 @@ end
 theory Membership:
 	import ..Membership.
 	fix (∀∈) (∃∈) (⊆) (∀⊆) (∃⊆).
-	import in: AllExRel (∀∈) (∃∈) (∈).
+	import in: AllExRel (∈) (∀∈) (∃∈).
 	assume subseteq_iff_allIn: A ⊆ B ⟺ (∀x ∈ A. x ∈ B).
-	import sub: AllExRel (∀⊆) (∃⊆) (⊆).
+	import sub: AllExRel (⊆) (∀⊆) (∃⊆).
 begin
 
-end
-
-theory Collect:-- should be inconsistent!
-	import Membership.
-	fix Collect.
-	syntax {_. _} := Collect.
-	assume in_Collect_iff: x ∈ {x. P.[x]} ⟺ P.[x].
-begin
-	lemma in_Collect_intro: if assm: P.[x] then x ∈ {x. P.[x]};
-		by assm #unfold in_Collect_iff.
-	lemma in_Collect_elim: if assm: x ∈ {x. P.[x]} then P.[x];
-		by assm[unfolded in_Collect_iff].
 end
 
 theory Propositional:
@@ -576,4 +516,109 @@ end
 theory ChoiceOperator:
 	fix (SOME).
 	assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
+end
+
+theory RestrictedComprehension:
+	import Membership.
+	fix Collect.∈.
+	syntax {_ ∈ _. _} := Collect.∈.
+	assume in_CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x].
+begin
+
+end
+
+---
+## Inconsistent Theories
+
+### Unrestricted Unary Abbreviation
+
+It is unsafe to assume that for any term `P.[x]` with free variable `x` there is a function `p` such that `p x` is equivalent to `P.[x]`.
+---
+theory INCONSISTENT_UnrestrictedAbstraction:
+	assume abst: ∀P. ∃p. ∀x. p x ⟺ P.[x].
+begin
+	---
+	Russel's paradox says it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
+	More critically, Curry's paradox says it is inconsistent even in intuitionistic or minimal logic.
+	---
+	obtain R where R_def: R x ⟺ (¬ x x);
+		- for thesis if elim;
+			apply abst[of (x. ¬ x x), THEN ex_elim];
+			- for R if iff;
+				apply elim[of R];
+				- for x;
+					unfold iff.
+				.
+			.
+		.
+	lemma RR_iff_not_RR: R R ⟺ (¬ R R);
+		by R_def.
+	theorem Russel_paradox: ∃P. ¬(P ∨ ¬P);
+		apply ex_intro1[of (R R)] not_intro;
+		- if or: R R ∨ ¬ R R;
+			apply or_elim[OF or];
+			- if RR: R R;
+				have nRR: ¬ R R;
+					fold RR_iff_not_RR;
+					by RR.
+				by not_imp_false[OF nRR RR].
+			- if nRR: ¬ R R;
+				have RR: R R;
+					by nRR[folded RR_iff_not_RR].
+				by not_imp_false[OF nRR RR].
+			.
+		.
+	theorem Curry_paradox: false;
+		have nRR: ¬ R R;
+			apply not_intro;
+			- if RR: R R;
+				have nRR: ¬ R R;
+					fold RR_iff_not_RR;
+					by RR.
+				by not_imp_false[OF nRR RR].
+			.
+		apply not_imp_false[OF nRR];
+		by nRR[folded RR_iff_not_RR].
+
+end
+---
+### Unrestricted Comprehension
+
+Unrestricted comprehension is inconsistent by the same paradoxes.
+---
+theory INCONSISTENT_UnrestrictedComprehension:
+	import Membership.
+	fix Collect.
+	syntax {_. _} := Collect.
+	assume in_Collect_iff: x ∈ {x. P.[x]} ⟺ P.[x].
+begin
+	obtain R where R_def: x ∈ R ⟺ ¬ x ∈ x;
+		- for thesis if assm;
+			apply assm[of {x. ¬ x ∈ x}];
+			unfold in_Collect_iff.
+		.
+	lemma RR_iff_not_RR: R ∈ R ⟺ (¬ R ∈ R);
+		by R_def.
+
+	theorem Russel_paradox: ∃X x. ¬(x ∈ X ∨ ¬ x ∈ X);
+		apply+ ex_intro1[of R] and_intro not_intro;
+		- if or: R ∈ R ∨ ¬ R ∈ R then false;
+			apply or_elim[OF or];
+			- if 1: R ∈ R;
+				by not_imp_false[OF 1[unfolded RR_iff_not_RR] 1].
+			- if 0: ¬ R ∈ R;
+				by not_imp_false[OF 0 0[folded RR_iff_not_RR]].
+			.
+		.
+	theorem Curry_paradox: false;
+		have nRR: ¬ R ∈ R;
+			apply not_intro;
+			- if RR: R ∈ R;
+				have nRR: ¬ R ∈ R;
+					fold RR_iff_not_RR;
+					by RR.
+				by not_imp_false[OF nRR RR].
+			.
+		apply not_imp_false[OF nRR];
+		by nRR[folded RR_iff_not_RR].
 end
