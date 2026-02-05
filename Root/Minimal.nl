@@ -530,57 +530,9 @@ end
 ---
 ## Inconsistent Theories
 
-### Unrestricted Unary Abbreviation
+### Unrestricted Unary Predicatization
 
-It is unsafe to assume that for any term `P.[x]` with free variable `x` there is a function `p` such that `p x` is equivalent to `P.[x]`.
 ---
-theory INCONSISTENT_UnrestrictedAbstraction:
-	assume abst: ∀P. ∃p. ∀x. p x ⟺ P.[x].
-begin
-	---
-	Russel's paradox says it is inconsistent to assume `P ∨ ¬P` unrestrictedly.
-	More critically, Curry's paradox says it is inconsistent even in intuitionistic or minimal logic.
-	---
-	obtain R where R_def: R x ⟺ (¬ x x);
-		- for thesis if elim;
-			apply abst[of (x. ¬ x x), THEN ex_elim];
-			- for R if iff;
-				apply elim[of R];
-				- for x;
-					unfold iff.
-				.
-			.
-		.
-	lemma RR_iff_not_RR: R R ⟺ (¬ R R);
-		by R_def.
-	theorem Russel_paradox: ∃P. ¬(P ∨ ¬P);
-		apply ex_intro1[of (R R)] not_intro;
-		- if or: R R ∨ ¬ R R;
-			apply or_elim[OF or];
-			- if RR: R R;
-				have nRR: ¬ R R;
-					fold RR_iff_not_RR;
-					by RR.
-				by not_imp_false[OF nRR RR].
-			- if nRR: ¬ R R;
-				have RR: R R;
-					by nRR[folded RR_iff_not_RR].
-				by not_imp_false[OF nRR RR].
-			.
-		.
-	theorem Curry_paradox: false;
-		have nRR: ¬ R R;
-			apply not_intro;
-			- if RR: R R;
-				have nRR: ¬ R R;
-					fold RR_iff_not_RR;
-					by RR.
-				by not_imp_false[OF nRR RR].
-			.
-		apply not_imp_false[OF nRR];
-		by nRR[folded RR_iff_not_RR].
-
-end
 ---
 ### Unrestricted Comprehension
 

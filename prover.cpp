@@ -444,36 +444,43 @@ public:
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
 	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer ) {
-		string assm_name = prefix;
-		if( prefix != "" ) {
-			assm_name += '.';
-		}
-		assm_name += assume.second;
 		auto const& assm = assume.first;
-		if( auto const& o = _thy.find_thm(assm_name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		auto f = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto thm2 = thm.subst(import);
 			if( thm2 == assm ) {
 				intp.discharge(thm2);
 				return {thm2};
 			}
 			return {};
-		} ) ) {
+		};
+		auto assm_name = assume.second;
+		if( auto const& o = _thy.find_thm(assm_name,f) ) {
 			if MSG cout << "transferred " << assm_name << ": " << _thy.pretty(*o) << endl;
-		} else if( change ) {
+			return;
+		}
+		if( prefix != "" ) {
+			assm_name = prefix+'.'+assm_name;
+			if( auto const& o = _thy.find_thm(assm_name,f) ) {
+				if MSG cout << "transferred " << assm_name << ": " << _thy.pretty(*o) << endl;
+				return;
+			}
+		}
+		if( change ) {
 			Thm ret = _thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
 			if CTXT {
 				if( !MSG ) cout << _indent(' ');
 				cout << "admitted " << assm_name << ": " << _thy.pretty(ret) << endl;
 			}
-		} else {
-			if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
-			Thm ret = infer.prove(_thy,assm,true);
-			intp.discharge(ret);
+			return;
 		}
+		if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
+		Thm ret = infer.prove(_thy,assm,true);
+		intp.discharge(ret);
 	}
 	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer ) {
-		auto [sym,ex,spec,name] = obtain;
+		auto [org_sym,ex,spec,name] = obtain;
+		auto sym = prefix.empty() ? org_sym : prefix+'.'+org_sym;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
 			if( !_thy.find_thm(name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -531,14 +538,28 @@ public:
 		auto intp = _thy.thy(name,reader());
 		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
-			auto const& fix = intp.fixing();
-			if( !fix ) throw Error("\"unexpected instantiation\"")(*t);
-			intp.instantiate(_thy.cterm(*t));
+			if( auto const& fix = intp.fixing() ) {
+				intp.instantiate(_thy.cterm(*t));
+			} else if( auto const& assume = intp.assuming() ) {
+				auto infer = _thy.resolver(_out_blast);
+				_auto_discharge(prefix,intp,*assume,change,infer);
+			} else if( auto const& obtain = intp.obtaining() ) {
+				auto infer = _thy.resolver(_out_blast);
+				_auto_retain(_thy,prefix,intp,*obtain,infer);
+			} else {
+				break;
+			}
 		}
 		auto path = src.print_name();
 		bool success = true;
 		if( skips(";") ) {
-			if MSG cout << (change ? "importing " : "interpreting ") << path << endl;
+			if MSG {
+				cout << (change ? "importing " : "interpreting ");
+				if( !prefix.empty() ) {
+					cout << prefix << ": ";
+				}
+				cout << path << endl;
+			}
 			_depth++;
 			success = _import_loop(prefix,intp,change);
 			_depth--;

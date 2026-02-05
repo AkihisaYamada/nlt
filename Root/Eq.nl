@@ -201,41 +201,42 @@ begin
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
-
+print.
 	theory AllRel:
 		import AllRel.
 	begin
 		lemma cong:
-			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-			then (∀x ∈ A. P.[x]) ⟺ (∀x ∈ B. Q.[x]);
+			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
+			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);
 			apply iff_intro;
-			- if PA;
+			- if Pa;
 				apply intro;
-				by elim1[OF PA, unfolded AB] #fold PQ.
-			- if QB;
+				by elim1[OF Pa, unfolded ab] #fold PQ.
+			- if Qb;
 				apply intro;
-				by elim1[OF QB] #unfold AB PQ.
+				by elim1[OF Qb] #unfold ab PQ.
 			.
 	end
 	theory ExRel:
 		import ExRel.
 	begin
 		lemma cong:
-			if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
-			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ B. Q.[x]);
+			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
+			then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
 			apply iff_intro;
-			- if PA;
-				apply elim[OF PA];
+			- if Pa;
+				apply elim[OF Pa];
 				- for x;
-					by intro1[of x] #unfold AB #fold PQ.
+					by intro1[of x] #unfold ab #fold PQ.
 				.
-			- if QB;
-				apply elim[OF QB];
+			- if Qb;
+				apply elim[OF Qb];
 				- for x;
-					by intro1[of x] #unfold AB PQ.
+					by intro1[of x] #unfold ab PQ.
 				.
 			.
 	end
+print.
 	theory AllEx1Rel:
 		import AllExRel.
 		fix (∃!<).
@@ -243,15 +244,16 @@ begin
 	begin
 		interpret all: .AllRel.
 		interpret ex: .ExRel.
+		note(cong) all.cong ex.cong.
 		lemma ex1_cong:
-			if iff: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x] then (∃!x ∈ A. P.[x]) ⟺ (∃!x ∈ A. P'.[x]);
-			unfold ex1_iff iff.
+			if eq: a = b, iff: ∀x. x < a ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
+			unfold ex1_iff iff; simp eq;.
 		lemma ex1_intro1:
-			for x A P if Px: P.[x], x: x ∈ A, uniq: ∀y ∈ A. P.[y] ⟹ y = x then ∃!x ∈ A. P.[x];
+			for x a P if Px: P.[x], x: x < a, uniq: ∀y < a. P.[y] ⟹ y = x then ∃!x < a. P.[x];
 			unfold ex1_iff;
 			by ex.intro1[of x] Px x uniq.
 
-		lemma ex1_elim: if ex1: ∃!x ∈ A. P.[x], imp: ∀x. x ∈ A ⟹ P.[x] ⟹ (∀y ∈ A. P.[y] ⟹ y = x) ⟹ Q then Q;
+		lemma ex1_elim: if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y < a. P.[y] ⟹ y = x) ⟹ Q then Q;
 			apply ex1[unfolded ex1_iff, THEN ex.elim];
 			unfold and_imp_iff_imp_imp;
 			- for x;
@@ -289,9 +291,8 @@ begin
 			note TheIn_intro: TheIn_eq_intro[THEN eq.sym].
 		end
 	end
-
-	theory UnrestrictedComprehension:
-		import UnrestrictedComprehension.
+	theory INCONSISTENT_UnrestrictedComprehension:
+		import INCONSISTENT_UnrestrictedComprehension.
 	begin
 		interpret .Membership.
 		---

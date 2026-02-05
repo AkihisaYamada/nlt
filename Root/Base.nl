@@ -34,6 +34,7 @@ syntax SOME _ ∈ _. _ := SOME.∈.
 infix ⊆ 51 51 50.
 syntax ∀_ ⊆ _. _ := ∀⊆.
 syntax ∃_ ⊆ _. _ := ∃⊆.
+syntax ∃!_ ⊆ _. _ := ∃!⊆.
 
 infix = 51 51 50.
 infix ≡ 51 51 50.
@@ -48,10 +49,12 @@ infix ⊃ 51 51 50.
 infix < 51 51 50.
 syntax ∀_ < _. _ := ∀<.
 syntax ∃_ < _. _ := ∃<.
+syntax ∃!_ < _. _ := ∃!<.
 
 infix ≤ 51 51 50.
 syntax ∀_ ≤ _. _ := ∀≤.
 syntax ∃_ ≤ _. _ := ∃≤.
+syntax ∃!_ ≤ _. _ := ∃!≤.
 
 infix > 51 51 50.
 infix ≥ 51 51 50.
