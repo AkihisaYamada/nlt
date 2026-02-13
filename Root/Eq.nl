@@ -111,6 +111,42 @@ theory If:
 begin
 end
 
+theory Pair: --- Syntactic Pairing ---
+	fix (,) fst snd.
+	assume fst(simp) fst (x,y) = x.
+	assume snd(simp) snd (x,y) = y.
+begin
+	interpret pair: MetaInjective (,);
+		- for x x' if eq: (,) x = (,) x' then x = x';
+			have 1: fst (x,x) = fst (x',x);
+				unfold eq.
+			by 1[unfolded fst].
+		.
+	lemma pair_eq_pair_intro: if x: x = x', y: y = y' then (x,y) = (x',y');
+		simp x y.
+	lemma pair_eq_pair_elim1: if eq: (x,y) = (x',y') then x = x';
+		have 1: x = fst (x,y).
+		apply eq.trans[OF 1];
+		have 2: fst (x,y) = fst (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: fst (x',y') = x';
+			unfold fst.
+		by eq.trans[OF 3].
+
+	lemma pair_eq_pair_elim2: if eq: (x,y) = (x',y') then y = y';
+		have 1: y = snd (x,y);
+			unfold snd.
+		apply eq.trans[OF 1];
+		have 2: snd (x,y) = snd (x',y');
+			unfold eq.
+		apply eq.trans[OF 2];
+		have 3: snd (x',y') = y';
+			unfold snd.
+		by eq.trans[OF 3].
+
+end
+
 theory Ex1:
 	fix (∃!).
 	assume ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x].
@@ -121,6 +157,12 @@ begin
 		- for x if Px;
 			by ex1_intro1[OF Px].
 		.
+end
+
+theory UniqueChoice:
+	import Ex1.
+	import Pair.
+	assume unique_choice: if ∀x. ∃!y. P.[x,y] then ∃f. ∀x. P.[x, f x].
 end
 
 theory The:
@@ -137,14 +179,6 @@ begin
 			unfold 1[OF Px].
 		.
 	note eq_THE_intro: THE_eq_intro[THEN eq.sym].
-end
-
-theory Iff:
-	import Iff.
-begin
-	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
-		unfold[on (=)] eq;
-		.
 end
 
 theory Membership:
@@ -176,6 +210,76 @@ begin
 	end
 end
 
+theory Iff:
+	import Iff.
+begin
+	namespace iff:
+		interpret eq: iff.MetaCommutative (=);
+			by iff_intro[OF eq.sym eq.sym].
+	end
+	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
+		unfold[on (=)] eq;
+		.
+	lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
+		apply iff_intro;
+		- if all;
+			apply all.
+		- if Pa: P.[a], xa: x = a;
+			note(cong) eq.cong_meta[of P].
+			by Pa #unfold xa.
+		.
+	theory AllRel:
+		import AllRel.
+	begin
+		lemma all_cong:
+			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
+			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);
+			apply iff_intro;
+			- if Pa;
+				apply all_intro;
+				by all_elim1[OF Pa, unfolded ab] #fold PQ.
+			- if Qb;
+				apply all_intro;
+				by all_elim1[OF Qb] #unfold ab PQ.
+			.
+		lemma all_eq_imp_iff: (∀x < a. x = b ⟹ P.[x]) ⟺ (b < a ⟹ P.[b]);
+			have 1: (∀x < a. x = b ⟹ P.[x]) ⟺ (∀x. x = b ⟹ x < a ⟹ P.[x]);
+				unfold all_def;
+				by iff_intro.
+			unfold 1;
+			unfold all_eq_imp_iff.
+	end
+	theory ExRel:
+		import ExRel.
+	begin
+		lemma ex_cong:
+			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
+			then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
+			apply iff_intro;
+			- if Pa;
+				apply ex_elim[OF Pa];
+				- for x;
+					by ex_intro1[of x] #unfold ab #fold PQ.
+				.
+			- if Qb;
+				apply ex_elim[OF Qb];
+				- for x;
+					by ex_intro1[of x] #unfold ab PQ.
+				.
+			.
+		lemma ex_eq_iff: (∃x < a. x = b) ⟺ b < a;
+			apply iff_intro;
+			- if ex;
+				apply ex_elim[OF ex];
+				- if xa: x < a, xb: x = b;
+					by xa[unfolded xb].
+				.
+			- if ba: b < a;
+				apply ex_intro1[OF ba].
+			.
+	end
+end
+
 theory Minimal:
 	import Iff.
 	import Minimal.
@@ -183,6 +287,15 @@ theory Minimal:
 begin
 	lemma eq_refl_iff(simp) x = x ⟺ true;
 		by iff_intro.
+	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
+		apply iff_intro;
+		simp;
+		note(cong) eq.cong_meta[of P].
+		- if xa: x = a, Px: P.[x];
+			by Px #fold xa.
+		- if Pa: P.[a];
+			by ex_intro1[of a] Pa.
+		.
 	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
 		apply ex1_elim[OF ex1];
 		- for x;
@@ -201,65 +314,67 @@ begin
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 		unfold ex1_iff iff.
-print.
-	theory AllRel:
-		import AllRel.
+
+	theory AllExRel:
+		import AllExRel.
 	begin
-		lemma cong:
-			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
-			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);
-			apply iff_intro;
-			- if Pa;
-				apply intro;
-				by elim1[OF Pa, unfolded ab] #fold PQ.
-			- if Qb;
-				apply intro;
-				by elim1[OF Qb] #unfold ab PQ.
-			.
+		lemma ex_eq_and_iff: (∃x < a. x = b ∧ P.[x]) ⟺ (b < a ∧ P.[b]);
+			have 1: (∃x < a. x = b ∧ P.[x]) ⟺ (∃x. x = b ∧ x < a ∧ P.[x]);
+				unfold ex_iff_ex;
+				apply .ex_cong;
+				by iff_intro.
+			unfold 1;
+			unfold and.assoc ex_eq_and_iff.
 	end
-	theory ExRel:
-		import ExRel.
-	begin
-		lemma cong:
-			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
-			then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
-			apply iff_intro;
-			- if Pa;
-				apply elim[OF Pa];
-				- for x;
-					by intro1[of x] #unfold ab #fold PQ.
-				.
-			- if Qb;
-				apply elim[OF Qb];
-				- for x;
-					by intro1[of x] #unfold ab PQ.
-				.
-			.
-	end
-print.
-	theory AllEx1Rel:
+
+	theory Ex1Rel:
 		import AllExRel.
 		fix (∃!<).
 		assume ex1_iff: (∃!x < a. P.[x]) ⟺ (∃x < a. P.[x] ∧ (∀y < a. P.[y] ⟹ y = x)).
 	begin
-		interpret all: .AllRel.
-		interpret ex: .ExRel.
-		note(cong) all.cong ex.cong.
-		lemma ex1_cong:
-			if eq: a = b, iff: ∀x. x < a ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
-			unfold ex1_iff iff; simp eq;.
+		interpret .Iff.AllRel.
+		interpret .Iff.ExRel.
+		note(cong) all_cong ex_cong.
+		lemma ex1_cong(cong)
+			if eq: a = b, iff: ∀x. x < b ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
+			simp ex1_iff eq iff;.
 		lemma ex1_intro1:
 			for x a P if Px: P.[x], x: x < a, uniq: ∀y < a. P.[y] ⟹ y = x then ∃!x < a. P.[x];
 			unfold ex1_iff;
-			by ex.intro1[of x] Px x uniq.
+			by ex_intro1[of x] Px x uniq.
 
-		lemma ex1_elim: if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y < a. P.[y] ⟹ y = x) ⟹ Q then Q;
-			apply ex1[unfolded ex1_iff, THEN ex.elim];
+		lemma ex1_elim:
+			if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y < a. P.[y] ⟹ y = x) ⟹ Q then Q;
+			apply ex1[unfolded ex1_iff, THEN ex_elim];
 			unfold and_imp_iff_imp_imp;
 			- for x;
 				by imp[of x].
 			.
+		lemma ex1_eq_and_iff: for P then (∃!x < a. x = b ∧ P.[x]) ⟺ b < a ∧ P.[b];
+			simp ex1_iff and.assoc ex_eq_and_iff;
+			by iff_intro.
+print.
+		lemma ex1_eq_iff: (∃!x < a. x = b) ⟺ b < a;
+			by ex1_eq_and_iff[of (x. true),simplified].
 	end
+	theory TheRel:
+		import Ex1Rel.
+		fix THE.<.
+		assume The_intro: (∃!x < a. P.[x]) ⟹ P.[THE x < a. P.[x]].
+		assume The_in: (∃!x < a. P.[x]) ⟹ (THE x < a. P.[x]) < a.
+	begin
+		lemma The_eq_intro: if ex1: ∃!y < a. P.[y], Px: P.[x], xa: x < a then (THE y < a. P.[y]) = x;
+			apply ex1_elim[OF ex1];
+			- for z if za: z < a, Pz: P.[z], 1: ∀y < a. P.[y] ⟹ y = z;
+				note imp: 1[unfolded all_def].
+				have zT: (THE x < a. P.[x]) = z;
+					by imp The_intro ex1 The_in.
+				unfold zT;
+				by Px xa #unfold imp.
+			.
+		note eq_The_intro: The_eq_intro[THEN eq.sym].
+	end
+
 	theory MetaReflexive:
 		import Minimal.MetaReflexive.
 	end
@@ -268,142 +383,62 @@ print.
 	begin
 		interpret .MetaReflexive.
 	end
-	theory Membership:
-		import Membership.
+
+	theory Pair:
+		import Pair.
 	begin
-		interpret in: AllEx1Rel (∈) (∀∈) (∃∈) (∃!∈).
-		interpret sub: AllEx1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
-		theory TheIn:
-			fix THE.∈.
-			import Ex1In.
-			assume TheIn_intro: (∃!x ∈ A. P.[x]) ⟹ P.[THE x ∈ A. P.[x]].
-			assume TheIn_in: (∃!x ∈ A. P.[x]) ⟹ (THE x ∈ A. P.[x]) ∈ A.
-		begin
-			lemma TheIn_eq_intro: if ex1: ∃!y ∈ A. P.[y], Px: P.[x], xA: x ∈ A then (THE y ∈ A. P.[y]) = x;
-				apply in.ex1_elim[OF ex1];
-				- for z if zA: z ∈ A, Pz: P.[z], 1: ∀y ∈ A. P.[y] ⟹ y = z;
-					note imp: 1[unfolded in.all.iff].
-					have zT: (THE x ∈ A. P.[x]) = z;
-						by imp TheIn_intro ex1 TheIn_in.
-					unfold zT;
-					by Px xA #unfold imp.
-				.
-			note TheIn_intro: TheIn_eq_intro[THEN eq.sym].
-		end
-	end
-	theory INCONSISTENT_UnrestrictedComprehension:
-		import INCONSISTENT_UnrestrictedComprehension.
-	begin
-		interpret .Membership.
-		---
-		Let us call terms of form `{x. P.[x]}` *collections*.
-		---
-		obtain COLLECT where COLLECT_def: COLLECT = {C. ∃P. C = {x. P.[x]}};
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-
-		lemma in_COLLECT_iff_ex: X ∈ COLLECT ⟺ (∃P. X = {x. P.[x]});
-			unfold COLLECT_def in_Collect_iff;.
-
-		lemma Collect_in_COLLECT: {x. P.[x]} ∈ COLLECT;
-			unfold in_COLLECT_iff_ex;
-			apply ex_intro;
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-
-		lemma COLLECT_elim: if A: A ∈ COLLECT, assm: ∀P. A = {x. P.[x]} ⟹ Q then Q;
-			apply A[unfolded in_COLLECT_iff_ex, THEN ex_elim, OF assm].
-
-		syntax {} := empty.
-		obtain empty where empty_def: {} = {x. false};
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-		lemma in_empty_iff(simp) x ∈ {} ⟺ false;
-			simp empty_def in_Collect_iff.
-
-		obtain UNIV where UNIV_def: UNIV = {x. true};
-			- for thesis if assm;
-				apply assm[OF eq.refl].
-			.
-		lemma in_UNIV: x ∈ UNIV;
-			unfold UNIV_def in_Collect_iff.
-		lemma in_UNIV_iff(simp) x ∈ UNIV ⟺ true;
-			by iff_intro in_UNIV.
-
-		---
-		We will take `(=)` as the equivalence in `COLLECT`.
-		---
-		namespace COLLECT:
-			interpret Equivalence COLLECT (=);
-				-; .
-				- if xy: x = y; unfold xy.
-				- if xy: x = y; unfold xy.
-				.
-			interpret empty: Member {} COLLECT;
-				by empty_def(simp) Collect_in_COLLECT.
-			interpret UNIV: Member UNIV COLLECT;
-				by UNIV_def(simp) Collect_in_COLLECT.
-		end
-
-		---
-		The collections form a collection -- leading to Girard's paradox.
-		---
-		lemma COLLECT_COLLECT: COLLECT ∈ COLLECT;
-			unfold[at 0 0 0] COLLECT_def;
-			by Collect_in_COLLECT.
-
-	end
-
-	theory Collection:
-		import Collect.
-		assume Collect_ext(cong) if ∀x. P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]}.
-	begin
-
-		lemma Collect_eq_iff: {x. P.[x]} = {x. Q.[x]} ⟺ (∀x. P.[x] ⟺ Q.[x]);
+		lemma pair_eq_pair(simp) (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
 			- if eq;
-				fold in_Collect_iff;
-				unfold eq.
-			apply Collect_ext>0.
-
-		lemma Collect_in_eq: if A: A ∈ COLLECT then {x. x ∈ A} = A;
-			apply COLLECT_elim[OF A];
-			- for P if (simp);
-				simp in_Collect_iff.
+				by pair_eq_pair_elim1[OF eq] pair_eq_pair_elim2[OF eq].
+			simp;
+			- if x, y;
+				simp x y.
 			.
-
-		lemma COLLECT_eq_iff: if A: A ∈ COLLECT, B: B ∈ COLLECT then A = B ⟺ (∀x. x ∈ A ⟺ x ∈ B);
-			apply COLLECT_elim[OF A];
-			- for P if (simp);
-				apply COLLECT_elim[OF B];
-				- for Q if (simp);
-					simp Collect_eq_iff in_Collect_iff.
-				.
+	end
+	theory Membership:
+		import Membership.
+		import in: Ex1Rel (∈) (∀∈) (∃∈) (∃!∈).
+		import sub: Ex1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
+	begin
+		note(cong) in.all_cong in.ex_cong in.ex1_cong sub.all_cong sub.ex_cong sub.ex1_cong.
+		note(simp) in.ex_imp_iff sub.ex_imp_iff.
+	end
+	theory Prod: --- Product Class ---
+		import Membership.
+		import .Pair.
+		fix (×).
+		assume in_prod_iff: p ∈ A × B ⟺ (∃x ∈ A. ∃y ∈ B. p = (x,y)).
+	begin
+		lemma pair_in_prod_iff(simp) (x,y) ∈ A × B ⟺ x ∈ A ∧ y ∈ B;
+			apply iff_intro;
+			simp in_prod_iff;
+			- if x': x' ∈ A, y': y' ∈ B, xx': x = x', yy': y = y';
+				by x' y' #unfold xx' yy'.
+			- if x: x ∈ A, y: y ∈ B;
+				by in.ex_intro1[OF x] in.ex_intro1[OF y].
 			.
+		lemma pair_in_prod: if x: x ∈ A, y: y ∈ B then (x,y) ∈ A × B;
+			unfold in_prod_iff;
+			apply in.ex_intro1[OF x] in.ex_intro1[OF y].
 
 	end
 
 	theory Propositional:
-		fix Prop EQTYPE.
 		import Propositional.
 		import .Membership.
-		assume eq_type: if A ∈ EQTYPE then (=) ∈ A → A → Prop.
+		fix Eq.
+		assume eq_type: (=) ∈ Eq → Eq → Prop.
 	begin
-		lemma eq_prop: if A: A ∈ EQTYPE, x: x ∈ A, y: y ∈ A then (x = y) ∈ Prop;
-			by eq_type[OF A, THEN fun_elim1, THEN fun_elim1] x y.
+		lemma eq_prop: if x: x ∈ Eq, y: y ∈ Eq then (x = y) ∈ Prop;
+			by eq_type[THEN fun_elim1, THEN fun_elim1] x y.
 	end
 
 	theory FirstOrder:
 		import Propositional.
 		import FirstOrder.
-		import Ex1In.
-		assume ex1In_type: if A ∈ EQTYPE, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
+		assume ex1In_type: if A ⊆ Eq, ∀x ∈ A. P.[x] ∈ Prop then (∃!x ∈ A. P.[x]) ∈ Prop.
 	begin
-		interpret AllIn.
-		interpret ExIn.
 	end
 
 	theory HigherOrder:
@@ -418,52 +453,4 @@ theory Intuitionistic:
 	import Minimal.
 	import Intuitionistic.
 begin
-	namespace iff:
-		interpret eq: iff.MetaCommutative (=);
-			by iff_intro[OF eq.sym eq.sym].
-	end
-end
-
-theory Ext:
-	assume ext: if ∀x ∈ A. f x = g x, A ∈ EQTYPE, B ∈ EQTYPE, f ∈ A → B, g ∈ A → B
-	then f = g.
-end
-
-theory Pair: --- Syntactic Pairing ---
-	fix (,) fst snd.
-	assume fst(simp) fst (x,y) = x.
-	assume snd(simp) snd (x,y) = y.
-begin
-	interpret pair: MetaInjective (,);
-		- for x x' if eq: (,) x = (,) x' then x = x';
-			have 1: fst (x,x) = fst (x',x);
-				unfold eq.
-			by 1[unfolded fst].
-		.
-	lemma pair_eq_pair_imp1: if eq: (x,y) = (x',y') then x = x';
-		have 1: x = fst (x,y).
-		apply eq.trans[OF 1];
-		have 2: fst (x,y) = fst (x',y');
-			unfold eq.
-		apply eq.trans[OF 2];
-		have 3: fst (x',y') = x';
-			unfold fst.
-		by eq.trans[OF 3].
-
-	lemma pair_eq_pair_imp2: if eq: (x,y) = (x',y') then y = y';
-		have 1: y = snd (x,y);
-			unfold snd.
-		apply eq.trans[OF 1];
-		have 2: snd (x,y) = snd (x',y');
-			unfold eq.
-		apply eq.trans[OF 2];
-		have 3: snd (x',y') = y';
-			unfold snd.
-		by eq.trans[OF 3].
-
-	theory UniqueChoice:
-		import Ex1.
-		assume unique_choice: if ∀x. ∃!y. P.[(x,y)] then ∃f. ∀x. P.[(x, f x)].
-	end
-
 end

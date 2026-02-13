@@ -17,7 +17,7 @@ theorem Curry_paradox_eq: P;-- Any term is provable
 		by R_def.
 	have nRR: if RR: R R then P;
 		by RR[unfolded RR_eq_nRR] RR.
-	have RR;
+	have RR: R R;
 		by nRR[folded RR_eq_nRR].
 	by nRR[OF RR].
 

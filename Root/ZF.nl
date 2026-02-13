@@ -5,18 +5,16 @@ We formalize intuitionistic ZF set theory in a conservative axiomatic form.
 There, operations to derive sets from others are not explicit, but
 only the existence of the resulting sets is axiomatized.
 
-We base on the first order logic defined via abbreviation.
----
-import Abbreviation.
-import FirstOrder.
-
----
+We base on the minimal first order equational logic, where
 `Set` is the (sole) quantifiable and equational type.
 ---
+print.
+import Eq.
+import Minimal.
 fix Set.
-
-assume Set_EQTYPE! Set ∈ EQTYPE. -- One can equate sets.
-
+import FirstOrder;
+	instantiate Eq := Set.
+	.
 ---
 Membership between sets is a proposition.
 ---
@@ -31,8 +29,8 @@ assume extensionality_axiom: ∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A 
 As an inference rule:
 ---
 lemma set_eq_intro: if eq: ∀x. x ∈ Set ⟹ x ∈ A ⟺ x ∈ B, A! A ∈ Set, B! B ∈ Set then A = B;
-	apply extensionality_axiom[THEN allIn_elim1, OF A, THEN allIn_elim1, OF B];
-	by allIn_intro eq.
+	apply extensionality_axiom[THEN in.all_elim1, OF A, THEN in.all_elim1, OF B];
+	by in.all_intro eq.
 
 ---
 ### Empty set
@@ -41,10 +39,9 @@ The empty set is specified by an existential axiom (of type `Prop`):
 ---
 assume ex_empty: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
-syntax {} := Empty.
-obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
+obtain _empty where empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 	- for thesis if assm;
-		apply exIn_elim[OF ex_empty];
+		apply in.ex_elim[OF ex_empty];
 		- for e;
 			by assm[of e].
 		.
@@ -53,98 +50,141 @@ obtain Empty where Empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {
 ---
 ### Unordered pairs
 
-We need to admit more assumptions for more constructions;
-for instance, the unordered pair $\{x,y\}$ is axiomatized by
+The unordered pair $\{x,y\}$ is axiomatized by:
 ---
 assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
 ---
-Informally, then one assumes granted a binary operator which,
-given `x` and `y` as arguments, denotes the (unique) `z`.
-For given `x` and `y`, we can use `THE` operator to denote the `z`:
+One can prove such `z` is unique:
 ---
-import TheIn.
----
----
-note! ex1In_type TheIn_in.
-print.
 lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	apply upair_axiom[unfolded+ allIn_iff, OF x y, THEN exIn_elim];
+	apply upair_axiom[unfolded+ in.all_def, OF x y, THEN in.ex_elim];
 	- for z if z! z ∈ Set, zall;
-		apply ex1In_intro1[of z];
-		-; by zall.
-		-; by z.
-		-; apply allIn_intro;
+		apply in.ex1_intro1[of z];
+		- by in.all_intro zall.
+		- by z.
+		- apply in.all_intro;
 			- for z' if !, z'all;
 				apply set_eq_intro;
 				- for w if w!;
-					unfold z'all[unfolded allIn_iff] zall.
+					unfold z'all[unfolded in.all_def] zall.
 				.
 			.
 		.
 	.
 ---
-Since we have admitted abbreviations and `THE` operator, we can obtain the function for unordered pair.
+Usual formulations of ZF then introduces a binary operator which,
+given `x` and `y` as arguments, denotes the (unique) such `z`.
+In Naive Logic, this assumption must be explicitly formalized.
+We do so by a binary unique choice axiom schema.
 ---
+import Pair.
+
+assume unique_choice2_set:
+	if ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. P.[x,y,z]
+	then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. P.[x, y, f x y].
+
+lemma abbrev2_set:
+	if F: ∀x ∈ Set. ∀y ∈ Set. F.[x,y] ∈ Set then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. f x y = F.[(x,y)];
+	note(cong) eq.cong_meta[of F].
+	apply unique_choice2_set[of (t. snd (snd t) = F.[fst t, fst (snd t)]), simplified in.ex1_eq_iff] F.
+
 obtain upair where
-	upair_Set! if x ∈ Set, y ∈ Set then upair x y ∈ Set,
+	upair_type: upair ∈ Set → Set → Set,
 	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
-	- for thesis if assm;
-		apply abbrev2[of (p. THE u ∈ Set. ∀z ∈ Set. z ∈ u ⟺ z = fst p ∨ z = snd p)];
-		- for f if f;
-			apply assm[of f];
-			-; by f(simp) TheIn_in ex1_upair.
-			- if ! x ∈ Set, ! y ∈ Set, ! z ∈ Set;
-				note 1: TheIn_intro[of Set (u. ∀ z ∈ Set. z ∈ u ⟺ z = fst (x , y) ∨ z = snd (x , y)), simplified, folded f].
-				apply 1[THEN allIn_elim1];
-				apply ex1_upair.
-			.
-		.
+- for thesis if assm;
+	apply unique_choice2_set[of (t. ∀w ∈ Set. w ∈ snd (snd t) ⟺ w = fst t ∨ w = fst (snd t)), THEN in.ex_elim];
+	simp;
+	- by in.all_intro ex1_upair.
+	- for f if ty, f;
+		apply assm[OF ty];
+		by f[unfolded+ in.all_def].
 	.
+.
+
+lemma upair_Set! if x: x ∈ Set, y: y ∈ Set then upair x y ∈ Set;
+	apply upair_type[THEN fun_elim1, THEN fun_elim1] x y.
+
+---
+## Singleton
+
+Unary unique choice is derivable from the binary one.
+Note that the converse requires Currying.
+---
+lemma unique_choice_set:
+	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
+	then ∃f ∈ Set → Set. ∀x ∈ Set. P.[x, f x];
+-	apply unique_choice2_set[of (t. P.[snd t]), THEN in.ex_elim];
+	note(cong) eq.cong_meta[of P].
+	simp;
+	-	apply in.all_intro;
+		by ex1.
+	- for f2 if ty, assm;
+		apply in.ex_intro1[of (f2 {})];
+		- apply fun_elim1[OF ty].
+		by in.all_intro assm[THEN in.all_elim1, THEN in.all_elim1].
+	.
+.
+lemma abbrev_set:
+	if F: ∀x ∈ Set. F.[x] ∈ Set then ∃f ∈ Set → Set. ∀x ∈ Set. f x = F.[x];
+	note(cong) eq.cong_meta[of F].
+	by unique_choice_set[of (p. snd p = F.[fst p]), simplified in.ex1_eq_iff] F.
+
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
-syntax {_} := singleton.
-obtain singleton where
+obtain Base.Singleton where
 	singleton_Set! if x ∈ Set then {x} ∈ Set,
 	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
-	- for thesis if assm;
-		apply abbrev[of (x. upair x x)];
-		- for f if f;
-			apply assm[of f, unfolded f];
-			-; .
-			- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
-				unfold upair_iff iff.or.idem;
-				by iff.eq.commute.
-			.
+- for thesis if assm;
+	apply abbrev_set[of (x. upair x x), THEN in.ex_elim];
+	- by in.all_intro.
+	- for f if ty, f;
+		apply assm[of f, unfolded f[THEN in.all_elim1]];
+		- .
+		- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
+			unfold upair_iff iff.or.idem;
+			by iff.eq.commute.
 		.
 	.
+.
+---
+Standard formulations of ZF "define" pairs using unordered pairs,
+but formalizing the unique choice axiom schema already requires syntactic pairing.
+So we just assume syntactic pairs of sets are sets.
+---
+assume pair_set: ∀x ∈ Set. ∀y ∈ Set. (x,y) ∈ Set.
+
 ---
 ### Power Set
 ---
 assume Pow_axiom: ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x).
 
 lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x);
-	apply Pow_axiom[THEN allIn_elim1, OF x, THEN exIn_elim];
+	apply Pow_axiom[THEN in.all_elim1, OF x, THEN in.ex_elim];
 	- for X if X!, Xspec;
-		apply ex1In_intro1[of X];
+		apply in.ex1_intro1[of X];
 		apply Xspec;
 		apply X;
-		apply allIn_intro;
+		apply in.all_intro;
 		- for X' if X'!, X'spec;
-			by set_eq_intro #unfold Xspec[THEN allIn_elim1] X'spec[THEN allIn_elim1].
+			by set_eq_intro #unfold Xspec[THEN in.all_elim1] X'spec[THEN in.all_elim1].
 		.
 	.
 
 obtain Pow where
-	Pow_Set! if x ∈ Set then Pow x ∈ Set,
+	Pow_type: Pow ∈ Set → Set,
 	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
-	- for thesis if assm;
-		apply abbrev[of (x. THE X ∈ Set. ∀y ∈ Set. y ∈ X ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x))];
-		- for f if f;
-			apply assm[of f];
-			by Pow_ex1[THEN TheIn_in, folded f] Pow_ex1[THEN TheIn_intro, folded f, THEN allIn_elim1].
-		.
+- for thesis if assm;
+	apply unique_choice_set[of (p. ∀y ∈ Set. y ∈ snd p ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ fst p)), THEN in.ex_elim];
+	simp;
+	- by in.all_intro Pow_ex1.
+	- for f if ty, f;
+		apply assm[OF ty];
+		unfold f[THEN in.all_elim1, THEN in.all_elim1].
 	.
+.
+
+note Pow_Set! Pow_type[THEN fun_elim1].
 
 ---
 ### Unions
@@ -152,58 +192,47 @@ obtain Pow where
 assume UN_axiom: ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w).
 
 lemma UN_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w);
-	apply UN_axiom[THEN allIn_elim1, OF x, THEN exIn_elim];
+	apply UN_axiom[THEN in.all_elim1, OF x, THEN in.ex_elim];
 	- for y if y!, yspec;
-		apply ex1In_intro1[of y];
-		-; apply yspec.
-		-; apply y.
-		apply allIn_intro;
+		apply in.ex1_intro1[of y];
+		- apply yspec.
+		- apply y.
+		apply in.all_intro;
 		- for y' if y'!, y'spec;
 			apply set_eq_intro;
 			- for z if z!;
-				unfold yspec[THEN allIn_elim1] y'spec[THEN allIn_elim1].
+				unfold yspec[THEN in.all_elim1] y'spec[THEN in.all_elim1].
 			.
 		.
 	.
 
 obtain (⋃) where
-	UN_Set! if x ∈ Set then ⋃x ∈ Set,
+	UN_type: (⋃) ∈ Set → Set,
 	UN_iff: if x ∈ Set, y ∈ Set then y ∈ ⋃x ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z);
 	- for thesis if assm;
-		apply abbrev[of (x. THE U ∈ Set. ∀y ∈ Set. y ∈ U ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z))];
-		- for f if f;
-			apply assm[of f];
-			by UN_ex1[THEN TheIn_in, folded f] UN_ex1[THEN TheIn_intro, folded f, THEN allIn_elim1].
+		apply unique_choice_set[of (p. ∀y ∈ Set. y ∈ snd p ⟺ (∃z ∈ Set. z ∈ fst p ∧ y ∈ z)), THEN in.ex_elim];
+		simp;
+		- by in.all_intro UN_ex1.
+		- for f if ty, f;
+			apply assm[OF ty];
+			unfold f[THEN in.all_elim1, THEN in.all_elim1].
 		.
 	.
 
+note UN_Set! UN_type[THEN fun_elim1].
+
 obtain (∪) where
-	cup_Set! if x ∈ Set, y ∈ Set then x ∪ y ∈ Set,
+	cup_type: (∪) ∈ Set → Set → Set,
 	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
 	- for thesis if assm;
-		apply abbrev2[of (p. ⋃(upair (fst p) (snd p)))];
-		- for (∪) if cup_def;
-			apply assm[of (∪), simplified cup_def];
-			-; .
+		apply abbrev2_set[of (p. ⋃(upair (fst p) (snd p))), THEN in.ex_elim];
+		simp;
+		- by in.all_intro.
+		- for (∪) if cup_type, cup_def;
+			apply assm[OF cup_type, simplified cup_def[THEN in.all_elim1, THEN in.all_elim1]];
 			- if x! x ∈ Set, y! y ∈ Set, z! z ∈ Set then x ∈ ⋃(upair y z) ⟺ x ∈ y ∨ x ∈ z;
 				unfold UN_iff upair_iff;
-				apply iff_intro;
-				- if un;
-					apply un[THEN exIn_elim, simplified and_imp_iff_imp_imp];
-					- if w! w ∈ Set, or: w = y ∨ w = z, xw: x ∈ w then x ∈ y ∨ x ∈ z;
-						apply or_elim[OF or];
-						- if wy;
-							by or_iff_true1(simp) xw[unfolded wy].
-						- if wz;
-							by or_iff_true2(simp) xw[unfolded wz].
-						.
-					.
-				- if or;
-					apply or_elim[OF or];
-					-; by exIn_intro1[of y].
-					-; by exIn_intro1[of z].
-					.
-				.
+				simp or_and_distrib in.ex_or_distrib in.ex_eq_and_iff iff_true[OF x] iff_true[OF y] iff_true[OF z].
 			.
 		.
 	.
@@ -212,6 +241,46 @@ obtain (∪) where
 ### Infinity
 ---
 assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
+
+---
+### Replacement
+---
+assume replacement_schema:
+	if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
+	then ∀w ∈ Set. ∃v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]).	
+
+lemma replacement_ex1:
+	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w! w ∈ Set
+	then ∃!v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]);
+-	apply replacement_schema[OF ex1, THEN in.all_elim1, OF w, THEN in.ex_elim];
+	- for v if v! v ∈ Set, in_v: ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,r]);
+		apply+ in.ex1_intro1[of v] in.all_intro;
+		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,x]);
+			by in_v[THEN in.all_elim1].
+		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,r]) then x = v;
+			by set_eq_intro #unfold in_v[THEN in.all_elim1] in_x[THEN in.all_elim1].
+		.
+	.
+.
+
+obtain Replace where
+	Replace_Set! if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w ∈ Set then Replace P w ∈ Set,
+	Replace_iff: if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w ∈ Set, r ∈ Set
+		then r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]);
+- for thesis if assm;
+	apply unique_choice2_set[of (t. fst t)]
+
+
+	apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
+	- for f if f;
+		apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib, unfolded and_imp_iff_imp_imp];
+		- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
+			have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
+				by replacement_ex1[OF P ex1 w].
+			by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
+		.
+	.
+.
 
 ---
 ### Separation Schema
@@ -226,64 +295,27 @@ assume separation_schema:
 lemma separation_ex1:
 	if p: p ∈ Set → Prop, x: x ∈ Set
 	then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ p z;
-	apply separation_schema[OF p, THEN allIn_elim1, OF x, THEN exIn_elim];
+	apply separation_schema[OF p, THEN in.all_elim1, OF x, THEN in.ex_elim];
 	- for y if y, yspec;
-		apply+ ex1In_intro1[of y] allIn_intro y;
-		-; by yspec[THEN allIn_elim1](simp).
+		apply+ in.ex1_intro1[of y] in.all_intro y;
+		- by yspec[THEN in.all_elim1](simp).
 		- for y' if y', y'spec;
-			by set_eq_intro y y' #unfold yspec[THEN allIn_elim1] y'spec[THEN allIn_elim1].
+			by set_eq_intro y y' #unfold yspec[THEN in.all_elim1] y'spec[THEN in.all_elim1].
 		.
 	.
 
 obtain separation where
-	separation_Set! if p ∈ Set → Prop, x ∈ Set then separation x p ∈ Set,
+	separation_type: if p ∈ Set → Prop then separation ∈ Set → Set → Set,
 	separation_iff: if p ∈ Set → Prop, x ∈ Set, z ∈ Set then z ∈ separation x p ⟺ z ∈ x ∧ p z;
 	- for thesis if assm;
-		apply abbrev2[of (p. THE y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst p ∧ snd p z)];
-		- for f if f;
+		apply unique_choice2_set[of (t. ∀z ∈ Set. z ∈ snd (snd t) ⟺ z ∈ fst t ∧ fst (snd t) z), THEN in.ex_elim];
+		simp;
+		- apply separation_ex1
+		- for f if ty, f;
 			apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib];
 			- if p: p ∈ Set → Prop, x: x ∈ Set;
 				have 1: ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst (x,p) ∧ snd (x,p) z;
 					by separation_ex1[OF p x].
-				by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
-			.
-		.
-	.
-
----
-### Replacement
----
-assume replacement_schema:
-	if P ∈ Set → Set → Prop
-	then (∀x ∈ Set. ∃!y ∈ Set. P x y) ⟹ ∀w ∈ Set. ∃v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r).
-
-lemma replacement_ex1:
-	if P! P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w! w ∈ Set
-	then ∃!v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r);
--- proof
-	apply replacement_schema[OF P ex1, THEN allIn_elim1, OF w, THEN exIn_elim];
-	note! P[THEN fun_elim1, THEN fun_elim1].
-	- for v if v! v ∈ Set, in_v: ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r);
-		apply+ ex1In_intro1[of v] allIn_intro;
-		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s x);
-			by in_v[THEN allIn_elim1].
-		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r) then x = v;
-			by set_eq_intro #unfold in_v[THEN allIn_elim1] in_x[THEN allIn_elim1].
-		.
-	.
--- qed
-
-obtain Replace where
-	Replace_Set! if P ∈ Set → Set → Prop, ∀x ∈ Set. ∃!y ∈ Set. P x y, w ∈ Set then Replace P w ∈ Set,
-	Replace_iff: if P ∈ Set → Set → Prop, ∀x ∈ Set. ∃!y ∈ Set. P x y, w ∈ Set, r ∈ Set
-		then r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P s r);
-	- for thesis if assm;
-		apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
-		- for f if f;
-			apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib, unfolded and_imp_iff_imp_imp];
-			- if P: P ∈ Set → Set → Prop, ex1: ∀x ∈ Set. ∃!y ∈ Set. P x y, w: w ∈ Set;
-				have 1: ∃! v ∈ Set. ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ snd (P,w) ∧ fst (P,w) s r);
-					by replacement_ex1[OF P ex1 w].
 				by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
 			.
 		.

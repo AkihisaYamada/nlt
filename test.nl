@@ -1,4 +1,8 @@
-import INCONSISTENT_UnrestrictedAbbreviation.
+import NegativeTranslation.
+
+thy INCONSISTENT_UnrestrictedComprehension.
+thy INCONSISTENT_UnrestrictedPredicatization.
+thy INCONSISTENT_UnrestrictedAbbreviation.
 
 
 end

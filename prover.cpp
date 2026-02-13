@@ -410,13 +410,13 @@ public:
 			}
 		}
 	}
-	void print_goals( Thesis const& thesis, string pre = "goals " ) {
+	void print_goals( Thesis const& thesis, string pre = "goals:\n\t" ) {
 		Term acc = thesis.thm();
 		size_t i = 0;
 		while( i < thesis.goal_count() ) {
 			auto const& imp = acc.binary(IMP);
 			i++;
-			cout << pre << i << ": " << _thy.pretty(imp->first) << endl;
+			cout << pre << i << ". " << _thy.pretty(imp->first) << endl;
 			acc = imp->second;
 			pre = "\t";
 		}
@@ -538,17 +538,20 @@ public:
 		auto intp = _thy.thy(name,reader());
 		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
-			if( auto const& fix = intp.fixing() ) {
-				intp.instantiate(_thy.cterm(*t));
-			} else if( auto const& assume = intp.assuming() ) {
-				auto infer = _thy.resolver(_out_blast);
-				_auto_discharge(prefix,intp,*assume,change,infer);
-			} else if( auto const& obtain = intp.obtaining() ) {
-				auto infer = _thy.resolver(_out_blast);
-				_auto_retain(_thy,prefix,intp,*obtain,infer);
-			} else {
-				break;
+			for(;;) {
+				if( auto const& assume = intp.assuming() ) {
+					auto infer = _thy.resolver(_out_blast);
+					_auto_discharge(prefix,intp,*assume,change,infer);
+				} else if( auto const& obtain = intp.obtaining() ) {
+					auto infer = _thy.resolver(_out_blast);
+					_auto_retain(_thy,prefix,intp,*obtain,infer);
+				} else {
+					break;
+				}
 			}
+			auto const& fix = intp.fixing();
+			if( !fix ) throw Error("\"unexpected instantiation\"")(*t);
+			intp.instantiate(_thy.enclose(*t));
 		}
 		auto path = src.print_name();
 		bool success = true;
@@ -1187,7 +1190,8 @@ public:
 		if( skips("then") ) {
 			ret.concl = {get_term()};
 		}
-		ret.proof = _proof_follows();
+		ret.proof = skips(".") ? false :
+			ret.decls.empty() && !ret.concl ? true : (skip(";"), true);
 		return ret;
 	}
 	/** @return first whether the goal pattern matches, and then the theorem if the proof was not aborted. */
@@ -1425,14 +1429,14 @@ public:
 				bool more = _proof_follows();
 				resolver.rewrites(thesis,true,1,255,true,{},{});
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goals( thesis, "simplified goal " );
+				if MSG print_goals( thesis, "simplified goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_blast);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
 				bool more = _proof_follows();
 				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goals( thesis, mode == 2 ? "folded goal " : "unfolded goal " );
+				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
 				for(;;) {
@@ -1667,16 +1671,18 @@ public:
 		}
 	}
 	void _obtain( Thy& org_thy ) {
-		string sym = get_sym();
+		auto t = get_term(1000);
+		auto sym = t.sym();
+		if( !sym ) throw Error("\"expected a symbol\"")(t);
 		vector<CTerm> props;
 		vector<tuple<Opt<string>,Opt<ClaimStatus>,Thm>> prop_thms;
 		Thy thesis_thy = _thy.branch();
 		CTerm var = thesis_thy.fix("_thesis");
 		Thy goal_thy = thesis_thy.branch();
-		goal_thy.fix(sym);
+		goal_thy.fix(*sym);
 		auto props_thy = org_thy.branch();
-		props_thy.fix(sym);
-		if MSG cout << "obtaining " << sym;
+		props_thy.fix(*sym);
+		if MSG cout << "obtaining " << *sym;
 		if( skips("where") ) {
 			if MSG cout << " where" << endl;
 			for(;;) {
@@ -1703,16 +1709,16 @@ public:
 		auto const& thm = _prove(thesis);
 		_depth--;
 		if( thm ) {
-			auto [sym_term,deriver] = org_thy.obtain(sym,*thm,make_spec_name(string(sym)),true);
+			auto [sym_term,deriver] = org_thy.obtain(*sym,*thm,make_spec_name(*sym),true);
 			// deriver: ∀thesis. (p ⟹ ... ⟹ thesis) ⟹ thesis
 			for( auto const& [name,cs,prop_thm] : prop_thms ) {
 				auto const& arg = prop_thm.intro();// props... ⟹ prop_i
 				Thm prop = deriver << arg;// prop_i
 				add_claim(_thy,name,cs,prop);
 			}
-			if MSG cout << "obtained " << sym << endl;
+			if MSG cout << "obtained " << *sym << endl;
 		} else {
-			if ERR cout << "failed to obtain " << sym << endl;
+			if ERR cout << "failed to obtain " << *sym << endl;
 		}
 	}
 	void move_to_thy( Thy const& thy ) {

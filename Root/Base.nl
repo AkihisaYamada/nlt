@@ -28,8 +28,8 @@ syntax ∀_ ∈ _. _ := ∀∈.
 syntax ∃_ ∈ _. _ := ∃∈.
 syntax λ_ ∈ _. _ := λ∈.
 syntax ∃!_ ∈ _. _ := ∃!∈.
-syntax THE _ ∈ _. _ := THE.∈.
-syntax SOME _ ∈ _. _ := SOME.∈.
+syntax THE _ ∈ _. _ := _TheIn.
+syntax SOME _ ∈ _. _ := _SomeIn.
 
 infix ⊆ 51 51 50.
 syntax ∀_ ⊆ _. _ := ∀⊆.
@@ -50,11 +50,19 @@ infix < 51 51 50.
 syntax ∀_ < _. _ := ∀<.
 syntax ∃_ < _. _ := ∃<.
 syntax ∃!_ < _. _ := ∃!<.
+syntax THE _ < _. _ := _TheLt.
+syntax SOME _ < _. _ := _SomeLt.
 
 infix ≤ 51 51 50.
 syntax ∀_ ≤ _. _ := ∀≤.
 syntax ∃_ ≤ _. _ := ∃≤.
 syntax ∃!_ ≤ _. _ := ∃!≤.
+
+syntax {} := _empty.
+syntax {_} := _singleton.
+syntax {_. _} := _Collect.
+syntax {_ ∈ _. _} := _CollectIn.
+
 
 infix > 51 51 50.
 infix ≥ 51 51 50.
@@ -191,8 +199,8 @@ context MetaTransitive begin
 	interpret MetaMagmas (≤).
 
 	theory MetaCommNeutral:
-		import MetaLeftNeutral.
 		import MetaCommutative.
+		import MetaLeftNeutral.
 	begin
 		interpret MetaRightNeutral;
 			by trans[OF commute left_neutral].
@@ -204,17 +212,6 @@ context MetaTransitive begin
 	begin
 		interpret MetaRightAbsorb;
 			by trans[OF commute left_absorb].
-	end
-
-	theory MetaCommMonoid:
-		import MetaCommNeutral.
-		import MetaAssociative.
-	end
-
-	theory MetaCommMonoidAbsorb:
-		fix (*) (0) (1).
-		import MetaCommMonoid.
-		import MetaCommAbsorb.
 	end
 
 end
@@ -244,6 +241,17 @@ lemma make_elim:
 	if PQ: ∀x. P.[x] ⟹ Q.[x], P: P.[x], QR: Q.[x] ⟹ R then R;
 	by QR PQ P.
 
+theory And:
+	fix (∧).
+	assume and_intro! for P Q if P, Q then P ∧ Q.
+	assume and_elim1: if P ∧ Q then P.
+	assume and_elim2: if P ∧ Q then Q.
+begin
+	lemma and_elim(elim) if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
+		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
+	interpret and: MetaPartialEquivalence (∧).
+end
+
 theory Ex:
 	fix (∃).
 	assume ex_intro1: for x P if P.[x] then ∃x. P.[x].
@@ -258,21 +266,21 @@ end
 
 theory AllRel:
 	fix (∀<) (<).
-	assume intro! if ∀x. x < A ⟹ P.[x] then ∀x < A. P.[x].
-	assume elim1: if ∀x < A. P.[x], x < A then P.[x].
+	assume all_intro! if ∀x. x < A ⟹ P.[x] then ∀x < A. P.[x].
+	assume all_elim1: if ∀x < A. P.[x], x < A then P.[x].
 begin
-	lemma elim: if all: ∀x < A. P.[x], imp: (∀x. x < A ⟹ P.[x]) ⟹ Q then Q;
-		by imp elim1[OF all].
+	lemma all_elim: if all: ∀x < A. P.[x], imp: (∀x. x < A ⟹ P.[x]) ⟹ Q then Q;
+		by imp all_elim1[OF all].
 end
 
 theory ExRel:
 	fix (∃<) (<).
-	assume intro1: for x if x < A, P.[x] then ∃x < A. P.[x].
-	assume elim: if ∃x < A. P.[x], ∀x. x < A ⟹ P.[x] ⟹ Q then Q.
+	assume ex_intro1: for x if x < A, P.[x] then ∃x < A. P.[x].
+	assume ex_elim: if ∃x < A. P.[x], ∀x. x < A ⟹ P.[x] ⟹ Q then Q.
 begin
-	lemma intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
+	lemma ex_intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
 		apply assm;
 		- for x;
-			by intro1[of x].
+			by ex_intro1[of x].
 		.
 end

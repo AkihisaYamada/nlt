@@ -16,6 +16,13 @@ ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
 	if( _prefixes.contains(sym) || _binders.contains(sym) || _binder_of.contains(sym) || _infixes.contains(sym) ) {
 		return os << '(' << sym << ')';
 	}
+	if( auto const& x = _opener_of.finds(sym) ) {
+		auto const& opener = x->second;
+		auto const& op = _openers.finds(opener)->second;
+		if( op.empty.contains(sym) ) {
+			return os << opener << op.closer;
+		}
+	}
 	return os << sym;
 }
 
@@ -115,7 +122,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 		}
 		return os;
 	} else if( auto fix = term.unbind() ) {
-		return os << fix->first << ".[" << pretty(fix->second) << ']';
+		return os << fix->first << ".[" << pretty(fix->second,-1000) << ']';
 	} else {
 		assert(false);
 	}

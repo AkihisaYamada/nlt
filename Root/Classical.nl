@@ -14,8 +14,8 @@ begin
 
 lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P ∈ Prop, [Q ∈ Prop] then Q;
 	apply or_elim[OF excluded_middle[OF pP]];
-	-; by PQ.
-	-; by nPQ.
+	- by PQ.
+	- by nPQ.
 	.
 
 lemma nnot_iff: if [P ∈ Prop] then ¬¬P ⟺ P;
@@ -30,6 +30,6 @@ lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [P ∈ Prop, Q ∈ Prop] then P;
 	apply prop_cases[of P];
 	- if nP: ¬P;
 		have f: false;
-			by PQP[unfolded not_imp_iff_false[OF nP] false_imp_iff true_imp_iff].
+			by PQP[simplified not_imp_iff_false[OF nP]].
 		apply false_elim[OF f].
 	.

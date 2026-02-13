@@ -39,7 +39,7 @@ theory SubsetEq:
 	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
 	interpret MetaPreorder (⊆);
-		-; by subseteq_intro.
+		- by subseteq_intro.
 		- if AB: A ⊆ B, BC: B ⊆ C;
 			by subseteq_intro BC[THEN subseteq_elim1] AB[THEN subseteq_elim1].
 		.

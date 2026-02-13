@@ -1,12 +1,15 @@
 ---
 # Abbreviation
 
-This fundamental theory assumes binary abbreviation, which is sufficient for obtaining logic.
+This theory assumes binary abbreviation of objects.
 To formulate binary abbreviation, we need syntactic equality and syntactic pairs.
 ---
 import Eq.
+import Minimal.
+assume ex_fun: for F A B if ∀x ∈ A. F.[x] ∈ B then ∃f. ∀x ∈ A. f x = F.[x].
 import Pair.
-assume abbrev2: if ∀f. (∀x y. f x y = F.[(x,y)]) ⟹ P then P.
+
+assume abbrev2: for F if ∀f. (∀x y. object F.[x,y] ⟹ f x y = F.[x,y]) ⟹ P then P.
 
 begin
 
@@ -19,16 +22,16 @@ interpret UnaryAbbreviation;
 		.
 	.
 
-lemma abbrev3: if assm: ∀f. (∀x y z. f x y z = F.[(x,y,z)]) ⟹ P then P;
-	apply abbrev2[of (t. F.[(fst (fst t), snd (fst t), snd t)])];
+lemma abbrev3: if assm: ∀f. (∀x y z. f x y z = F.[x,y,z]) ⟹ P then P;
+	apply abbrev2[of (t. F.[fst (fst t), snd (fst t), snd t])];
 	- for f2 if (simp);
 		apply abbrev2[of (p. f2 p)];
 		- for f3 if (simp);
 			by assm[of f3] #cong eq.cong_meta[of F].
 		.
 	.
-lemma abbrev4: if assm: ∀f. (∀x y z w. f x y z w = F.[(x,y,z,w)]) ⟹ P then P;
-	apply abbrev2[of (t. F.[(fst (fst (fst t)), snd (fst (fst t)), snd (fst t), snd t)])];
+lemma abbrev4: if assm: ∀f. (∀x y z w. f x y z w = F.[x,y,z,w]) ⟹ P then P;
+	apply abbrev2[of (t. F.[fst (fst (fst t)), snd (fst (fst t)), snd (fst t), snd t])];
 	- for f2 if (simp);
 		apply abbrev2[of (p. f2 p)];
 		- for f3 if (simp);

@@ -71,7 +71,8 @@ public:
 	bool operator&&( std::function<bool(T const&)> f ) const& {
 		return *this && f(*_opt);
 	}
-	bool contains( T const& other ) const {
+	template<typename U>
+	bool contains( U const& other ) const {
 		return *this && **this == other;
 	}
 	template<typename U>

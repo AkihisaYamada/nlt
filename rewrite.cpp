@@ -503,16 +503,24 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
 	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
-	if( !steps ) return false;
-	auto imp = thy.weaken(o->second.thm);// x = y ⟹ φ ⟹... y ⟹ x
-	imp = imp << *steps; // φθ ⟹... t ⟹ s
-	auto conds = o->second.conds;
-	for( size_t i = 0; i < conds; i++ ) {
-		imp = imp.discharge(prove(thy,imp.cbinary(IMP)->first,false));
-	}// t ⟹ s
-	thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
-	if( log > 1 ) _log() << "rewritten goal to: " << thesis << endl;
-	return true;
+	bool ret = steps;
+	if( ret ) {
+		auto imp = thy.weaken(o->second.thm);// x = y ⟹ φ ⟹... y ⟹ x
+		imp = imp << *steps; // φθ ⟹... t ⟹ s
+		auto conds = o->second.conds;
+		for( size_t i = 0; i < conds; i++ ) {
+			imp = imp.discharge(prove(thy,imp.cbinary(IMP)->first,false));
+		}// t ⟹ s
+		thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
+	}
+	if( thesis.push() ) {
+		if( rewrites(thesis,simp,0,max,normalize,pos,rel) ) {
+			ret = true;
+		}
+		thesis.pop();
+	}
+	if( log > 1 ) _log() << "rewritten thesis to: " << thesis << endl;
+	return ret;
 }
 Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
 	size_t ind = rew->_default_ind;
