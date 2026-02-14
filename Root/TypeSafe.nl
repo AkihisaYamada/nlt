@@ -229,6 +229,8 @@ theory Membership:
 	fix (⊆).
 	assume subseteq_iff_allIn: A ⊆ B ⟺ (∀x ∈ A. x ∈ B).
 	import sub: AllRel (⊆) (∀⊆).
+begin
+	note! in.all_intro.
 end
 
 theory RestrictedComprehension:

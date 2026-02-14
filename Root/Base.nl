@@ -10,7 +10,7 @@ begin -- Base doesn't have any axiom
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
-symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ → × ⋂ ⋃ ⋀ ⋁ ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
+symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ → × ⋅ ∘ • ⋂ ⋃ ⋀ ⋁ ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
 symbol solo ¬.
 
 infix ⟺ 1 1 0.
@@ -79,9 +79,11 @@ infix × 111 110 110.
 
 infix + 100 101 100.
 infix - 100 101 100.
-infix * 110 111 110.
-infix / 110 111 110.
-infix \ 111 111 110.
+infix ⋅ 191 190 190.
+infix * 200 201 200.
+infix / 200 201 200.
+infix \ 201 200 200.
+infix ^ 300 301 300.
 
 ---
 ## Properties of Untyped Binary Relations
@@ -314,7 +316,7 @@ begin
 end
 
 theory AllRel:
-	fix (∀<) (<).
+	fix (<) (∀<).
 	assume all_intro! if ∀x. x < A ⟹ P.[x] then ∀x < A. P.[x].
 	assume all_elim1: if ∀x < A. P.[x], x < A then P.[x].
 begin
@@ -323,7 +325,7 @@ begin
 end
 
 theory ExRel:
-	fix (∃<) (<).
+	fix (<) (∃<).
 	assume ex_intro1: for x if x < A, P.[x] then ∃x < A. P.[x].
 	assume ex_elim: if ∃x < A. P.[x], ∀x. x < A ⟹ P.[x] ⟹ Q then Q.
 begin

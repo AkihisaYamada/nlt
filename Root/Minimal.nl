@@ -17,7 +17,6 @@ begin
 ---
 ## Disjunction
 ---
-print.
 lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	apply assm.
 

@@ -426,7 +426,7 @@ public:
 				} else {
 					auto [ind,rel,rule] = loc.rewriter()->make_rule(thm,false);
 					info = {rule};
-					loc.add_thm(Thy::REWRITE+rel,thm,rule);
+					loc.add_thm(Thy::REWRITE+rel,thm,info);
 				}
 			}
 			if( cs->fold ) {

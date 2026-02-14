@@ -10,7 +10,7 @@ disjunction and existential quantifier by certain forms.
 Since we have not introduced convenient methods such as equality to specify such, we use axioms to do so.
 ----
 import Eq.
-import Intuitionistic.
+import Minimal.
 import FirstOrder.
 print.
 
@@ -58,7 +58,7 @@ lemma DN_iff: if [P ∈ Prop] then P ∈ DN ⟺ (¬¬P ⟺ P);
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
-interpret DN: Classical;
+interpret DN: Typed;
 goals.
 	instantiate (∨) := nnot_or, (∃∈) := nnot_ex, Prop := DN.
 	- unfold in_DN_iff not_true_iff not_false_iff.

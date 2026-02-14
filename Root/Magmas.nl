@@ -11,14 +11,7 @@ theory Compatible:
 begin
 	lemma cong:
 		if !x ∈ A, !y ∈ A, ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
-	--
 		apply comp.
-
-end
-
-theory Associative:
-	fix A (*).
-	assume assoc: if x ∈ A, y ∈ A, z ∈ A then x * y * z = x * (y * z).
 end
 
 theory Commutative:
@@ -32,13 +25,33 @@ theory Idempotent:
 end
 
 theory LeftCancellative:
-	fix A (*).
-	assume left_cancels: if x * y = x * y', x ∈ A, y ∈ A, y' ∈ A then y = y'.
+	fix A B (*).
+	assume left_cancels: if x * y = x * y', x ∈ A, y ∈ B, y' ∈ B then y = y'.
 end
 
 theory RightCancellative:
-	fix A (*).
-	assume right_cancels: if x * y = x' * y, x ∈ A, x' ∈ A, y ∈ A then x = x'.
+	fix A B (*).
+	assume right_cancels: if x * y = x' * y, x ∈ A, x' ∈ A, y ∈ B then x = x'.
+end
+
+theory LeftAssociative:
+	fix A B (*) (⋅).
+	assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z = x ⋅ y ⋅ z.
+end
+
+theory RightAssociative:
+	fix A B (^) (*).
+	assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) = x ^ y ^ z.
+end
+
+theory LeftDistributive:
+	fix A B (*) (+).
+	assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) = x * y + x * z.
+end
+
+theory RightDistributive:
+	fix A B (+) (*).
+	assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z = x * z + y * z.
 end
 
 theory LeftAbsorb:
@@ -62,13 +75,13 @@ theory RightNeutral:
 end
 
 theory LeftCancel:
-	fix A (*) (\).
-	assume left_cancel: if x ∈ A, y ∈ A then x \ (x * y) = y.
+	fix A B (*) (\).
+	assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) = y.
 end
 
 theory RightCancel:
-	fix A (*) (/).
-	assume right_cancel: if x ∈ A, y ∈ A then (x * y) / y = x.
+	fix A B (*) (/).
+	assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y = x.
 end
 
 theory LeftInverse:
@@ -81,19 +94,9 @@ theory RightInverse:
 	assume right_inverse: if x ∈ A then x * inverse x = 1.
 end
 
-theory Semigroup:
-	import Magma.
-	import Associative.
-end
-
 theory CommMagma:
 	import Magma.
 	import Commutative.
-end
-
-theory CommSemigroup:
-	import CommMagma.
-	import Semigroup.
 end
 
 context PartialEquivalence begin
@@ -109,13 +112,13 @@ context PartialEquivalence begin
 		note! neutral.closed.
 		lemma right_neutral_is_neutral:
 			if all: ∀x. x ∈ A ⟹ x * e = x, !e ∈ A then e = 1;
-		--
-			have 1: e = 1 * e;
+		-	have 1: e = 1 * e;
 				apply sym;
 				by left_neutral.
 			have 2: 1 * e = 1;
 				by all.
 			by trans[OF 1 2].
+		.
 	end
 
 	theory MagmaRightNeutral:
@@ -127,13 +130,13 @@ context PartialEquivalence begin
 		note! neutral.closed.
 		lemma left_neutral_is_neutral:
 			if all: ∀x. x ∈ A ⟹ e * x = x, !e ∈ A then e = 1;
-		--
-			have 1: e = e * 1;
+		-	have 1: e = e * 1;
 				apply sym;
 				by right_neutral.
 			have 2: e * 1 = 1;
 				by all.
 			by trans[OF 1 2].
+		.
 	end
 
 	theory MagmaNeutral:
@@ -152,6 +155,22 @@ context PartialEquivalence begin
 				apply trans[OF 1];
 				apply left_neutral.
 			.
+	end
+
+	theory Semigroup:
+		import Magma.
+		import LeftAssociative A A (*) (*).
+	begin
+		interpret RightAssociative A A (*) (*);
+			- if ! x ∈ A, ! y ∈ A, ! z ∈ A;
+				apply sym;
+				apply left_assoc.
+			.
+
+	end
+	theory CommSemigroup:
+		import CommMagma.
+		import Semigroup.
 	end
 
 	theory Monoid:
@@ -250,10 +269,10 @@ context Equivalence begin
 		import Magma.
 		import lcancel: Magma A (\).
 		import lcancel: Compatible A (\).
-		import LeftCancel.
+		import LeftCancel A A.
 	begin
 		note! lcancel.closed.
-		interpret LeftCancellative;
+		interpret LeftCancellative A A;
 			- for x y y' if eq: x * y = x * y', !x ∈ A, !y ∈ A, !y' ∈ A then y = y';
 				have 1: y = x \ (x * y);
 					apply sym;
@@ -272,10 +291,10 @@ context Equivalence begin
 		import Magma.
 		import rcancel: Magma A (/).
 		import rcancel: Compatible A (/).
-		import RightCancel.
+		import RightCancel A A.
 	begin
 		note! rcancel.closed.
-		interpret RightCancellative;
+		interpret RightCancellative A A;
 			- for x y x' if eq: x * y = x' * y, !, !, ! then x = x';
 				have 1: x = x * y / y;
 					apply sym;
@@ -290,14 +309,14 @@ context Equivalence begin
 
 	theory LeftQuasiGroup:
 		import MagmaLeftCancel.
-		import lcancel: LeftCancel A (\) (*).
+		import lcancel: LeftCancel A A (\) (*).
 	begin
 --		interpret lcancel: MagmaLeftCancel (\) (*);
 	end
 
 	theory RightQuasiGroup:
 		import MagmaRightCancel.
-		import rcancel: RightCancel A (/) (*).
+		import rcancel: RightCancel A A (/) (*).
 	begin
 --		interpret rcancel: MagmaRightCancel (/) (*).
 	end
