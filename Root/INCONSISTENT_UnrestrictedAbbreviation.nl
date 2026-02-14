@@ -16,9 +16,9 @@ theorem Curry_paradox_eq: P;-- Any term is provable
 	have RR_eq_nRR: R R = (R R ⟹ P);
 		by R_def.
 	have nRR: if RR: R R then P;
-		by RR[unfolded RR_eq_nRR] RR.
+		by RR[unfold RR_eq_nRR] RR.
 	have RR: R R;
-		by nRR[folded RR_eq_nRR].
+		by nRR[fold RR_eq_nRR].
 	by nRR[OF RR].
 
 

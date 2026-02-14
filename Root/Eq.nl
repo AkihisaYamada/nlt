@@ -97,7 +97,7 @@ begin
 		- for x x' if eq: f x = f x';
 			have 1: f⁻ (f x) = f⁻ (f x');
 				unfold eq.
-			by 1[unfolded inverse].
+			by 1[unfold inverse].
 		.
 end
 
@@ -120,7 +120,7 @@ begin
 		- for x x' if eq: (,) x = (,) x' then x = x';
 			have 1: fst (x,x) = fst (x',x);
 				unfold eq.
-			by 1[unfolded fst].
+			by 1[unfold fst].
 		.
 	lemma pair_eq_pair_intro: if x: x = x', y: y = y' then (x,y) = (x',y');
 		simp x y.
@@ -237,7 +237,7 @@ begin
 			apply iff_intro;
 			- if Pa;
 				apply all_intro;
-				by all_elim1[OF Pa, unfolded ab] #fold PQ.
+				by all_elim1[OF Pa, unfold ab] #fold PQ.
 			- if Qb;
 				apply all_intro;
 				by all_elim1[OF Qb] #unfold ab PQ.
@@ -272,7 +272,7 @@ begin
 			- if ex;
 				apply ex_elim[OF ex];
 				- if xa: x < a, xb: x = b;
-					by xa[unfolded xb].
+					by xa[unfold xb].
 				.
 			- if ba: b < a;
 				apply ex_intro1[OF ba].
@@ -309,7 +309,7 @@ begin
 			apply ex1_elim[OF ex1]=.
 		- if ex;
 			apply ex1_intro;
-			apply ex[unfolded ex_iff and_imp_iff_imp_imp]=.
+			apply ex[unfold ex_iff and_imp_iff_imp_imp]=.
 		.
 	lemma ex1_cong_iff(cong)
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
@@ -345,7 +345,7 @@ begin
 
 		lemma ex1_elim:
 			if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y < a. P.[y] ⟹ y = x) ⟹ Q then Q;
-			apply ex1[unfolded ex1_iff, THEN ex_elim];
+			apply ex1[unfold ex1_iff, THEN ex_elim];
 			unfold and_imp_iff_imp_imp;
 			- for x;
 				by imp[of x].
@@ -353,9 +353,8 @@ begin
 		lemma ex1_eq_and_iff: for P then (∃!x < a. x = b ∧ P.[x]) ⟺ b < a ∧ P.[b];
 			simp ex1_iff and.assoc ex_eq_and_iff;
 			by iff_intro.
-print.
 		lemma ex1_eq_iff: (∃!x < a. x = b) ⟺ b < a;
-			by ex1_eq_and_iff[of (x. true),simplified].
+			by ex1_eq_and_iff[of (x. true), simp].
 	end
 	theory TheRel:
 		import Ex1Rel.
@@ -366,7 +365,7 @@ print.
 		lemma The_eq_intro: if ex1: ∃!y < a. P.[y], Px: P.[x], xa: x < a then (THE y < a. P.[y]) = x;
 			apply ex1_elim[OF ex1];
 			- for z if za: z < a, Pz: P.[z], 1: ∀y < a. P.[y] ⟹ y = z;
-				note imp: 1[unfolded all_def].
+				note imp: 1[unfold all_def].
 				have zT: (THE x < a. P.[x]) = z;
 					by imp The_intro ex1 The_in.
 				unfold zT;

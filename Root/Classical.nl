@@ -30,6 +30,6 @@ lemma pierce_law: if PQP: (P ⟹ Q) ⟹ P, [P ∈ Prop, Q ∈ Prop] then P;
 	apply prop_cases[of P];
 	- if nP: ¬P;
 		have f: false;
-			by PQP[simplified not_imp_iff_false[OF nP]].
+			by PQP[simp not_imp_iff_false[OF nP]].
 		apply false_elim[OF f].
 	.

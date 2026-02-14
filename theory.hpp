@@ -6,7 +6,7 @@
 class AThm;
 class Import;
 class Definer;
-using ThmInfo = Sum<int,Intro,Elim,Rewrite::Rule>;
+using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule>;
 
 template<typename T>
 using StrMMap = std::multimap<std::string,T,std::less<>>;

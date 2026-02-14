@@ -10,7 +10,7 @@ import Minimal.
 assume abbrev: ∀P. ∃p. ∀x. p x ⟺ P.[x].
 
 begin
-print.
+
 ---
 The core ingredient is as in Russel's paradox, which says it is inconsistent
 to assume excluded middle `P ∨ ¬P` unrestrictedly.
@@ -36,7 +36,7 @@ theorem Russel_paradox: ∃P. ¬(P ∨ ¬P);
 			by not_imp_false[OF nRR RR].
 		- if nRR: ¬ R R;
 			have RR: R R;
-				by nRR[folded RR_iff_not_RR].
+				by nRR[fold RR_iff_not_RR].
 			by not_imp_false[OF nRR RR].
 		.
 	.
@@ -54,7 +54,7 @@ lemma Curry_paradox_false: false;
 			by not_imp_false[OF nRR RR].
 		.
 	apply not_imp_false[OF nRR];
-	by nRR[folded RR_iff_not_RR].
+	by nRR[fold RR_iff_not_RR].
 
 ---
 Since minimal logic does not put any assumption on `false`, one can instantiate `false` to any term.

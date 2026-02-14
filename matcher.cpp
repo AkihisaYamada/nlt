@@ -81,6 +81,29 @@ struct Matcher {
 		}
 		return {};
 	}
+	bool val_closed( Term const& val ) const {
+		StrMSet bounds;
+		return val_closed(val,bounds);
+	}
+	bool val_closed( Term const& val, StrMSet& bounds ) const& {
+		if( auto sym = val.sym() ) {
+			return bounds.contains(*sym) || !rinds.contains(*sym);
+		}
+		if( auto bind = val.bind() ) {
+			auto [var,body] = *bind;
+			auto it = bounds.insert(var);
+			auto ret = val_closed(body,bounds);
+			bounds.erase(it);
+			return ret;
+		}
+		if( auto app = val.app() ) {
+			return val_closed(app->first,bounds) && val_closed(app->second,bounds);
+		}
+		if( auto unbind = val.unbind() ) {
+			return val_closed(unbind->second,bounds);
+		}
+		assert(false);
+	}
 	bool bind( Term const& l, Term const& r, function<bool( Term const&, Term const& )> const& inner ) {
 		if( auto const& labs = l.bind() ) {
 			if( auto const& rabs = r.bind() ) {
@@ -135,6 +158,7 @@ struct Matcher {
 				return *map_opt == val;// equal as term
 			}
 			if( fvar(*sym) ) {// free variable can be assigned, if val does not contain bound variables
+				if( val_closed(val) )
 				if( auto cval = matcher.ctxt().closed(val) ) {
 					matcher.assign(*sym,*cval);
 					return true;

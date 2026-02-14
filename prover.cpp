@@ -33,7 +33,9 @@ static std::string const ABBREV2 = "abbrev2";
 
 struct ClaimStatus {
 	bool weak = false, intro = false, elim = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, followable = true;
-	short after = 0;
+	unsigned char after = 0;
+	unsigned char prems = 255;
+	bool strip_all = true;
 	static ClaimStatus const INFLATED;
 };
 inline ClaimStatus const ClaimStatus::INFLATED =
@@ -43,7 +45,10 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.intro ) {
 		os << "(intro";
 		if( cs.after > 0 ) {
-			os << ' ' << cs.after;
+			os << " after " << (int)cs.after;
+		}
+		if( cs.prems != 255 ) {
+			os << ' ' << (int)cs.prems;
 		}
 		os << ')';
 	}
@@ -265,11 +270,11 @@ public:
 					while( auto x = gets(Lexer::Word) ) {
 						loc.fix(*x);
 					}
-				} else if( int mode = skips("unfolded") ? 1 : skips("folded") ? 2 : 0 ) {
+				} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 					auto resolver = loc.resolver(_out_blast);
 					auto ctrl = _get_rewrite(resolver,loc,mode==2);
 					ret = resolver.rewrites(loc,ret,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
-				} else if( skips("simplified") ) {
+				} else if( skips("simp") ) {
 					auto resolver = loc.resolver(_out_blast);
 					while( auto thm = gets_thm() ) {
 						loc.add_rewrite_rule(resolver.rules,*thm,false);
@@ -341,8 +346,19 @@ public:
 		} else if( skips("(") ) {
 			if( skips("weak") ) {
 				cs.weak = true;
+				if( skips("after") ) {
+					cs.after = get_int();
+				}
 			} else if( skips("intro") ) {
 				cs.intro = true;
+				if( skips("after") ) {
+					cs.after = get_int();
+				} else if( auto n = gets_int() ) {
+					cs.prems = *n;
+				}
+				if( skips("=") ) {
+					cs.strip_all = false;
+				}
 			} else if( skips("cong") ) {
 				cs.cong = true;
 			} else if( skips("fallback") ) {
@@ -351,6 +367,9 @@ public:
 				cs.elim = true;
 			} else if( skips("simp") ) {
 				cs.unfold = true;
+				if( skips("after") ) {
+					cs.after = get_int();
+				}
 			} else if( skips("fold") ) {
 				cs.fold = true;
 			} else {
@@ -366,15 +385,28 @@ public:
 		return {cs};
 	}
 	void add_claim( Thy& loc, Opt<string> const& name, Opt<ClaimStatus> const& cs, Thm const& thm ) {
-		if( name ) {
-			loc.add_thm(*name,thm);
-		}
+		ThmInfo info = {};
 		if( cs ) {
+			if( cs->inflated ) {
+				auto blaster = loc.resolver(_out_blast);
+				blaster.inflate(loc,thm);
+			}
 			if( cs->intro ) {
 				if( cs->after > 0 ) {
-					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after-1,'i'));
+					info = {Elim::rule(thm,cs->after-1,'!')};
+					loc.add_thm(Thy::INF,thm,info);
 				} else {
-					add_forced(loc,thm,true);
+					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
+					add_intro(loc,thm,*info.ref<Intro>(),true);
+				}
+			}
+			if( cs->weak ) {
+				if( cs->after > 0 ) {
+					info = {Elim::rule(thm,cs->after-1,'?')};
+					loc.add_thm(Thy::INF,thm,info);
+				} else {
+					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
+					add_intro(loc,thm,*info.ref<Intro>(),false);
 				}
 			}
 			if( cs->cong ) {
@@ -384,13 +416,16 @@ public:
 				loc.register_fallback(thm);
 			}
 			if( cs->elim ) {
-				loc.add_elim(thm);
+				info = {Elim::rule(thm,0,'?')};
+				loc.add_thm(Thy::ELIM,thm,info);
 			}
 			if( cs->unfold ) {
 				if( cs->after > 0 ) {
-					loc.add_thm(Thy::INF,thm,Elim::rule(thm,cs->after,'='));
+					info = {Elim::rule(thm,cs->after-1,'=')};
+					loc.add_thm(Thy::INF,thm,info);
 				} else {
 					auto [ind,rel,rule] = loc.rewriter()->make_rule(thm,false);
+					info = {rule};
 					loc.add_thm(Thy::REWRITE+rel,thm,rule);
 				}
 			}
@@ -404,10 +439,9 @@ public:
 					loc.add_thm(Thy::REWRITE+rel,dual,rule);
 				}
 			}
-			if( cs->inflated ) {
-				auto blaster = loc.resolver(_out_blast);
-				blaster.inflate(loc,thm);
-			}
+		}
+		if( name ) {
+			loc.add_thm(*name,thm,info);
 		}
 	}
 	void print_goals( Thesis const& thesis, string pre = "goals:\n\t" ) {
@@ -831,11 +865,15 @@ public:
 				if( auto cs = gets_claim_status() ) {
 					add_claim(_thy,{},cs,*thm);
 				} else {
-					add_forced(_thy,*thm,true);
+					add_intro(_thy,*thm,true);
 				}
 			}
 			while( skips("#") ) {
-				if( skips("elim") ) {
+				if( skips("weak") ) {
+					while( auto thm = gets_thm() ) {
+						add_intro(_thy,*thm,false);
+					}
+				} else if( skips("elim") ) {
 					while( auto elim = gets_thm() ) {
 						_thy.add_elim(*elim);
 					}

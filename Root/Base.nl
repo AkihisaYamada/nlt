@@ -199,8 +199,8 @@ context MetaTransitive begin
 	interpret MetaMagmas (≤).
 
 	theory MetaCommNeutral:
-		import MetaCommutative.
 		import MetaLeftNeutral.
+		import MetaCommutative.
 	begin
 		interpret MetaRightNeutral;
 			by trans[OF commute left_neutral].
@@ -249,7 +249,56 @@ theory And:
 begin
 	lemma and_elim(elim) if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
+	lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q then R;
+		by and_elim[OF PQ PQR].
 	interpret and: MetaPartialEquivalence (∧).
+end
+
+theory Not:
+	fix false (¬).
+	assume not_intro: if P ⟹ false then ¬P.
+	assume not_imp_false(weak after 1) if ¬P, P then false.
+begin
+	lemma not_false: ¬false;
+		by not_intro.
+	lemma not_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
+		by not_intro not_imp_false[OF nP] QP.
+	lemma imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
+		apply not_intro;
+		- if PQ: P ⟹ Q;
+			by nQ PQ[OF P].
+		.
+	lemma imp_not_imp: if PQ: P ⟹ Q then ¬Q ⟹ ¬P;
+		by not_intro PQ.
+	lemma imp_not_sym: if PnQ: P ⟹ ¬Q then Q ⟹ ¬P;
+		by not_intro PnQ(elim).
+	lemma nnot_intro: P ⟹ ¬¬P;
+		by not_intro.
+	lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q;
+		by imp nnot_intro.
+	lemma not_imp_not_all: ¬P.[x] ⟹ ¬(∀y. P.[y]);
+		by not_intro.
+	lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
+		apply not_intro;
+		- if nQ: ¬Q;
+			use nnP;
+			by imp_not_imp[OF PQ nQ].
+		.
+	lemma nnot_not_imp_nimp: if nnP: ¬¬P, ! ¬Q then ¬(P ⟹ Q);
+		apply not_intro;
+		- if PQ: P ⟹ Q;
+			by nnot_imp_nnot[OF nnP PQ].
+		.
+	lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P then ¬¬Q;
+		apply not_intro;
+		- if nQ: ¬Q;
+			have nPQ: ¬(P ⟹ Q);
+				apply not_intro;
+				- if PQ: P ⟹ Q;
+					by nQ PQ[OF P].
+				.
+			use nnPQ nPQ.
+		.
 end
 
 theory Ex:

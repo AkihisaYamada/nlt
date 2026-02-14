@@ -40,7 +40,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 		auto imp = body.cbinary(IMP);
 		if(!imp) break;
 		Thm assm = subthy.assume(imp->first);
-		add_forced(subthy,assm);
+		add_intro(subthy,assm);
 		body = body.discharge(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
@@ -259,7 +259,7 @@ bool Resolver::_step_cond(
 			auto assm = subthy.assume(subthy.weaken((v /= imp->first).csubst(intp)).inst(vt));
 			// assm == ((v. φ.[v])θ).[v'] ≡ φθ.[v']
 			inflate(subthy,assm);
-			add_forced(subthy,assm);
+			add_intro(subthy,assm);
 			pat = imp->second;
 		}// subthy == (Γ; ∀v'; φθ.[v']...)
 		auto app1 = pat.app();
@@ -272,7 +272,7 @@ bool Resolver::_step_cond(
 		while( auto imp = pat.binary(IMP) ) {
 			auto assm = subthy.assume(subthy.weaken(imp->first.csubst(intp)));// φθ
 			inflate(subthy,assm);
-			add_forced(subthy,assm);
+			add_intro(subthy,assm);
 			pat = imp->second;
 		}// subthy == (Γ; φθ...)
 		auto app1 = pat.app();

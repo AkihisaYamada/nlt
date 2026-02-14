@@ -1,9 +1,10 @@
-import NegativeTranslation.
+import Base.
 
 thy INCONSISTENT_UnrestrictedComprehension.
 thy INCONSISTENT_UnrestrictedPredicatization.
 thy INCONSISTENT_UnrestrictedAbbreviation.
 
+import NegativeTranslation.
 
 end
 

@@ -6,7 +6,10 @@
 class Resolver;
 
 /** @brief Add concluder theorem to theory */
-void add_forced( Thy&, Thm const& thm, bool allow_intro = false );
+void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
+inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
+	add_intro(thy,thm,Intro::rule(thm),allow_intro);
+}
 
 /** Class for inference */
 class Thesis {
@@ -100,7 +103,7 @@ public:
 		_thy = _thy.branch();
 		auto const& weaken = *_thy.parent();
 		auto assm = _thy.assume(goal().subst(weaken));
-		add_forced(_thy,assm);
+		add_intro(_thy,assm);
 		_thm = _thm.subst(weaken).discharge(assm);
 		_goals--;
 		return true;

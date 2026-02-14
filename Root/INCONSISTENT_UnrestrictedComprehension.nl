@@ -22,9 +22,9 @@ theorem Russel_paradox: ∃X x. ¬(x ∈ X ∨ ¬ x ∈ X);
 	- if or: R ∈ R ∨ ¬ R ∈ R then false;
 		apply or_elim[OF or];
 		- if 1: R ∈ R;
-			by not_imp_false[OF 1[unfolded RR_iff_not_RR] 1].
+			by not_imp_false[OF 1[unfold RR_iff_not_RR] 1].
 		- if 0: ¬ R ∈ R;
-			by not_imp_false[OF 0 0[folded RR_iff_not_RR]].
+			by not_imp_false[OF 0 0[fold RR_iff_not_RR]].
 		.
 	.
 theorem Curry_paradox: false;
@@ -37,4 +37,4 @@ theorem Curry_paradox: false;
 			by not_imp_false[OF nRR RR].
 		.
 	apply not_imp_false[OF nRR];
-	by nRR[folded RR_iff_not_RR].
+	by nRR[fold RR_iff_not_RR].
