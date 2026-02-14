@@ -6,8 +6,8 @@ This theory assumes the type-free specifications of logical operators.
 import TypeSafe.
 fix (∨) (∃).
 
-assume or_intro1: for P Q if P then P ∨ Q.
-assume or_intro2: for P Q if Q then P ∨ Q.
+assume or_intro1? for P Q if P then P ∨ Q.
+assume or_intro2? for P Q if Q then P ∨ Q.
 assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
 
 assume ex_intro1: for x if P.[x] then ∃x. P.[x].
@@ -17,21 +17,21 @@ begin
 ---
 ## Disjunction
 ---
-
+print.
 lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
-	by assm[OF or_intro1 or_intro2].
+	apply assm.
 
 lemma or_iff: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 	apply iff_intro[OF or_elim or_intro].
 
 interpret or: MetaSymmetric (∨);
-	by or_intro #elim or_elim.
+	by #elim or_elim.
 
 lemma or_iff_true1: if ! P then P ∨ Q ⟺ true;
-	by iff_intro or_intro1.
+	by iff_intro.
 
 lemma or_iff_true2: if ! Q then P ∨ Q ⟺ true;
-	by iff_intro or_intro2.
+	by iff_intro.
 
 ---
 Algebraic properties of `(∨)`, with respect to `(⟺)`.
@@ -40,12 +40,12 @@ because the `false` case does not derive `P`.
 ---
 interpret or: iff.MetaCompatible (∨);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
-		by iff_intro or_intro #elim or_elim #unfold PQ RS.
+		by iff_intro #elim or_elim #unfold PQ RS.
 	.
 note(cong) or.cong.
 
 interpret or: iff.MetaCommAbsorb (∨) true;
-	- by iff_intro or_intro.
+	- by iff_intro.
 	- by iff_intro[OF or.sym or.sym].
 	.
 
@@ -56,13 +56,13 @@ interpret or: iff.MetaAssociative (∨);
 
 interpret or: iff.MetaIdempotent (∨);
 	- then P ∨ P ⟺ P;
-		by iff_intro or_intro or_elim(elim).
+		by iff_intro or_elim(elim).
 	.
 
 lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 	apply iff_intro;
 	- if imp;
-		by imp or_intro.
+		by imp.
 	by #elim or_elim.
 
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P then Q ∨ R;
@@ -70,8 +70,7 @@ lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P then Q ∨ R;
 
 lemma and_or_distrib: P ∧ (Q ∨ R) ⟺ P ∧ Q ∨ P ∧ R;
 	apply iff_intro;
-	simp or_imp_iff;
-	by or_intro.
+	simp or_imp_iff.
 
 lemma or_and_distrib: (P ∨ Q) ∧ R ⟺ P ∧ R ∨ Q ∧ R;
 	unfold and.commute;
@@ -133,33 +132,14 @@ lemma ex_imp_iff_all(simp) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		by #elim imp ex_elim.
 	.
 
-print.
-lemma ex_or_distrib: (∃x. P.[x] ∨ Q.[x]) ⟺ (∃x. P.[x]) ∨ (∃x. Q.[x]);
-	apply iff_intro;
-	- if ex;
-		apply ex_elim[OF ex];
-		- for x;
-			by #elim or_elim #unfold ex_iff_true[of x].
-		.
-	- if or;
-		apply or_elim[OF or];
-		- if ex;
-			apply ex_elim[OF ex];
-			- if Px: P.[x];
-				apply ex_intro1[of x];
-				unfold iff_true[OF Px];.
-			.
-		- if ex;
-			apply ex_elim[OF ex];
-			- if Qx: Q.[x];
-				apply ex_intro1[of x];
-				unfold iff_true[OF Qx];.
-			.
-		.
-	.
-
 lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
 	simp not_iff_imp_false.
+
+lemma ex_or_distrib: (∃x. P.[x] ∨ Q.[x]) ⟺ (∃x. P.[x]) ∨ (∃x. Q.[x]);
+	simp iff_iff_and or_imp_iff all_and_distrib[dual];
+	- for x;
+		by ex_intro1[of x].
+	.
 
 ---
 ## Theories
