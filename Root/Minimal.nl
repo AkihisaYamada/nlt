@@ -196,7 +196,7 @@ theory SecondOrder:
 	fix IND.
 	import FirstOrder.
 	assume IND_type: if A ∈ IND then A ∈ QTYPE.
-	assume IND_Fun_type: if A ∈ IND, B ∈ QTYPE then A → B ∈ QTYPE.
+	assume IND_fun_type: if A ∈ IND, B ∈ QTYPE then A → B ∈ QTYPE.
 begin
 	theory Impredicative:
 		import Impredicative.
@@ -207,6 +207,9 @@ theory HigherOrder:
 	import FirstOrder.
 	assume fun_type: if A ∈ QTYPE, B ∈ QTYPE then A → B ∈ QTYPE.
 begin
+	interpret SecondOrder;
+		instantiate IND := QTYPE.
+		by fun_type.
 	theory Impredicative:
 		import Impredicative.
 	end

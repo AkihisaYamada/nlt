@@ -12,7 +12,6 @@ We import equality to denote the definitions of disjunction and existential quan
 import Eq.
 import Minimal.
 import FirstOrder.
-print.
 
 fix DN.
 assume in_DN_iff: P ∈ DN ⟺ P ∈ Prop ∧ ((¬¬P) ⟺ P).
@@ -44,34 +43,19 @@ lemma DN_imp_nnot: P ∈ DN ⟹ ¬¬P ⟺ P;
 lemma in_DN_intro: if nn: (¬¬P) ⟺ P, ! P ∈ Prop then P ∈ DN;
 	simp in_DN_iff nn.
 
----
-lemma DN_iff: if [P ∈ Prop] then P ∈ DN ⟺ (¬¬P ⟺ P);
-	apply iff_intro;
-	- if tP! P ∈ DN then ¬¬P ⟺ P;
-		apply in.ex_elim[OF tP[unfolded in_DN_iff]];
-		- for P' if ! P' ∈ Prop, eq: P = (¬¬P');
-			unfold+ eq nnnot_iff.
-		.
-	- if nn: ¬¬P ⟺ P then P ∈ DN;
-		unfold in_DN_iff;
-		apply in.ex_intro;
-		- for thesis if assm;
-			by assm[of P] #unfold nn.
-		.
-	.
----
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
+namespace DN:
 
-interpret DN: Typed;
+interpret Typed;
 	instantiate Prop := DN.
 	- if ! P ∈ DN, ! Q ∈ DN then (P ⟹ Q) ∈ DN;
 		apply in_DN_intro;
 		fold DN_imp_nnot;
 		simp nnimp_not_iff.
-	- then false ∈ DN;
-		apply in_DN_intro.
+	.
+interpret Classical;
 	- if ! P ∈ DN, ! Q ∈ DN then (P ⟺ Q) ∈ DN;
 		apply in_DN_intro;
 		fold DN_imp_nnot;
@@ -79,14 +63,13 @@ interpret DN: Typed;
 	- if ! P ∈ DN, ! Q ∈ DN then (P ∧ Q) ∈ DN;
 		apply in_DN_intro;
 		simp nnand_iff DN_imp_nnot.
+	- then false ∈ DN;
+		apply in_DN_intro.
 	- if ! P ∈ DN then (¬P) ∈ DN;
 		apply in_DN_intro;
 		simp nnnot_iff.
-	- if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then (∀x ∈ A. P.[x]) ∈ DN;
-		apply in_DN_intro;
-		fold DN_imp_nnot;
-		unfold in.nnall_not_iff;
-		simp DN_imp_nnot.
+	retain true;
+		by in_DN_intro.
 	instantiate (∨) := nnot_or.
 	- for P Q if !P then nnot_or P Q;
 		unfold nnot_or_def;
@@ -110,6 +93,20 @@ interpret DN: Typed;
 		unfold nnot_or_def;
 		apply in_DN_intro;
 		simp nnnot_iff.
+	- if 0: false, ! P ∈ DN then P;
+		have nnP: ¬¬P;
+			by not_intro 0.
+		by nnP[unfold DN_imp_nnot].
+	- if ! P ∈ DN then nnot_or P (¬ P);
+		unfold nnot_or_def;
+		by non_contradiction.
+	.
+interpret FirstOrder;
+	- if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then (∀x ∈ A. P.[x]) ∈ DN;
+		apply in_DN_intro;
+		fold DN_imp_nnot;
+		unfold in.nnall_not_iff;
+		simp DN_imp_nnot.
 	instantiate (∃∈) := nnot_ex.
 	- if ! x ∈ A, Px: P.[x] then nnot_ex A (x. P.[x]);
 		simp nnot_ex_def;
@@ -137,6 +134,7 @@ interpret DN: Typed;
 		apply in_DN_intro;
 		simp nnnot_iff.
 	.
+end
 
 thm DN.pierce_law.
 

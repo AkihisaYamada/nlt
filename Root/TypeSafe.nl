@@ -230,7 +230,6 @@ theory AllRel:
 begin
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
-print.
 	lemma not_imp_not_all: if nP: ¬P.[x], x: x < a then ¬(∀y < a. P.[y]);
 		apply not_intro;
 		- if all;
@@ -268,3 +267,4 @@ theory RestrictedComprehension:
 begin
 
 end
+
