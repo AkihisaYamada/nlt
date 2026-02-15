@@ -15,8 +15,6 @@ lemma iff_elim: if PQ: P ⟺ Q, imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
 	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
 
 -- We can think of meta-magmas with respect to ⟺
-interpret iff: MetaMagmas (⟺).
-
 interpret iff: MetaEquivalence (⟺);
 	- by iff_intro.
 	- by iff_intro #elim iff_elim.

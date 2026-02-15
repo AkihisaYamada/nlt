@@ -18,8 +18,6 @@ begin
 
 note! eq.refl.
 
-interpret MetaMagmas (=).
-
 ---
 Equality is an equivalence.
 ---
@@ -323,7 +321,7 @@ begin
 				apply Minimal.ex_cong;
 				by iff_intro.
 			unfold 1;
-			unfold and.assoc ex_eq_and_iff.
+			unfold and.left_assoc ex_eq_and_iff.
 	end
 
 	theory Ex1Rel:
@@ -347,7 +345,7 @@ begin
 				by imp[of x].
 			.
 		lemma ex1_eq_and_iff: for P then (∃!x < a. x = b ∧ P.[x]) ⟺ b < a ∧ P.[b];
-			simp ex1_iff and.assoc ex_eq_and_iff;
+			simp ex1_iff and.left_assoc ex_eq_and_iff;
 			by iff_intro.
 		lemma ex1_eq_iff: (∃!x < a. x = b) ⟺ b < a;
 			by ex1_eq_and_iff[of (x. true), simp].

@@ -88,24 +88,30 @@ infix ^ 300 301 300.
 ---
 ## Properties of Untyped Binary Relations
 ---
-theory MetaReflexive:
+theory MetaRelation:
 	fix (≤).
+end
+
+theory MetaReflexive:
+	import MetaRelation.
 	assume refl: x ≤ x.
 end
 
 theory MetaTransitive:
-	fix (≤).
+	import MetaRelation.
 	assume trans: if x ≤ y, y ≤ z then x ≤ z.
-end
-
-theory MetaSymmetric:
-	fix (~).
-	assume sym: if x ~ y then y ~ x.
 end
 
 theory MetaPreorder:
 	import MetaReflexive.
 	import MetaTransitive.
+end
+
+theory MetaSymmetric:
+	fix (~).
+	assume sym: if x ~ y then y ~ x.
+begin
+	interpret MetaRelation (~).
 end
 
 theory MetaTolerance:
@@ -122,21 +128,17 @@ end
 theory MetaEquivalence:
 	fix (~).
 	import MetaReflexive (~).
-	import MetaSymmetric.
-	import MetaTransitive (~).
+	import MetaPartialEquivalence.
 begin
 	interpret MetaPreorder (~).
 	interpret MetaTolerance.
-	interpret MetaPartialEquivalence.
 end
 
 -- Implication is a meta-preorder.
-namespace imp:
-	interpret MetaPreorder (⟹);
-		- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
-			by QR PQ.
-		.
-end
+interpret imp: MetaPreorder (⟹);
+	- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
+		by QR PQ.
+	.
 
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
 	by PQ[OF P].
@@ -150,55 +152,71 @@ lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 ---
 ## Properties of Binary Operators and Relations
 ---
-theory MetaMagmas:
-	fix (~).
-begin
+context MetaRelation begin
 
 	theory MetaCompatible:
 		fix (*).
-		assume cong: if x ~ x', y ~ y' then x * y ~ x' * y'.
+		assume cong: if x ≤ x', y ≤ y' then x * y ≤ x' * y'.
 	end
 
 	theory MetaCommutative:
 		fix (*).
-		assume commute: x * y ~ y * x.
+		assume commute: x * y ≤ y * x.
 	end
 
-	theory MetaAssociative:
-		fix (*).
-		assume assoc: x * y * z ~ x * (y * z).
+	theory MetaLeftAssociative:
+		fix (*) (⋅).
+		assume left_assoc: x * y ⋅ z ≤ x ⋅ y ⋅ z.
+	end
+
+	theory MetaRightAssociative:
+		fix (^) (*).
+		assume right_assoc: x ^ (y * z) ≤ x ^ y ^ z.
 	end
 
 	theory MetaIdempotent:
 		fix (*).
-		assume idem: x * x ~ x.
+		assume idem: x * x ≤ x.
 	end
 
 	theory MetaLeftNeutral:
 		fix (*) (1).
-		assume left_neutral: 1 * x ~ x.
+		assume left_neutral: 1 * x ≤ x.
 	end
 
 	theory MetaRightNeutral:
 		fix (*) (1).
-		assume right_neutral: x * 1 ~ x.
+		assume right_neutral: x * 1 ≤ x.
 	end
 
 	theory MetaLeftAbsorb:
 		fix (*) (0).
-		assume left_absorb: 0 * x ~ 0.
+		assume left_absorb: 0 * x ≤ 0.
 	end
 
 	theory MetaRightAbsorb:
 		fix (*) (0).
-		assume right_absorb: x * 0 ~ 0.
+		assume right_absorb: x * 0 ≤ 0.
+	end
+
+end
+
+context MetaSymmetric begin
+
+	theory MetaAssociative:
+		fix (*).
+		import MetaLeftAssociative (*) (*).
+	begin
+		interpret MetaRightAssociative (*) (*);
+			- for x y z;
+				apply sym;
+				by left_assoc.
+			.
 	end
 
 end
 
 context MetaTransitive begin
-
-	interpret MetaMagmas (≤).
 
 	theory MetaCommNeutral:
 		import MetaLeftNeutral.

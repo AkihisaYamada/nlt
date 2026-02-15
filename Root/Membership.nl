@@ -109,3 +109,19 @@ begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
 end
+
+theory LeftMonotone:
+	fix A B (≤) (*).
+	assume left_mono: if y ≤ y', x ∈ A, y ∈ B, y' ∈ B then x * y ≤ x * y'.
+end
+
+theory RightMonotone:
+	fix A B (≤) (*).
+	assume right_mono: if x ≤ x', x ∈ A, x' ∈ A, y ∈ B then x * y ≤ x' * y.
+end
+
+theory Monotone:
+	fix A (≤) (*).
+	import LeftMonotone A A.
+	import RightMonotone A A.
+end

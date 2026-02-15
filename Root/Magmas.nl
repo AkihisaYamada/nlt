@@ -54,6 +54,12 @@ theory RightDistributive:
 	assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z = x * z + y * z.
 end
 
+theory Distributive:
+	fix A (*) (+).
+	import LeftDistributive A A (*) (+).
+	import RightDistributive A A (+) (*).
+end
+
 theory LeftAbsorb:
 	fix A (*) (0).
 	assume left_absorb: if x ∈ A then 0 * x = 0.
@@ -99,9 +105,56 @@ theory CommMagma:
 	import Commutative.
 end
 
-context PartialEquivalence begin
+theory Action:
+	import LeftAssociative A B (∘) (⋅).
+	import comp: Magma A (∘).
+	import app: Binary (⋅) A B B.
+end
 
-	interpret Magmas.
+theory Ringoid:
+	fix A (*) (+).
+	import mul: Magma A (*).
+	import add: Magma A (+).
+	import Distributive A (*) (+).
+end
+
+context Reflexive begin
+
+	interpret Magmas (≤).
+
+	theory Compatible:
+		import Compatible.
+	begin
+		interpret Monotone A (≤) (*);
+			- if 1: y ≤ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ≤ x * y';
+				apply comp[OF refl[OF x] 1].
+			- if 1: x ≤ x', ! x ∈ A, ! x' ∈ A, y! y ∈ A then x * y ≤ x' * y;
+				apply comp[OF 1 refl[OF y]].
+			.
+	end
+
+end
+
+context Transitive begin
+
+	interpret Magmas (≤).
+
+	theory MonoMagma:
+		import Magma.
+		import Monotone.
+	begin
+		interpret Compatible;
+			- if x: x ≤ x', y: y ≤ y', ! x ∈ A, ! y ∈ A, ! x' ∈ A, ! y' ∈ A then x * y ≤ x' * y';
+				have 1: x * y ≤ x' * y;
+					apply right_mono[OF x].
+				apply trans[OF 1];
+				apply left_mono[OF y].
+			.
+	end
+
+end
+
+context PartialEquivalence begin
 
 	theory MagmaLeftNeutral:
 		fix (*) (1).
@@ -260,15 +313,49 @@ context PartialEquivalence begin
 		interpret MonoidAbsorb.
 	end
 
-end
+	theory CommRingoid:
+		fix (*) (+).
+		import mul: CommMagma A (*).
+		import add: MonoMagma (+).
+		import LeftDistributive A A (*) (+).
+	begin
+		note! mul.closed add.closed.
+		interpret Ringoid;
+			- if ! x ∈ A, ! y ∈ A, ! z ∈ A then (x + y) * z = x * z + y * z;
+				have 1: (x + y) * z = z * (x + y);
+					apply mul.commute.
+				apply trans[OF 1];
+				have 2: z * (x + y) = z * x + z * y;
+					apply left_distrib.
+				apply trans[OF 2];
+				have 3: z * x + z * y = x * z + y * z;
+					apply add.comp;
+					- apply mul.commute.
+					- apply mul.commute.
+					.
+				by 3.
+			.
+	end
 
-context Equivalence begin
+	theory Semiring:
+		import Ringoid.
+		import mul: Semigroup (*).
+		import add: CommSemigroup (+).
+	end
+
+	theory CommSemiring:
+		import CommRingoid.
+		import mul: CommSemigroup (*).
+		import add: CommSemigroup (+).
+	begin
+		interpret Semiring.
+	end
 
 	theory MagmaLeftCancel:
 		fix (*) (\).
 		import Magma.
 		import lcancel: Magma A (\).
-		import lcancel: Compatible A (\).
+		import lcancel: LeftMonotone A A (=) (\).
 		import LeftCancel A A.
 	begin
 		note! lcancel.closed.
@@ -280,7 +367,7 @@ context Equivalence begin
 					by closed lcancel.closed.
 				apply trans[OF 1];
 				have 2: x \ (x * y) = x \ (x * y');
-					by lcancel.cong eq refl.
+					by lcancel.left_mono eq.
 				apply trans[OF 2];
 				by left_cancel.
 			.
@@ -290,7 +377,7 @@ context Equivalence begin
 		fix (*) (/).
 		import Magma.
 		import rcancel: Magma A (/).
-		import rcancel: Compatible A (/).
+		import rcancel: RightMonotone A A (=) (/).
 		import RightCancel A A.
 	begin
 		note! rcancel.closed.
@@ -301,11 +388,15 @@ context Equivalence begin
 					by right_cancel.
 				apply trans[OF 1];
 				have 2: x * y / y = x' * y / y;
-					by rcancel.cong eq refl.
+					by rcancel.right_mono eq.
 				apply trans[OF 2];
 				by right_cancel.
 			.
 	end
+
+end
+
+context Equivalence begin
 
 	theory LeftQuasiGroup:
 		import MagmaLeftCancel.
