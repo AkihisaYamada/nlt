@@ -120,6 +120,8 @@ begin
 	lemma all_cong_weak:
 		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∀x < a. P.[x]) ⟺ (∀x < a. P'.[x]);
 		unfold+ all_def P.
+	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
+		by iff_intro #unfold all_def.
 end
 
 theory ExRel:

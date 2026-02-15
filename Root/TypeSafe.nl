@@ -17,7 +17,7 @@ interpret imp: iff.MetaLeftNeutral (⟹) true;
 
 interpret imp: iff.MetaRightAbsorb (⟹) true;
 	by iff_intro.
-print.
+
 interpret iff: iff.MetaCommNeutral (⟺) true;
 	goals.
 	by iff_intro #elim iff_elim.
@@ -83,10 +83,8 @@ lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x
 	apply iff_intro;
 	- if ab: ∀x. P.[x] ∧ Q.[x];
 		apply and_intro;
-		- for x;
-			by and_elim1[OF ab].
-		- for x;
-			by and_elim2[OF ab].
+		- by and_elim1[OF ab].
+		- by and_elim2[OF ab].
 		.
 	.
 
@@ -118,7 +116,7 @@ lemma nnnot_iff: ¬¬¬P ⟺ ¬P;
 lemma nnot_imp_not_iff: (¬¬P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	unfold imp_not_commute;
 	unfold nnnot_iff.
-print prover 10.
+
 lemma nnimp_not_iff: ¬¬(P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 	apply iff_intro;
 	- if nnimp: ¬¬(P ⟹ ¬Q), P: P then ¬Q;
@@ -223,12 +221,19 @@ begin
 		.
 end
 
+theory AllRel:
+	import AllRel.
+begin
+	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
+		simp all_def all_and_distrib imp_and_distrib.
+end
+
 theory Membership:
 	import ..Membership.
-	import in: AllRel (∈) (∀∈).
+	import in: .AllRel (∈) (∀∈).
 	fix (⊆).
 	assume subseteq_iff_allIn: A ⊆ B ⟺ (∀x ∈ A. x ∈ B).
-	import sub: AllRel (⊆) (∀⊆).
+	import sub: .AllRel (⊆) (∀⊆).
 begin
 	note! in.all_intro.
 end

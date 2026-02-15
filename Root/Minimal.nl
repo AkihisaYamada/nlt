@@ -159,7 +159,7 @@ begin
 end
 
 theory Membership:
-	import ..Membership.
+	import .Membership.
 	import in: AllExRel (∈) (∀∈) (∃∈).
 	import sub: AllExRel (⊆) (∀⊆) (∃⊆).
 begin

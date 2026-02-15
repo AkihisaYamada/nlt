@@ -16,6 +16,7 @@ obtain true where true_intro! true, ! true ∈ Prop;
 
 import TypeSafe.
 import Membership.
+thm in.all_and_distrib.
 
 interpret Member true Prop.
 import iff: Magma Prop (⟺).
@@ -29,12 +30,15 @@ assume or_elim: if P ∨ Q, P ∈ Prop, Q ∈ Prop, P ⟹ R, Q ⟹ R then R.
 import or: Magma Prop (∨).
 
 fix (∃∈).
-assume ex_intro1: for x if x ∈ A, P.[x], ∀y. y ∈ A ⟹ P.[y] ∈ Prop then ∃x ∈ A. P.[x].
+assume ex_intro1: if x ∈ A, P.[x], ∀y. y ∈ A ⟹ P.[y] ∈ Prop then ∃x ∈ A. P.[x].
 assume ex_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q, ∀y. y ∈ A ⟹ P.[y] ∈ Prop then Q.
+assume ex_type! if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
 
 begin
 
 note! iff.closed and.closed not.closed or.closed.
+
+note(cong) in.all_cong_weak.
 
 interpret iff: Magmas (⟺).
 interpret iff_Prop: Equivalence Prop (⟺);
@@ -146,25 +150,35 @@ lemma ex_iff:
 		apply all>0=.
 	.
 
-lemma ex_cong: if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x] then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
+lemma ex_cong:
+	if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x], ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
+	then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
 	unfold ex_iff eq.
 
-lemma ex_indep(simp) (∃x. P) ⟺ P;
-	by iff_intro ex_intro1 ex_elim(elim).
-
-lemma ex_imp_iff_all(simp) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
-	apply iff_intro;
-	- if imp: (∃x. P.[x]) ⟹ Q for x if Px: P.[x];
-		by imp ex_intro1[OF Px].
-	- if imp: ∀x. P.[x] ⟹ Q;
-		by #elim imp ex_elim.
+lemma ex_imp_iff_all(simp)
+	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ((∃x ∈ A. P.[x]) ⟹ Q) ⟺ (∀x ∈ A. P.[x] ⟹ Q);
+	apply+ iff_intro;
+	- if imp;
+		apply in.all_intro;
+		- for x if Px;
+			by imp ex_intro1[OF Px].
+		.
+	- if imp, ex;
+		apply ex_elim[OF ex];
+		- for x;
+			by imp[THEN in.all_elim1, of x].
+		.
 	.
 
-lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+lemma nex_iff_all_not:
+	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
 	simp not_iff_imp_false.
 
-lemma ex_or_distrib: (∃x. P.[x] ∨ Q.[x]) ⟺ (∃x. P.[x]) ∨ (∃x. Q.[x]);
-	simp iff_iff_and or_imp_iff all_and_distrib[dual];
+lemma ex_or_distrib:
+	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ Q.[x] ∈ Prop
+	then (∃x ∈ A. P.[x] ∨ Q.[x]) ⟺ (∃x ∈ A. P.[x]) ∨ (∃x ∈ A. Q.[x]);
+	simp iff_iff_and or_imp_iff in.all_and_distrib[dual];
+	apply in.all_intro;
 	- for x;
 		by ex_intro1[of x].
 	.

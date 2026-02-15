@@ -139,13 +139,13 @@ namespace imp:
 end
 
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
-by PQ[OF P].
+	by PQ[OF P].
 
 lemma weaken: if P: P, Q: Q then P;
-by P.
+	by P.
 
 lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
-by PQR Q.
+	by PQR Q.
 
 ---
 ## Properties of Binary Operators and Relations
@@ -230,18 +230,14 @@ lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P! P then R;
 		by PQ.
 	.
 
-lemma imp_all: if imp: P ⟹ ∀x. Q.[x], P: P then Q.[x];
-	by imp[OF P].
-
-lemma all_imp: if all: ∀x. P ⟹ Q.[x], P! P then ∀x. Q.[x];
-	by all.
-
-lemma all_all_imp: if [∀x. P.[x]], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
+lemma imp_all: if imp: P ⟹ ∀x. Q.[x] then ∀x. P ⟹ Q.[x];
 	by imp.
 
-lemma make_elim:
-	if PQ: ∀x. P.[x] ⟹ Q.[x], P: P.[x], QR: Q.[x] ⟹ R then R;
-	by QR PQ P.
+lemma all_indep_imp: if all: ∀x. P ⟹ Q.[x] then P ⟹ ∀x. Q.[x];
+	by all.
+
+lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
+	by imp all.
 
 theory And:
 	fix (∧).
@@ -317,10 +313,10 @@ end
 
 theory AllRel:
 	fix (<) (∀<).
-	assume all_intro! if ∀x. x < A ⟹ P.[x] then ∀x < A. P.[x].
-	assume all_elim1: if ∀x < A. P.[x], x < A then P.[x].
+	assume all_intro! if ∀x. x < a ⟹ P.[x] then ∀x < a. P.[x].
+	assume all_elim1: if ∀x < a. P.[x], x < a then P.[x].
 begin
-	lemma all_elim: if all: ∀x < A. P.[x], imp: (∀x. x < A ⟹ P.[x]) ⟹ Q then Q;
+	lemma all_elim: if all: ∀x < a. P.[x], imp: (∀x. x < a ⟹ P.[x]) ⟹ Q then Q;
 		by imp all_elim1[OF all].
 end
 

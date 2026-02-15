@@ -213,13 +213,10 @@ end
 theory Iff:
 	import Iff.
 begin
-	namespace iff:
-		interpret eq: iff.MetaCommutative (=);
-			by iff_intro[OF eq.sym eq.sym].
-	end
+	interpret iff_eq: iff.MetaCommutative (=);
+		by iff_intro[OF eq.sym eq.sym].
 	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
-		unfold[on (=)] eq;
-		.
+		unfold[on (=)] eq.
 	lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
 		apply iff_intro;
 		- if all;
@@ -281,10 +278,10 @@ begin
 end
 
 theory Minimal:
-	import Iff.
 	import Minimal.
 	import Ex1.
 begin
+	interpret .Iff.
 	lemma eq_refl_iff(simp) x = x ⟺ true;
 		by iff_intro.
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
@@ -318,10 +315,12 @@ begin
 	theory AllExRel:
 		import AllExRel.
 	begin
+		interpret .Iff.AllRel.
+		interpret .Iff.ExRel.
 		lemma ex_eq_and_iff: (∃x < a. x = b ∧ P.[x]) ⟺ (b < a ∧ P.[b]);
 			have 1: (∃x < a. x = b ∧ P.[x]) ⟺ (∃x. x = b ∧ x < a ∧ P.[x]);
 				unfold ex_iff_ex;
-				apply .ex_cong;
+				apply Minimal.ex_cong;
 				by iff_intro.
 			unfold 1;
 			unfold and.assoc ex_eq_and_iff.
@@ -332,8 +331,6 @@ begin
 		fix (∃!<).
 		assume ex1_iff: (∃!x < a. P.[x]) ⟺ (∃x < a. P.[x] ∧ (∀y < a. P.[y] ⟹ y = x)).
 	begin
-		interpret .Iff.AllRel.
-		interpret .Iff.ExRel.
 		note(cong) all_cong ex_cong.
 		lemma ex1_cong(cong)
 			if eq: a = b, iff: ∀x. x < b ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
@@ -342,7 +339,6 @@ begin
 			for x a P if Px: P.[x], x: x < a, uniq: ∀y < a. P.[y] ⟹ y = x then ∃!x < a. P.[x];
 			unfold ex1_iff;
 			by ex_intro1[of x] Px x uniq.
-
 		lemma ex1_elim:
 			if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y < a. P.[y] ⟹ y = x) ⟹ Q then Q;
 			apply ex1[unfold ex1_iff, THEN ex_elim];
@@ -396,10 +392,11 @@ begin
 			.
 	end
 	theory Membership:
-		import Membership.
+		import TypeSafe.Membership.
 		import in: Ex1Rel (∈) (∀∈) (∃∈) (∃!∈).
 		import sub: Ex1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
 	begin
+		interpret Iff.
 		note(cong) in.all_cong in.ex_cong in.ex1_cong sub.all_cong sub.ex_cong sub.ex1_cong.
 		note(simp) in.ex_imp_iff sub.ex_imp_iff.
 	end
@@ -424,8 +421,8 @@ begin
 	end
 
 	theory Propositional:
+		import Membership.
 		import Propositional.
-		import .Membership.
 		fix Eq.
 		assume eq_type: (=) ∈ Eq → Eq → Prop.
 	begin
