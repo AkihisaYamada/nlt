@@ -129,7 +129,6 @@ lemma not_false_iff(simp) ¬false ⟺ true;
 lemma not_true_iff(simp) ¬true ⟺ false;
 	unfold not_iff_imp_false.
 
-
 ---
 ## Negation and Conjunction
 ---
@@ -168,6 +167,11 @@ lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 		by #weak nand_intro1 nand_intro2.
 	fold nnot_nand_iff;
 	by #unfold imp_and_iff1.
+
+lemma not_nniff_not: ¬¬(¬P ⟺ ¬Q) ⟺ (¬P ⟺ ¬Q);
+	unfold[at 0] iff_iff_and;
+	unfold nnand_iff;
+	unfold nnimp_not_iff;.
 
 ---
 ## Double negation and universal quantification.
@@ -226,6 +230,25 @@ theory AllRel:
 begin
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
+print.
+	lemma not_imp_not_all: if nP: ¬P.[x], x: x < a then ¬(∀y < a. P.[y]);
+		apply not_intro;
+		- if all;
+			use nP all_elim1[OF all x].
+		.
+	lemma nnall_imp: if nnall: ¬¬(∀x < a. P.[x]) then ∀x < a. ¬¬P.[x];
+		apply all_intro;
+		- if x: x < a;
+			apply not_intro;
+			- if nPx: ¬P.[x];
+				by not_imp_false[OF nnall] not_imp_not_all[OF nPx] x.
+			.
+		.
+	lemma nnall_not_iff: ¬¬(∀x < a. ¬P.[x]) ⟺ (∀x < a. ¬P.[x]);
+		apply iff_intro;
+		- if 1;
+			by all_cong_weak(cong) 1[THEN nnall_imp, unfold nnnot_iff].
+		by nnot_intro.
 end
 
 theory Membership:

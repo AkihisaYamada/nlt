@@ -1,10 +1,11 @@
 print.
 import Membership.
 
-fix Prop false.
+fix Prop.
 
 import imp: Magma Prop (⟹).
 
+fix false.
 import false: Member false Prop.
 
 note! imp.closed false.closed.
@@ -23,6 +24,10 @@ import iff: Magma Prop (⟺).
 import and: Magma Prop (∧).
 import not: Unary (¬) Prop Prop.
 
+fix QTYPE.
+
+assume all_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+
 fix (∨).
 assume or_intro1: for P Q if P then P ∨ Q.
 assume or_intro2: for P Q if Q then P ∨ Q.
@@ -31,11 +36,11 @@ import or: Magma Prop (∨).
 
 fix (∃∈).
 assume ex_intro1: if x ∈ A, P.[x] then ∃x ∈ A. P.[x].
-assume ex_elim: if ∃x ∈ A. P.[x], Q ∈ Prop, ∀x. x ∈ A ⟹ P.[x] ⟹ Q then Q.
-assume ex_type! if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+assume ex_elim: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q, Q ∈ Prop then Q.
+assume ex_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
 
 begin
-
+thy.
 note! iff.closed and.closed not.closed or.closed.
 
 note(cong) in.all_cong_weak.
@@ -124,7 +129,7 @@ lemma or_imp_nand: if !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
 ## Existence
 ---
 lemma ex_intro:
-	if assm: ∀Q. Q ∈ Prop ⟹ (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+	if assm: ∀Q. Q ∈ Prop ⟹ (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q, ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
 	then ∃x ∈ A. P.[x];
 	apply assm;
 	- for x;
@@ -132,24 +137,22 @@ lemma ex_intro:
 	.
 
 lemma ex_imp_all_imp:
-	if ex: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x],
-		!Q ∈ Prop, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-	then Q;
+	if ex: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x], !Q ∈ Prop then Q;
 	apply ex_elim[OF ex];
-	- for x if !, imp: P.[x] ⟹ Q;
+	- for x if !x ∈ A, imp: P.[x] ⟹ Q;
 		by imp all[THEN in.all_elim1].
 	.
 
 lemma ex_iff_true:
-	if x! x ∈ A, Px: P.[x], ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-	then (∃y ∈ A. P.[y]) ⟺ true;
+	if x! x ∈ A, Px: P.[x] then (∃y ∈ A. P.[y]) ⟺ true;
 	apply iff_true;
 	apply ex_intro1[OF x Px].
 
 lemma ex_iff:
-	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ⟺ (∀Q. Q ∈ Prop ⟹ (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q);
+	if !A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+	then (∃x ∈ A. P.[x]) ⟺ (∀Q. Q ∈ Prop ⟹ (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q);
 	apply iff_intro;
-	- if ex for Q if imp;
+	- if ex for Q if !, imp;
 		apply ex_elim[OF ex];
 		apply imp>0=.
 	- if all;
@@ -158,12 +161,13 @@ lemma ex_iff:
 	.
 
 lemma ex_cong:
-	if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x], ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
+	if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x],
+		! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
 	then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
 	unfold ex_iff eq.
 
 lemma ex_imp_iff_all(simp)
-	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ((∃x ∈ A. P.[x]) ⟹ Q) ⟺ (∀x ∈ A. P.[x] ⟹ Q);
+	if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! Q ∈ Prop then ((∃x ∈ A. P.[x]) ⟹ Q) ⟺ (∀x ∈ A. P.[x] ⟹ Q);
 	apply+ iff_intro;
 	- if imp;
 		apply in.all_intro;
@@ -178,11 +182,11 @@ lemma ex_imp_iff_all(simp)
 	.
 
 lemma nex_iff_all_not:
-	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
+	if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
 	simp not_iff_imp_false.
 
 lemma ex_or_distrib:
-	if ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ Q.[x] ∈ Prop
+	if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ Q.[x] ∈ Prop
 	then (∃x ∈ A. P.[x] ∨ Q.[x]) ⟺ (∃x ∈ A. P.[x]) ∨ (∃x ∈ A. Q.[x]);
 	simp iff_iff_and or_imp_iff in.all_and_distrib[dual];
 	apply in.all_intro;
