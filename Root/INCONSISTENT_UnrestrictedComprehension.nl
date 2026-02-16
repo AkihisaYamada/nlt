@@ -2,6 +2,7 @@
 # Unrestricted Comprehension is Inconsistent
 
 ---
+import TypeFree.
 import Minimal.
 import Membership.
 fix _Collect.

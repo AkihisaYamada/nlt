@@ -107,7 +107,7 @@ public:
 	/** Weaken closed term from an ancestor. */
 	CTerm weaken( CTerm const& t ) const;
 	/** Adds an import. */
-	Import& add_import( std::string_view const& name, Import const& im ) &;
+	Import& add_import( std::string_view const& prefix, Import const& im, bool unnamed ) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
 	/** @brief Finds a theory.

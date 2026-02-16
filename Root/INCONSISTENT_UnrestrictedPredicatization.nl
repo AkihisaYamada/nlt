@@ -6,6 +6,7 @@ represented by a predicative form such that `p x` if and only if `P.[x]`.
 This is exemplified by Curry's paradox.
 Under equality, the same inconsistency arises for unrestricted abbreviation.
 ---
+import TypeFree.
 import Minimal.
 assume abbrev: ∀P. ∃p. ∀x. p x ⟺ P.[x].
 

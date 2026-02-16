@@ -189,6 +189,11 @@ context MetaRelation begin
 		assume right_neutral: x * 1 ≤ x.
 	end
 
+	theory MetaNeutral:
+		import MetaLeftNeutral.
+		import MetaRightNeutral.
+	end
+
 	theory MetaLeftAbsorb:
 		fix (*) (0).
 		assume left_absorb: 0 * x ≤ 0.
@@ -199,11 +204,16 @@ context MetaRelation begin
 		assume right_absorb: x * 0 ≤ 0.
 	end
 
+	theory MetaAbsorb:
+		import MetaLeftAbsorb.
+		import MetaRightAbsorb.
+	end
+
 end
 
-context MetaSymmetric begin
+context MetaPartialEquivalence begin
 
-	theory MetaAssociative:
+	theory MetaSemigroup:
 		fix (*).
 		import MetaLeftAssociative (*) (*).
 	begin
@@ -214,24 +224,125 @@ context MetaSymmetric begin
 			.
 	end
 
-end
+	theory MetaCommSemigroup:
+		import MetaSemigroup.
+		import MetaCommutative.
+	end
 
-context MetaTransitive begin
+	theory MetaLeftNeutral:
+		import MetaLeftNeutral.
+	begin
+		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
+			have 1: e ~ 1 * e;
+				apply sym;
+				by left_neutral.
+			apply trans[OF 1];
+			by all.
+	end
+
+	theory MetaRightNeutral:
+		import MetaRightNeutral.
+	begin
+		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
+			have 1: e ~ e * 1;
+				apply sym;
+				by right_neutral.
+			apply trans[OF 1];
+			by all.
+	end
+
+	theory MetaNeutral:
+		import MetaNeutral.
+	begin
+		interpret MetaLeftNeutral.
+		interpret MetaRightNeutral.
+	end
 
 	theory MetaCommNeutral:
 		import MetaLeftNeutral.
 		import MetaCommutative.
 	begin
-		interpret MetaRightNeutral;
+print.
+		interpret MetaNeutral;
 			by trans[OF commute left_neutral].
+	end
+
+	theory MetaMonoid:
+		import MetaNeutral.
+		import MetaSemigroup.
+	end
+
+	theory MetaCommMonoid:
+		import MetaCommNeutral.
+		import MetaCommSemigroup.
+	begin
+		interpret MetaMonoid.
+	end
+
+	theory MetaLeftAbsorb:
+		import MetaLeftAbsorb.
+	begin
+		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
+			have 1: e ~ 0 * e;
+				apply sym;
+				by all.
+			apply trans[OF 1];
+			by left_absorb.
+	end
+
+	theory MetaRightAbsorb:
+		import MetaRightAbsorb.
+	begin
+		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
+			have 1: e ~ e * 0;
+				apply sym;
+				by all.
+			apply trans[OF 1];
+			by right_absorb.
+	end
+
+	theory MetaAbsorb:
+		import MetaAbsorb.
+	begin
+		interpret MetaLeftAbsorb.
+		interpret MetaRightAbsorb.
 	end
 
 	theory MetaCommAbsorb:
 		import MetaLeftAbsorb.
 		import MetaCommutative.
 	begin
-		interpret MetaRightAbsorb;
+		interpret MetaAbsorb;
 			by trans[OF commute left_absorb].
+	end
+
+	theory MetaSemigroupAbsorb:
+		import MetaAbsorb.
+		import MetaSemigroup.
+	end
+
+	theory MetaCommSemigroupAbsorb:
+		import MetaCommAbsorb.
+		import MetaCommSemigroup.
+	begin
+		interpret MetaSemigroupAbsorb.
+	end
+
+	theory MetaMonoidAbsorb:
+		fix (*) 0 1.
+		import MetaAbsorb.
+		import MetaMonoid.
+	begin
+		interpret MetaSemigroupAbsorb.
+	end
+
+	theory MetaCommMonoidAbsorb:
+		fix (*) 0 1.
+		import MetaCommAbsorb.
+		import MetaCommMonoid.
+	begin
+		interpret MetaMonoidAbsorb.
+		interpret MetaCommSemigroupAbsorb.
 	end
 
 end
@@ -256,6 +367,14 @@ lemma all_indep_imp: if all: ∀x. P ⟹ Q.[x] then P ⟹ ∀x. Q.[x];
 
 lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
 	by imp all.
+
+theory True:
+begin
+	obtain true where true_intro! true;
+		- for thesis if assm;
+			by assm[of (∀x. x ⟹ x)].
+		.
+end
 
 theory And:
 	fix (∧).
@@ -317,18 +436,6 @@ begin
 		.
 end
 
-theory Ex:
-	fix (∃).
-	assume ex_intro1: for x P if P.[x] then ∃x. P.[x].
-	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
-begin
-	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
-		apply assm;
-		- for x;
-			by ex_intro1[of x].
-		.
-end
-
 theory AllRel:
 	fix (<) (∀<).
 	assume all_intro! if ∀x. x < a ⟹ P.[x] then ∀x < a. P.[x].
@@ -336,16 +443,4 @@ theory AllRel:
 begin
 	lemma all_elim: if all: ∀x < a. P.[x], imp: (∀x. x < a ⟹ P.[x]) ⟹ Q then Q;
 		by imp all_elim1[OF all].
-end
-
-theory ExRel:
-	fix (<) (∃<).
-	assume ex_intro1: for x if x < A, P.[x] then ∃x < A. P.[x].
-	assume ex_elim: if ∃x < A. P.[x], ∀x. x < A ⟹ P.[x] ⟹ Q then Q.
-begin
-	lemma ex_intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
-		apply assm;
-		- for x;
-			by ex_intro1[of x].
-		.
 end

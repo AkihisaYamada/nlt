@@ -53,7 +53,7 @@ Thy Thy::scope_temp( string_view const& name ) const & {
 Thy Thy::scope( string_view const& name ) & {
 	auto const& intp = Ctxt::self();
 	auto const& loc = _branch(name,"",true,intp);
-	add_import(name,Import(intp,loc));
+	add_import(name,Import(intp,loc),false);
 	return loc;
 }
 
@@ -179,14 +179,15 @@ void Thy::_check_loop_import( Thy const& origin ) const {
 		it->second.source()._check_loop_import(origin);
 	}
 }
-Import& Thy::add_import( string_view const& name, Import const& import ) & {
+Import& Thy::add_import( string_view const& prefix, Import const& import, bool unprefixed ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
-	if( name == "" ) {
+	if( unprefixed || prefix == "" ) {
 		import.source()._check_loop_import(*this);// check looping import
-		auto realname = import.source().name();// canonical named import
-		_ref->imports.emplace(realname,import);
+		if( unprefixed ) {
+			_ref->imports.emplace("",import);
+		}
 	}
-	return _ref->imports.emplace(name,import)->second;
+	return _ref->imports.emplace(prefix,import)->second;
 };
 
 function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =

@@ -121,39 +121,3 @@ begin
 	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
 		by iff_intro #unfold all_def.
 end
-
-theory ExRel:
-	fix (<) (∃<).
-	assume ex_def: (∃x < a. P.[x]) ⟺ (∀Q. (∀x. x < a ⟹ P.[x] ⟹ Q) ⟹ Q).
-begin
-	interpret ExRel;
-		- if x: x < a, Px: P.[x] then ∃x < a. P.[x];
-			unfold ex_def;
-			- for thesis if assm;
-				apply assm[of x];
-				by x Px.
-			.
-		- if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
-			apply ex[unfold ex_def];
-			- for x;
-				by imp[of x].
-			.
-		.
-	lemma ex_cong_strong:
-		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
-		then (∃x < a. P.[x]) ⟺ (∃x < a'. P'.[x]);
-		unfold+ ex_def a P.
-	lemma ex_cong_weak:
-		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∃x < a. P.[x]) ⟺ (∃x < a. P'.[x]);
-		unfold+ ex_def P.
-	lemma ex_imp_iff: ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x. x < a ⟹ P.[x] ⟹ Q);
-		apply iff_intro;
-		- if imp, x: x < a, Px: P.[x];
-			apply imp ex_intro1[OF x Px].
-		- if all, ex;
-			apply ex_elim[OF ex];
-			- for x if x, Px;
-				apply all[OF x Px].
-			.
-		.
-end

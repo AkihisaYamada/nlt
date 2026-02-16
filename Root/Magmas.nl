@@ -221,6 +221,7 @@ context PartialEquivalence begin
 			.
 
 	end
+
 	theory CommSemigroup:
 		import CommMagma.
 		import Semigroup.
