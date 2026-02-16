@@ -1,4 +1,5 @@
 import Membership.
+fix Prop.
 import imp: Magma Prop (⟹).
 
 begin
