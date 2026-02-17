@@ -8,8 +8,8 @@ To formally state the result, in (type-free) minimal logic we interpret typed cl
 disjunction and existential quantifier are instantiated by certain forms.
 ---
 import TypeFree.
-import local? TypeFree.Minimal.
-import in: local.AllRel (∈) (∀∈).
+import Minimal.
+import in: Minimal.AllRel (∈) (∀∈).
 
 fix DN.
 assume in_DN_iff: P ∈ DN ⟺ (¬¬P ⟹ P).
