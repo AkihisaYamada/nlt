@@ -1,10 +1,13 @@
 import Base.
 
-thy INCONSISTENT_UnrestrictedComprehension.
-thy INCONSISTENT_UnrestrictedPredicatization.
-thy INCONSISTENT_UnrestrictedAbbreviation.
-
 import NegativeTranslation.
+
+thm DN.pierce_law.
+thm DN.excluded_middle.
+
+thm DN.in.ex_def.
+
+import ZF.
 
 end
 

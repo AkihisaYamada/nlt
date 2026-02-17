@@ -193,7 +193,7 @@ begin
 			apply all.
 		- if Pa: P.[a], xa: x = a;
 			note(cong) eq_cong_meta[of P].
-			by Pa #unfold xa.
+			by Pa #simp xa.
 		.
 
 	theory AllRel:
@@ -208,7 +208,7 @@ begin
 				by all_elim1[OF Pa, unfold ab] #fold PQ.
 			- if Qb;
 				apply all_intro;
-				by all_elim1[OF Qb] #unfold ab PQ.
+				by all_elim1[OF Qb] #simp ab PQ.
 			.
 		lemma all_eq_imp_iff: (∀x < a. x = b ⟹ P.[x]) ⟺ (b < a ⟹ P.[b]);
 			have 1: (∀x < a. x = b ⟹ P.[x]) ⟺ (∀x. x = b ⟹ x < a ⟹ P.[x]);
@@ -320,12 +320,12 @@ begin
 			- if Pa;
 				apply ex_elim[OF Pa];
 				- for x;
-					by ex_intro1[of x] #unfold ab #fold PQ.
+					by ex_intro1[of x] #simp ab PQ[dual].
 				.
 			- if Qb;
 				apply ex_elim[OF Qb];
 				- for x;
-					by ex_intro1[of x] #unfold ab PQ.
+					by ex_intro1[of x] #simp ab PQ.
 				.
 			.
 		.
@@ -396,23 +396,30 @@ begin
 				have zT: (THE x < a. P.[x]) = z;
 					by imp THE_intro ex1 THE_in.
 				unfold zT;
-				by Px xa #unfold imp.
+				by Px xa #simp imp.
 			.
 		note eq_THE_intro: THE_eq_intro[THEN eq.sym].
 	end
 
-	theory Membership:
-		import local? local.Membership.
+	theory AllEx1In:
+		import Membership.
 		import in: Ex1Rel (∈) (∀∈) (∃∈) (∃!∈).
-		import sub: Ex1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
 	begin
 		interpret Iff.
-		note(cong) in.all_cong in.ex_cong in.ex1_cong sub.all_cong sub.ex_cong sub.ex1_cong.
-		note(simp) in.ex_imp_iff sub.ex_imp_iff.
+		note(cong) in.all_cong in.ex_cong in.ex1_cong.
+		note(simp) in.ex_imp_iff.
+	end
+
+	theory AllEx1Sub:
+		import AllEx1In.
+		import sub: Ex1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
+	begin
+		note(cong) sub.all_cong sub.ex_cong sub.ex1_cong.
+		note(simp) sub.ex_imp_iff.
 	end
 
 	theory Prod: --- Product Class ---
-		import Membership.
+		import AllEx1In.
 		import .Pair.
 		fix (×).
 		assume in_prod_iff: p ∈ A × B ⟺ (∃x ∈ A. ∃y ∈ B. p = (x,y)).
@@ -421,7 +428,7 @@ begin
 			apply iff_intro;
 			simp in_prod_iff;
 			- if x': x' ∈ A, y': y' ∈ B, xx': x = x', yy': y = y';
-				by x' y' #unfold xx' yy'.
+				by x' y' #simp xx' yy'.
 			- if x: x ∈ A, y: y ∈ B;
 				by in.ex_intro1[OF x] in.ex_intro1[OF y].
 			.
@@ -446,7 +453,7 @@ begin
 end
 
 theory Typed:
-	import Typed.
+	import Propositional.
 	fix Eq.
 	import eq: Binary (=) Eq Eq Prop.
 begin

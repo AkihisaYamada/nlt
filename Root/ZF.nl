@@ -11,14 +11,9 @@ We base on the minimal first order equational logic, where
 print.
 import Eq.
 import Minimal.
+import AllEx1In.
+import Fun.
 fix Set.
-import FirstOrder;
-	instantiate Eq := Set.
-	.
----
-Membership between sets is a proposition.
----
-assume in_Prop! if x ∈ Set, A ∈ Set then (x ∈ A) ∈ Prop.
 
 ---
 ### Extensionality
@@ -57,7 +52,7 @@ assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w �
 One can prove such `z` is unique:
 ---
 lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
-	apply upair_axiom[unfolded+ in.all_def, OF x y, THEN in.ex_elim];
+	apply upair_axiom[unfold+ in.all_def, OF x y, THEN in.ex_elim];
 	- for z if z! z ∈ Set, zall;
 		apply in.ex1_intro1[of z];
 		- by in.all_intro zall.
@@ -66,7 +61,7 @@ lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set.
 			- for z' if !, z'all;
 				apply set_eq_intro;
 				- for w if w!;
-					unfold z'all[unfolded in.all_def] zall.
+					unfold z'all[unfold in.all_def] zall.
 				.
 			.
 		.
@@ -85,8 +80,8 @@ assume unique_choice2_set:
 
 lemma abbrev2_set:
 	if F: ∀x ∈ Set. ∀y ∈ Set. F.[x,y] ∈ Set then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. f x y = F.[(x,y)];
-	note(cong) eq.cong_meta[of F].
-	apply unique_choice2_set[of (t. snd (snd t) = F.[fst t, fst (snd t)]), simplified in.ex1_eq_iff] F.
+	note(cong) eq_cong_meta[of F].
+	apply unique_choice2_set[of (t. snd (snd t) = F.[fst t, fst (snd t)]), simp in.ex1_eq_iff] F.
 
 obtain upair where
 	upair_type: upair ∈ Set → Set → Set,
@@ -97,7 +92,7 @@ obtain upair where
 	- by in.all_intro ex1_upair.
 	- for f if ty, f;
 		apply assm[OF ty];
-		by f[unfolded+ in.all_def].
+		by f[unfold+ in.all_def].
 	.
 .
 
@@ -114,7 +109,7 @@ lemma unique_choice_set:
 	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
 	then ∃f ∈ Set → Set. ∀x ∈ Set. P.[x, f x];
 -	apply unique_choice2_set[of (t. P.[snd t]), THEN in.ex_elim];
-	note(cong) eq.cong_meta[of P].
+	note(cong) eq_cong_meta[of P].
 	simp;
 	-	apply in.all_intro;
 		by ex1.
@@ -126,24 +121,24 @@ lemma unique_choice_set:
 .
 lemma abbrev_set:
 	if F: ∀x ∈ Set. F.[x] ∈ Set then ∃f ∈ Set → Set. ∀x ∈ Set. f x = F.[x];
-	note(cong) eq.cong_meta[of F].
-	by unique_choice_set[of (p. snd p = F.[fst p]), simplified in.ex1_eq_iff] F.
+	note(cong) eq_cong_meta[of F].
+	by unique_choice_set[of (p. snd p = F.[fst p]), simp in.ex1_eq_iff] F.
 
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
-obtain Base.Singleton where
+obtain _singleton where
 	singleton_Set! if x ∈ Set then {x} ∈ Set,
 	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
 - for thesis if assm;
 	apply abbrev_set[of (x. upair x x), THEN in.ex_elim];
 	- by in.all_intro.
 	- for f if ty, f;
-		apply assm[of f, unfolded f[THEN in.all_elim1]];
+		apply assm[of f, unfold f[THEN in.all_elim1]];
 		- .
 		- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
-			unfold upair_iff iff.or.idem;
-			by iff.eq.commute.
+			unfold upair_iff or.idem;
+			by iff_eq.commute.
 		.
 	.
 .
@@ -167,7 +162,7 @@ lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (�
 		apply X;
 		apply in.all_intro;
 		- for X' if X'!, X'spec;
-			by set_eq_intro #unfold Xspec[THEN in.all_elim1] X'spec[THEN in.all_elim1].
+			by set_eq_intro #simp Xspec[THEN in.all_elim1] X'spec[THEN in.all_elim1].
 		.
 	.
 
@@ -229,7 +224,7 @@ obtain (∪) where
 		simp;
 		- by in.all_intro.
 		- for (∪) if cup_type, cup_def;
-			apply assm[OF cup_type, simplified cup_def[THEN in.all_elim1, THEN in.all_elim1]];
+			apply assm[OF cup_type, simp cup_def[THEN in.all_elim1, THEN in.all_elim1]];
 			- if x! x ∈ Set, y! y ∈ Set, z! z ∈ Set then x ∈ ⋃(upair y z) ⟺ x ∈ y ∨ x ∈ z;
 				unfold UN_iff upair_iff;
 				simp or_and_distrib in.ex_or_distrib in.ex_eq_and_iff iff_true[OF x] iff_true[OF y] iff_true[OF z].
@@ -258,7 +253,7 @@ lemma replacement_ex1:
 		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,x]);
 			by in_v[THEN in.all_elim1].
 		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,r]) then x = v;
-			by set_eq_intro #unfold in_v[THEN in.all_elim1] in_x[THEN in.all_elim1].
+			by set_eq_intro #simp in_v[THEN in.all_elim1] in_x[THEN in.all_elim1].
 		.
 	.
 .

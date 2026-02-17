@@ -477,7 +477,7 @@ public:
 			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer, bool unprefixed ) {
+	void _auto_discharge( Thy& org_thy, string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer, bool unprefixed ) {
 		auto const& assm = assume.first;
 		auto f = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto thm2 = thm.subst(import);
@@ -500,7 +500,7 @@ public:
 			}
 		}
 		if( change ) {
-			Thm ret = _thy.add_assm(assm_name,assm);
+			Thm ret = org_thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
 			if CTXT {
 				if( !MSG ) cout << _indent(' ');
@@ -589,7 +589,7 @@ public:
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.resolver(_out_blast);
-					_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
+					_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
@@ -621,7 +621,7 @@ public:
 					_auto_instantiate(intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.resolver(_out_blast);
-					_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
+					_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_blast);
 					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
@@ -722,7 +722,7 @@ public:
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
 							auto infer = _thy.resolver(_out_blast);
-							_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
+							_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							auto infer = _thy.resolver(_out_blast);
 							_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
@@ -756,7 +756,7 @@ public:
 							break;
 						} else {
 							auto infer = _thy.resolver(_out_blast);
-							_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
+							_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
@@ -780,7 +780,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(prefix,intp,*assume,change,*ctrl,unprefixed);
+						_auto_discharge(org_thy,prefix,intp,*assume,change,*ctrl,unprefixed);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl,unprefixed);
 					} else {
@@ -810,7 +810,7 @@ public:
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.resolver(_out_blast);
-				_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
+				_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
 				Thy thesis_loc = _thy.branch();
@@ -891,7 +891,7 @@ public:
 					while( auto elim = gets_thm() ) {
 						_thy.add_elim(*elim);
 					}
-				} else if( int type = skips("unfold") ? 1 : skips("fold") ? 2 : skips("cong") ? 3 : 0 ) {
+				} else if( int type = skips("simp") ? 1 : skips("fold") ? 2 : skips("cong") ? 3 : 0 ) {
 					auto const& rew = _thy.rewriter();
 					if( !rew ) throw Error("\"rewriter not set\"");
 					while( auto const& thm = _gets_thm(_thy) ) {

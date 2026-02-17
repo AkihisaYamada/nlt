@@ -2,10 +2,10 @@
 # Unrestricted Abbreviation is Inconsistent
 ---
 import Eq.
-assume abbrev: if ∀f. (∀x. f x = F.[x]) ⟹ R then R.
+assume abbrev: for F if ∀f. (∀x. f x = F.[x]) ⟹ R then R.
 begin
 
-theorem Curry_paradox_eq: P;-- Any term is provable
+theorem inconsistent: P;-- Any term is provable
 	obtain R where R_def: R x = (x x ⟹ P);
 		- for thesis if elim;
 			apply abbrev[of (x. x x ⟹ P)];
@@ -21,4 +21,4 @@ theorem Curry_paradox_eq: P;-- Any term is provable
 		by nRR[fold RR_eq_nRR].
 	by nRR[OF RR].
 
-
+thy.

@@ -36,11 +36,11 @@ lemma iff_true: P ⟹ P ⟺ true.
 ---	
 interpret and: iff.MetaCompatible (∧);
 	- if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
-		by iff_intro #unfold P Q.
+		by iff_intro #simp P Q.
 	.
 
 lemma and_cong1(cong) if P: P ⟺ P', Q: P' ⟹ Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
-	by iff_intro #unfold P Q.
+	by iff_intro #simp P Q.
 
 interpret and: iff.MetaIdempotent (∧);
 	by iff_intro.
@@ -169,8 +169,8 @@ lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 		apply+ and_intro nnand[THEN not_imp_not];
 		by #weak nand_intro1 nand_intro2.
 	fold nnot_nand_iff;
-	by #unfold imp_and_iff1.
-print.
+	by #simp imp_and_iff1.
+
 lemma not_nniff_not: ¬¬(¬P ⟺ ¬Q) ⟺ (¬P ⟺ ¬Q);
 	unfold[at 0] iff_iff_and;
 	unfold nnand_iff;
@@ -285,6 +285,8 @@ begin
 		- if 1;
 			by all_cong_weak(cong) 1[THEN nnall_imp, unfold nnnot_iff].
 		by nnot_intro.
+	lemma all_true_iff: (∀x < a. true) ⟺ true;
+		simp all_def.
 end
 
 theory ExRel:
@@ -299,14 +301,6 @@ begin
 		- for x;
 			by ex_intro1[of x].
 		.
-end
-
-theory Membership:
-	import ..Membership.
-	import in: .AllRel (∈) (∀∈).
-	import in: .ExRel (∈) (∃∈).
-begin
-	note! in.all_intro.
 end
 
 theory RestrictedComprehension:

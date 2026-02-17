@@ -1,6 +1,5 @@
 ---
-# Unrestricted Comprehension is Inconsistent
-
+# Russel's Paradox
 ---
 import TypeFree.
 import Minimal.
@@ -28,14 +27,3 @@ theorem Russel_paradox: ∃X x. ¬(x ∈ X ∨ ¬ x ∈ X);
 			by not_imp_false[OF 0 0[fold RR_iff_not_RR]].
 		.
 	.
-theorem Curry_paradox: false;
-	have nRR: ¬ R ∈ R;
-		apply not_intro;
-		- if RR: R ∈ R;
-			have nRR: ¬ R ∈ R;
-				fold RR_iff_not_RR;
-				by RR.
-			by not_imp_false[OF nRR RR].
-		.
-	apply not_imp_false[OF nRR];
-	by nRR[fold RR_iff_not_RR].

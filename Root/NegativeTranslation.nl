@@ -2,77 +2,57 @@
 # Gödel―Gentzen Negative Translation
 ------
 
-----
-The intuitionistic logic can prove theorems of the classical logic after a double-negation translation.
-To formally state the result, we interpret the classical logic context, replacing the `Prop` type of by the image of double negation,
-disjunction and existential quantifier by certain forms.
-
-We import equality to denote the definitions of disjunction and existential quantifier.
-----
-print.
-import Eq.
-import Minimal.
-import Minimal.Membership.
-
-thm in.all_def.
+---
+Intuitionistic (minimal) logic can prove theorems of classical logic after a double-negation translation.
+To formally state the result, in (type-free) minimal logic we interpret typed classical logic, where propositions are those admitting double negation elimination,
+disjunction and existential quantifier are instantiated by certain forms.
+---
+import TypeFree.
+import local? TypeFree.Minimal.
+import in: local.AllRel (∈) (∀∈).
 
 fix DN.
-assume in_DN_iff: P ∈ DN ⟺ ((¬¬P) ⟺ P).
+assume in_DN_iff: P ∈ DN ⟺ (¬¬P ⟹ P).
 
 --The negative translation of disjunction is specified as follows.
 fix nnor.
-assume nnor_def: nnor P Q = (¬(¬P ∧ ¬Q)).
+assume nnor_def: nnor P Q ⟺ ¬(¬P ∧ ¬Q).
 
 -- The existential quantifier is translated as follows:
 fix nnex.
-assume nnex_def: nnex (x. Y.[x]) = (¬(∀x. ¬Y.[x])).
+assume nnex_def: nnex (x. Y.[x]) ⟺ ¬(∀x. ¬Y.[x]).
 
 fix nnexIn.
-assume nnexIn_def: nnexIn A (x. Y.[x]) = (¬(∀x ∈ A. ¬Y.[x])).
+assume nnexIn_def: nnexIn A (x. Y.[x]) ⟺ ¬(∀x ∈ A. ¬Y.[x]).
 
 begin
 
 lemma DN_imp_nnot: P ∈ DN ⟹ ¬¬P ⟺ P;
-	unfold in_DN_iff.
+	by iff_intro nnot_intro #simp in_DN_iff.
 
-lemma in_DN_intro: if nn: (¬¬P) ⟺ P then P ∈ DN;
-	simp in_DN_iff nn.
+lemma in_DN_intro: if nn: ¬¬P ⟹ P then P ∈ DN;
+	by nn #simp in_DN_iff.
 
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
-namespace DN:
+note(cong) in.all_cong_weak.
+print.
+interpret DN: FreeOrder;
+goals.
+	instantiate Prop := DN, (∨) := nnor, (∃∈) := nnexIn.
 
-interpret Root.Typed;
-	instantiate Prop := DN.
 	- if ! P ∈ DN, ! Q ∈ DN then (P ⟹ Q) ∈ DN;
 		apply in_DN_intro;
 		fold DN_imp_nnot;
 		simp nnimp_not_iff.
-	.
-interpret FreeOrder;
-	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then (∀x ∈ A. P.[x]) ∈ DN;
-		apply in_DN_intro;
-		fold DN_imp_nnot;
-		unfold in.nnall_not_iff;
-		simp DN_imp_nnot.
-	instantiate (∃∈) := nnexIn.
-	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then nnexIn A (x. P.[x]) ∈ DN;
-		unfold nnexIn_def;
-		apply in_DN_intro;
-		simp nnnot_iff.
-	retain false;
-		by in_DN_intro.
-	retain true;
-		by in_DN_intro.
 	- if ! P ∈ DN, ! Q ∈ DN then (P ∧ Q) ∈ DN;
 		apply in_DN_intro;
 		simp nnand_iff DN_imp_nnot.
-	instantiate (∨) := nnor.
 	- if ! P ∈ DN, ! Q ∈ DN then nnor P Q ∈ DN;
-		unfold nnor_def;
 		apply in_DN_intro;
+		unfold nnor_def;
 		simp nnnot_iff.
 	- if ! P ∈ DN then (¬P) ∈ DN;
 		apply in_DN_intro;
@@ -81,12 +61,22 @@ interpret FreeOrder;
 		apply in_DN_intro;
 		fold DN_imp_nnot;
 		simp not_nniff_not.
+	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then (∀x ∈ A. P.[x]) ∈ DN;
+		apply in_DN_intro;
+		fold DN_imp_nnot;
+		unfold in.nnall_not_iff;
+		simp DN_imp_nnot.
+	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ DN then nnexIn A (x. P.[x]) ∈ DN;
+		apply in_DN_intro;
+		unfold nnexIn_def;
+		simp nnnot_iff.
+	retain false;
+		by in_DN_intro.
+	retain true;
+		by in_DN_intro.
 	.
 
-thm ex_type.
-
-interpret FreeOrder.Classical;
-	goals.
+interpret DN: DN.Classical;
 	- for P Q if !P then nnor P Q;
 		unfold nnor_def;
 		simp imp_not_iff_false false_nand[THEN iff_true].
@@ -100,8 +90,6 @@ interpret FreeOrder.Classical;
 		- if all: ∀x. ¬ P.[x] then false;
 			by not_imp_false[OF all Px].
 		.
-	- then nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
-		unfold nnexIn_def nnex_def in.all_def imp_not_iff_nand;.
 	- if or: nnor P Q, ! R ∈ DN, PR: P ⟹ R, QR: Q ⟹ R then R;
 		have nnR: ¬¬R;
 			apply not_intro;
@@ -126,7 +114,11 @@ interpret FreeOrder.Classical;
 					.
 				.
 			.
-		by nnQ[unfold DN_imp_nnot].	- if 0: false, ! P ∈ DN then P;
+		by nnQ[unfold DN_imp_nnot].
+	- by in.all_def.
+	- then nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
+		unfold nnexIn_def nnex_def in.all_def imp_not_iff_nand;.
+	- if 0: false, ! P ∈ DN then P;
 		have nnP: ¬¬P;
 			by not_intro 0.
 		by nnP[unfold DN_imp_nnot].
@@ -134,11 +126,5 @@ interpret FreeOrder.Classical;
 		unfold nnor_def;
 		by non_contradiction.
 	.
-end
-
-thm DN.pierce_law DN.excluded_middle.
-
-
-thm DN.in.ex_def.
 
 end
