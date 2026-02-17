@@ -1,3 +1,9 @@
+---
+# Typed Logics
+
+We fix a class `Prop` in which implication is closed.
+---
+
 import Membership.
 fix Prop.
 import imp: Magma Prop (⟹).
@@ -6,64 +12,139 @@ begin
 
 note! imp.closed.
 
-theory TypeSafe:
+---
+## Propositional Logics
+---
+theory Propositional:
+	-- `false` should be given to be a proposition.
 	import false: Member false Prop.
 	note! false.closed.
+	-- `true` is obtained via `false ⟹ false`.
 	obtain true where true_intro! true, ! true ∈ Prop;
 		- for thesis if assm;
 			apply assm[of (false ⟹ false)].
 		.
-	import TypeSafe.
+	-- Other logical connectives should be closed in `Prop`.
 	import and: Magma Prop (∧).
 	import or: Magma Prop (∨).
 	import not: Unary (¬) Prop Prop.
 	import iff: Magma Prop (⟺).
-	import Membership.
 begin
-	note! and.closed or.closed false.closed not.closed iff.closed.
+
+	note! imp.closed and.closed or.closed false.closed not.closed iff.closed.
 
 	interpret iff: Magmas (⟺).
 
-	interpret iff_Prop: Equivalence Prop (⟺);
-		-.
-		- if xy: x ⟺ y; by iff.sym[OF xy].
-		- if xy: x ⟺ y, yz: y ⟺ z; by iff.trans[OF xy yz].
-		.
-
-	interpret and: iff_Prop.CommMonoid (∧) true;
-		by and.commute and.left_assoc.
-
-	theory FirstOrder:
-		fix QTYPE.
-		assume all_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
-		assume ex_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+	theory Minimal:
+		--- Typed minimal logic allows elimination rules only derive propositions. ---
+		import TypeSafeMinimal.
+		import Membership.
+		assume or_elim: if P ∨ Q, R ∈ Prop, P ⟹ R, Q ⟹ R then R.
+		assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q, Q ∈ Prop then Q.
 	begin
-		theory Impredicative:
-			assume Prop_type: Prop ∈ QTYPE.
-		end
-	end
 
-	theory SecondOrder:
-		import FirstOrder.
-		fix IND.
-		assume IND_type: if A ∈ IND then A ∈ QTYPE.
-		assume IND_Fun_type: if A ∈ IND, B ∈ QTYPE then A → B ∈ QTYPE.
-	begin
-		theory Impredicative:
-			import Impredicative.
-		end
-	end
+		interpret iff_Prop: Equivalence Prop (⟺);
+			-.
+			- if xy: x ⟺ y; by iff.sym[OF xy].
+			- if xy: x ⟺ y, yz: y ⟺ z; by iff.trans[OF xy yz].
+			.
+		interpret and: iff_Prop.CommMonoid (∧) true;
+			by and.commute and.left_assoc.
 
-	theory HigherOrder:
-		import FirstOrder.
-		assume fun_type: if A ∈ QTYPE, B ∈ QTYPE then A → B ∈ QTYPE.
-	begin
-		theory Impredicative:
-			import Impredicative.
-		end
+		interpret or: Symmetric Prop (∨);
+			by #elim or_elim.
+
+		---
+		Algebraic properties of `(∨)`, with respect to `(⟺)`.
+		Minimal logic does not allow `false` to be neutral of or: `false ∨ P ⟺ P`,
+		because the `false` case does not derive `P`.
+		---
+		interpret or: iff_Prop.MonoMagma (∨);
+			- if PQ: P ⟺ Q;
+				by iff_intro #elim or_elim #unfold PQ.
+			- if PQ: P ⟺ Q;
+				by iff_intro #elim or_elim #unfold PQ.
+			.
+		note(cong) or.cong.
+
+		interpret or: iff_Prop.CommSemigroupAbsorb (∨) true;
+			by iff_intro #elim or_elim.
+
+		interpret or: iff.Idempotent Prop (∨);
+			by iff_intro #elim or_elim.
+
+		lemma or_imp_iff: if !R ∈ Prop then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
+			apply iff_intro;
+			- if imp;
+				by imp.
+			by #elim or_elim.
+
+		lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P, !Q ∈ Prop, !R ∈ Prop then Q ∨ R;
+			apply or_elim[OF or].
+
+		interpret and_or: iff_Prop.CommSemiring (∧) (∨);
+			-.
+			- by and.commute.
+			-.
+			- by or.left_mono.
+			- by or.right_mono.
+			- if !P ∈ Prop, !Q ∈ Prop, !R ∈ Prop then P ∧ (Q ∨ R) ⟺ P ∧ Q ∨ P ∧ R;
+				apply iff_intro;
+				simp or_imp_iff imp_and_iff1.
+			- by and.left_assoc.
+			- by or.commute.
+			- by or.left_assoc.
+			.
+
+		lemma nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
+			unfold not_iff_imp_false;
+			by or_imp_iff.
+
+		lemma nnot_excluded_middle: if !P ∈ Prop then ¬¬(P ∨ ¬P);
+			unfold nor_iff;
+			by non_contradiction.
+
+		lemma nnot_nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
+			unfold nor_iff nnnot_iff.
+
+		lemma nor_nnot_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
+			unfold nor_iff nnnot_iff.
+
+		lemma or_imp_nand: if !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
+			by not_intro #elim or_elim.
+		---
+		## Existence
+		---
+		lemma ex_imp_all_imp:
+			if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x], !Q ∈ Prop then Q;
+			apply ex_elim[OF ex];
+			- for x if imp: P.[x] ⟹ Q;
+				by imp all.
+			.
+		lemma ex_imp_iff_all(simp)
+			if ! Q ∈ Prop then ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+			apply iff_intro;
+			- if imp, Px: P.[x];
+				by imp ex_intro1[OF Px].
+			- if imp, ex;
+				apply ex_elim[OF ex];
+				- for x;
+					by imp[of x].
+				.
+			.
+		lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+			note(cong) in.all_cong_weak.
+			simp not_iff_imp_false.
+		lemma exIn_imp_iff_allIn(simp)
+			if ! Q ∈ Prop then ((∃x ∈ A. P.[x]) ⟹ Q) ⟺ (∀x ∈ A. P.[x] ⟹ Q);
+			simp in.ex_def in.all_def.
+		lemma nexIn_iff_allIn_not: ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
+			simp in.ex_def in.all_def nex_iff_all_not nand_iff_imp_not.
 	end
 
 	theory Intuitionistic:
+		--- Typed intuitionistic logic allows false imply any *proposition*. ---
+		import Minimal.
 		assume false_elim: if false, P ∈ Prop then P.
 	begin
 
@@ -119,148 +200,151 @@ begin
 
 end
 
----
-## Weak Minimal Logic
----
-theory WeakMinimal:
-	import TypeSafe.
-	assume or_elim_typed: if P ∨ Q, R ∈ Prop, P ⟹ R, Q ⟹ R then R.
-	assume ex_elim_typed: if ∃x ∈ A. P.[x], ∀x. x ∈ A ⟹ P.[x] ⟹ Q, Q ∈ Prop then Q.
+theory FreeOrder:
+	fix (∀∈).
+	assume all_type! if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	fix (∃∈).
+	assume ex_type!  if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+	import Propositional;
+		obtain false where ! false ∈ Prop;-- One can obtain false.
+			- for thesis if assm;
+				apply assm[of (∀P ∈ Prop. P)].
+			.
+		- then false ∈ Prop.
+		.
+begin
+	theory Minimal:
+		import Minimal.
+	end
+
+	theory Intuitionistic:
+		import Intuitionistic.
+	begin
+		interpret .Minimal.
+	end
+
+	theory Classical:
+		import Classical.
+	begin
+		interpret .Intuitionistic.
+	end
+end
+
+theory Quantified:
+	fix QTYPE (∀∈) (∃∈).
+	assume allIn_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∀x ∈ A. P.[x]) ∈ Prop.
+	assume exIn_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) ∈ Prop.
+end
+
+theory FirstOrder:
+	import Propositional.
+	import Quantified.
 begin
 
-	interpret or: Symmetric Prop (∨);
-		by #elim or_elim_typed.
+	theory Minimal:
+		import Minimal.
+	begin
 
-	---
-	Algebraic properties of `(∨)`, with respect to `(⟺)`.
-	Minimal logic does not allow `false` to be neutral of or: `false ∨ P ⟺ P`,
-	because the `false` case does not derive `P`.
-	---
-	interpret or: iff_Prop.MonoMagma (∨);
-		- if PQ: P ⟺ Q;
-			by iff_intro #elim or_elim #unfold PQ.
-		- if PQ: P ⟺ Q;
-			by iff_intro #elim or_elim #unfold PQ.
-		.
-	note(cong) or.cong.
-
-	interpret or: iff_Prop.CommSemigroupAbsorb (∨) true;
-		by iff_intro #elim or_elim.
-
-	interpret or: iff.Idempotent Prop (∨);
-		by iff_intro #elim or_elim.
-
-	lemma or_imp_iff: if !R ∈ Prop then (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
-		apply iff_intro;
-		- if imp;
-			by imp.
-		by #elim or_elim.
-
-	lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P, !Q ∈ Prop, !R ∈ Prop then Q ∨ R;
-		apply or_elim[OF or].
-
-	interpret and_or: iff_Prop.CommSemiring (∧) (∨);
-		-.
-		- by and.commute.
-		-.
-		- by or.left_mono.
-		- by or.right_mono.
-		- if !P ∈ Prop, !Q ∈ Prop, !R ∈ Prop then P ∧ (Q ∨ R) ⟺ P ∧ Q ∨ P ∧ R;
+		lemma exIn_cong:
+			if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x],
+				! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
+			then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
 			apply iff_intro;
-			simp or_imp_iff imp_and_iff1.
-		- by and.left_assoc.
-		- by or.commute.
-		- by or.left_assoc.
-		.
+			- unfold[at 0] in.ex_def;
+				simp eq;
+				- for x;
+					by in.ex_intro1[of x].
+				.
+			- unfold[at 0] in.ex_def;
+				simp;
+				- for x;
+					by in.ex_intro1[of x] #unfold eq.
+				.
+			.
 
-	lemma nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
-		unfold not_iff_imp_false;
-		by or_imp_iff.
-
-	lemma nnot_excluded_middle: if !P ∈ Prop then ¬¬(P ∨ ¬P);
-		unfold nor_iff;
-		by non_contradiction.
-
-	lemma nnot_nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
-		unfold nor_iff nnnot_iff.
-
-	lemma nor_nnot_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
-		unfold nor_iff nnnot_iff.
-
-	lemma or_imp_nand: if !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
-		by not_intro #elim or_elim.
-	---
-	## Existence
-	---
-	lemma ex_imp_all_imp:
-		if ex: ∃x ∈ A. P.[x] ⟹ Q, all: ∀x ∈ A. P.[x], !Q ∈ Prop then Q;
-		apply ex_elim[OF ex];
-		- for x if !x ∈ A, imp: P.[x] ⟹ Q;
-			by imp all[THEN in.all_elim1].
-		.
-	lemma ex_iff_true:
-		if x! x ∈ A, Px: P.[x] then (∃y ∈ A. P.[y]) ⟺ true;
-		apply iff_true;
-		apply ex_intro1[OF x Px].
-	lemma ex_iff:
-		if !A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
-		then (∃x ∈ A. P.[x]) ⟺ (∀Q. Q ∈ Prop ⟹ (∀x. x ∈ A ⟹ P.[x] ⟹ Q) ⟹ Q);
-		apply iff_intro;
-		- if ex for Q if !, imp;
-			apply ex_elim[OF ex];
-			apply imp>0=.
-		- if all;
-			apply ex_intro;
-			apply all>0=.
-		.
-	lemma ex_cong:
-		if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x],
-			! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ P'.[x] ∈ Prop
-		then (∃x ∈ A. P.[x]) ⟺ (∃x ∈ A. P'.[x]);
-		unfold ex_iff eq.
-	lemma ex_imp_iff_all(simp)
-		if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! Q ∈ Prop then ((∃x ∈ A. P.[x]) ⟹ Q) ⟺ (∀x ∈ A. P.[x] ⟹ Q);
-		apply+ iff_intro;
-		- if imp;
+		lemma ex_or_distrib:
+			if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ Q.[x] ∈ Prop
+			then (∃x ∈ A. P.[x] ∨ Q.[x]) ⟺ (∃x ∈ A. P.[x]) ∨ (∃x ∈ A. Q.[x]);
+		-	note(cong) in.all_cong_weak.
+			simp iff_iff_and or_imp_iff in.all_and_distrib[dual];
 			apply in.all_intro;
-			- for x if Px;
-				by imp ex_intro1[OF Px].
-			.
-		- if imp, ex;
-			apply ex_elim[OF ex];
 			- for x;
-				by imp[THEN in.all_elim1, of x].
+				by in.ex_intro1[of x].
 			.
 		.
-	lemma nex_iff_all_not:
-		if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop then ¬(∃x ∈ A. P.[x]) ⟺ (∀x ∈ A. ¬P.[x]);
-		note(cong) in.all_cong_weak.
-		simp not_iff_imp_false.
 
-	lemma ex_or_distrib:
-		if ! A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop, ! ∀x. x ∈ A ⟹ Q.[x] ∈ Prop
-		then (∃x ∈ A. P.[x] ∨ Q.[x]) ⟺ (∃x ∈ A. P.[x]) ∨ (∃x ∈ A. Q.[x]);
-	-	note(cong) in.all_cong_weak.
-		simp iff_iff_and or_imp_iff in.all_and_distrib[dual];
-		apply in.all_intro;
-		- for x;
-			by ex_intro1[of x].
-		.
-	.
+	end
+
+	theory Intuitionistic:
+		import Intuitionistic.
+		import .Minimal.
+	end
+
+	theory Classical:
+		import Classical.
+		import .Intuitionistic.
+	end
 
 end
 
-theory Minimal:
-	import TypeFree.
+theory SecondOrder:
+	import FirstOrder.
+	fix IND.
+	assume IND_type: if A ∈ IND then A ∈ QTYPE.
+	assume IND_fun_type: if A ∈ IND, B ∈ QTYPE then A → B ∈ QTYPE.
+end
+
+theory HigherOrder:
+	import FirstOrder.
+	assume fun_type: if A ∈ QTYPE, B ∈ QTYPE then A → B ∈ QTYPE.
 begin
+	interpret SecondOrder;
+		instantiate IND := QTYPE.
+		by fun_type.
+	end
 end
 
-theory Intuitionistic:
-	import TypeFree.
-	import Intuitionistic.
-end
+theory Impredicative:
+	import Quantified.
+	assume Prop_type! Prop ∈ QTYPE.
+begin
 
-theory Classical:
-	import TypeFree.
-	import Classical.
+	theory FirstOrder:
+		import Propositional;
+			obtain false where ! false ∈ Prop;-- One can obtain false.
+				- for thesis if assm;
+					apply assm[of (∀P ∈ Prop. P)].
+				.
+			.
+	begin
+		interpret FirstOrder.
+		lemma exIn_iff:
+			if !A ∈ QTYPE, ! ∀x. x ∈ A ⟹ P.[x] ∈ Prop
+			then (∃x ∈ A. P.[x]) ⟺ (∀Q ∈ Prop. (∀x ∈ A. P.[x] ⟹ Q) ⟹ Q);
+			simp in.ex_def iff_iff_and;
+
+			apply iff_intro;
+			- if ex for Q if !, imp;
+				apply in.ex_elim[OF ex];
+				apply imp>0=.
+			- if all;
+				apply in.ex_intro;
+				apply all>0=.
+			.
+	end
+
+	theory SecondOrder:
+		import FirstOrder.
+		import SecondOrder.
+	end
+
+	theory HigherOrder:
+		import FirstOrder.
+		import HigherOrder.
+	begin
+		interpret SecondOrder:
+			instantiate IND := QTYPE.
+			.
+	end
+
 end

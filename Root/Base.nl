@@ -262,7 +262,6 @@ context MetaPartialEquivalence begin
 		import MetaLeftNeutral.
 		import MetaCommutative.
 	begin
-print.
 		interpret MetaNeutral;
 			by trans[OF commute left_neutral].
 	end

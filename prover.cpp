@@ -477,7 +477,7 @@ public:
 			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer, bool noprefix ) {
+	void _auto_discharge( string const& prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer, bool unprefixed ) {
 		auto const& assm = assume.first;
 		auto f = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto thm2 = thm.subst(import);
@@ -492,7 +492,7 @@ public:
 			if MSG cout << "transferred " << assm_name << ": " << _thy.pretty(*o) << endl;
 			return;
 		}
-		if( !noprefix && prefix != "" ) {
+		if( !unprefixed ) {
 			assm_name = prefix+'.'+assm_name;
 			if( auto const& o = _thy.find_thm(assm_name,f) ) {
 				if MSG cout << "transferred " << assm_name << ": " << _thy.pretty(*o) << endl;
@@ -512,9 +512,9 @@ public:
 		Thm ret = infer.prove(_thy,assm,true);
 		intp.discharge(ret);
 	}
-	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer ) {
+	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer, bool unprefixed ) {
 		auto [org_sym,ex,spec,name] = obtain;
-		auto sym = prefix.empty() ? org_sym : prefix+'.'+org_sym;
+		auto sym = unprefixed || prefix.empty() ? org_sym : prefix+'.'+org_sym;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
 			if( !_thy.find_thm(name,[&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -550,6 +550,7 @@ public:
 				if( !MSG ) cout << _indent(' ');
 				cout << "loading " << filename << endl;
 			}
+			thy.add_import("_",thy.self(),false);// file root
 			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
 			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
 				if( !MSG ) cout << _indent(' ');
@@ -563,18 +564,24 @@ public:
 		}
 	}
 	void import( bool change ) {
-		string prefix = get_thm_name();
+		string prefix;
 		string name;
 		bool unprefixed;
-		if( skips(":") ) {
-			name = get();
+		if( skips("!") ) {// canonical prefix
+			prefix = name = get_thm_name();
 			unprefixed = false;
-		} else if( skips("?") ) {
-			name = get();
-			unprefixed = true;
 		} else {
-			swap(name,prefix);
-			unprefixed = false;
+			prefix = get_thm_name();
+			if( skips(":") ) {// explicit prefix
+				name = get();
+				unprefixed = false;
+			} else if( skips("?") ) {// optional prefix
+				name = get();
+				unprefixed = true;
+			} else {// optional canonical prefix
+				name = prefix;
+				unprefixed = true;
+			}
 		}
 		auto intp = _thy.thy(name,reader());
 		auto src = intp.source();
@@ -585,7 +592,7 @@ public:
 					_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_blast);
-					_auto_retain(_thy,prefix,intp,*obtain,infer);
+					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
 				} else {
 					break;
 				}
@@ -617,7 +624,7 @@ public:
 					_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_blast);
-					_auto_retain(_thy,prefix,intp,*obtain,infer);
+					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
 				} else {
 					break;
 				}
@@ -718,7 +725,7 @@ public:
 							_auto_discharge(prefix,intp,*assume,change,infer,unprefixed);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							auto infer = _thy.resolver(_out_blast);
-							_auto_retain(org_thy,prefix,intp,*obtain,infer);
+							_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(intp,*fix,change);
@@ -736,7 +743,7 @@ public:
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						auto infer = _thy.resolver(_out_blast);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer);
+						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 					} else if( auto const& assume = intp.assuming() ) {
 						auto [match,thm] = goal_matches(pat,assume->first);
 						if( match ) {
@@ -755,7 +762,7 @@ public:
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
 						auto infer = _thy.resolver(_out_blast);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer);
+						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 					} else {
 						break;
 					}
@@ -775,7 +782,7 @@ public:
 					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(prefix,intp,*assume,change,*ctrl,unprefixed);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl);
+						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl,unprefixed);
 					} else {
 						break;
 					}
@@ -846,7 +853,7 @@ public:
 					break;
 				}
 				auto infer = _thy.resolver(_out_blast);
-				_auto_retain(org_thy,prefix,intp,*obtain,infer);
+				_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
 			}
@@ -1784,6 +1791,8 @@ void run( istream& is, string_view const& name, bool exit_on_error, char out ) {
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
 	Thy thy = root.branch(name,"");
+	root.add_import("Root",root.self(),false);// root
+	thy.add_import("_",thy.self(),false);// file root
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	try {
 		prover.loop();

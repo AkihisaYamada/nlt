@@ -348,16 +348,14 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 			}
 			intp.discharge(*o);
 		} else {
-			if( pos_it != pos_end ) {
-				if( *pos_it != i ) {// inactive position
-					_step_cond(subthy,intp,cond.assm,false,false,*cond.ind,pos_it,pos_end);
-					i++;
-					continue;
-				}
-				pos_it++;
+			if( pos_it == pos_end ) {// active
+				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || applied;
+			} else if( *pos_it == i ) {
+				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it+1,pos_end) || applied;
+			} else {
+				_step_cond(subthy,intp,cond.assm,false,false,*cond.ind,pos_it,pos_end);
 			}
 			i++;
-			applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || applied;
 		}
 	}
 	indent--;
