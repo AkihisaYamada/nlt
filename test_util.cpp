@@ -47,7 +47,7 @@ int main() try {
 		loc.fix("thesis");
 		Thm assm = loc.assume(loc.cterm("true" &= TRUE >>= thesis));
 		Thm imp_refl2 = imp_refl.weaken(loc);
-		return True.obtain("true",assm.instantiate(imp_refl2).discharge(imp_refl2).intro()).second;
+		return True.obtain("true",assm.allE(imp_refl2).impE(imp_refl2).intro()).second;
 	}();
 	cout << True;
 

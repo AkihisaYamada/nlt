@@ -379,15 +379,15 @@ Thm discharge(Thm thm, Thm arg) {
 	arg = arg.subst(ret_intp).subst(discharger_intp);
 	iter_local_vars(arg_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		arg = arg.instantiate( discharger_ctxt.cterm( val ? *val : Term(x) ) );
+		arg = arg.allE( discharger_ctxt.cterm( val ? *val : Term(x) ) );
 	});
 	arg = arg.intro();
 	thm = thm.subst(ret_intp);
 	iter_local_vars(concl_ctxt,[&](string const& x) {// TODO: slower than `subst`
 		auto val = unifier->get(x);
-		thm = thm.instantiate( ret_ctxt.cterm( val ? *val : Term(x) ) );
+		thm = thm.allE( ret_ctxt.cterm( val ? *val : Term(x) ) );
 	});
-	thm = thm.discharge(arg);
+	thm = thm.impE(arg);
 	thm = thm.intro();
 	return thm;
 }

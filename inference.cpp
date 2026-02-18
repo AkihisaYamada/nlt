@@ -28,7 +28,7 @@ Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
 			if( n != 255 ) throw Error("\"making intro rule failed\"")(thm);
 			break;
 		}
-		rule = rule.discharge(child.ctxt().assume(imp->first));
+		rule = rule.impE(child.ctxt().assume(imp->first));
 	}
 	return Intro(thm,rule,vars,i);
 }
@@ -42,7 +42,7 @@ Elim Elim::rule( Thm const& thm, short after, char mode ) {
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.ctxt().assume(imp->first);
-	body = body.discharge(premise);
+	body = body.impE(premise);
 	return Elim(thm,premise,body,after,mode);
 }
 std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const {
@@ -127,7 +127,7 @@ void Thesis::_apply2( Subst const& matcher, Intro const& intro, Thy const& child
 		}
 		break;
 	}
-	_thm = child.weaken(_thm).discharge(intro.conclusion().subst(pat2child)).intro();
+	_thm = child.weaken(_thm).impE(intro.conclusion().subst(pat2child)).intro();
 	_goals--;
 }
 bool Resolver::_apply_and_discharge(

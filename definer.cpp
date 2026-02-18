@@ -51,7 +51,7 @@ pair<string,Thm> Definer::define(Thy& thy, Term const& fxs, Term const& r, Opt<s
 	lthy.add_rewrite_rule(inf.rules,lthy.weaken(_beta),false);
 	auto eq_thm = inf.steps(lthy,r_cabs_app,false,steps,steps,false,{},{EQ});// (λx... r) x... = r
 	eq_thm = eq_thm.intro().subst(thesis_intp);// ∀x... (λx... r) x... = r
-	thm = thm.instantiate(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
+	thm = thm.allE(r_cabs.subst(thesis_intp));// (∀x... (λx... r) x... = r) ⟹ thesis
 	thm = thm << eq_thm;// thesis
 	thm = thm.intro();// ∀thesis. (∀f. (∀x... f x... = r) ⟹ thesis) ⟹ thesis
 	auto [cf,spec] = thy.obtain( f, thm, make_spec_name( name ? *name : f ), true );// f, ((∀x... f x... = r) ⟹ thesis) ⟹ thesis

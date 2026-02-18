@@ -210,7 +210,7 @@ public:
 					auto sub = loc.fork();
 					auto tmp = ret.subst(sub);
 					while( auto t = gets_term(1000) ) {
-						tmp = tmp.instantiate(sub.ctxt().enclose(*t));
+						tmp = tmp.allE(sub.ctxt().enclose(*t));
 					}
 					ret = tmp.intro();
 				} else if( skips("OF") ) {
@@ -226,7 +226,7 @@ public:
 						} else if( skips("!") ) {
 							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise to blast\"");
-							tmp = tmp.discharge(sub.prove(imp->first,_out_blast));
+							tmp = tmp.impE(sub.prove(imp->first,_out_blast));
 						} else {
 							break;
 						}
@@ -247,7 +247,7 @@ public:
 						arg = strip_all(arg,strip_ctxt.self()).first;
 						auto imp = arg.cbinary(IMP);
 						if( !imp ) break;
-						arg = arg.discharge(strip_ctxt.assume(imp->first));
+						arg = arg.impE(strip_ctxt.assume(imp->first));
 					}
 					auto u = unify(arg,cond,[&](auto v){ return strip_ctxt.fixes(v); });
 					if( !u ) throw Error("\"mismatching THEN\"")(arg)(strip_thm);
@@ -265,7 +265,7 @@ public:
 						}
 					}
 					thm = strip_thm.subst(strip2sub);
-					ret = thm.discharge(arg.subst(strip2sub)).intro();
+					ret = thm.impE(arg.subst(strip2sub)).intro();
 				} else if( skips("for") ) {
 					while( auto x = gets(Lexer::Word) ) {
 						loc.fix(*x);
@@ -1527,7 +1527,7 @@ public:
 				}
 				auto goal = in.assume(newgoal);// φ ⟹ ... ⟹ #TMP
 				for( auto const& fact : facts ) {
-					goal = goal.discharge(fact);
+					goal = goal.impE(fact);
 				}// goal = #TMP
 				auto rule = Intro::rule(goal.intro());
 				thesis.apply(rule);

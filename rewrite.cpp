@@ -41,7 +41,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 		if(!imp) break;
 		Thm assm = subthy.assume(imp->first);
 		add_intro(subthy,assm);
-		body = body.discharge(assm);
+		body = body.impE(assm);
 	}
 	if( auto const& bin = strips_binary(body) )
 	if( auto const& ind = rewriter()->gets_rel_ind(get<0>(*bin)) ) {
@@ -302,9 +302,9 @@ bool Resolver::_step_cond(
 }
 Thm Resolver::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	indent++;
-	Thm refl = thy.weaken(rew->_refls[ind]).instantiate(source);
+	Thm refl = thy.weaken(rew->_refls[ind]).allE(source);
 	while( auto imp = refl.cbinary(IMP) ) {
-		refl = refl.discharge(prove(thy,imp->first,false));
+		refl = refl.impE(prove(thy,imp->first,false));
 	}
 	indent--;
 	return refl;
@@ -468,7 +468,7 @@ Opt<Thm> Resolver::_steps(
 	auto const& tranp = rew->_trans.finds(ind);
 	if( !tranp ) throw Error("\"transitivity rule unregistered\"");
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
-	Thm ltrans = thy.weaken(tranp->second).instantiate(s);
+	Thm ltrans = thy.weaken(tranp->second).allE(s);
 	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(thy,t,simp,ind,begin,end);
@@ -480,7 +480,7 @@ Opt<Thm> Resolver::_steps(
 		eq = ltrans << eq;// ∀z. t = z ⟹ guards... ⟹ s = z
 		eq = eq << eq2;// guards... ⟹ s = t2
 		while( auto imp = eq.cbinary(IMP) ) {// discharge guards
-			eq = eq.discharge(prove(thy,imp->first,false));
+			eq = eq.impE(prove(thy,imp->first,false));
 		}
 		i++;
 		if( i == max ) {
@@ -507,7 +507,7 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 		imp = imp << *steps; // φθ ⟹... t ⟹ s
 		auto conds = o->second.conds;
 		for( size_t i = 0; i < conds; i++ ) {
-			imp = imp.discharge(prove(thy,imp.cbinary(IMP)->first,false));
+			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,false));
 		}// t ⟹ s
 		thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
 	}

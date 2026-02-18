@@ -272,7 +272,7 @@ pair<Thm,size_t> strip_all( Thm const& thm, Intp const& toChild, Renamer const& 
 		auto nv = renamer(v);
 		if( !nv ) break;
 		ret.second++;
-		ret.first = ret.first.instantiate(ctxt.fix(*nv));
+		ret.first = ret.first.allE(ctxt.fix(*nv));
 	}
 	return ret;
 }
@@ -316,7 +316,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto const& arg_weaken = arg.subst(thm2assm);
 	auto m = match( imp->first, arg_weaken, [&](auto v){ return rule.ctxt().fixes(v); } );
 	if( !m ) throw Error("#match_discharge")(thm)(arg);
-	rule = rule.discharge(match_ctxt.assume(imp->first));
+	rule = rule.impE(match_ctxt.assume(imp->first));
 	auto match2assm = Intp::make(match_ctxt,assm_ctxt);
 	subst_intp(match2assm,*m);
 	auto const& assm = match2assm.assuming();

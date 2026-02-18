@@ -67,7 +67,7 @@ int main() try {
 		loc.fix("thesis");
 		Thm assm = loc.assume("true" &= True >>= thesis);
 		Thm imp_refl2 = imp_refl.subst(child);
-		return Root.obtain("true",assm.instantiate(imp_refl2).discharge(imp_refl2).intro()).second;
+		return Root.obtain("true",assm.allE(imp_refl2).impE(imp_refl2).intro()).second;
 	}();
 	cout << "obtained " << True << " where trueI: " << trueI << endl;
 	cout << "context Root:\n" << Root << endl;
@@ -88,8 +88,8 @@ int main() try {
 		Loc.fix("P");
 		Loc.fix("Q");
 		Thm assm = Loc.assume("R" &= (p >>= q >>= r) >>= r);
-		Thm lem = andI1.subst(toLoc).instantiate(p).instantiate(q);
-		return assm.instantiate(Loc.cterm(p & q)).discharge(lem).intro();
+		Thm lem = andI1.subst(toLoc).allE(p).allE(q);
+		return assm.allE(Loc.cterm(p & q)).impE(lem).intro();
 	}();
 	cout << "proved andI: " << andI << endl;
 	Thm andE = [&]{
@@ -98,13 +98,13 @@ int main() try {
 		Loc.fix("P");
 		Loc.fix("Q");
 		Thm pq = Loc.assume(p & q);
-		Thm P = andE1.subst(toLoc).instantiate(p).instantiate(q).discharge(pq);
-		Thm Q = andE2.subst(toLoc).instantiate(p).instantiate(q).discharge(pq);
+		Thm P = andE1.subst(toLoc).allE(p).allE(q).impE(pq);
+		Thm Q = andE2.subst(toLoc).allE(p).allE(q).impE(pq);
 		Intp toLoc2 = Loc.fork();
 		Ctxt Loc2 = toLoc2.ctxt();
 		Loc2.fix("R");
 		Thm pqr = Loc2.assume(p >>= q >>= r);
-		return pqr.discharge(P.subst(toLoc2)).discharge(Q.subst(toLoc2)).intro().intro();
+		return pqr.impE(P.subst(toLoc2)).impE(Q.subst(toLoc2)).intro().intro();
 	}();
 	cout << "proved andE: " << andE << endl;
 	cout << "\n--- Iff ---" << endl;
@@ -133,18 +133,18 @@ int main() try {
 			Ctxt Loc2 = toLoc2.ctxt();
 			Intp Iff_to_Loc2 = toLoc.compose(toLoc2);
 			Thm P = Loc2.assume(p);
-			Thm Q = iffE1.subst(Iff_to_Loc2).instantiate(p).instantiate(q).discharge(pq.subst(toLoc2)).discharge(P);
-			return iffE1.subst(Iff_to_Loc2).instantiate(q).instantiate(r).discharge(qr.subst(toLoc2)).discharge(Q).intro();
+			Thm Q = iffE1.subst(Iff_to_Loc2).allE(p).allE(q).impE(pq.subst(toLoc2)).impE(P);
+			return iffE1.subst(Iff_to_Loc2).allE(q).allE(r).impE(qr.subst(toLoc2)).impE(Q).intro();
 		}();
 		Thm r_p = [&]{
 			Intp toLoc2 = Loc.fork();
 			Ctxt Loc2 = toLoc2.ctxt();
 			Intp Iff_to_Loc2 = toLoc.compose(toLoc2);
 			Thm R = Loc2.assume(r);
-			Thm Q = iffE2.subst(Iff_to_Loc2).instantiate(q).instantiate(r).discharge(qr.subst(toLoc2)).discharge(R);
-			return iffE2.subst(Iff_to_Loc2).instantiate(p).instantiate(q).discharge(pq.subst(toLoc2)).discharge(Q).intro();
+			Thm Q = iffE2.subst(Iff_to_Loc2).allE(q).allE(r).impE(qr.subst(toLoc2)).impE(R);
+			return iffE2.subst(Iff_to_Loc2).allE(p).allE(q).impE(pq.subst(toLoc2)).impE(Q).intro();
 		}();
-		return iffI1.subst(toLoc).instantiate(p).instantiate(r).discharge(p_r).discharge(r_p).intro();
+		return iffI1.subst(toLoc).allE(p).allE(r).impE(p_r).impE(r_p).intro();
 	}();
 	cout << "proved iff_trans: " << iff_trans << endl;
 	cout << "\n--- PropLogic ---" << endl;
@@ -173,9 +173,9 @@ int main() try {
 		Ctxt loc = toLoc.ctxt();
 		loc.fix("P");
 		loc.fix("Q");
-		Thm I = andI.subst(Logic_And).subst(toLoc).instantiate(p).instantiate(q);
-		Thm E = andE.subst(Logic_And).subst(toLoc).instantiate(p).instantiate(q);
-		return iffI1.subst(Logic_Iff).subst(toLoc).instantiate(p & q).instantiate("R" &= (p >>= q >>= r) >>= r).discharge(E).discharge(I).intro();
+		Thm I = andI.subst(Logic_And).subst(toLoc).allE(p).allE(q);
+		Thm E = andE.subst(Logic_And).subst(toLoc).allE(p).allE(q);
+		return iffI1.subst(Logic_Iff).subst(toLoc).allE(p & q).allE("R" &= (p >>= q >>= r) >>= r).impE(E).impE(I).intro();
 	}();
 	cout << "proved and_iff: " << and_iff << endl;
 	Thm and_imp_iff = [&]{
@@ -185,9 +185,9 @@ int main() try {
 		loc.fix("Q");
 		Thm assm = loc.assume((p >>= q) & (q >>= p));
 		Term PQ = (p >>= q);
-		Thm pq = andE1.subst(Logic_And).subst(toLoc).instantiate(p>>=q).instantiate(q>>=p).discharge(assm);
-		Thm qp = andE2.subst(Logic_And).subst(toLoc).instantiate(p>>=q).instantiate(q>>=p).discharge(assm);
-		return iffI1.subst(Logic_Iff).subst(toLoc).instantiate(p).instantiate(q).discharge(pq).discharge(qp).intro();
+		Thm pq = andE1.subst(Logic_And).subst(toLoc).allE(p>>=q).allE(q>>=p).impE(assm);
+		Thm qp = andE2.subst(Logic_And).subst(toLoc).allE(p>>=q).allE(q>>=p).impE(assm);
+		return iffI1.subst(Logic_Iff).subst(toLoc).allE(p).allE(q).impE(pq).impE(qp).intro();
 	}();
 	cout << "proved and_imp_iff: " << and_imp_iff << endl;
 	cout << "=== core test is done ===" << endl;

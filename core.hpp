@@ -655,16 +655,21 @@ public:
 		CTerm::operator=(other);
 		return *this;
 	}
-	/** @brief forall elimination. This theorem must be of form ∀x. P(x).
-	 * @return Thm P(t)
-	 * @exception _MalformedInst
+	/** @brief forall elimination. This theorem must be of form ∀x. P[x].
+	 * @return Thm P[t]
+	 * @exception Error if this theorem is not ∀x. P[x]
 	 */
-	Thm instantiate(Term const& t) const {
-		return _instantiate(_ctxt.cterm(t));
+	Thm allE(Term const& t) const {
+		return _allE(_ctxt.cterm(t));
 	}
-	Thm instantiate(CTerm const& t) const {
+	/** @brief forall elimination. This theorem must be of form ∀x. P[x].
+	 * @return Thm P[t]
+	 * @exception Error if this theorem is not ∀x. P[x]
+	 * @exception Error if this and t belong to different contexts
+	 */
+	Thm allE(CTerm const& t) const {
 		if( t._ctxt != _ctxt ) throw Error(__func__)("\"wrong context instantiate\"");
-		return _instantiate(t);
+		return _allE(t);
 	}
 	/** @brief implication elimination.
 	 * 
@@ -673,12 +678,7 @@ public:
 	 * @exception MalformedDischarge
 	 * @exception WrongContext
 	 */
-	Opt<Thm> discharges(Thm const& t) const;
-	Thm discharge(Thm const& t) const {
-		auto o = discharges(t);
-		if( !o ) throw Error(__func__)("\"malformed discharge\"")(*this)(t);
-		return *o;
-	}
+	Thm impE(Thm const& t) const;
 	/** @brief Moves the theorem to the parent context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
@@ -688,9 +688,9 @@ public:
 	}
 	Thm subst(Intp const& intp) const;
 private:
-	Thm _instantiate(CTerm const& t) const {
+	Thm _allE(CTerm const& t) const {
 		auto const& a = cunary(ALL);
-		if(!a) throw Error(__func__)("\"malformed instantiate\"")(*this)(t);
+		if(!a) throw Error("#thm")("\"malformed instantiate\"")(*this)(t);
 		return a->inst(t);
 	}
 	friend Ctxt;

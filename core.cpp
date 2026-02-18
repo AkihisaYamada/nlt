@@ -314,13 +314,13 @@ pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 	}
 }
 
-Opt<Thm> Thm::discharges(Thm const& t) const {
+Thm Thm::impE(Thm const& t) const {
 	if( t.ctxt() != ctxt() ) throw Error("#thm")("\"wrong context discharge\"");
-	if( auto const& imp = cbinary(IMP) )
-	if( imp->first == t ) {
+	auto const& imp = cbinary(IMP);
+	if( imp && imp->first == t ) {
 		return Thm(imp->second);
 	}
-	return {};
+	throw Error("#thm")("\"malformed discharge\"")(*this)(t);
 }
 
 CTerm CTerm::intro() const {

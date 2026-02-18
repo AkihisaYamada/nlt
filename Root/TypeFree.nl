@@ -5,15 +5,24 @@ begin
 
 interpret Base.
 
+theory PierceLaw:
+	assume pierce_law: if (P ⟹ Q) ⟹ P then P.
+begin
+
+end
+
+---
+## Type-Free Minimal Logic
+---
 theory Minimal:
 	import TypeSafeMinimal.
 	assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 begin
 
-	---
-	## Disjunction
-	---
+---
+## Disjunction
+---
 
 	lemma or_iff: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		apply iff_intro[OF or_elim or_intro].
@@ -77,9 +86,9 @@ begin
 	lemma or_imp_nand: P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
 		by not_intro #elim or_elim.
 
-	---
-	## Existence
-	---
+---
+## Existence
+---
 
 	lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x] then Q;
 		apply ex_elim[OF ex];
@@ -116,9 +125,9 @@ begin
 			by ex_intro1[of x].
 		.
 
-	---
-	## Theories
-	---
+---
+## Theories
+---
 	theory ExRel:
 		import ExRel.
 	begin
@@ -156,12 +165,51 @@ begin
 			unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 	end
 
-	---
-	The law of excluded middle `P ∨ ¬P` allows case analysis.
-	It becomes classical logic if one assumes the law of explosion.
-	---
+	theory Choice:
+		assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
+	end
+
+	theory ChoiceOperator:
+		fix (SOME).
+		assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
+	end
+
+---
+### Law of Explosion
+(Latin: *ex falso quodlibet*)
+---
+	theory Explosion:
+		assume false_elim(elim) if false then P.
+		-- It yields intuitionistic logic.
+	begin
+
+		lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
+			by iff_intro not_imp_false[OF nP].
+
+		lemma not_elim: if nP: ¬P, P: P then Q;
+			use not_imp_false[OF nP P].
+
+		lemma false_imp_iff(simp) (false ⟹ P) ⟺ true;
+			by iff_true.
+
+		interpret and: iff.MetaCommAbsorb (∧) false;
+			by iff_intro.
+
+		note(simp) and.left_absorb and.right_absorb.
+
+		interpret or: iff.MetaCommNeutral (∨) false;
+			by iff_intro or_intro #elim or_elim false_elim.
+
+		note(simp) or.left_neutral or.right_neutral.
+
+	end
+
+---
+### Excluded Middle
+---
 	theory ExcludedMiddle:
-		assume excluded_middle: P ∨ ¬P.
+		assume excluded_middle: P ∨ ¬P.-- (Latin: *tertium non datur*)
+		-- This is incomparable with Explosion, but their combination leads to classical logic.
 	begin
 
 		lemma cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
@@ -172,100 +220,26 @@ begin
 
 	end
 
-	theory Choice:
-		assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
-	end
-
-	theory ChoiceOperator:
-		fix (SOME).
-		assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
-	end
-
-end
-
 ---
-Intuitionistic logic asserts the law of explosion `false ⟹ P`.
-We can obtain such a `false` via `∀P. P`.
+### Double Negation Elimination
 ---
-theory Intuitionistic:
-	obtain false where false_elim(elim) if false then P;
-		- for thesis if assm;
-			apply assm[of (∀P. P)].
-		.
-	import Minimal.
-begin
-
-	lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
-		by iff_intro not_imp_false[OF nP].
-
-	lemma not_elim: if nP: ¬P, P: P then Q;
-		use not_imp_false[OF nP P].
-
-	lemma false_imp_iff(simp) (false ⟹ P) ⟺ true;
-		by iff_true.
-
-	interpret and: iff.MetaCommAbsorb (∧) false;
-		by iff_intro.
-
-	note(simp) and.left_absorb and.right_absorb.
-
-	interpret or: iff.MetaCommNeutral (∨) false;
-		by iff_intro or_intro #elim or_elim false_elim.
-
-	note(simp) or.left_neutral or.right_neutral.
-
-end
-
-theory PierceLaw:
-	assume pierce_law: if (P ⟹ Q) ⟹ P then P.
-begin
-
-end
-
----
-We define classical logic as intuitionistic logic plus excluded middle.
----
-theory Classical:
-	import Intuitionistic.
-	import ExcludedMiddle.
-begin
-
-	interpret PierceLaw;
-		- if PQP: (P ⟹ Q) ⟹ P then P;
-			apply cases[of P];
-			- if nP: ¬P then P;
-				apply PQP;
-				- if P: P then Q;
-					by not_elim[OF nP P].
-				.
-			.
-		.
-
-end
-
-context Minimal begin
-
-	---
-	Double negation elimination alone will be classical logic.
-	---
 	theory DoubleNegationElimination:
 		assume nnot_imp: if ¬¬P then P.
+		-- This alone yields classical logic.
 	begin
 
 		lemma nnot_iff(simp) ¬¬P ⟺ P;
 			apply iff_intro[OF nnot_imp nnot_intro].
 
-		lemma contradiction: if not_imp: ¬P ⟹ false then P;
-			apply nnot_imp;
-			apply not_intro;
-			by not_imp.
+		lemma contradiction: (¬P ⟹ false) ⟹ P;-- (Latin: *reductio ad absurdum* (RAA))
+			simp not_iff_imp_false[dual].
 
-		interpret! Classical;
-			retain false;
-				- if 0: false then P;
-					apply contradiction;
-					by 0.
-				.
+		interpret Explosion;
+			- if 0: false then P;
+				apply contradiction;
+				by 0.
+			.
+		interpret ExcludedMiddle;
 			- then P ∨ ¬P;
 				apply or_intro;
 				- for Q if PQ: P ⟹ Q, nPQ: ¬ P ⟹ Q then Q;
@@ -280,19 +254,50 @@ context Minimal begin
 					.
 				.
 			.
+		interpret PierceLaw;
+			- if PQP: (P ⟹ Q) ⟹ P then P;
+				apply cases[of P];
+				- if nP: ¬P then P;
+					apply PQP;
+					- if P: P then Q;
+						by not_elim[OF nP P].
+					.
+				.
+			.
+	end
 
 end
 
 ---
-Classical logic also implies double negation elimination.
+## Intuitionistic Logic
+
+We can obtain `false` via `∀P. P` to satisfy the law of explosion.
 ---
-context Classical begin
+theory Intuitionistic:
+	obtain false where false_elim(elim) if false then P;
+		- for thesis if assm;
+			apply assm[of (∀P. P)].
+		.
+	import Minimal.
+begin
+	interpret Explosion.
+end
+
+
+---
+We define classical logic as intuitionistic logic plus excluded middle.
+---
+theory Classical:
+	import Intuitionistic.
+	import ExcludedMiddle.
+begin
+
 	interpret DoubleNegationElimination;
 		- if nnP: ¬¬P then P;
 			apply cases[of P];
-			-.
 			- if nP: ¬P;
 				by not_elim[OF nnP nP].
 			.
 		.
+
 end

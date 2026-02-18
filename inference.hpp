@@ -71,7 +71,7 @@ public:
 	/** @brief Discharge a subgoal by identical theorem */
 	void discharge( Thm const& thm ) & {
 		if( _goals == 0 ) throw Error("\"no goal\"");;
-		_thm = _thm.discharge(thm);
+		_thm = _thm.impE(thm);
 		_goals--;
 	}
 	/** @brief Tries to apply a rule once */
@@ -104,7 +104,7 @@ public:
 		auto const& weaken = *_thy.parent();
 		auto assm = _thy.assume(goal().subst(weaken));
 		add_intro(_thy,assm);
-		_thm = _thm.subst(weaken).discharge(assm);
+		_thm = _thm.subst(weaken).impE(assm);
 		_goals--;
 		return true;
 	}
@@ -116,14 +116,6 @@ public:
 		_goals++;
 	}
 private:
-	bool _discharges( Thm const& thm ) & {
-		if( auto o = _thm.discharges(thm) ) {
-			_thm = *o;
-			_goals--;
-			return true;
-		}
-		return false;
-	}
 	/** goal must be in a fresh context */
 	bool _apply( Intro const& intro, CTerm const& goal, Thy const& child ) &;
 	
@@ -186,14 +178,14 @@ public:
 	Opt<Thm> discharges( Thy const& thy, Thm const& thesis, bool rewrite ) & {
 		if( auto imp = thesis.cbinary(IMP) )
 		if( auto prem = proves(thy,imp->first,rewrite) ) {
-			return thesis.discharge(*prem);
+			return thesis.impE(*prem);
 		}
 		return {};
 	}
 	Thm discharge( Thy const& thy, Thm const& thesis, bool rewrite ) & {
 		auto imp = thesis.cbinary(IMP);
 		if( !imp ) throw Error("nothing to resolve")(thesis);
-		return thesis.discharge(prove(thy,imp->first,rewrite));
+		return thesis.impE(prove(thy,imp->first,rewrite));
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
