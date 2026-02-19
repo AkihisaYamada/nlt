@@ -1,15 +1,15 @@
 interpret Base.
 
+fix false (∧) (∨)(¬) (⟺) (∃).
+
 interpret True.
 import And.
 import Not.
 import Iff.
 
-fix (∨).
 assume or_intro1: for P Q if P then P ∨ Q.
 assume or_intro2: for P Q if Q then P ∨ Q.
 
-fix (∃).
 assume ex_intro1: for x if P.[x] then ∃x. P.[x].
 
 begin

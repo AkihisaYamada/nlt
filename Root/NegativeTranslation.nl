@@ -38,7 +38,7 @@ lemma in_DN_intro: if nn: ¬¬P ⟹ P then P ∈ DN;
 ----
 
 note(cong) in.all_cong_weak.
-print.
+
 interpret DN: FreeOrder;
 goals.
 	instantiate Prop := DN, (∨) := nnor, (∃∈) := nnexIn.
@@ -77,13 +77,13 @@ goals.
 	.
 
 interpret DN: DN.Classical;
+	instantiate (∃) := nnex.
 	- for P Q if !P then nnor P Q;
 		unfold nnor_def;
 		simp imp_not_iff_false false_nand[THEN iff_true].
 	- for P Q if !Q then nnor P Q;
 		unfold nnor_def;
 		simp imp_not_iff_false nand_false[THEN iff_true].
-	instantiate (∃) := nnex.
 	- for x if Px: P.[x] then nnex (x. P.[x]);
 		simp nnex_def;
 		apply not_intro;

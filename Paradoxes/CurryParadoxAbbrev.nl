@@ -7,18 +7,16 @@ begin
 
 theorem inconsistent: P;-- Any term is provable
 	obtain R where R_def: R x = (x x ⟹ P);
-		- for thesis if elim;
+		- for thesis if assm;
 			apply abbrev[of (x. x x ⟹ P)];
 			- for R if (simp);
-				apply elim[of R].
+				apply assm[of R].
 			.
 		.
-	have RR_eq_nRR: R R = (R R ⟹ P);
-		by R_def.
 	have nRR: if RR: R R then P;
-		by RR[unfold RR_eq_nRR] RR.
+		by RR[unfold R_def] RR.
 	have RR: R R;
-		by nRR[fold RR_eq_nRR].
+		by nRR[fold R_def].
 	by nRR[OF RR].
 
 thy.

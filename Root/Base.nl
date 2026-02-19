@@ -370,7 +370,7 @@ lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.
 theory True:
 begin
 	obtain true where true_intro! true;
-		- for thesis if assm;
+		- for thesis if assm: ∀true. true ⟹ thesis then thesis;
 			by assm[of (∀x. x ⟹ x)].
 		.
 end

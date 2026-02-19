@@ -275,7 +275,7 @@ We can obtain `false` via `∀P. P` to satisfy the law of explosion.
 ---
 theory Intuitionistic:
 	obtain false where false_elim(elim) if false then P;
-		- for thesis if assm;
+		- for thesis if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
 			apply assm[of (∀P. P)].
 		.
 	import Minimal.
