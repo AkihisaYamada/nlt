@@ -24,17 +24,17 @@ binder THE 0 0.
 binder SOME 0 0.
 
 infix ∈ 51 51 50.
-syntax ∀_ ∈ _. _ := ∀∈.
-syntax ∃_ ∈ _. _ := ∃∈.
-syntax λ_ ∈ _. _ := λ∈.
-syntax ∃!_ ∈ _. _ := ∃!∈.
+syntax ∀ _ ∈ _. _ := ∀∈.
+syntax ∃ _ ∈ _. _ := ∃∈.
+syntax λ _ ∈ _. _ := λ∈.
+syntax ∃! _ ∈ _. _ := ∃!∈.
 syntax THE _ ∈ _. _ := _TheIn.
 syntax SOME _ ∈ _. _ := _SomeIn.
 
 infix ⊆ 51 51 50.
-syntax ∀_ ⊆ _. _ := ∀⊆.
-syntax ∃_ ⊆ _. _ := ∃⊆.
-syntax ∃!_ ⊆ _. _ := ∃!⊆.
+syntax ∀ _ ⊆ _. _ := ∀⊆.
+syntax ∃ _ ⊆ _. _ := ∃⊆.
+syntax ∃! _ ⊆ _. _ := ∃!⊆.
 
 infix = 51 51 50.
 infix ≡ 51 51 50.
@@ -47,16 +47,16 @@ infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
 
 infix < 51 51 50.
-syntax ∀_ < _. _ := ∀<.
-syntax ∃_ < _. _ := ∃<.
-syntax ∃!_ < _. _ := ∃!<.
+syntax ∀ _ < _. _ := ∀<.
+syntax ∃ _ < _. _ := ∃<.
+syntax ∃! _ < _. _ := ∃!<.
 syntax THE _ < _. _ := _TheLt.
 syntax SOME _ < _. _ := _SomeLt.
 
 infix ≤ 51 51 50.
-syntax ∀_ ≤ _. _ := ∀≤.
-syntax ∃_ ≤ _. _ := ∃≤.
-syntax ∃!_ ≤ _. _ := ∃!≤.
+syntax ∀ _ ≤ _. _ := ∀≤.
+syntax ∃ _ ≤ _. _ := ∃≤.
+syntax ∃! _ ≤ _. _ := ∃!≤.
 
 syntax {} := _empty.
 syntax {_} := _singleton.
@@ -395,8 +395,8 @@ theory Not:
 begin
 	lemma not_false: ¬false;
 		by not_intro.
-	lemma not_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
-		by not_intro not_imp_false[OF nP] QP.
+	lemma false_imp_not: if 0: false then ¬P;
+		by not_intro 0.
 	lemma imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
 		- if PQ: P ⟹ Q;
@@ -404,6 +404,8 @@ begin
 		.
 	lemma imp_not_imp: if PQ: P ⟹ Q then ¬Q ⟹ ¬P;
 		by not_intro PQ.
+	lemma not_imp_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
+		by imp_not_imp[OF QP nP].
 	lemma imp_not_sym: if PnQ: P ⟹ ¬Q then Q ⟹ ¬P;
 		by not_intro PnQ(elim).
 	lemma nnot_intro: P ⟹ ¬¬P;

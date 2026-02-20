@@ -927,7 +927,7 @@ public:
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
-	/** unused */
+	/* unused
 	void _abbrev( Thy& thy ) {
 		auto lhs = get_term();
 		if( auto sym = lhs.sym() ) {
@@ -950,7 +950,6 @@ public:
 			}
 		}
 	}
-	/** unused */
 	void _parse_pattern( StrMap<string>& map, string& addr, Term const& pat ) {
 		if( auto sym = pat.sym() ) {
 			if( _thy.has_constant(*sym) ) throw Error("\"binding fixed\"")(pat);
@@ -966,7 +965,6 @@ public:
 			throw Error("\"invalid pattern\"")(pat);
 		}
 	}
-	/** unused */
 	CTerm _tuple_bind( Term const& pat, Term const& body, Ctxt const& ctxt ) {
 		auto map = StrMap<string>{};
 		auto addr = string();
@@ -985,7 +983,6 @@ public:
 		}
 		
 	}
-	/** unused */
 	CTerm _proc_term( Term const& t, Ctxt const& ctxt ) {
 		if( auto const& sym = t.sym() ) {
 		} else if( auto const& app = t.app() ) {
@@ -1002,6 +999,7 @@ public:
 			
 		}
 	}
+*/
 	bool _stats() {
 		if( skips("ctxt") ) {
 			skip(".");

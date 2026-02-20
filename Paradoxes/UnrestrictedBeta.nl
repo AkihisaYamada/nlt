@@ -4,7 +4,7 @@ assume beta: (λx. F.[x]) x = F.[x].
 
 begin
 
-interpret CurryParadoxAbbrev;
+interpret UnrestrictedAbbrev;
 	- for F if assm: ∀f. (∀x. f x = F.[x]) ⟹ R then R;
 		apply assm[of (λx. F.[x])];
 		- for x; unfold beta.

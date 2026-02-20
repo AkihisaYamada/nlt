@@ -166,7 +166,7 @@ lemma nnot_nand_iff: ¬(¬¬P ∧ Q) ⟺ ¬(P ∧ Q);
 lemma nnand_iff: ¬¬(P ∧ Q) ⟺ ¬¬P ∧ ¬¬Q;
 	apply iff_intro;
 	- if nnand;
-		apply+ and_intro nnand[THEN not_imp_not];
+		apply+ and_intro nnand[THEN not_imp_imp_not];
 		by #weak nand_intro1 nand_intro2.
 	fold nnot_nand_iff;
 	by #simp imp_and_iff1.
