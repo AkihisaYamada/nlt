@@ -6,25 +6,21 @@ using namespace std;
 string const IMP = "⟹";
 string const ALL = "∀";
 
-string avoid(string_view const& var, function<bool(string_view const&)> const& test) {
-	auto ret = string(var);
-	while( test(ret) ) {
-		auto len = ret.length();
-		if( len > 2 && ret[len-2] == '\'' ) {
-			if( ret[len-1] == '9' ) {
-				ret[len-1] = 'a';
-			} else if( ret[len-1] == 'z' ) {
-				ret[len-1] = '\'';
-			} else {
-				ret[len-1]++;
-			}
-		} else if( len > 1 && ret[len-1] == '\'' ) {
-			ret.push_back('0');
+void rename_var( string& ret ) {
+	auto len = ret.length();
+	if( len > 2 && ret[len-2] == '\'' ) {
+		if( ret[len-1] == '9' ) {
+			ret[len-1] = 'a';
+		} else if( ret[len-1] == 'z' ) {
+			ret[len-1] = '\'';
 		} else {
-			ret.push_back('\'');
+			ret[len-1]++;
 		}
+	} else if( len > 1 && ret[len-1] == '\'' ) {
+		ret.push_back('0');
+	} else {
+		ret.push_back('\'');
 	}
-	return ret;
 }
 
 static bool _eq_var(string const& x, string const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {

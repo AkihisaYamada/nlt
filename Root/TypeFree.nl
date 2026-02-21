@@ -161,6 +161,8 @@ begin
 		import AllRel.
 		import ExRel.
 	begin
+		lemma ex_iff: (∃x < a. P.[x]) ⟺ (∀Q. (∀x < a. P.[x] ⟹ Q) ⟹ Q);
+			unfold ex_def ex_iff all_def.
 		lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
 			unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 	end

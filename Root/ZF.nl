@@ -78,16 +78,24 @@ assume unique_choice2_set:
 	if ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. P.[x,y,z]
 	then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. P.[x, y, f x y].
 
+lemma unique_choice2_set_rule:
+	if	ex1: ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. P.[x,y,z],
+		imp: ∀f. f ∈ Set → Set → Set ⟹ (∀x ∈ Set. ∀y ∈ Set. P.[x, y, f x y]) ⟹ thesis
+	then thesis;
+	apply unique_choice2_set[OF ex1, THEN in.ex_elim];
+	- for f; by imp[of f].
+	.
+
 lemma abbrev2_set:
-	if F: ∀x ∈ Set. ∀y ∈ Set. F.[x,y] ∈ Set then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. f x y = F.[(x,y)];
+	if F: ∀x ∈ Set. ∀y ∈ Set. F.[x,y] ∈ Set then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. f x y = F.[x,y];
 	note(cong) eq_cong_meta[of F].
-	apply unique_choice2_set[of (t. snd (snd t) = F.[fst t, fst (snd t)]), simp in.ex1_eq_iff] F.
+	apply unique_choice2_set[of ((x,y,z). z = F.[x,y]), simp in.ex1_eq_iff] F.
 
 obtain upair where
 	upair_type: upair ∈ Set → Set → Set,
 	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
 - for thesis if assm;
-	apply unique_choice2_set[of (t. ∀w ∈ Set. w ∈ snd (snd t) ⟺ w = fst t ∨ w = fst (snd t)), THEN in.ex_elim];
+	apply unique_choice2_set_rule[of ((x,y,z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y)];
 	simp;
 	- by in.all_intro ex1_upair.
 	- for f if ty, f;
@@ -108,7 +116,7 @@ Note that the converse requires Currying.
 lemma unique_choice_set:
 	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
 	then ∃f ∈ Set → Set. ∀x ∈ Set. P.[x, f x];
--	apply unique_choice2_set[of (t. P.[snd t]), THEN in.ex_elim];
+-	apply unique_choice2_set[of ((x,y). P.[y]), THEN in.ex_elim];
 	note(cong) eq_cong_meta[of P].
 	simp;
 	-	apply in.all_intro;
@@ -122,7 +130,7 @@ lemma unique_choice_set:
 lemma abbrev_set:
 	if F: ∀x ∈ Set. F.[x] ∈ Set then ∃f ∈ Set → Set. ∀x ∈ Set. f x = F.[x];
 	note(cong) eq_cong_meta[of F].
-	by unique_choice_set[of (p. snd p = F.[fst p]), simp in.ex1_eq_iff] F.
+	by unique_choice_set[of ((x,y). y = F.[x]), simp in.ex1_eq_iff] F.
 
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
@@ -170,7 +178,7 @@ obtain Pow where
 	Pow_type: Pow ∈ Set → Set,
 	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
 - for thesis if assm;
-	apply unique_choice_set[of (p. ∀y ∈ Set. y ∈ snd p ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ fst p)), THEN in.ex_elim];
+	apply unique_choice_set[of ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)), THEN in.ex_elim];
 	simp;
 	- by in.all_intro Pow_ex1.
 	- for f if ty, f;
@@ -205,7 +213,7 @@ obtain (⋃) where
 	UN_type: (⋃) ∈ Set → Set,
 	UN_iff: if x ∈ Set, y ∈ Set then y ∈ ⋃x ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z);
 	- for thesis if assm;
-		apply unique_choice_set[of (p. ∀y ∈ Set. y ∈ snd p ⟺ (∃z ∈ Set. z ∈ fst p ∧ y ∈ z)), THEN in.ex_elim];
+		apply unique_choice_set[of ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w)), THEN in.ex_elim];
 		simp;
 		- by in.all_intro UN_ex1.
 		- for f if ty, f;
@@ -220,7 +228,7 @@ obtain (∪) where
 	cup_type: (∪) ∈ Set → Set → Set,
 	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
 	- for thesis if assm;
-		apply abbrev2_set[of (p. ⋃(upair (fst p) (snd p))), THEN in.ex_elim];
+		apply abbrev2_set[of ((x,y). ⋃(upair x y)), THEN in.ex_elim];
 		simp;
 		- by in.all_intro.
 		- for (∪) if cup_type, cup_def;
@@ -239,32 +247,40 @@ assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
 
 ---
 ### Replacement
+
+The replacement schema would be:
+```
+	for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y
+	then ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y).	
+```
+However, this cannot yield notation `Replace P A` to denote the `B`.
+The problem is that `P` is not a set but we only assumed unique choice on set arguments.
+
 ---
-assume replacement_schema:
-	if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
-	then ∀w ∈ Set. ∃v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]).	
+assume replacement_axiom: ∀F ∈ Set. ∀A ∈ Set.
+	(∀x ∈ A. ∃!y ∈ Set. (x,y) ∈ F) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. (x,y) ∈ F).	
 
 lemma replacement_ex1:
-	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w! w ∈ Set
-	then ∃!v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]);
+	if F: F ∈ Set, ex1: ∀x ∈ Set. ∃!y ∈ Set. (x,y) ∈ F, w! w ∈ Set
+	then ∃!v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ (s,r) ∈ F);
 -	apply replacement_schema[OF ex1, THEN in.all_elim1, OF w, THEN in.ex_elim];
-	- for v if v! v ∈ Set, in_v: ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,r]);
+	- for v if v! v ∈ Set, in_v: ∀ r ∈ Set. r ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r);
 		apply+ in.ex1_intro1[of v] in.all_intro;
-		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,x]);
+		- for x if x! x ∈ Set then x ∈ v ⟺ (∃ s ∈ Set. s ∈ w ∧ P s x);
 			by in_v[THEN in.all_elim1].
-		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P.[s,r]) then x = v;
+		- for x if x! x ∈ Set, in_x: ∀ r ∈ Set. r ∈ x ⟺ (∃ s ∈ Set. s ∈ w ∧ P s r) then x = v;
 			by set_eq_intro #simp in_v[THEN in.all_elim1] in_x[THEN in.all_elim1].
 		.
 	.
 .
 
-obtain Replace where
-	Replace_Set! if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w ∈ Set then Replace P w ∈ Set,
-	Replace_iff: if ∀x ∈ Set. ∃!y ∈ Set. P.[x,y], w ∈ Set, r ∈ Set
-		then r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P.[s,r]);
-- for thesis if assm;
-	apply unique_choice2_set[of (t. fst t)]
-
+obtain Replace where Replace_spec: if ∀x ∈ Set. ∃!y ∈ Set. P x y, w ∈ Set then
+		Replace P w ∈ Set ∧ (∀r ∈ Set. r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P s r));
+- for thesis if assm: ∀Replace.
+	(∀P. (∀x ∈ Set. ∃!y ∈ Set. P x y) ⟹
+		∀w. w ∈ Set ⟹ Replace P w ∈ Set ∧ (∀r ∈ Set. r ∈ Replace P w ⟺ (∃s ∈ Set. s ∈ w ∧ P s r))
+	) ⟹ thesis;
+	apply unique_choice2_set_rule[of ((P,w,v). ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ w ∧ P s r)),simp];
 
 	apply abbrev2[of (p. THE v ∈ Set. ∀r ∈ Set. r ∈ v ⟺ (∃s ∈ Set. s ∈ snd p ∧ fst p s r))];
 	- for f if f;
@@ -284,23 +300,22 @@ The separation schema assumes for any set and any predicate,
 the existence of the subset of the former whose elements satisfy the latter.
 ---
 assume separation_schema:
-	if p ∈ Set → Prop
-	then ∀x ∈ Set. ∃y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ p z.
+	for P then ∀A ∈ Set. ∃B ∈ Set. ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x].
 
 lemma separation_ex1:
-	if p: p ∈ Set → Prop, x: x ∈ Set
-	then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ x ∧ p z;
-	apply separation_schema[OF p, THEN in.all_elim1, OF x, THEN in.ex_elim];
-	- for y if y, yspec;
-		apply+ in.ex1_intro1[of y] in.all_intro y;
+	for P if A: A ∈ Set
+	then ∃!B ∈ Set. ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x];
+	apply separation_schema[of P, THEN in.all_elim1, OF A, THEN in.ex_elim];
+	- for B if B, Bspec;
+		apply+ in.ex1_intro1[of B] in.all_intro B;
 		- by yspec[THEN in.all_elim1](simp).
-		- for y' if y', y'spec;
-			by set_eq_intro y y' #unfold yspec[THEN in.all_elim1] y'spec[THEN in.all_elim1].
+		- for B' if B', B'spec;
+			by set_eq_intro B B' #unfold yspec[THEN in.all_elim1] B'spec[THEN in.all_elim1].
 		.
 	.
 
 obtain separation where
-	separation_type: if p ∈ Set → Prop then separation ∈ Set → Set → Set,
+	separation_type: for P then separation ∈ Set → Set → Set,
 	separation_iff: if p ∈ Set → Prop, x ∈ Set, z ∈ Set then z ∈ separation x p ⟺ z ∈ x ∧ p z;
 	- for thesis if assm;
 		apply unique_choice2_set[of (t. ∀z ∈ Set. z ∈ snd (snd t) ⟺ z ∈ fst t ∧ fst (snd t) z), THEN in.ex_elim];

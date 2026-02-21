@@ -2,10 +2,10 @@ import Base.
 
 import NegativeTranslation.
 
-thm DN.pierce_law.
-thm DN.excluded_middle.
+thm nnProp.pierce_law.
+thm nnProp.excluded_middle.
 
-thm DN.in.ex_def.
+thm nnProp.in.ex_def.
 
 import ZF.
 

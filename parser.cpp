@@ -12,14 +12,15 @@ string Parser::get_thm_name() & {
 	throw Error("Required a theorem name");
 }
 
-Term Parser::nest_abs( Term const& bind, int level ) & {
+Term Parser::_nest_abs( Term const& bind, int level, string& fv ) & {
 	if( auto next = gets(Lexer::Word) ) {
-		return bind( *next /= nest_abs(bind,level) );
+		return bind( *next /= _nest_abs(bind,level,fv) );
 	}
 	skip(".");
-	return get_term(level);
+	return _get_term(level,fv);
 }
-Opt<Term> Parser::gets_term( int level ) & {
+
+Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	auto& syn = syntax();
 	string_view peek = peek_token();
 	if( peek == "" || syn.has_closer(peek) ) {
@@ -27,7 +28,7 @@ Opt<Term> Parser::gets_term( int level ) & {
 	}
 	Term init;
 	if( skips("(") ) {
-		init = get_term(-1000);
+		init = _get_term(-1000,fv);
 		skip(")");
 	} else if( auto const& x = syn.finds_opener(peek) ) {
 		ignore_token();
@@ -36,20 +37,20 @@ Opt<Term> Parser::gets_term( int level ) & {
 			auto const& follow = peek_token();
 			if( follow == "." ) {
 				ignore_token();
-				auto body = get_term();
+				auto body = _get_term(0,fv);
 				skip(op.closer);
 				if( !op.compr ) throw Error("\"comprehension not registered\"")(string("\"")+opener+"\"");
 				init = Term(*op.compr)(*var/=body);
 			} else if( auto y = op.bcompr.finds(follow) ) {
 				ignore_token();
 				auto bcompr = y->second;
-				auto range = get_term();
+				auto range = _get_term(0,fv);
 				skip(".");
-				auto body = get_term();
+				auto body = _get_term(0,fv);
 				skip(op.closer);
 				init = Term(bcompr)(range)(*var/=body),level;
 			} else {
-				auto inner = _get_follow(*var,0,syn);
+				auto inner = _get_follow(*var,0,syn,fv);
 				skip(op.closer);
 				if( !op.singleton ) throw Error("\"singleton not registered\"")(inner);
 				init = Term(*op.singleton)(inner);
@@ -65,7 +66,7 @@ Opt<Term> Parser::gets_term( int level ) & {
 			return {};
 		}
 		ignore_token();
-		if( auto const& r = gets_term(x->second.rlevel) ) {
+		if( auto const& r = _gets_term(x->second.rlevel,fv) ) {
 			init = Term(binder)(*r);
 		} else {
 			init = binder;
@@ -79,16 +80,16 @@ Opt<Term> Parser::gets_term( int level ) & {
 		if( auto var = gets_sym() ) {
 			auto follow = get();
 			if( follow == "." ) {// ∀x. _
-				auto body = get_term(op.rlevel);
+				auto body = _get_term(op.rlevel,fv);
 				init = Term(binder)(*var/=body);
 			} else if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
 				auto actual = y->second;
-				auto range = get_term();
+				auto range = _get_term(0,fv);
 				skip(".");
-				auto body = get_term(op.rlevel);
+				auto body = _get_term(op.rlevel,fv);
 				init = Term(actual)(range)(*var/=body);
 			} else {
-				auto inner = nest_abs(binder,op.rlevel);
+				auto inner = _nest_abs(binder,op.rlevel,fv);
 				init = Term(binder)( *var /= Term(binder)(follow/=inner) );
 			}
 		} else {
@@ -104,11 +105,11 @@ Opt<Term> Parser::gets_term( int level ) & {
 		auto sym = string(peek);
 		ignore_token();
 		if( level < 0 && skips(".") ) {
-			auto body = gets_term(level);
+			auto body = _gets_term(level,fv);
 			if( !body ) throw Error("\"binding expects body\"");
 			init = sym /= *body;
 		} else if( skips(".[") ) {
-			auto const& body = gets_term(-1000);
+			auto const& body = _gets_term(-1000,fv);
 			if( !body ) throw Error("\"unbinding expects body\"");
 			skip("]");
 			init = sym %= *body;
@@ -116,38 +117,80 @@ Opt<Term> Parser::gets_term( int level ) & {
 			init = sym;
 		}
 	}
-	return {_get_follow(init,level,syn)};
+	return {_get_follow(init,level,syn,fv)};
 }
-Term Parser::_get_follow( Term ret, int level, Syntax const& syn ) & {
+
+/**
+ * @param pat should be variables combined by `,`
+ * @param dir will map each variable to its address. 
+ */
+static void _parse_pattern( StrMap<vector<Term>>& dir, vector<Term>& addr, Term const& pat ) {
+	if( auto sym = pat.sym() ) {
+		if( dir.contains(*sym) ) throw Error("\"nonlinear binding\"")(pat);
+		dir.emplace(*sym,addr);
+	} else if( auto pair = pat.binary(",") ) {// TODO: generalize
+		addr.push_back("fst");
+		_parse_pattern(dir,addr,pair->first);
+		addr.back() = "snd";
+		_parse_pattern(dir,addr,pair->second);
+		addr.pop_back();
+	} else {
+		throw Error("\"invalid pattern\"")(pat);
+	}
+}
+static auto _tuple_binder( Term const& pat, string& fv ) {
+	auto dir = StrMap<vector<Term>>{};// if pat = (x,y,z), then x -> {fst}, y -> {snd,fst}, z -> {snd,snd}
+	auto addr = vector<Term>();
+	_parse_pattern(dir,addr,pat);
+	auto map = StrMap<Term>{};// x -> fst tp, y -> fst (snd tp), z -> snd (snd tp)
+	string tp = fv;
+	rename_var(fv);
+	for( auto const& [var,addr] : dir ) {
+		auto val = Term(tp);
+		for( auto const& prj : addr ) {
+			val = prj(val);
+		}
+		map.emplace(var,val);
+	}
+	return [tp,map]( Term const& body ){
+		auto mapper = [&]( string_view const& v )->Opt<Term>{
+			if( auto a = map.finds(v) ) {
+				return {a->second};
+			}
+			return {};
+		};
+		return tp /= body.map(mapper);// tp. body[x := fst tp, y := fst (snd tp), z := snd (snd tp)]
+	};
+}
+
+Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) & {
 	int lastlevel = INT_MAX;
 	for(;;) {
 		string_view peek = peek_token();
 		if( peek == "" || syn.has_closer(peek) ) {
 			return ret;
 		}
+		if( peek == "." ) {
+			if( 0 <= level ) return ret;
+			ignore_token();// structured binding
+			return _tuple_binder(ret,fv)(_get_term(0,fv));
+		}
 		if( auto x = syn.finds_infix(peek) ) {
 			auto [sym,op] = *x;
 			if( op.level < level ) return ret;
 			if( lastlevel < op.llevel ) return ret;
 			ignore_token();
-			auto const& r = gets_term(op.rlevel);
+			auto const& r = _gets_term(op.rlevel,fv);
 			if( !r ) return Term(sym)(ret);
 			lastlevel = op.level;
 			ret = Term(sym)(ret)(*r);
 		} else {
 			if( 1000 <= level ) return ret;
-			auto const& r = gets_term(1000);
+			auto const& r = _gets_term(1000,fv);
 			if( !r ) return ret;
 			ret = ret(*r);
 		}
 	}
-}
-
-Term Parser::get_term( int level ) & {
-	if( auto const& opt = gets_term(level) ) {
-		return *opt;
-	}
-	throw Error("\"expected a term\"")(get());
 }
 
 Opt<string> Parser::gets_sym() & {

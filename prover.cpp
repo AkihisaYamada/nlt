@@ -949,57 +949,7 @@ public:
 				} else throw Error("\"unsupported parameter\"")(param);
 			}
 		}
-	}
-	void _parse_pattern( StrMap<string>& map, string& addr, Term const& pat ) {
-		if( auto sym = pat.sym() ) {
-			if( _thy.has_constant(*sym) ) throw Error("\"binding fixed\"")(pat);
-			if( map.contains(*sym) ) throw Error("\"nonlinear binding\"")(pat);
-			map.emplace(*sym,addr);
-		} else if( auto pair = pat.binary(",") ) {
-			addr.push_back('0');
-			_parse_pattern(map,addr,pair->first);
-			addr.back() = '1';
-			_parse_pattern(map,addr,pair->second);
-			addr.pop_back();
-		} else {
-			throw Error("\"invalid pattern\"")(pat);
-		}
-	}
-	CTerm _tuple_bind( Term const& pat, Term const& body, Ctxt const& ctxt ) {
-		auto map = StrMap<string>{};
-		auto addr = string();
-		_parse_pattern(map,addr,pat);
-		auto loc = ctxt.fork().ctxt();
-		auto t = loc.fix( avoid( "_", [&]( string_view const& x ){ return _thy.has_constant(x); } ) );
-		auto fst = loc.cterm("fst");
-		auto snd = loc.cterm("snd");
-		auto subst = Subst(loc);
-		for( auto const& [var,addr] : map ) {
-			auto val = t;
-			for( auto const& pos : addr ) {
-				val = ( pos == '0' ? fst : snd )(val);
-			}
-			subst.assign(var,val);
-		}
-		
-	}
-	CTerm _proc_term( Term const& t, Ctxt const& ctxt ) {
-		if( auto const& sym = t.sym() ) {
-		} else if( auto const& app = t.app() ) {
-			auto const& [fun,arg] = *app;
-			if( auto const& app1 = fun.app() ) {
-				auto const& [fun1,arg1] = *app1;
-				if( fun1 == "." ) {
-					return _tuple_bind(arg1,arg,ctxt);
-				}
-			}
-			return _proc_term(app->first,ctxt)(_proc_term(app->second,ctxt));
-		} else if( auto const& bind = t.bind() ) {
-		} else if( auto const& unbind = t.unbind() ) {
-			
-		}
-	}
-*/
+	}*/
 	bool _stats() {
 		if( skips("ctxt") ) {
 			skip(".");
@@ -1303,33 +1253,37 @@ public:
 		}
 		if( pat.proof ) {
 			if MSG {
+				cout << "show: ";
 				auto csi = css.begin();
-				for( size_t i = 0; i < loc.revision(); ) {
-					if( auto const& v = loc.fixed(i) ) {
-						cout << "for " << _thy.pretty(*v) << ' ';
-						for(;;) {
-							i++;
-							auto const& v = loc.fixed(i);
-							if(!v) break;
-							cout << _thy.pretty(*v) << ' ';
+				if( auto n = loc.revision() ) {
+					for( size_t i = 0; i < n; ) {
+						if( auto const& v = loc.fixed(i) ) {
+							cout << "for " << _thy.pretty(*v) << ' ';
+							for(;;) {
+								i++;
+								auto const& v = loc.fixed(i);
+								if(!v) break;
+								cout << _thy.pretty(*v) << ' ';
+							}
+							continue;
 						}
-						continue;
-					}
-					if( auto const& assm = loc.assumed(i) ) {
-						cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
-						for(;;) {
-							i++;
-							csi++;
-							auto const assm = loc.assumed(i);
-							if( !assm ) break;
-							cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+						if( auto const& assm = loc.assumed(i) ) {
+							cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+							for(;;) {
+								i++;
+								csi++;
+								auto const assm = loc.assumed(i);
+								if( !assm ) break;
+								cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+							}
+							cout << ' ';
+							continue;
 						}
-						cout << ' ';
-						continue;
+						assert(false);
 					}
-					assert(false);
+					cout << "then ";
 				}
-				cout << "show " << _thy.pretty(loc_goal) << endl;
+				cout << _thy.pretty(loc_goal) << endl;
 			}
 			auto thesis = Thesis::claim_exact(loc,loc_goal);
 			_depth++;
@@ -1545,11 +1499,6 @@ public:
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if MSG cout << _indent();
 		}
-	}
-	function<Term(Parser&)> _collect_handler( Term collect ) const& {
-		return [=,this]( Parser& parser ) {
-			return collect(parser.get_term(-1));
-		};
 	}
 	void loop() {
 		for(;;) try {

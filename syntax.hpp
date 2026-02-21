@@ -62,8 +62,8 @@ private:
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
 	StrMap<Binder> _binders;
-	StrMap<std::string> _binder_of;// bbind → "λ"
-	StrMap<std::string> _opener_of;// bcompr → "{"
+	StrMap<std::string> _binder_of;// "λ∈" → "λ"
+	StrMap<std::string> _opener_of;// "{_. _}" → "{"
 	bool _print_ctxt = false;
 public:
 	Syntax();

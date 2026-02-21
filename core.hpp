@@ -25,12 +25,22 @@ class CTerm;
 class Subst;
 class Intp;
 
+/** @brief renames a variable
+ */
+void rename_var( std::string& sym );
+
 /** @brief renames a variable so that it is not in the set of symbols.
  * 
  * @param var variable to be made fresh
  * @param test avoided names
  */
-std::string avoid(std::string_view const& var, std::function<bool(std::string_view const&)> const& test);
+inline std::string avoid( std::string_view const& var, std::function<bool(std::string_view const&)> const& test ) {
+	auto ret = std::string(var);
+	while( test(ret) ) {
+		rename_var(ret);
+	}
+	return ret;
+}
 
 extern std::string const VOID_var;
 extern std::string const IMP;

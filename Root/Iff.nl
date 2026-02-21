@@ -108,7 +108,7 @@ begin
 	interpret AllRel;
 		- if all: ∀x. x < a ⟹ P.[x] then ∀x < a. P.[x];
 			by all[fold all_def].
-		- if allIn: ∀x < a. P.[x], x: x < a then P.[x];
+		- for x if allIn: ∀y < a. P.[y], x: x < a then P.[x];
 			by allIn[unfold all_def, OF x].
 		.
 	lemma all_cong_strong:
