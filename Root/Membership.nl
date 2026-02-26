@@ -130,3 +130,10 @@ theory Monotone:
 	import LeftMonotone A A.
 	import RightMonotone A A.
 end
+
+theory CollectRel:
+	fix (<) _CollectLt.
+	assume collect_intro: if x < a, P.[x] then x ∈ {x < a. P.[x]}.
+	assume collect_elim0: if x ∈ {x < a. P.[x]} then x < a.
+	assume collect_elim1: if x ∈ {x < a. P.[x]} then P.[x].
+end

@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/test.exe",
-"args": ["test.nl"],
+"args": ["Root/Classes.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [],

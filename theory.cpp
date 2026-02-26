@@ -228,7 +228,8 @@ Opt<Thm> Thy::find_thm(
 	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
 	bool ancestor
 ) const {
-	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
+	for( auto [fst,it] = _ref->thms.equal_range(name); it != fst; ) {
+		it--;
 		if( auto ret = test(import,it->second.first,it->second.second) ) {// found in the current theory
 			return ret;
 		}
@@ -258,7 +259,8 @@ Opt<Thm> Thy::_find_thm(
 	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test
 ) const {
 	// pre as interpretations
-	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
+	for( auto [fst,it] = _ref->imports.equal_range(pre); it != fst; ) {
+		it--;
 		auto const& prefix = it->second;
 		if( prefix.ready() )
 		if( auto opt = prefix._src.find_thm(name,prefix.compose(import),test,false) ) {
@@ -297,7 +299,8 @@ Opt<Import> Thy::find_thy( string_view const& path, function<void(Thy&,std::istr
 		}
 	} else {
 		auto prefix = path.substr(0,sep);
-		for( auto [it,end] = _ref->imports.equal_range(prefix); it != end; it++ ) {
+		for( auto [fst,it] = _ref->imports.equal_range(prefix); it != fst; ) {
+			it--;
 			auto& im = it->second;
 			if( im.ready() )
 			if( auto o = im._src.find_thy(path.substr(sep+1),reader,false) ) {
@@ -305,7 +308,8 @@ Opt<Import> Thy::find_thy( string_view const& path, function<void(Thy&,std::istr
 			}
 		}
 	}
-	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
+	for( auto [fst,it] = _ref->imports.equal_range(""); it != fst; ) {
+		it--;
 		auto& im = it->second;
 		if( im.ready() )
 		if( auto o = im._src.find_thy(path,reader,false) ) {

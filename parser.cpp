@@ -20,6 +20,53 @@ Term Parser::_nest_abs( Term const& bind, int level, string& fv ) & {
 	return _get_term(level,fv);
 }
 
+/**
+ * @param pat should be variables combined by `,`
+ * @param dir will map each variable to its address. 
+ */
+static void _parse_pattern( StrMap<vector<Term>>& dir, vector<Term>& addr, Term const& pat ) {
+	if( auto sym = pat.sym() ) {
+		if( dir.contains(*sym) ) throw Error("\"nonlinear binding\"")(pat);
+		dir.emplace(*sym,addr);
+	} else if( auto pair = pat.binary(",") ) {// TODO: generalize
+		addr.push_back("fst");
+		_parse_pattern(dir,addr,pair->first);
+		addr.back() = "snd";
+		_parse_pattern(dir,addr,pair->second);
+		addr.pop_back();
+	} else {
+		throw Error("\"invalid pattern\"")(pat);
+	}
+}
+static function<Term(Term const&)> _bind( Term const& pat, string& fv ) {
+	if( auto sym = pat.sym() ) {// regular variable binding
+		return [v=*sym]( Term const& body ){ return v/= body; };
+	}
+	// pattern binding, e.g. pat = (x,y,z)
+	auto dir = StrMap<vector<Term>>{};// x -> {fst}, y -> {snd,fst}, z -> {snd,snd}
+	auto addr = vector<Term>();
+	_parse_pattern(dir,addr,pat);
+	auto map = StrMap<Term>{};// x -> fst tp, y -> fst (snd tp), z -> snd (snd tp)
+	string tp = fv;
+	rename_var(fv);
+	for( auto const& [var,addr] : dir ) {
+		auto val = Term(tp);
+		for( auto const& prj : addr ) {
+			val = prj(val);
+		}
+		map.emplace(var,val);
+	}
+	return [tp,map]( Term const& body ){
+		auto mapper = [&]( string_view const& v )->Opt<Term>{
+			if( auto a = map.finds(v) ) {
+				return {a->second};
+			}
+			return {};
+		};
+		return tp /= body.map(mapper);// tp. body[x := fst tp, y := fst (snd tp), z := snd (snd tp)]
+	};
+}
+
 Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	auto& syn = syntax();
 	string_view peek = peek_token();
@@ -33,29 +80,29 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	} else if( auto const& x = syn.finds_opener(peek) ) {
 		ignore_token();
 		auto const& [opener,op] = *x;
-		if( auto const& var = gets_sym() ) {
+		if( auto fst = gets_term(INT_MAX) ) {
 			auto const& follow = peek_token();
-			if( follow == "." ) {
+			if( follow == "." ) {// {_. _}
 				ignore_token();
 				auto body = _get_term(0,fv);
 				skip(op.closer);
 				if( !op.compr ) throw Error("\"comprehension not registered\"")(string("\"")+opener+"\"");
-				init = Term(*op.compr)(*var/=body);
-			} else if( auto y = op.bcompr.finds(follow) ) {
+				init = Term(*op.compr)(_bind(*fst,fv)(body));
+			} else if( auto y = op.bcompr.finds(follow) ) {// {_ < _. _}
 				ignore_token();
 				auto bcompr = y->second;
 				auto range = _get_term(0,fv);
 				skip(".");
 				auto body = _get_term(0,fv);
 				skip(op.closer);
-				init = Term(bcompr)(range)(*var/=body),level;
-			} else {
-				auto inner = _get_follow(*var,0,syn,fv);
+				init = Term(bcompr)(range)(_bind(*fst,fv)(body)),level;
+			} else {// { _ }
+				auto inner = _get_follow(*fst,0,syn,fv);
 				skip(op.closer);
 				if( !op.singleton ) throw Error("\"singleton not registered\"")(inner);
 				init = Term(*op.singleton)(inner);
 			}
-		} else {
+		} else {// {}
 			skip(op.closer);
 			if( !op.empty ) throw Error("\"empty not registered\"");
 			init = *op.empty;
@@ -120,49 +167,6 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	return {_get_follow(init,level,syn,fv)};
 }
 
-/**
- * @param pat should be variables combined by `,`
- * @param dir will map each variable to its address. 
- */
-static void _parse_pattern( StrMap<vector<Term>>& dir, vector<Term>& addr, Term const& pat ) {
-	if( auto sym = pat.sym() ) {
-		if( dir.contains(*sym) ) throw Error("\"nonlinear binding\"")(pat);
-		dir.emplace(*sym,addr);
-	} else if( auto pair = pat.binary(",") ) {// TODO: generalize
-		addr.push_back("fst");
-		_parse_pattern(dir,addr,pair->first);
-		addr.back() = "snd";
-		_parse_pattern(dir,addr,pair->second);
-		addr.pop_back();
-	} else {
-		throw Error("\"invalid pattern\"")(pat);
-	}
-}
-static auto _tuple_binder( Term const& pat, string& fv ) {
-	auto dir = StrMap<vector<Term>>{};// if pat = (x,y,z), then x -> {fst}, y -> {snd,fst}, z -> {snd,snd}
-	auto addr = vector<Term>();
-	_parse_pattern(dir,addr,pat);
-	auto map = StrMap<Term>{};// x -> fst tp, y -> fst (snd tp), z -> snd (snd tp)
-	string tp = fv;
-	rename_var(fv);
-	for( auto const& [var,addr] : dir ) {
-		auto val = Term(tp);
-		for( auto const& prj : addr ) {
-			val = prj(val);
-		}
-		map.emplace(var,val);
-	}
-	return [tp,map]( Term const& body ){
-		auto mapper = [&]( string_view const& v )->Opt<Term>{
-			if( auto a = map.finds(v) ) {
-				return {a->second};
-			}
-			return {};
-		};
-		return tp /= body.map(mapper);// tp. body[x := fst tp, y := fst (snd tp), z := snd (snd tp)]
-	};
-}
-
 Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) & {
 	int lastlevel = INT_MAX;
 	for(;;) {
@@ -173,7 +177,7 @@ Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) &
 		if( peek == "." ) {
 			if( 0 <= level ) return ret;
 			ignore_token();// structured binding
-			return _tuple_binder(ret,fv)(_get_term(0,fv));
+			return _bind(ret,fv)(_get_term(0,fv));
 		}
 		if( auto x = syn.finds_infix(peek) ) {
 			auto [sym,op] = *x;

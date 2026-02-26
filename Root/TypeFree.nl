@@ -20,9 +20,9 @@ theory Minimal:
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 begin
 
----
-## Disjunction
----
+	---
+	## Disjunction
+	---
 
 	lemma or_iff: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
 		apply iff_intro[OF or_elim or_intro].
@@ -86,9 +86,9 @@ begin
 	lemma or_imp_nand: P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
 		by not_intro #elim or_elim.
 
----
-## Existence
----
+	---
+	## Existence
+	---
 
 	lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x] then Q;
 		apply ex_elim[OF ex];
@@ -125,9 +125,9 @@ begin
 			by ex_intro1[of x].
 		.
 
----
-## Theories
----
+	---
+	## Theories
+	---
 	theory ExRel:
 		import ExRel.
 	begin
@@ -176,14 +176,13 @@ begin
 		assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
 	end
 
----
-### Law of Explosion
-(Latin: *ex falso quodlibet*)
----
+	---
+	### Law of Explosion
+	---
 	theory Explosion:
-		assume false_elim(elim) if false then P.
-		-- It yields intuitionistic logic.
-	begin
+		assume false_elim(elim) -- (Latin: *ex falso quodlibet*)
+			if false then P.
+	begin -- It yields intuitionistic logic.
 
 		lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
 			by iff_intro not_imp_false[OF nP].
@@ -206,13 +205,12 @@ begin
 
 	end
 
----
-### Excluded Middle
----
+	---
+	### Excluded Middle
+	---
 	theory ExcludedMiddle:
-		assume excluded_middle: P ∨ ¬P.-- (Latin: *tertium non datur*)
-		-- This is incomparable with Explosion, but their combination leads to classical logic.
-	begin
+		assume excluded_middle: P ∨ ¬P. -- (Latin: *tertium non datur*)
+	begin -- This is incomparable with Explosion, but their combination leads to classical logic.
 
 		lemma cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
 			apply or_elim[OF excluded_middle[of P]];
@@ -222,9 +220,9 @@ begin
 
 	end
 
----
-### Double Negation Elimination
----
+	---
+	### Double Negation Elimination
+	---
 	theory DoubleNegationElimination:
 		assume nnot_imp: if ¬¬P then P.
 		-- This alone yields classical logic.
@@ -266,6 +264,9 @@ begin
 					.
 				.
 			.
+		lemma or_iff_nand: P ∨ Q ⟺ ¬(¬P ∧ ¬Q);
+			fold nor_iff.
+
 	end
 
 end
