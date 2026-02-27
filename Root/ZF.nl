@@ -10,6 +10,7 @@ We base on the minimal first order equational logic, where
 ---
 print.
 import Eq.
+import TypeFree.
 import Minimal.
 import AllEx1In.
 import Fun.
@@ -253,7 +254,7 @@ The replacement schema would be:
 	for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y
 	then ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y).	
 ```
-However, this cannot yield notation `Replace P A` to denote the `B`.
+However, this cannot yield the notation `Replace P A` to denote the `B`.
 The problem is that `P` is not a set but we only assumed unique choice on set arguments.
 
 ---

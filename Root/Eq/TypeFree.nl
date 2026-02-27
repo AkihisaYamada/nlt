@@ -34,6 +34,8 @@ begin
 			- for x;
 				by ex_intro1[of x].
 			.
+		lemma ex1_eq_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
+			simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 	end
 
 	theory The:
@@ -173,16 +175,25 @@ begin
 			- if x: x ∈ A, y: y ∈ B;
 				by in.ex_intro1[OF x] in.ex_intro1[OF y].
 			.
-		lemma pair_in_prod: if x: x ∈ A, y: y ∈ B then (x,y) ∈ A × B;
-			unfold in_prod_iff;
-			apply in.ex_intro1[OF x] in.ex_intro1[OF y].
-
+		lemma pair_in_prod: if ! x ∈ A, ! y ∈ B then (x,y) ∈ A × B;
+			simp.
+print.
+		lemma all_pair_in_prod: (∀(x,y)∈A×B. P.[x,y]) ⟺ (∀x ∈ A. ∀y ∈ B. P.[x,y]);
+			note(cong) eq_cong_meta[of P].
+			simp in.all_def in_prod_iff;.
 	end
 
-	theory UniqueChoice:
-		import UniqueChoice.
+	theory UniqueChoice2CondRel:
+		import Ex1Rel.
+		assume unique_choice2: for P
+			if ∀x y. Q.[x,y] ⟹ ∃!z < a. P.[x,y,z]
+			then ∃f. ∀x. ∀y. Q.[x,y] ⟹ f x y < c ∧ P.[x, y, f x y].
+	end
+
+	theory UniqueChoiceRel:
+		import Ex1Rel.
+		assume unique_choice: if ∀x < a. ∃!y < b. P.[x,y] then ∃f. ∀x < a. f x < b ∧ P.[x, f x].
 	begin
-		interpret Ex1.
 		theory Currying:
 			import Currying.
 		begin

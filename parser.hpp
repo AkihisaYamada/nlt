@@ -11,11 +11,11 @@ public:
 	Opt<std::string> gets_thm_name() &;
 	std::string get_thm_name() &;
 	Opt<Term> gets_term( int level = 0 ) & {
-		std::string fv = "#v";
+		std::string fv = "#'";
 		return _gets_term(level,fv);
 	}
 	Term get_term( int level = 0 ) & {
-		std::string fv = "#v";
+		std::string fv = "#'";
 		return _get_term(level,fv);
 	}
 	Opt<std::string> gets_sym() &;

@@ -406,7 +406,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool 
 		if( auto const& ret = thy.find_thm( Thy::REWRITE+(rew->_rels[ind]), [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
-			if( log > 5 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
+			if( log > 15 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {
 				return apply(*rule,*m,import);
 			}

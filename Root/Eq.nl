@@ -138,6 +138,10 @@ begin
 			unfold snd.
 		by eq.trans[OF 3].
 
+	lemma eq_pair_fst(simp after 1) if p: p = (x,y) then fst p = x;
+		simp p.
+	lemma eq_pair_snd(simp after 1) if p: p = (x,y) then snd p = y;
+		simp p.
 end
 
 theory Membership:
@@ -195,6 +199,10 @@ begin
 			note(cong) eq_cong_meta[of P].
 			by Pa #simp xa.
 		.
+	lemma ex_eq1: ∃x. x = a;
+		apply ex_intro1[of a].
+	lemma ex_eq2: ∃x. a = x;
+		apply ex_intro1[of a].
 
 	theory AllRel:
 		import AllRel.
@@ -229,6 +237,14 @@ begin
 			- if x, y;
 				simp x y.
 			.
+		lemma all_pair: (∀(x,y). P.[x,y]) ⟺ (∀x y. P.[x,y]);
+			apply iff_intro;
+			note(cong) eq_cong_meta[of P].
+			- if pair for x y;
+				by pair[of (x,y),simp].
+			- if xy;
+				by xy.
+			.
 	end
 
 	theory Ex1:
@@ -243,9 +259,16 @@ begin
 			- for x if Px;
 				by ex1_intro1[OF Px].
 			.
+		lemma ex1_eq1: ∃!x. x = a;
+			apply ex1_intro1[of a].
+		lemma ex1_eq2: ∃!x. a = x;
+			apply ex1_intro1[of a];
+			-.
+			- for x; apply eq.sym>0.
+			.
 	end
 
-	theory UniqueChoice:
+	theory UniqueChoiceRel:
 		import Ex1.
 		import Pair.
 		assume unique_choice: if ∀x. ∃!y. P.[x,y] then ∃f. ∀x. P.[x, f x].

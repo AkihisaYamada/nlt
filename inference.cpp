@@ -54,7 +54,8 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
 	if( _after == 0 ) {
 		if( _mode == '=' ) {
-			return {Thy::REWRITE,{thm,get<2>(thy.rewriter()->make_rule(thm,false))}};
+			auto [ind,rel,rule] = thy.rewriter()->make_rule(thm,false);
+			return {Thy::REWRITE+rel,{thm,rule}};
 		} else if( _mode == '?' ) {
 			return {Thy::WEAK,{thm,Intro::rule(thm)}};
 		} else {

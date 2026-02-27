@@ -12,14 +12,6 @@ string Parser::get_thm_name() & {
 	throw Error("Required a theorem name");
 }
 
-Term Parser::_nest_abs( Term const& bind, int level, string& fv ) & {
-	if( auto next = gets(Lexer::Word) ) {
-		return bind( *next /= _nest_abs(bind,level,fv) );
-	}
-	skip(".");
-	return _get_term(level,fv);
-}
-
 /**
  * @param pat should be variables combined by `,`
  * @param dir will map each variable to its address. 
@@ -65,6 +57,15 @@ static function<Term(Term const&)> _bind( Term const& pat, string& fv ) {
 		};
 		return tp /= body.map(mapper);// tp. body[x := fst tp, y := fst (snd tp), z := snd (snd tp)]
 	};
+}
+
+Term Parser::_nest_abs( Term const& bind, int level, string& fv ) & {
+	if( auto next = _gets_term(INT_MAX,fv) ) {
+		auto f = _bind(*next,fv);
+		return bind(f(_nest_abs(bind,level,fv)));
+	}
+	skip(".");
+	return _get_term(level,fv);
 }
 
 Opt<Term> Parser::_gets_term( int level, string& fv ) & {
@@ -124,20 +125,19 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 			return {};
 		}
 		ignore_token();
-		if( auto var = gets_sym() ) {
-			auto follow = get();
-			if( follow == "." ) {// ∀x. _
-				auto body = _get_term(op.rlevel,fv);
-				init = Term(binder)(*var/=body);
-			} else if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
+		if( auto fst = gets_term(INT_MAX) ) {
+			auto f = _bind(*fst,fv);
+			auto follow = peek_token();
+			if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
+				ignore_token();
 				auto actual = y->second;
 				auto range = _get_term(0,fv);
 				skip(".");
 				auto body = _get_term(op.rlevel,fv);
-				init = Term(actual)(range)(*var/=body);
-			} else {
-				auto inner = _nest_abs(binder,op.rlevel,fv);
-				init = Term(binder)( *var /= Term(binder)(follow/=inner) );
+				init = Term(actual)(range)(f(body));
+			} else {// ∀x y z. _
+				auto body = _nest_abs(binder,op.rlevel,fv);
+				init = Term(binder)(f(body));
 			}
 		} else {
 			init = binder;
