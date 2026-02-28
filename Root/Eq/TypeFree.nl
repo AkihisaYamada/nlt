@@ -144,13 +144,21 @@ begin
 		note eq_THE_intro: THE_eq_intro[THEN eq.sym].
 	end
 
-	theory AllEx1In:
-		import Membership.
-		import in: Ex1Rel (∈) (∀∈) (∃∈) (∃!∈).
+	theory AllExIn:
+		import AllExIn.
 	begin
 		interpret Iff.
-		note(cong) in.all_cong in.ex_cong in.ex1_cong.
+		interpret in: AllExRel (∈) (∀∈) (∃∈).
+		note(cong) in.all_cong in.ex_cong.
+		note(rule) in.all_def.
 		note(simp) in.ex_imp_iff.
+	end
+
+	theory AllEx1In:
+		import AllExIn.
+		import in: Ex1Rel (∈) (∀∈) (∃∈) (∃!∈).
+	begin
+		note(cong) in.ex1_cong.
 	end
 
 	theory AllEx1Sub:
@@ -189,7 +197,7 @@ begin
 
 	theory Currying:
 		import Prod.
-		assume curry: if f ∈ A × B → C then ∃f' ∈ A → B → C. ∀x ∈ A. ∀y ∈ A. f' x y = f (x,y).
+		assume curry: if f ∈ A × B → C then ∃f' ∈ A → B → C. ∀x ∈ A. ∀y ∈ B. f' x y = f (x,y).
 	end
 
 	theory UniqueChoice2:
@@ -219,7 +227,7 @@ print.
 						apply curry[OF fty, THEN in.ex_elim];
 						- for f' if f'ty, f'f;
 							apply in.ex_intro1[OF f'ty];
-							unfold f'f;
+							unfold f'f[rule];
 							- for x y;
 								use f[of (x,y)];
 								simp.

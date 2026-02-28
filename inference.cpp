@@ -1,7 +1,8 @@
 #include "inference.hpp"
 using namespace std;
 
-string const SIMPLIFIER = "simp";
+string const SIMP = "#simp";
+string const CONG = "#cong";
 
 void cerr_proof_thms( Thy const& thy ) {
 	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM, Thy::INF } ) {
@@ -57,8 +58,8 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
 	if( _after == 0 ) {
 		if( _mode == '=' ) {
-			auto [ind,rel,rule] = thy.rewriter(SIMPLIFIER).make_rule(thm,false);
-			return {Thy::SIMP+rel,{thm,rule}};
+			auto [ind,rel,rule] = thy.rewriter(SIMP).make_rule(thm,false);
+			return {SIMP+rel,{thm,rule}};
 		} else if( _mode == '?' ) {
 			return {Thy::WEAK,{thm,Intro::rule(thm)}};
 		} else {
@@ -154,7 +155,7 @@ bool Resolver::_apply_and_discharge(
 			}
 		} else if( auto const& assm = pat_intp.assuming() ) {// discharge assumptions
 			auto condthesis = Thesis::claim_exact(thesis.thy(),*assm);
-			if( !_discharge(condthesis,trial,true,true,elim_res.size()) ) return false;
+			if( !_discharge(condthesis,trial,true,{SIMP},elim_res.size()) ) return false;
 			pat_intp.discharge(condthesis._thm);
 		} else {
 			break;
@@ -185,7 +186,7 @@ bool Resolver::_discharge(
 	Thesis& thesis,
 	size_t trial,
 	bool fail,
-	bool rewrite,
+	Opt<std::string const&> simp,
 	size_t elim_res_ind
 ) & {
 	if( fuel == 0 ) {
@@ -204,8 +205,8 @@ bool Resolver::_discharge(
 		if( !imp ) break;// no more assumption
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
-		if( rewrite && rew ) {// rewrite the assumption
-			assm = rewrites(subthy,assm,true,0,255,true,{});
+		if( simp && rew ) {// rewrite the assumption
+			assm = rewrites(subthy,assm,simp,0,255,true,{});
 		}
 		// checks if an elimination rule matches
 		if( subthy.find_thm( Thy::ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -280,7 +281,7 @@ bool Resolver::_discharge(
 				elim_res_ind++;
 				break;// move on to the new thesis
 			}// no elimination result matched
-			if( rewrite && rewrites(subthesis,true,0,255,true,{},{}) ) {// try rewriting
+			if( simp && rewrites(subthesis,simp,0,255,true,{},{}) ) {// try rewriting
 				if( log > 3 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;
 				break;
 			}
@@ -296,7 +297,7 @@ bool Resolver::_discharge(
 		}
 		// prove all new subgoals:
 		while( subthesis._goals > 0 ) {
-			if( !_discharge(subthesis,trial,fail,rewrite,elim_res_ind) ) {
+			if( !_discharge(subthesis,trial,fail,simp,elim_res_ind) ) {
 				indent--;
 				if( log > 0 ) _log() << "}! failed to resolve: " << subthy.pretty(subthesis.goal()) << endl;
 				return false;

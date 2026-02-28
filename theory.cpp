@@ -11,8 +11,6 @@ string const Thy::WEAK = "#weak";
 string const Thy::ELIM = "#elim";
 string const Thy::INF = "#inf";
 
-string const Thy::SIMP = "#simp";
-string const Thy::CONG = "#cong";
 string const Thy::DUAL = "#dual";
 
 string const Thy::RULIFY = "#rulify";

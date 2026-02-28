@@ -167,6 +167,13 @@ begin
 			unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 	end
 
+	theory AllExIn:
+		import Membership.
+		import in: AllExRel (∈) (∀∈) (∃∈).
+	begin
+		note(rule) in.all_def.
+	end
+
 	theory Choice:
 		assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
 	end

@@ -49,10 +49,6 @@ public:
 	static std::string const ELIM;
 	/** name for inflation rules, φ ⟹ ψ */
 	static std::string const INF;
-	/** prefix for simplification rules */
-	static std::string const SIMP;
-	/** prefix for congruence rules */
-	static std::string const CONG;
 	/** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
 	static std::string const DUAL;
 	/** prefix for rulify, e.g. ∀A P. (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]) */

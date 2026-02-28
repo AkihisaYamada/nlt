@@ -6,7 +6,9 @@
 class Resolver;
 
 /** rewriter name for simplifier */
-extern std::string const SIMPLIFIER;
+extern std::string const SIMP;
+/** prefix for congruence rules */
+extern std::string const CONG;
 
 /** @brief Add concluder theorem to theory */
 void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
@@ -149,28 +151,28 @@ public:
 	Opt<Rewrite const&> const rew;
 	Rewrite::Rules rules;
 	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
-	bool discharges( Thesis& thesis, bool rewrite ) & {
-		return _discharge(thesis,1,true,rewrite,elim_res.size());
+	bool discharges( Thesis& thesis, Opt<std::string const&> simp ) & {
+		return _discharge(thesis,1,true,simp,elim_res.size());
 	}
-	void discharge( Thesis& thesis, bool rewrite ) & {
-		_discharge(thesis,1,false,rewrite,elim_res.size());
+	void discharge( Thesis& thesis, Opt<std::string const&> simp ) & {
+		_discharge(thesis,1,false,simp,elim_res.size());
 	}
 	Thm discharge_all( Thesis& thesis ) & {
 		while( thesis._goals > 0 ) {
-			discharge(thesis,true);
+			discharge(thesis,{SIMP});
 		}
 		return thesis._thm;
 	}
-	Opt<Thm> proves( Thy const& thy, CTerm const& claim, bool rewrite ) & {
+	Opt<Thm> proves( Thy const& thy, CTerm const& claim, Opt<std::string const&> simp ) & {
 		auto x = Thesis::claim_exact(thy,claim);
-		if( discharges(x,rewrite) ) {
+		if( discharges(x,simp) ) {
 			return *x.concluding();
 		}
 		return {};
 	}
-	Thm prove( Thy const& thy, CTerm const& claim, bool rewrite ) & {
+	Thm prove( Thy const& thy, CTerm const& claim, Opt<std::string const&> simp ) & {
 		auto x = Thesis::claim_exact(thy,claim);
-		discharge(x,rewrite);
+		discharge(x,simp);
 		return *x.concluding();
 	}
 	/**
@@ -178,31 +180,31 @@ public:
 	* 
 	* @return Thm the conclusion
 	*/
-	Opt<Thm> discharges( Thy const& thy, Thm const& thesis, bool rewrite ) & {
+	Opt<Thm> discharges( Thy const& thy, Thm const& thesis, Opt<std::string const&> simp ) & {
 		if( auto imp = thesis.cbinary(IMP) )
-		if( auto prem = proves(thy,imp->first,rewrite) ) {
+		if( auto prem = proves(thy,imp->first,simp) ) {
 			return thesis.impE(*prem);
 		}
 		return {};
 	}
-	Thm discharge( Thy const& thy, Thm const& thesis, bool rewrite ) & {
+	Thm discharge( Thy const& thy, Thm const& thesis, Opt<std::string const&> simp ) & {
 		auto imp = thesis.cbinary(IMP);
 		if( !imp ) throw Error("nothing to resolve")(thesis);
-		return thesis.impE(prove(thy,imp->first,rewrite));
+		return thesis.impE(prove(thy,imp->first,simp));
 	}
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
 	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
+	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
 	/** @brief Rewrites a theorem */
-	Thm rewrites( Thy const& thy, Thm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
+	Thm rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
 	/**
 	 * @brief returns a rewrite equation for the given source term at given position.
 	 * 
 	 * @param source the term to be rewritten
 	 * @return the equation
 	 */
-	Thm steps( Thy const& thy, CTerm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+	Thm steps( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 		size_t ind = rew->get_ind(rel);
 		if( auto ret = _steps(thy,source,simp,min,max,normalize,pos,ind) ) {
 			return *ret;
@@ -222,7 +224,7 @@ private:
 		Rewrite::Rule const& rule,
 		Subst const& matcher,
 		Intp const& rule2thy,
-		bool simp,
+		Opt<std::string const&> simp,
 		std::vector<char>::const_iterator pos_it,
 		std::vector<char>::const_iterator pos_end
 	) &;
@@ -230,28 +232,28 @@ private:
 		Thesis& thesis,
 		size_t trial,
 		bool fail,
-		bool rewrite,
+		Opt<std::string const&> simp,
 		size_t elim_res_ind
 	) &;
 	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, bool simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
 	/** rewrites abstraction.
 	 * @returns equation, the rhs, and whether rewrite succeeded
 	 */
-	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, bool simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _steps( Thy const& thy, CTerm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
+	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, Opt<std::string const&> simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _steps( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
 };
 
 inline void Thesis::auto_discharge() & {
-	auto inf = Resolver(_thy.find_rewriter(SIMPLIFIER));
-	inf.discharge(*this,true);
+	auto inf = Resolver(_thy.find_rewriter(SIMP));
+	inf.discharge(*this,SIMP);
 }
 inline Thm Thesis::discharge_all() & {
 	while( _goals > 0 ) auto_discharge();
 	return _thm;
 }
 inline Resolver Thy::resolver( char log ) const& {
-	return Resolver(find_rewriter(SIMPLIFIER),log);
+	return Resolver(find_rewriter(SIMP),log);
 }
 inline Thm Thy::prove( CTerm const& claim, char log ) const& {
 	auto b = resolver(log);

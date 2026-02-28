@@ -26,8 +26,10 @@
 
 using namespace std;
 
+string const RULIFY = "#rulify";
+
 struct ClaimStatus {
-	bool weak = false, intro = false, elim = false, dual = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, followable = true;
+	bool weak = false, intro = false, elim = false, dual = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
 	unsigned char after = 0;
 	unsigned char prems = 255;
 	bool strip_all = true;
@@ -113,7 +115,7 @@ class Prover : public Parser {
 	unsigned char _depth;
 	char _out;
 	char _out_load;
-	char _out_blast = 0;
+	char _out_resolver = 0;
 	bool _no_syntax;
 public:
 	struct Error : ::Error {
@@ -222,7 +224,7 @@ public:
 						} else if( skips("!") ) {
 							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise to blast\"");
-							tmp = tmp.impE(sub.prove(imp->first,_out_blast));
+							tmp = tmp.impE(sub.prove(imp->first,_out_resolver));
 						} else {
 							break;
 						}
@@ -267,17 +269,22 @@ public:
 						loc.fix(*x);
 					}
 				} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
-					auto resolver = loc.resolver(_out_blast);
+					auto resolver = loc.resolver(_out_resolver);
 					auto ctrl = _get_rewrite(resolver,loc,mode==2);
-					ret = resolver.rewrites(loc,ret,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
+					ret = resolver.rewrites(loc,ret,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
 				} else if( skips("simp") ) {
-					auto resolver = loc.resolver(_out_blast);
+					auto const& rew = loc.rewriter(SIMP);
+					auto resolver = Resolver(rew,_out_resolver);
 					while( auto thm = gets_thm() ) {
-						resolver.rew->add_rewrite_rule(resolver.rules,*thm,false);
+						rew.add_rewrite_rule(resolver.rules,*thm,false);
 					}
-					ret = resolver.rewrites(loc,ret,true,1,255,true,{});
+					ret = resolver.rewrites(loc,ret,{SIMP},1,255,true,{});
+				} else if( skips("rule") ) {
+					auto const& rew = loc.rewriter(RULIFY);
+					auto resolver = Resolver(rew,_out_resolver);
+					ret = resolver.rewrites(loc,ret,{RULIFY},1,255,true,{});
 				} else if( skips("dual") ) {
-					auto resolver = Resolver({},_out_blast);
+					auto resolver = Resolver({},_out_resolver);
 					ret = loc.dualize(ret,resolver);
 				} else break;
 				if( !skips(",") ) break;
@@ -340,42 +347,45 @@ public:
 			cs.weak = true;
 			cs.inflated = true;
 		} else if( skips("(") ) {
-			if( skips("weak") ) {
-				cs.weak = true;
-				if( skips("after") ) {
-					cs.after = get_int();
+			do {
+				if( skips("weak") ) {
+					cs.weak = true;
+					if( skips("after") ) {
+						cs.after = get_int();
+					}
+				} else if( skips("intro") ) {
+					cs.intro = true;
+					if( skips("after") ) {
+						cs.after = get_int();
+					} else if( auto n = gets_int() ) {
+						cs.prems = *n;
+					}
+					if( skips("=") ) {
+						cs.strip_all = false;
+					}
+				} else if( skips("cong") ) {
+					cs.cong = true;
+				} else if( skips("fallback") ) {
+					cs.fallback = true;
+				} else if( skips("rule" ) ) {
+					cs.rulify = true;
+				} else if( skips("rule_cong") ) {
+					cs.rulify_cong = true;
+				} else if( skips("elim") ) {
+					cs.elim = true;
+				} else if( skips("dual") ) {
+					cs.dual = true;
+				} else if( skips("simp") ) {
+					cs.unfold = true;
+					if( skips("after") ) {
+						cs.after = get_int();
+					}
+				} else if( skips("fold") ) {
+					cs.fold = true;
+				} else {
+					throw Error("\"unknown rule\"")(peek_token());
 				}
-			} else if( skips("intro") ) {
-				cs.intro = true;
-				if( skips("after") ) {
-					cs.after = get_int();
-				} else if( auto n = gets_int() ) {
-					cs.prems = *n;
-				}
-				if( skips("=") ) {
-					cs.strip_all = false;
-				}
-			} else if( skips("cong") ) {
-				cs.cong = true;
-			} else if( skips("fallback") ) {
-				cs.fallback = true;
-			} else if( skips("elim") ) {
-				cs.elim = true;
-			} else if( skips("dual") ) {
-				cs.dual = true;
-			} else if( skips("simp") ) {
-				cs.unfold = true;
-				if( skips("after") ) {
-					cs.after = get_int();
-				}
-			} else if( skips("fold") ) {
-				cs.fold = true;
-			} else {
-				throw Error("\"unknown rule\"")(peek_token());
-			}
-			if( auto n = gets_nat() ) {
-				cs.after = *n;
-			}
+			} while( skips(",") );
 			skip(")");
 		} else {
 			return {};
@@ -386,7 +396,7 @@ public:
 		ThmInfo info = {};
 		if( cs ) {
 			if( cs->inflated ) {
-				auto blaster = loc.resolver(_out_blast);
+				auto blaster = loc.resolver(_out_resolver);
 				blaster.inflate(loc,thm);
 			}
 			if( cs->intro ) {
@@ -408,10 +418,18 @@ public:
 				}
 			}
 			if( cs->cong ) {
-				loc.modify_rewriter(SIMPLIFIER).register_cong(thm);
+				loc.modify_rewriter(SIMP).register_cong(thm);
 			}
 			if( cs->fallback ) {
-				loc.modify_rewriter(SIMPLIFIER).register_fallback(thm);
+				loc.modify_rewriter(SIMP).register_fallback(thm);
+			}
+			if( cs->rulify ) {
+				auto [ind,rel,rule] = loc.rewriter(RULIFY).make_rule(thm,false);
+				info = {rule};
+				loc.add_thm(RULIFY+rel,thm,info);
+			}
+			if( cs->rulify_cong ) {
+				loc.modify_rewriter(RULIFY).register_cong(thm);
 			}
 			if( cs->elim ) {
 				info = {Elim::rule(thm,0,'?')};
@@ -425,19 +443,19 @@ public:
 					info = {Elim::rule(thm,cs->after-1,'=')};
 					loc.add_thm(Thy::INF,thm,info);
 				} else {
-					auto [ind,rel,rule] = loc.rewriter(SIMPLIFIER).make_rule(thm,false);
+					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm,false);
 					info = {rule};
-					loc.add_thm(Thy::SIMP+rel,thm,info);
+					loc.add_thm(SIMP+rel,thm,info);
 				}
 			}
 			if( cs->fold ) {
-				auto resolver = Resolver({},_out_blast);
+				auto resolver = Resolver({},_out_resolver);
 				auto const& dual = loc.dualize(thm,resolver);
 				if( cs->after > 0 ) {
 					loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs->after,'='));
 				} else {
-					auto [ind,rel,rule] = loc.rewriter(SIMPLIFIER).make_rule(dual,false);
-					loc.add_thm(Thy::SIMP+rel,dual,rule);
+					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(dual,false);
+					loc.add_thm(SIMP+rel,dual,rule);
 				}
 			}
 		}
@@ -510,7 +528,7 @@ public:
 			return;
 		}
 		if MSG cout << "blasting " << assm_name << ": " << _thy.pretty(assm) << endl;
-		Thm ret = infer.prove(_thy,assm,true);
+		Thm ret = infer.prove(_thy,assm,{SIMP});
 		intp.discharge(ret);
 	}
 	void _auto_retain( Thy& org_thy, string const& prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer, bool unprefixed ) {
@@ -527,7 +545,7 @@ public:
 				return {};
 			} ) ) {
 			if MSG cout << "blasting " << name << ": " << _thy.pretty(stmt) << endl;
-			Thm thm = infer.prove(_thy,stmt,true);
+			Thm thm = infer.prove(_thy,stmt,{SIMP});
 			intp.retain(*csym,thm);
 			}
 		} else {
@@ -589,10 +607,10 @@ public:
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.resolver(_out_blast);
+					auto infer = _thy.resolver(_out_resolver);
 					_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.resolver(_out_blast);
+					auto infer = _thy.resolver(_out_resolver);
 					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
 				} else {
 					break;
@@ -621,10 +639,10 @@ public:
 				if( auto const& fix = intp.fixing() ) {
 					_auto_instantiate(intp,*fix,change);
 				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.resolver(_out_blast);
+					auto infer = _thy.resolver(_out_resolver);
 					_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
 				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.resolver(_out_blast);
+					auto infer = _thy.resolver(_out_resolver);
 					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
 				} else {
 					break;
@@ -720,10 +738,10 @@ public:
 				for( auto [x,t] : map ) {
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
-							auto infer = _thy.resolver(_out_blast);
+							auto infer = _thy.resolver(_out_resolver);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 						} else if( auto const& obtain = intp.obtaining() ) {
-							auto infer = _thy.resolver(_out_blast);
+							auto infer = _thy.resolver(_out_resolver);
 							_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
@@ -741,7 +759,7 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.resolver(_out_blast);
+						auto infer = _thy.resolver(_out_resolver);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 					} else if( auto const& assume = intp.assuming() ) {
 						auto [match,thm] = goal_matches(pat,assume->first);
@@ -754,13 +772,13 @@ public:
 							}
 							break;
 						} else {
-							auto infer = _thy.resolver(_out_blast);
+							auto infer = _thy.resolver(_out_resolver);
 							_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 						}
 					} else if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.resolver(_out_blast);
+						auto infer = _thy.resolver(_out_resolver);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 					} else {
 						break;
@@ -808,7 +826,7 @@ public:
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
-				auto infer = _thy.resolver(_out_blast);
+				auto infer = _thy.resolver(_out_resolver);
 				_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
@@ -851,7 +869,7 @@ public:
 					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
-				auto infer = _thy.resolver(_out_blast);
+				auto infer = _thy.resolver(_out_resolver);
 				_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
@@ -872,7 +890,7 @@ public:
 	}
 	Opt<Resolver> gets_concluder() {
 		if( skips("by") ) {
-			auto resolver = _thy.resolver(_out_blast);
+			auto resolver = _thy.resolver(_out_resolver);
 			while( auto thm = gets_thm() ) {
 				resolver.inflate(_thy,*thm);
 				if( auto cs = gets_claim_status() ) {
@@ -909,7 +927,7 @@ public:
 			skip(".");
 			return {resolver};
 		} else if( skips(".") ) {
-			return {_thy.resolver(_out_blast)};
+			return {_thy.resolver(_out_resolver)};
 		} else {
 			return {};
 		}
@@ -968,7 +986,7 @@ public:
 				_out_load = get_print_level();
 				if MSG cout << "print load level " << _out_load << endl;
 			} else if( skips("prover") ) {
-				_out_blast = gets_int().value_or(5);
+				_out_resolver = gets_int().value_or(5);
 				if MSG cout << "print prover level " << endl;
 			} else {
 				_out = get_print_level();
@@ -1269,8 +1287,8 @@ public:
 			add_claim(_thy,pat.name,pat.cs,ret);
 			return {true,{ret}};
 		}
-		auto infer = loc.resolver(_out_blast);
-		Thm ret = infer.prove(loc,loc_goal,true).intro();
+		auto infer = loc.resolver(_out_resolver);
+		Thm ret = infer.prove(loc,loc_goal,{SIMP}).intro();
 		add_claim(_thy,pat.name,pat.cs,ret);
 		return {true,{ret}};
 	}
@@ -1400,20 +1418,20 @@ public:
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals(thesis,"applied goals:\n\t");
 			} else if( skips("simp") ) {
-				auto resolver = _thy.resolver(_out_blast);
-				auto& rew = _thy.rewriter(SIMPLIFIER);
+				auto resolver = _thy.resolver(_out_resolver);
+				auto& rew = _thy.rewriter(SIMP);
 				while( auto thm = gets_thm() ) {
 					rew.add_rewrite_rule(resolver.rules,*thm,false);
 				}
 				bool more = _proof_follows();
-				resolver.rewrites(thesis,true,1,255,true,{},{});
+				resolver.rewrites(thesis,{SIMP},1,255,true,{},{});
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, "simplified goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
-				auto inf = _thy.resolver(_out_blast);
+				auto inf = _thy.resolver(_out_resolver);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
 				bool more = _proof_follows();
-				inf.rewrites(thesis,false,ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
+				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
 			} else if( skips("-") ) {
@@ -1479,14 +1497,15 @@ public:
 		for(;;) try {
 			if( _stats() || _thy_decl() || _shared_decl() ) {
 			} else if( skips("set") ) {
-				if( skips("rewrite") ) {
-					auto& rew = _thy.modify_rewriter(SIMPLIFIER);
+				if( int mode = skips("rewrite") ? 1 : skips("rulify") ? 2 : 0 ) {
+					auto& rew = _thy.modify_rewriter( mode == 1 ? SIMP : RULIFY );
 					bool def = skips("!");
 					Thm imp = get_thm();
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
 					Thm trans = get_thm();
-					if MSG cout << "registering rewriter:\n\timp: " << _thy.pretty(imp) <<
+					if MSG cout << "registering " << ( mode == 1 ? "simplifier" : "rulifier" ) <<
+						":\n\timp: " << _thy.pretty(imp) <<
 						"\n\trev: " <<  _thy.pretty(revimp) <<
 						"\n\trefl: " << _thy.pretty(refl) <<
 						"\n\ttrans: " << _thy.pretty(trans);
@@ -1497,7 +1516,7 @@ public:
 					if MSG cout << endl;
 				} else if( skips("trans") ) {
 					if MSG cout << "registering transitivity: ";
-					auto& rew = _thy.modify_rewriter(SIMPLIFIER);
+					auto& rew = _thy.modify_rewriter(SIMP);
 					while( auto const& thm = gets_thm() ) {
 						rew.register_trans(*thm);
 						if MSG cout << _thy.pretty(*thm);
@@ -1506,7 +1525,7 @@ public:
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
-					auto& rew = _thy.modify_rewriter(SIMPLIFIER);
+					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
 				} else if( skips("define") ) {
 					Thm const& beta = get_thm();

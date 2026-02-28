@@ -28,6 +28,8 @@ interpret iff: MetaEquivalence (⟺);
 note! iff.refl.
 
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
+set rulify iff_elim1 iff_elim2 iff.refl iff.trans.
+
 note(dual) iff.sym.
 
 interpret iff: iff.MetaCompatible (⟺);
@@ -58,12 +60,15 @@ lemma imp_cong(cong) if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹
 		by S[fold RS[OF Q]].
 	.
 
+lemma imp_cong_right(rule_cong) if QR: Q ⟺ R then (P ⟹ Q) ⟺ (P ⟹ R);
+	unfold QR.
+
 interpret imp: iff.MetaCompatible (⟹);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 		simp PQ RS.
 	.
 
-lemma all_cong(cong) if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
+lemma all_cong(cong,rule_cong) if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
 	apply iff_intro;
 	- if ! ∀x. P.[x] then ∀x. Q.[x];
 		by iff_elim1[OF PQ].

@@ -46,7 +46,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 		auto const& dual = find_thm(DUAL+rel);
 		if( !dual ) throw Error("\"no dual rule for\"")(rel);
 		Thm dual_thm = subthy.weaken(*dual) << body;
-		while( auto o = resolver.discharges(subthy,dual_thm,false) ) {
+		while( auto o = resolver.discharges(subthy,dual_thm,{}) ) {
 			dual_thm = *o;
 		}
 		return dual_thm.intro();
@@ -232,7 +232,7 @@ bool Resolver::_step_cond(
 	Intp& intp,// Γ ⊢ Δ
 	CTerm const& cond,// Δ ⊢ φ... ⟹ x = y or ∀v. φ.[v]... ⟹ X.[v] = Y.[v]
 	bool rewrite,
-	bool simp,
+	Opt<std::string const&> simp,
 	char ind,
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
@@ -299,7 +299,7 @@ Thm Resolver::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
 	indent++;
 	Thm refl = thy.weaken(rew->_refls[ind]).allE(source);
 	while( auto imp = refl.cbinary(IMP) ) {
-		refl = refl.impE(prove(thy,imp->first,false));
+		refl = refl.impE(prove(thy,imp->first,{}));
 	}
 	indent--;
 	return refl;
@@ -309,7 +309,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	Rewrite::Rule const& rule,// Δ ⊢ ∀x... ∀y. s = y ⟹... l[x...] = r[y...]
 	Subst const& matcher,// θ : {x...} → Γ s.t. source == l[x...]θ
 	Intp const& rule2thy,// σ : Δ → Γ
-	bool simp,
+	Opt<std::string const&> simp,
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
@@ -335,7 +335,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 		if( !cond.ind ) {// guard condition should be automatically provable
 			auto guard = intp.assuming();
 			assert(guard);
-			auto o = proves(subthy,*guard,cond.rec);
+			auto o = proves( subthy, *guard, cond.rec ? simp : Opt<string const&>{} );
 			if( !o ) {
 				indent--;
 				if( log > 10 ) _log() << "}! failed to resolve guard: " << thy.pretty(*guard) << endl;
@@ -348,7 +348,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 			} else if( *pos_it == i ) {
 				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it+1,pos_end) || applied;
 			} else {
-				_step_cond(subthy,intp,cond.assm,false,false,*cond.ind,pos_it,pos_end);
+				_step_cond(subthy,intp,cond.assm,false,{},*cond.ind,pos_it,pos_end);
 			}
 			i++;
 		}
@@ -368,7 +368,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	return {};
 }
 
-Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( log > 12 ) {
 		_log() << "{ trying to rewrite ";
 		if( pos_it != pos_end ) {
@@ -398,7 +398,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool 
 			}
 		}
 		if( simp )
-		if( auto const& ret = thy.find_thm( Thy::SIMP+(rew->_rels[ind]), [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( auto const& ret = thy.find_thm( *simp + rew->_rels[ind], [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
 			if( log > 15 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
@@ -443,7 +443,7 @@ size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
 Opt<Thm> Resolver::_steps(
 	Thy const& thy, 
 	CTerm const& s,
-	bool simp,
+	Opt<std::string const&> simp,
 	size_t min,
 	size_t max,
 	bool normalize,
@@ -477,7 +477,7 @@ Opt<Thm> Resolver::_steps(
 		eq = ltrans << eq;// ∀z. t = z ⟹ guards... ⟹ s = z
 		eq = eq << eq2;// guards... ⟹ s = t2
 		while( auto imp = eq.cbinary(IMP) ) {// discharge guards
-			eq = eq.impE(prove(thy,imp->first,false));
+			eq = eq.impE(prove(thy,imp->first,{}));
 		}
 		i++;
 		if( i == max ) {
@@ -488,7 +488,7 @@ Opt<Thm> Resolver::_steps(
 		t = t2;
 	}
 }
-bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -504,7 +504,7 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 		imp = imp << *steps; // φθ ⟹... t ⟹ s
 		auto conds = o->second.conds;
 		for( size_t i = 0; i < conds; i++ ) {
-			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,false));
+			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,{}));
 		}// t ⟹ s
 		thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
 	}
@@ -517,7 +517,7 @@ bool Resolver::rewrites( Thesis& thesis, bool simp, size_t min, size_t max, bool
 	if( log > 1 ) _log() << "rewritten thesis to: " << thesis << endl;
 	return ret;
 }
-Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
+Thm Resolver::rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
 	size_t ind = rew->_default_ind;
 	auto const& o = rew->_imps.finds(ind);
 	if( !o ) throw Error("\"unregistered forward rewriting\"");
@@ -528,7 +528,7 @@ Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min
 	auto tmp = thy.weaken(o->second.thm);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
 	tmp = tmp << *steps;// conds... ⟹ s ⟹ t
 	for( int i = 0; i < o->second.conds; i++ ) {
-		tmp = discharge(thy,tmp,false);
+		tmp = discharge(thy,tmp,{});
 	}// s ⟹ t
 	return tmp << source;
 }
