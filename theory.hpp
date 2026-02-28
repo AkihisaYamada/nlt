@@ -31,7 +31,6 @@ class Thy : public Ctxt {
 	Opt<Import> _find_thy( std::string_view const& thyname, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) &;
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
-	void _make_own_rewrite()&;
 	friend Import;
 public:
 	struct Error : public ::Error {
@@ -48,10 +47,18 @@ public:
 	static std::string const CONCL;
 	/** name for elimination rules */
 	static std::string const ELIM;
-	/** prefix for rewrite rules */
-	static std::string const REWRITE;
 	/** name for inflation rules, φ ⟹ ψ */
 	static std::string const INF;
+	/** prefix for simplification rules */
+	static std::string const SIMP;
+	/** prefix for congruence rules */
+	static std::string const CONG;
+	/** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
+	static std::string const DUAL;
+	/** prefix for rulify, e.g. ∀A P. (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]) */
+	static std::string const RULIFY;
+	/** prefix for rulify cong, e.g. ∀P Q Q'. Q ⟺ Q' ⟹ (P ⟹ Q) ⟺ (P ⟹ Q') */
+	static std::string const RULIFY_CONG;
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -141,18 +148,17 @@ public:
 	auto pretty( Subst const& subst ) const& {
 		return syntax().pretty_subst(*this);
 	}
-	Opt<Rewrite&> rewriter() && = delete;
-	Opt<Rewrite const&> rewriter() const &;
+	Opt<Rewrite&> find_rewriter( std::string_view const& rew_name ) && = delete;
+	Opt<Rewrite const&> find_rewriter( std::string_view const& rew_name ) const &;
+	Rewrite const& rewriter( std::string_view const& rew_name ) const & {
+		auto o = find_rewriter(rew_name);
+		if( !o ) throw Error("\"rewriter not found\"")(rew_name);
+		return *o;
+	}
+	Rewrite& modify_rewriter( std::string_view const& rew_name ) &;
 	void reset_rewrite() &;
+	void register_dual( Thm const& thm ) &;
 	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
-	void register_refl( Thm const& refl, bool def ) &;
-	void register_trans( Thm const& trans ) &;
-	void register_dual( Thm const& dual ) &;
-	void register_imp( Thm const& imp, bool dir ) &;
-	void register_cong( Thm const& cong ) &;
-	void register_fallback( Thm const& thm ) &;
-	void register_to_true( Thm const thm ) &;
-	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& rule, bool cong ) const &;
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;

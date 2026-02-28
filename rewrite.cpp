@@ -3,8 +3,6 @@
 
 using namespace std;
 
-string const Rewrite::CONG = "#cong";
-
 Opt<tuple<string,Term,Term>> strips_binary( Term const& term ) {
 	if( auto const& app = term.app() )
 	if( auto const& app2 = app->first.app() )
@@ -43,11 +41,11 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 		add_intro(subthy,assm);
 		body = body.impE(assm);
 	}
-	if( auto const& bin = strips_binary(body) )
-	if( auto const& ind = rewriter()->gets_rel_ind(get<0>(*bin)) ) {
-		auto const& dual = rewriter()->_duals.finds(*ind);
-		if( !dual ) throw Error("\"no dual rule for\"")(get<0>(*bin));
-		Thm dual_thm = subthy.weaken(dual->second.thm) << body;
+	if( auto const& bin = strips_binary(body) ) {
+		auto const& [rel,l,r] = *bin;
+		auto const& dual = find_thm(DUAL+rel);
+		if( !dual ) throw Error("\"no dual rule for\"")(rel);
+		Thm dual_thm = subthy.weaken(*dual) << body;
 		while( auto o = resolver.discharges(subthy,dual_thm,false) ) {
 			dual_thm = *o;
 		}
@@ -56,8 +54,8 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 	throw Error("\"not dualizable\"")(body);
 }
 
-void Thy::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const & {
-	auto const& [ind,rel,rule] = rewriter()->make_rule(thm,cong);
+void Rewrite::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const & {
+	auto const& [ind,rel,rule] = make_rule(thm,cong);
 	rules[ind].emplace_back(std::move(rule));
 }
 
@@ -207,20 +205,17 @@ void Rewrite::register_fallback( Thm const& thm ) & {
 	_fallbacks.emplace(ind,rule);
 }
 
-void Rewrite::register_dual( Thm const& thm ) & {
+void Thy::register_dual( Thm const& thm ) & {
 	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
-	if( auto const& bin1 = strips_binary(imp->first) )
-	if( auto const& ind1 = gets_rel_ind(get<0>(*bin1)) ) {
+	if( auto const& bin = strips_binary(imp->first) ) {
+		auto const& [rel,l,r] = *bin;
 		CTerm t = imp->second;
 		while( auto imp2 = t.cbinary(IMP) ) {
 			t = imp2->second;
 		}
-		if( auto const& bin2 = strips_binary(t) )
-		if( auto const& ind2 = gets_rel_ind(get<0>(*bin2)) ) {
-			_duals.emplace(*ind2,Dual(thm,*ind1));
-			return;
-		}
+		add_thm(DUAL+rel,thm);
+		return;
 	}
 	throw Error("\"malformed dual rule\"")(thm);
 }
@@ -403,7 +398,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool 
 			}
 		}
 		if( simp )
-		if( auto const& ret = thy.find_thm( Thy::REWRITE+(rew->_rels[ind]), [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( auto const& ret = thy.find_thm( Thy::SIMP+(rew->_rels[ind]), [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
 			if( log > 15 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
@@ -416,6 +411,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool 
 		}
 	}
 	for( auto const& rule : rew->_congs[ind] ) {
+		if( log > 16 ) _log() << "- testing cong rule: " << thy.pretty(rule) << endl;
 		if( auto const& m = match(rule.pat,source,is_patvar) )
 		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
@@ -423,6 +419,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, bool 
 	}
 	if( auto const& o = rew->_fallbacks.finds(ind) ) {
 		auto const& rule = o->second;
+		if( log > 14 ) _log() << "- testing fall-back rule: " << thy.pretty(rule) << endl;
 		if( auto const& m = match(rule.pat,source,is_patvar) )
 		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
 			return {{*ret,ret->capp()->second}};
@@ -535,9 +532,8 @@ Thm Resolver::rewrites( Thy const& thy, Thm const& source, bool simp, size_t min
 	}// s ⟹ t
 	return tmp << source;
 }
-void Rewrite::import( Thy const& thy, Intp const& intp ) & {
+void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp ) & {
 	int i = 0;
-	auto const& src = *thy.rewriter();
 	for( auto const& refl : src._refls ) {
 		register_refl(thy.weaken(refl).subst(intp),i==src._default_ind);
 		i++;
@@ -547,9 +543,6 @@ void Rewrite::import( Thy const& thy, Intp const& intp ) & {
 			register_cong(thy.weaken(cong).subst(intp));
 		}
 	}
-	for( auto const& [i,dual] : src._duals ) {
-		register_dual(thy.weaken(dual.thm).subst(intp));
-	}
 	for( auto const& [i,trans] : src._trans ) {
 		register_trans(thy.weaken(trans).subst(intp));
 	}
@@ -558,6 +551,9 @@ void Rewrite::import( Thy const& thy, Intp const& intp ) & {
 	}
 	for( auto const& [i,imp] : src._revimps ) {
 		register_imp(thy.weaken(imp.thm).subst(intp),false);
+	}
+	for( auto const& [i,thm] : src._fallbacks ) {
+		register_fallback(thy.weaken(thm).subst(intp));
 	}
 	if( auto const& to_true = src._to_true ) {
 		register_to_true(thy.weaken(to_true->first).subst(intp));

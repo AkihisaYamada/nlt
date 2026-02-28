@@ -27,6 +27,8 @@ interpret eq: MetaEquivalence (=);
 		by eq_elim[of (w. x = w), OF yz xy].
 	.
 
+note(dual) eq.sym.
+
 lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
 
@@ -37,7 +39,6 @@ lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
 set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
-set dual eq.sym.
 
 lemma arg_cong: if xy: x = y then f x = f y;
 	by eq_cong_meta[of (z. f z), OF xy].

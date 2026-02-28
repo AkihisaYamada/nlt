@@ -28,7 +28,7 @@ interpret iff: MetaEquivalence (⟺);
 note! iff.refl.
 
 set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
-set dual iff.sym.
+note(dual) iff.sym.
 
 interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);

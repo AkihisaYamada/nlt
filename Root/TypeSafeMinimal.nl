@@ -284,6 +284,7 @@ begin
 		apply iff_intro;
 		- if 1;
 			by all_cong_weak(cong) 1[THEN nnall_imp, unfold nnnot_iff].
+print prover 20.
 		by nnot_intro.
 	lemma all_true_iff: (∀x < a. true) ⟺ true;
 		simp all_def.

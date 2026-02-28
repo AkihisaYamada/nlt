@@ -1,6 +1,8 @@
 #include "inference.hpp"
 using namespace std;
 
+string const SIMPLIFIER = "simp";
+
 void cerr_proof_thms( Thy const& thy ) {
 	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM, Thy::INF } ) {
 		cerr << name << ":" << thy.print_thms(name);
@@ -10,6 +12,7 @@ void cerr_proof_thms( Thy const& thy ) {
 CTerm dummy( Ctxt const& ctxt ) {
 	return ctxt.cterm(DUMMY);
 }
+
 Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
 	auto child = thm.ctxt().fork();
 	auto self = child.ctxt().self();
@@ -54,8 +57,8 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
 	if( _after == 0 ) {
 		if( _mode == '=' ) {
-			auto [ind,rel,rule] = thy.rewriter()->make_rule(thm,false);
-			return {Thy::REWRITE+rel,{thm,rule}};
+			auto [ind,rel,rule] = thy.rewriter(SIMPLIFIER).make_rule(thm,false);
+			return {Thy::SIMP+rel,{thm,rule}};
 		} else if( _mode == '?' ) {
 			return {Thy::WEAK,{thm,Intro::rule(thm)}};
 		} else {

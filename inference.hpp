@@ -5,6 +5,9 @@
 
 class Resolver;
 
+/** rewriter name for simplifier */
+extern std::string const SIMPLIFIER;
+
 /** @brief Add concluder theorem to theory */
 void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
 inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
@@ -133,7 +136,6 @@ class Resolver {
 	size_t fuel;
 	char log;
 	unsigned short int indent;
-	Opt<Rewrite const&> rew;
 	std::vector<std::pair<std::string,AThm>> elim_res;
 	friend Rewrite;
 	std::ostream& _log() const& {
@@ -144,6 +146,7 @@ class Resolver {
 		return std::cerr;
 	}
 public:
+	Opt<Rewrite const&> const rew;
 	Rewrite::Rules rules;
 	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool discharges( Thesis& thesis, bool rewrite ) & {
@@ -240,7 +243,7 @@ private:
 };
 
 inline void Thesis::auto_discharge() & {
-	auto inf = Resolver(_thy.rewriter());
+	auto inf = Resolver(_thy.find_rewriter(SIMPLIFIER));
 	inf.discharge(*this,true);
 }
 inline Thm Thesis::discharge_all() & {
@@ -248,7 +251,7 @@ inline Thm Thesis::discharge_all() & {
 	return _thm;
 }
 inline Resolver Thy::resolver( char log ) const& {
-	return Resolver(rewriter(),log);
+	return Resolver(find_rewriter(SIMPLIFIER),log);
 }
 inline Thm Thy::prove( CTerm const& claim, char log ) const& {
 	auto b = resolver(log);

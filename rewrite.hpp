@@ -34,10 +34,6 @@ public:
 		}
 	};
 private:
-	struct Dual {
-		Thm thm;
-		size_t ind;
-	};
 	struct Imp {
 		Thm thm;// s = t ⟹ conditions ... ⟹ s ⟹ t
 		size_t conds;// number of conditions
@@ -47,8 +43,6 @@ private:
 	StrMap<size_t const> _rel2ind;
 	/** reflexivity theorems, e.g., ∀x. x = x */
 	std::vector<Thm> _refls;
-	/** symmetry theorems, e.g., ∀x y. x = y ⟹ y = x */
-	Map<size_t,Dual> _duals;
 	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
 	Map<size_t,Thm> _trans;
 	/** ∀P Q. P = Q ⟹ P ⟹ Q */
@@ -65,7 +59,6 @@ private:
 	friend Resolver;
 	friend Thy;
 public:
-	static std::string const CONG;
 	struct Error : ::Error {
 		static inline Term const RT = "#rewriter";
 		Error(Term const& term) : ::Error(RT(term)) {}
@@ -99,9 +92,9 @@ public:
 	std::tuple<char,std::string,Rule> make_rule( Thm const& thm, bool cong ) const&;
 	bool register_cong( Thm const& thm ) &;
 	void register_fallback( Thm const& thm ) &;
-	void register_dual( Thm const& thm ) &;
 	void register_to_true( Thm const& thm ) &;
-	void import( Thy const& thy, Intp const& intp ) &;
+	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const &;
+	void import( Rewrite const& src, Thy const& thy, Intp const& intp ) &;
 	size_t get_ind( Opt<std::string> const& rel ) const &;
 private:
 };

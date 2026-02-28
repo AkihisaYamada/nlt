@@ -175,39 +175,51 @@ begin
 			- if x: x ∈ A, y: y ∈ B;
 				by in.ex_intro1[OF x] in.ex_intro1[OF y].
 			.
-		lemma pair_in_prod: if ! x ∈ A, ! y ∈ B then (x,y) ∈ A × B;
-			simp.
-print.
-		lemma all_pair_in_prod: (∀(x,y)∈A×B. P.[x,y]) ⟺ (∀x ∈ A. ∀y ∈ B. P.[x,y]);
+		lemma pair_in_prod: if ! x ∈ A, ! y ∈ B then (x,y) ∈ A × B.
+		lemma allIn_prod: (∀p ∈ A × B. P.[p]) ⟺ (∀x ∈ A. ∀y ∈ B. P.[x,y]);
 			note(cong) eq_cong_meta[of P].
-			simp in.all_def in_prod_iff;.
+			simp in.all_def imp_all_iff in_prod_iff;
+			apply iff_intro;
+			- if l for x y if x, y;
+				by l[OF x y eq.refl].
+			- if r for p x y if x, y, p;
+				by r x y #simp p.
+			.
 	end
 
-	theory UniqueChoice2CondRel:
-		import Ex1Rel.
-		assume unique_choice2: for P
-			if ∀x y. Q.[x,y] ⟹ ∃!z < a. P.[x,y,z]
-			then ∃f. ∀x. ∀y. Q.[x,y] ⟹ f x y < c ∧ P.[x, y, f x y].
+	theory Currying:
+		import Prod.
+		assume curry: if f ∈ A × B → C then ∃f' ∈ A → B → C. ∀x ∈ A. ∀y ∈ A. f' x y = f (x,y).
 	end
 
-	theory UniqueChoiceRel:
-		import Ex1Rel.
-		assume unique_choice: if ∀x < a. ∃!y < b. P.[x,y] then ∃f. ∀x < a. f x < b ∧ P.[x, f x].
+	theory UniqueChoice2:
+		import Prod.
+		import Fun.
+		assume unique_choice2: for P A B C
+			if ∀x ∈ A. ∀y ∈ B. ∃!z ∈ C. P.[x,y,z]
+			then ∃f ∈ A → B → C. ∀x ∈ A. ∀y ∈ B. P.[x, y, f x y].
+	end
+
+	theory UniqueChoice:
+		import Prod.
+		import Fun.
+		assume unique_choice: for P A B if ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f ∈ A → B. ∀x ∈ A. P.[x, f x].
 	begin
 		theory Currying:
 			import Currying.
 		begin
+print.
 			interpret UniqueChoice2;
-				- for P if all_ex1;
+				- for P A B C if all2_ex1;
 					note(cong) eq_cong_meta[of P].
-					apply unique_choice[of (((x,y),z). P.[x,y,z]), THEN ex_elim];
-					simp;
-					- by all_ex1.
-					- for f if f;
-						apply curry[of f, THEN ex_elim];
-						- for f' if f'f;
-							apply ex_intro1[of f'];
-							fold f'f;
+					apply unique_choice[of (((x,y),z). P.[x,y,z]) (A × B) C, THEN in.ex_elim];
+					simp allIn_prod;
+					- by all2_ex1.
+					- for f if fty, f;
+						apply curry[OF fty, THEN in.ex_elim];
+						- for f' if f'ty, f'f;
+							apply in.ex_intro1[OF f'ty];
+							unfold f'f;
 							- for x y;
 								use f[of (x,y)];
 								simp.

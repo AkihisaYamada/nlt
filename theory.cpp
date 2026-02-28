@@ -10,7 +10,13 @@ string const Thy::INTRO = "#intro";
 string const Thy::WEAK = "#weak";
 string const Thy::ELIM = "#elim";
 string const Thy::INF = "#inf";
-string const Thy::REWRITE = "=";
+
+string const Thy::SIMP = "#simp";
+string const Thy::CONG = "#cong";
+string const Thy::DUAL = "#dual";
+
+string const Thy::RULIFY = "#rulify";
+string const Thy::RULIFY_CONG = "#rcong";
 
 struct Thy::_Body {
 	string name;
@@ -22,20 +28,22 @@ struct Thy::_Body {
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> imports;
 	Ref<Syntax> syntax;
-	OptRef<Rewrite> rewriter;
+	StrMap<pair<Ref<Rewrite>,bool>> rewriter;
 	bool is_scope;
-	bool own_rewrite;
 	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax, OptRef<Rewrite> const& rewriter, bool own_rewrite, OptRef<Definer> const& definer ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax), rewriter(rewriter), own_rewrite(own_rewrite), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax, OptRef<Definer> const& definer ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax), definer(definer) {
 	}
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make(),OptRef<Rewrite>(),false,OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make(),OptRef<Definer>())) {};
 
 Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope, Intp const& intp ) const& {
-	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax,_ref->rewriter,false,_ref->definer), intp.ctxt() );
+	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax,_ref->definer), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
+	for( auto [rew_name,p] : _ref->rewriter ) {
+		child._ref->rewriter.emplace(rew_name,pair(p.first,false));
+	}
 	return child;
 }
 void Thy::add_thy( Thy const& thy ) & {
@@ -75,58 +83,37 @@ Syntax const& Thy::syntax() const& {
 Syntax& Thy::modify_syntax() & {
 	return *_ref->syntax;
 }
-Opt<Rewrite const&> Thy::rewriter() const& {
-	if( _ref->rewriter ) {
-		return {*_ref->rewriter};
+Opt<Rewrite const&> Thy::find_rewriter( string_view const& rew_name ) const& {
+	if( auto x = _ref->rewriter.finds(rew_name) ) {
+		return {*x->second.first};
 	}
 	return {};
 }
+Rewrite& Thy::modify_rewriter( string_view const& rew_name ) & {
+	auto x = _ref->rewriter.finds(rew_name);
+	if( !x ) {
+		auto [it,b] = _ref->rewriter.emplace(rew_name,pair{Ref<Rewrite>::make(Rewrite()),true});
+		return *it->second.first;
+	}
+	if( !x->second.second ) {
+		x->second.first = Ref<Rewrite>::make(*x->second.first);
+		x->second.second = true;
+	}
+	return *x->second.first;
+}
 void Thy::reset_rewrite() & {
-	if( !_ref->own_rewrite && _ref->parent ) {
-		_ref->rewriter = _ref->parent->source()._ref->rewriter;
-	}
-}
-void Thy::_make_own_rewrite() & {
-	if( !_ref->own_rewrite ) {
-		if( _ref->rewriter ) {// clone rewriter
-			_ref->rewriter = OptRef<Rewrite>::make(*_ref->rewriter);
-		} else {// initialize rewriter
-			_ref->rewriter = OptRef<Rewrite>::make(Rewrite());
+	for( auto& [rew_name,val] : _ref->rewriter ) {
+		auto& [rew,own] = val;
+		if( !own && _ref->parent ) {
+			rew = _ref->parent->source()._ref->rewriter.finds(rew_name)->second.first;
 		}
-		_ref->own_rewrite = true;
 	}
-}
-void Thy::register_refl( Thm const& thm, bool def ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_refl(thm,def);
-}
-void Thy::register_trans( Thm const& thm ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_trans(thm);
-}
-void Thy::register_dual( Thm const& thm ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_dual(thm);
-}
-void Thy::register_imp( Thm const& thm, bool dir ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_imp(thm,dir);
-}
-void Thy::register_cong( Thm const& thm ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_cong(thm);
-}
-void Thy::register_fallback( Thm const& thm ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_cong(thm);
-}
-void Thy::register_to_true( Thm const thm ) & {
-	_make_own_rewrite();
-	_ref->rewriter->register_to_true(thm);
 }
 void Thy::import_rewrite( Thy const& src, Intp const& intp ) & {
-	_make_own_rewrite();
-	_ref->rewriter->import(src,intp);
+	for( auto& [rew_name,val] : src._ref->rewriter ) {
+		auto& rew = modify_rewriter(rew_name);
+		rew.import(*val.first,src,intp);
+	}
 }
 OptRef<Definer>& Thy::definer() & {
 	return _ref->definer;
