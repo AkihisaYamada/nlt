@@ -4,18 +4,6 @@
 
 using namespace std;
 
-string const Thy::EXACT = "#exact";
-string const Thy::CONCL = "#concl";
-string const Thy::INTRO = "#intro";
-string const Thy::WEAK = "#weak";
-string const Thy::ELIM = "#elim";
-string const Thy::INF = "#inf";
-
-string const Thy::DUAL = "#dual";
-
-string const Thy::RULIFY = "#rulify";
-string const Thy::RULIFY_CONG = "#rcong";
-
 struct Thy::_Body {
 	string name;
 	string dir;

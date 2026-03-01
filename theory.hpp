@@ -37,24 +37,6 @@ public:
 		static inline Term const RT = "#thy";
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
-	/** name for exact concluder */
-	static std::string const EXACT;
-	/** name for introduction rules */
-	static std::string const INTRO;
-	/** name for weak introduction rules */
-	static std::string const WEAK;
-	/** name for schematic concluders */
-	static std::string const CONCL;
-	/** name for elimination rules */
-	static std::string const ELIM;
-	/** name for inflation rules, φ ⟹ ψ */
-	static std::string const INF;
-	/** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
-	static std::string const DUAL;
-	/** prefix for rulify, e.g. ∀A P. (∀x ∈ A. P.[x]) ⟺ (∀x. x ∈ A ⟹ P.[x]) */
-	static std::string const RULIFY;
-	/** prefix for rulify cong, e.g. ∀P Q Q'. Q ⟺ Q' ⟹ (P ⟹ Q) ⟺ (P ⟹ Q') */
-	static std::string const RULIFY_CONG;
 	/** construct a root theory */
 	Thy( std::string_view const& name, std::string_view const& dirname );
 	/** @brief Creates an anonymous branch theory.
@@ -95,9 +77,6 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {}) &;
-	void add_elim( Thm const& thm ) & {
-		add_thm(ELIM,thm,Elim::rule(thm,0,'?'));
-	}
 	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */

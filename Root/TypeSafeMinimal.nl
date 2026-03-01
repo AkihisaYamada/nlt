@@ -50,7 +50,7 @@ interpret and: iff.MetaCommMonoid (∧) true;
 
 note(simp) and.left_neutral and.right_neutral.
 
-lemma and_imp_iff_imp_imp(simp) (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
+lemma and_imp_iff_imp_imp(simp,rule) (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
 
 lemma imp_and_iff1: if P: P then P ∧ Q ⟺ Q;

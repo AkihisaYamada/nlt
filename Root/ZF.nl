@@ -13,7 +13,6 @@ import Eq.
 import TypeFree.
 import Minimal.
 import AllEx1In.
-import Fun.
 fix Set.
 
 ---
@@ -73,80 +72,47 @@ given `x` and `y` as arguments, denotes the (unique) such `z`.
 In Naive Logic, this assumption must be explicitly formalized.
 We do so by a binary unique choice axiom schema.
 ---
-import Pair.
-
-assume unique_choice2_set:
-	if ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. P.[x,y,z]
-	then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. P.[x, y, f x y].
-
-lemma unique_choice2_set_rule:
-	if	ex1: ∀x ∈ Set. ∀y ∈ Set. ∃!z ∈ Set. P.[x,y,z],
-		imp: ∀f. f ∈ Set → Set → Set ⟹ (∀x ∈ Set. ∀y ∈ Set. P.[x, y, f x y]) ⟹ thesis
-	then thesis;
-	apply unique_choice2_set[OF ex1, THEN in.ex_elim];
-	- for f; by imp[of f].
-	.
-
-lemma abbrev2_set:
-	if F: ∀x ∈ Set. ∀y ∈ Set. F.[x,y] ∈ Set then ∃f ∈ Set → Set → Set. ∀x ∈ Set. ∀y ∈ Set. f x y = F.[x,y];
-	note(cong) eq_cong_meta[of F].
-	apply unique_choice2_set[of ((x,y,z). z = F.[x,y]), simp in.ex1_eq_iff] F.
+import UniqueChoice2.
 
 obtain upair where
-	upair_type: upair ∈ Set → Set → Set,
-	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
+	upair_spec: if x ∈ Set, y ∈ Set then upair x y ∈ Set ∧ (∀z ∈ Set. z ∈ upair x y ⟺ z = x ∨ z = y);
 - for thesis if assm;
-	apply unique_choice2_set_rule[of ((x,y,z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y)];
-	simp;
-	- by in.all_intro ex1_upair.
-	- for f if ty, f;
-		apply assm[OF ty];
-		by f[unfold+ in.all_def].
+	apply unique_choice2_cond[of ((x,y). x ∈ Set ∧ y ∈ Set) ((x,y,z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y) Set, simp, THEN ex_elim];
+	- by ex1_upair.
+	- for f if f;
+		apply assm[of f];
+		by f.
 	.
 .
 
 lemma upair_Set! if x: x ∈ Set, y: y ∈ Set then upair x y ∈ Set;
-	apply upair_type[THEN fun_elim1, THEN fun_elim1] x y.
+	use upair_spec[OF x y].
+
+lemma in_upair: if x: x ∈ Set, y: y ∈ Set, z: z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
+	use upair_spec[OF x y];
+	simp in.all_def;
+	- if 1, 2;
+		by 2[OF z].
+	.
 
 ---
 ## Singleton
-
-Unary unique choice is derivable from the binary one.
-Note that the converse requires Currying.
 ---
-lemma unique_choice_set:
-	if ex1: ∀x ∈ Set. ∃!y ∈ Set. P.[x,y]
-	then ∃f ∈ Set → Set. ∀x ∈ Set. P.[x, f x];
--	apply unique_choice2_set[of ((x,y). P.[y]), THEN in.ex_elim];
-	note(cong) eq_cong_meta[of P].
-	simp;
-	-	apply in.all_intro;
-		by ex1.
-	- for f2 if ty, assm;
-		apply in.ex_intro1[of (f2 {})];
-		- apply fun_elim1[OF ty].
-		by in.all_intro assm[THEN in.all_elim1, THEN in.all_elim1].
-	.
-.
-lemma abbrev_set:
-	if F: ∀x ∈ Set. F.[x] ∈ Set then ∃f ∈ Set → Set. ∀x ∈ Set. f x = F.[x];
-	note(cong) eq_cong_meta[of F].
-	by unique_choice_set[of ((x,y). y = F.[x]), simp in.ex1_eq_iff] F.
 
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
 obtain _singleton where
 	singleton_Set! if x ∈ Set then {x} ∈ Set,
-	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
+	in_singleton: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
 - for thesis if assm;
-	apply abbrev_set[of (x. upair x x), THEN in.ex_elim];
+	apply abbrev_cond[of (x. x ∈ Set) (x. upair x x) Set, THEN ex_elim];
 	- by in.all_intro.
-	- for f if ty, f;
-		apply assm[of f, unfold f[THEN in.all_elim1]];
+	- for f if f;
+		apply assm[of f, unfold f];
 		- .
 		- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
-			unfold upair_iff or.idem;
+			unfold in_upair or.idem;
 			by iff_eq.commute.
 		.
 	.
@@ -157,6 +123,8 @@ but formalizing the unique choice axiom schema already requires syntactic pairin
 So we just assume syntactic pairs of sets are sets.
 ---
 assume pair_set: ∀x ∈ Set. ∀y ∈ Set. (x,y) ∈ Set.
+print.
+note! pair_set[rule].
 
 ---
 ### Power Set
@@ -176,15 +144,18 @@ lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (�
 	.
 
 obtain Pow where
-	Pow_type: Pow ∈ Set → Set,
-	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
+	Pow_Set! if x ∈ Set then Pow x ∈ Set,
+	in_Pow: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
 - for thesis if assm;
-	apply unique_choice_set[of ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)), THEN in.ex_elim];
+	apply unique_choice_cond[of (x. x ∈ Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)) Set, THEN ex_elim];
 	simp;
 	- by in.all_intro Pow_ex1.
-	- for f if ty, f;
-		apply assm[OF ty];
-		unfold f[THEN in.all_elim1, THEN in.all_elim1].
+	- for f if f;
+		apply assm[of f];
+		- if x: x ∈ Set;
+			use f[OF x].
+		- if x: x ∈ Set, y: y ∈ Set;
+			use f[OF x]; simp; .
 	.
 .
 
@@ -258,8 +229,8 @@ However, this cannot yield the notation `Replace P A` to denote the `B`.
 The problem is that `P` is not a set but we only assumed unique choice on set arguments.
 
 ---
-assume replacement_axiom: ∀F ∈ Set. ∀A ∈ Set.
-	(∀x ∈ A. ∃!y ∈ Set. (x,y) ∈ F) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. (x,y) ∈ F).	
+assume replacement_schema: ∀F. ∀A ∈ Set.
+	(∀x ∈ A. ∃!y ∈ Set. F.[x,y]) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. F.[x,y]).	
 
 lemma replacement_ex1:
 	if F: F ∈ Set, ex1: ∀x ∈ Set. ∃!y ∈ Set. (x,y) ∈ F, w! w ∈ Set

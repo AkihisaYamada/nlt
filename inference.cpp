@@ -1,11 +1,19 @@
 #include "inference.hpp"
 using namespace std;
 
+string const EXACT = "#exact";
+string const CONCL = "#concl";
+string const INTRO = "#intro";
+string const WEAK = "#weak";
+string const ELIM = "#elim";
+string const INF = "#inf";
+
 string const SIMP = "#simp";
 string const CONG = "#cong";
+string const DUAL = "#dual";
 
 void cerr_proof_thms( Thy const& thy ) {
-	for( auto const& name : { Thy::EXACT, Thy::CONCL, Thy::INTRO, Thy::WEAK, Thy::ELIM, Thy::INF } ) {
+	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INF } ) {
 		cerr << name << ":" << thy.print_thms(name);
 	}
 }
@@ -61,21 +69,21 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 			auto [ind,rel,rule] = thy.rewriter(SIMP).make_rule(thm,false);
 			return {SIMP+rel,{thm,rule}};
 		} else if( _mode == '?' ) {
-			return {Thy::WEAK,{thm,Intro::rule(thm)}};
+			return {WEAK,{thm,Intro::rule(thm)}};
 		} else {
-			return {Thy::INTRO,{thm,Intro::rule(thm)}};
+			return {INTRO,{thm,Intro::rule(thm)}};
 		}
 	}
-	return {Thy::INF,{thm,Elim::rule(thm,_after-1,_mode)}};
+	return {INF,{thm,Elim::rule(thm,_after-1,_mode)}};
 }
 
 void add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro ) {
 	if( intro.conds() > 0 ) {
-		thy.add_thm( allow_intro ? Thy::INTRO : Thy::WEAK, thm, {intro} );
+		thy.add_thm( allow_intro ? INTRO : WEAK, thm, {intro} );
 	} else if( intro.vars() > 0 ) {
-		thy.add_thm(Thy::CONCL,thm,{intro});
+		thy.add_thm(CONCL,thm,{intro});
 	} else {
-		thy.add_thm(Thy::EXACT,thm);
+		thy.add_thm(EXACT,thm);
 	}
 }
 void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool normalize, bool wide ) & {
@@ -169,7 +177,7 @@ bool Resolver::_apply_and_discharge(
 void Resolver::inflate( Thy& thy, Thm const& assm ) & {
 	// one cannot update the list while reading the list.
 	auto infs = vector<pair<string,AThm>>();
-	thy.find_thm( Thy::INF, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
+	thy.find_thm( INF, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
 		auto elim = info.ref<Elim>();
 		assert(elim);
 		if( auto m = elim->matches(assm,{import}) ) {
@@ -209,7 +217,7 @@ bool Resolver::_discharge(
 			assm = rewrites(subthy,assm,simp,0,255,true,{});
 		}
 		// checks if an elimination rule matches
-		if( subthy.find_thm( Thy::ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( subthy.find_thm( ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
@@ -227,7 +235,7 @@ bool Resolver::_discharge(
 	}
 	// try exact conclusions
 	if( log > 5 ) _log() << "- trying to conclude: " << subthy.pretty(goal) << endl;
-	if( !subthy.find_thm( Thy::EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+	if( !subthy.find_thm( EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto thm2 = thm.subst(import);
 		if( thm2 == goal ) {
 			thesis.discharge(thm2.intro());
@@ -266,8 +274,8 @@ bool Resolver::_discharge(
 			indent--;
 			return {};
 		};
-		if( !subthy.find_thm(Thy::CONCL,intro_tester) )
-		if( !subthy.find_thm(Thy::INTRO,intro_tester) )
+		if( !subthy.find_thm(CONCL,intro_tester) )
+		if( !subthy.find_thm(INTRO,intro_tester) )
 		for(;;) {
 			if( elim_res_ind < elim_res.size() ) {// process elimination result
 				auto const& [label,athm] = elim_res[elim_res_ind];
@@ -287,7 +295,7 @@ bool Resolver::_discharge(
 			}
 			if( trial > 0 ) {
 				trial--;
-				if( subthy.find_thm(Thy::WEAK,weak_tester) ) break;
+				if( subthy.find_thm(WEAK,weak_tester) ) break;
 			}// nothing could be applied
 			indent--;
 			if( log > 0 ) _log() << "}! failed to resolve: " << subthy.pretty(goal) << endl;

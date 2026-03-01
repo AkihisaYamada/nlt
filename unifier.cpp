@@ -247,18 +247,18 @@ private:
 	void unify_lunbind2( string const& x, CTerm const& larg, CTerm const& r ) {
 		if( auto const& rsym = r.sym() ) {
 			return unify_rsym(x/larg,*rsym);
-		} if( auto const& rfix = r.cunbind() ) {/// rhs is also a context application
+		} if( auto const& rfix = r.cunbind() ) {/// rhs is also unbinding
 			auto const& [y,_,rarg] = *rfix;
-			return unify_fixes(x,larg,y,rarg);
+			return unify_unbinds(x,larg,y,rarg);
 		}
 		throw Mismatch();
 	}
-	// lhs is a non-pattern context and rhs is a context
-	void unify_fixes( string const& x, CTerm const& larg, string const& y, CTerm const& rarg ) {
-		if( auto val = subst.get(y) ) {// right context has assignment
+	// lhs is a non-pattern unbinding and rhs is an unbinding
+	void unify_unbinds( string const& x, CTerm const& larg, string const& y, CTerm const& rarg ) {
+		if( auto val = subst.get(y) ) {// right unbinding has assignment
 			avoids[0].insert(y);// this rhs cannot be unified with lhs containing y
 			if( auto vsym = val->sym() ) {
-				unify_fixes(x,larg,*vsym,rarg);
+				unify_unbinds(x,larg,*vsym,rarg);
 			} else if( auto vabs = val->cbind() ) {
 				unify_lunbind2(x,larg,val->inst(rarg));
 			} else {
@@ -269,7 +269,7 @@ private:
 		}
 		if( fvar(y) )
 		if( auto argsym = rarg.sym() )
-		if( auto const& opt = inds[1].finds(*argsym) ) {// context pattern
+		if( auto const& opt = inds[1].finds(*argsym) ) {// rhs is a higher-order pattern
 			auto const& [z,i] = *opt;
 			StrSet bounds;
 			subst.assign(y,sanitize(bvars[0][i]/=x/larg,bounds,avoids[0],inds[0]));

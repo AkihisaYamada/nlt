@@ -27,6 +27,7 @@
 using namespace std;
 
 string const RULIFY = "#rulify";
+string const RULIFY_CONG = "#rcong";
 
 struct ClaimStatus {
 	bool weak = false, intro = false, elim = false, dual = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
@@ -402,7 +403,7 @@ public:
 			if( cs->intro ) {
 				if( cs->after > 0 ) {
 					info = {Elim::rule(thm,cs->after-1,'!')};
-					loc.add_thm(Thy::INF,thm,info);
+					loc.add_thm(INF,thm,info);
 				} else {
 					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
 					add_intro(loc,thm,*info.ref<Intro>(),true);
@@ -411,7 +412,7 @@ public:
 			if( cs->weak ) {
 				if( cs->after > 0 ) {
 					info = {Elim::rule(thm,cs->after-1,'?')};
-					loc.add_thm(Thy::INF,thm,info);
+					loc.add_thm(INF,thm,info);
 				} else {
 					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
 					add_intro(loc,thm,*info.ref<Intro>(),false);
@@ -433,7 +434,7 @@ public:
 			}
 			if( cs->elim ) {
 				info = {Elim::rule(thm,0,'?')};
-				loc.add_thm(Thy::ELIM,thm,info);
+				loc.add_thm(ELIM,thm,info);
 			}
 			if( cs->dual ) {
 				loc.register_dual(thm);
@@ -441,7 +442,7 @@ public:
 			if( cs->unfold ) {
 				if( cs->after > 0 ) {
 					info = {Elim::rule(thm,cs->after-1,'=')};
-					loc.add_thm(Thy::INF,thm,info);
+					loc.add_thm(INF,thm,info);
 				} else {
 					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm,false);
 					info = {rule};
@@ -452,7 +453,7 @@ public:
 				auto resolver = Resolver({},_out_resolver);
 				auto const& dual = loc.dualize(thm,resolver);
 				if( cs->after > 0 ) {
-					loc.add_thm(Thy::INF,dual,Elim::rule(dual,cs->after,'='));
+					loc.add_thm(INF,dual,Elim::rule(dual,cs->after,'='));
 				} else {
 					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(dual,false);
 					loc.add_thm(SIMP+rel,dual,rule);
@@ -905,8 +906,8 @@ public:
 						add_intro(_thy,*thm,false);
 					}
 				} else if( skips("elim") ) {
-					while( auto elim = gets_thm() ) {
-						_thy.add_elim(*elim);
+					while( auto thm = gets_thm() ) {
+						_thy.add_thm(ELIM,*thm,Elim::rule(*thm,0,'?'));
 					}
 				} else if( int type = skips("simp") ? 1 : skips("fold") ? 2 : skips("cong") ? 3 : 0 ) {
 					while( auto const& thm = _gets_thm(_thy) ) {
@@ -1497,7 +1498,7 @@ public:
 		for(;;) try {
 			if( _stats() || _thy_decl() || _shared_decl() ) {
 			} else if( skips("set") ) {
-				if( int mode = skips("rewrite") ? 1 : skips("rulify") ? 2 : 0 ) {
+				if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
 					auto& rew = _thy.modify_rewriter( mode == 1 ? SIMP : RULIFY );
 					bool def = skips("!");
 					Thm imp = get_thm();

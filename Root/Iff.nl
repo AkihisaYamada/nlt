@@ -27,8 +27,8 @@ interpret iff: MetaEquivalence (⟺);
 
 note! iff.refl.
 
-set rewrite iff_elim1 iff_elim2 iff.refl iff.trans.
-set rulify iff_elim1 iff_elim2 iff.refl iff.trans.
+set simp iff_elim1 iff_elim2 iff.refl iff.trans.
+set rule iff_elim1 iff_elim2 iff.refl iff.trans.
 
 note(dual) iff.sym.
 

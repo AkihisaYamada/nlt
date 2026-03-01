@@ -5,6 +5,20 @@
 
 class Resolver;
 
+/** name for exact concluder */
+extern std::string const EXACT;
+/** name for introduction rules */
+extern std::string const INTRO;
+/** name for weak introduction rules */
+extern std::string const WEAK;
+/** name for schematic concluders */
+extern std::string const CONCL;
+/** name for elimination rules */
+extern std::string const ELIM;
+/** name for inflation rules, φ ⟹ ψ */
+extern std::string const INF;
+/** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
+extern std::string const DUAL;
 /** rewriter name for simplifier */
 extern std::string const SIMP;
 /** prefix for congruence rules */

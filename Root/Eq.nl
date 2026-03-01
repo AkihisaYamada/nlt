@@ -38,7 +38,7 @@ lemma eq_imp: if PQ: P = Q, P: P then Q;
 lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
-set rewrite eq_imp eq_imp_rev eq.refl eq.trans.
+set simp eq_imp eq_imp_rev eq.refl eq.trans.
 
 lemma arg_cong: if xy: x = y then f x = f y;
 	by eq_cong_meta[of (z. f z), OF xy].
@@ -267,18 +267,6 @@ begin
 			-.
 			- for x; apply eq.sym>0.
 			.
-	end
-
-	theory UniqueChoiceRel:
-		import Ex1.
-		import Pair.
-		assume unique_choice: if ∀x. ∃!y. P.[x,y] then ∃f. ∀x. P.[x, f x].
-	end
-
-	theory UniqueChoice2:
-		import Ex1.
-		import Pair.
-		assume unique_choice2: if ∀x y. ∃!z. P.[x,y,z] then ∃f. ∀x y. P.[x, y, f x y].
 	end
 
 	theory Currying:

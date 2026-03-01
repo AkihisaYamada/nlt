@@ -195,62 +195,82 @@ begin
 			.
 	end
 
-	theory Currying:
-		import Prod.
-		assume curry: if f ∈ A × B → C then ∃f' ∈ A → B → C. ∀x ∈ A. ∀y ∈ B. f' x y = f (x,y).
+	theory Abbrev:-- Restricted Unary Abbreviation
+		import Membership.
+		assume abbrev_cond: for P F A
+			if ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x].
+	begin
+		lemma abbrev:
+			if ty: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
+			by abbrev_cond[of (x. true) F A, simp, OF ty].
 	end
 
-	theory UniqueChoice2:
-		import Prod.
-		import Fun.
-		assume unique_choice2: for P A B C
-			if ∀x ∈ A. ∀y ∈ B. ∃!z ∈ C. P.[x,y,z]
-			then ∃f ∈ A → B → C. ∀x ∈ A. ∀y ∈ B. P.[x, y, f x y].
+	theory Abbrev2:-- Restricted Binary Abbreviation
+		import Pair.
+		import Membership.
+		assume abbrev2_cond: for P F A
+			if ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y].
+	begin
+		interpret Abbrev;
+			- for P F A if ty;
+				note(cong) eq_cong_meta[of P] eq_cong_meta[of F].
+				apply abbrev2_cond[of ((x,y). P.[y]) ((x,y). F.[y]), simp, OF ty, THEN ex_elim];
+				- for f if f;
+					apply ex_intro1[of (f _)];
+					unfold f.
+				.
+			.
 	end
 
 	theory UniqueChoice:
-		import Prod.
-		import Fun.
-		assume unique_choice: for P A B if ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f ∈ A → B. ∀x ∈ A. P.[x, f x].
+		import Pair.
+		import AllEx1In.
+		assume unique_choice_cond: for P Q A
+			if ∀x. P.[x] ⟹ ∃!y ∈ A. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A ∧ Q.[x, f x].
 	begin
-		theory Currying:
-			import Currying.
-		begin
-print.
-			interpret UniqueChoice2;
-				- for P A B C if all2_ex1;
-					note(cong) eq_cong_meta[of P].
-					apply unique_choice[of (((x,y),z). P.[x,y,z]) (A × B) C, THEN in.ex_elim];
-					simp allIn_prod;
-					- by all2_ex1.
-					- for f if fty, f;
-						apply curry[OF fty, THEN in.ex_elim];
-						- for f' if f'ty, f'f;
-							apply in.ex_intro1[OF f'ty];
-							unfold f'f[rule];
-							- for x y;
-								use f[of (x,y)];
-								simp.
-							.
-						.
-					.
-				.
-		end
+		lemma unique_choice: for P A B
+			if ex1: ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f. ∀x ∈ A. f x ∈ B ∧ P.[x, f x];
+			unfold in.all_def;
+			apply unique_choice_cond;
+			by ex1[rule].
 	end
 
 	theory UniqueChoice2:
-		import UniqueChoice2.
+		import Pair.
+		import AllEx1In.
+		assume unique_choice2_cond: for P Q A
+			if ∀x y. P.[x,y] ⟹ ∃!z ∈ A. Q.[x,y,z]
+			then ∃f. ∀x y. P.[x,y] ⟹ f x y ∈ A ∧ Q.[x, y, f x y].
 	begin
-		interpret Ex1.
 		interpret UniqueChoice;
-			- for P if all_ex1;
-				note(cong) eq_cong_meta[of P].
-				apply unique_choice2[of ((x,y,z). P.[y,z]), THEN ex_elim];
-				simp;
-				- by all_ex1.
+			- for P Q A if ex1;
+				note(cong) eq_cong_meta[of P] eq_cong_meta[of Q].
+				apply unique_choice2_cond[of ((x,y). P.[y]) ((x,y,z). Q.[y,z]), simp, OF ex1, THEN ex_elim];
 				- for f if f;
-					apply ex_intro1[of (f (,))];
+					apply ex_intro1[of (f _)];
 					by f.
+				.
+			.
+		lemma curry_cond: for f if ty: ∀x y. P.[x,y] ⟹ f (x,y) ∈ A then ∃f'. ∀x y. P.[x,y] ⟹ f' x y = f (x,y);
+			apply unique_choice2_cond[of P ((x,y,z). z = f (x,y)) A, simp in.ex1_eq_iff, OF ty, THEN ex_elim];
+			- for f' if f';
+				apply ex_intro1[of f'];
+				- for x y if Pxy: P.[x,y];
+					use f'[OF Pxy].
+				.
+			.
+		lemma curry: for f if ty: ∀x y. f (x,y) ∈ A then ∃f'. ∀x y. f' x y = f (x,y);
+			by curry_cond[of f (_. true), simp, OF ty].
+
+		interpret Abbrev2;
+			- if F: ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y];
+				note(cong) eq_cong_meta[of F].
+				apply unique_choice2_cond[of P ((x,y,z). z = F.[x,y]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+				- for f if f;
+					apply ex_intro1[of f];
+					- for x y if Pxy;
+						use f[OF Pxy].
+					.
 				.
 			.
 	end
