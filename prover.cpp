@@ -847,7 +847,7 @@ public:
 					auto const& rule = Intro::rule(thesis_loc.add_assm("?thesis",t));
 					// assume this and prove var, i.e., prove props[sym:=term]...
 					auto thesis = Thesis::claim_exact(thesis_loc,var);// var ⟹ var
-					thesis.apply(rule);// prop[sym:=term]... ⟹ var
+					thesis.apply(rule,false);// prop[sym:=term]... ⟹ var
 					if( skips(";") ) {
 						_depth++;
 						if MSG {
@@ -1418,16 +1418,18 @@ public:
 				thesis.apply(rules,min,max,normalize,wide);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals(thesis,"applied goals:\n\t");
-			} else if( skips("simp") ) {
-				auto resolver = _thy.resolver(_out_resolver);
-				auto& rew = _thy.rewriter(SIMP);
+			} else if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
+				auto const& [rew_name,ex] = mode == 1 ?
+					pair{SIMP,string("simplified")} : pair{RULIFY,string("rulified")};
+				auto& rew = _thy.rewriter(rew_name);
+				auto resolver = Resolver({rew}, _out_resolver);
 				while( auto thm = gets_thm() ) {
 					rew.add_rewrite_rule(resolver.rules,*thm,false);
 				}
 				bool more = _proof_follows();
-				resolver.rewrites(thesis,{SIMP},1,255,true,{},{});
+				resolver.rewrites(thesis,{rew_name},1,255,true,{},{});
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goals( thesis, "simplified goals:\n\t" );
+				if MSG print_goals( thesis, ex + " goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_resolver);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
@@ -1476,7 +1478,7 @@ public:
 					goal = goal.impE(fact);
 				}// goal = #TMP
 				auto rule = Intro::rule(goal.intro());
-				thesis.apply(rule);
+				thesis.apply(rule,true);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goal( thesis, "used goal: " );
 			} else if( skips("oops") ) {

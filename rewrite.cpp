@@ -506,7 +506,7 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 		for( size_t i = 0; i < conds; i++ ) {
 			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,{}));
 		}// t ⟹ s
-		thesis.apply(Intro::imp(imp,1,false));// t ⟹ rest
+		thesis.apply(Intro::imp(imp,1,false),false);// t ⟹ rest
 	}
 	if( thesis.push() ) {
 		if( rewrites(thesis,simp,0,max,normalize,pos,rel) ) {

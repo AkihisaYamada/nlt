@@ -98,9 +98,7 @@ public:
 		auto child = _thy.branch();
 		return _apply(rule,child.weaken(goal()),child);
 	}
-	void apply( Intro const& rule ) & {
-		if( !applies(rule) ) throw Error("\"not applicable\"")(goal())(rule.conclusion());
-	}
+	void apply( Intro const& rule, bool wide ) &;
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
 		auto child = _thy.branch();

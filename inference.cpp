@@ -86,6 +86,14 @@ void add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro )
 		thy.add_thm(EXACT,thm);
 	}
 }
+void Thesis::apply( Intro const& rule, bool wide ) & {
+	if( !applies(rule) ) throw Error("\"not applicable\"")(goal())(rule.conclusion());
+	if( wide && push() ) {
+		apply(rule,wide);
+		pop();
+	}
+}
+
 void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size_t max, bool normalize, bool wide ) & {
 	for(;;) {
 		if( _goals == 0 ) {
@@ -207,6 +215,19 @@ bool Resolver::_discharge(
 	if( log > 4 ) _log() << "{ resolving: " << subthy.pretty(goal) << endl;
 	indent++;
 	size_t n_elim_res = 0;
+	auto elim_test = [&]( Thm const& assm ) {
+		return [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto elim = info.ref<Elim>();
+			assert(elim);
+			if( auto m = elim->matches(assm,{import}) ) {
+				if( log > 3 ) _log() << "- eliminating: " << subthy.pretty(assm) << endl;
+				elim_res.emplace_back(elim->instantiate(*m,assm,import,subthy));
+				n_elim_res++;
+				return {thm};
+			}
+			return {};
+		};
+	};
 	for(;;) {// strip all assumptions
 		goal = strip_all(goal,subthy.self());
 		auto imp = goal.cbinary(IMP);
@@ -217,17 +238,7 @@ bool Resolver::_discharge(
 			assm = rewrites(subthy,assm,simp,0,255,true,{});
 		}
 		// checks if an elimination rule matches
-		if( subthy.find_thm( ELIM, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-			auto elim = info.ref<Elim>();
-			assert(elim);
-			if( auto m = elim->matches(assm,{import}) ) {
-				if( log > 3 ) _log() << "- eliminating: " << subthy.pretty(assm) << endl;
-				elim_res.emplace_back(elim->instantiate(*m,assm,import,subthy));
-				n_elim_res++;
-				return {thm};
-			}
-			return {};
-		} ) ) continue;
+		if( subthy.find_thm( ELIM, elim_test(assm) ) ) continue;
 		// no elimination matches, declare what can be inferred from the assumption
 		inflate(subthy,assm);
 		add_intro(subthy,assm);
@@ -282,12 +293,17 @@ bool Resolver::_discharge(
 				auto const& intro = *athm.info.ref<Intro>();
 				if( subthesis._apply(intro,g,subgoal_child) ) {
 					if( log > 3 ) _log() << "- applied elimination result: " << subthy.pretty(athm) << endl;
-				} else {
-					if( log > 5 ) _log() << "- using elimination result: " << subthy.pretty(athm) << endl;
-					inflate(subthy,athm);
+					elim_res_ind++;
+					break;// move on to the new thesis
 				}
+				if( subthy.find_thm( ELIM, elim_test(athm) ) ) {// elimination result is further eliminated
+					elim_res_ind++;
+					continue;
+				}
+				if( log > 5 ) _log() << "- inflating elimination result: " << subthy.pretty(athm) << endl;
+				inflate(subthy,athm);
 				elim_res_ind++;
-				break;// move on to the new thesis
+				continue;
 			}// no elimination result matched
 			if( simp && rewrites(subthesis,simp,0,255,true,{},{}) ) {// try rewriting
 				if( log > 3 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;

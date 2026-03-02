@@ -111,11 +111,26 @@ theory Action:
 	import app: Binary (⋅) A B B.
 end
 
+theory LeftModuloid:
+	import LeftDistributive.
+	import mul: Binary (*) A B B.
+	import add: Magma B (+).
+end
+
+theory RightModuloid:
+	import RightDistributive.
+	import add: Magma A (+).
+	import mul: Binary (*) B A B.
+end
+
 theory Ringoid:
 	fix A (*) (+).
 	import mul: Magma A (*).
 	import add: Magma A (+).
 	import Distributive A (*) (+).
+begin
+interpret LeftModuloid A A (*) (+).
+interpret RightModuloid A A (+) (*).
 end
 
 context Reflexive begin

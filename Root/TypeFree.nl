@@ -168,10 +168,9 @@ begin
 	end
 
 	theory AllExIn:
-		import Membership.
+		import AllIn.
 		import in: AllExRel (∈) (∀∈) (∃∈).
 	begin
-		note(rule) in.all_def.
 	end
 
 	theory Choice:

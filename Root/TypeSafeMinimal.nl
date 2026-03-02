@@ -53,10 +53,10 @@ note(simp) and.left_neutral and.right_neutral.
 lemma and_imp_iff_imp_imp(simp,rule) (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
 	by iff_intro.
 
-lemma imp_and_iff1: if P: P then P ∧ Q ⟺ Q;
+lemma imp_and_iff1(simp) if P: P then P ∧ Q ⟺ Q;
 	by iff_intro P.
 
-lemma imp_and_iff2: if Q: Q then P ∧ Q ⟺ P;
+lemma imp_and_iff2(simp) if Q: Q then P ∧ Q ⟺ P;
 	by iff_intro Q.
 
 lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
@@ -265,6 +265,8 @@ end
 theory AllRel:
 	import Iff.AllRel.
 begin
+	lemma all_imp: ((∀x < a. P.[x]) ⟹ Q) ⟺ ((∀x. x < a ⟹ P.[x]) ⟹ Q);
+		simp all_def.
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
 	lemma not_imp_not_all: if nP: ¬P.[x], x: x < a then ¬(∀y < a. P.[y]);
@@ -287,6 +289,15 @@ begin
 		by nnot_intro.
 	lemma all_true_iff: (∀x < a. true) ⟺ true;
 		simp all_def.
+end
+
+theory AllIn:
+	import Membership.
+	import in: .AllRel (∈) (∀∈).
+begin
+	note(intro) in.all_intro.
+	note(elim) in.all_elim.
+	note(rule) in.all_def in.all_imp.
 end
 
 theory ExRel:
