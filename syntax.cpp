@@ -5,9 +5,9 @@ using namespace std;
 Syntax SYNTAX;
 
 Syntax::Syntax() {
-	infix("⟹",0,1,0);
+	infix("⟹",0,1,0,{});
 	binder("∀",0,0);
-	infix(".",-1,-1,-2);
+	infix(".",-1,-1,-2,{});
 	_closers.emplace(")");
 	_closers.emplace("]");
 }
@@ -62,6 +62,16 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					}
 				} else if( op.singleton.contains(*sym) ) {// {_}
 					return os << opener << pretty(arg,0) << op.closer;
+				}
+			} else if( auto const& x = finds_infix(*sym) ) {
+				auto const& op = x->second;
+				if( auto const& cons = op.cons ) {
+					if( auto const& pair = arg.binary(*cons) ) {
+						if( level > op.llevel ) os << '(';
+						os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
+						if( level > op.llevel ) os << ')';
+						return os;
+					}
 				}
 			}
 		} else if( auto app_in = fun.app() ) {

@@ -69,23 +69,32 @@ lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set.
 Usual formulations of ZF then introduces a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) such `z`.
 In Naive Logic, this assumption must be explicitly formalized.
-We do so by a binary unique choice axiom schema.
+We do so by a unique choice axiom schema.
 ---
-import UniqueChoice2.
+import UniqueChoice.
+---
+Standard formulations of ZF "define" pairs using unordered pairs,
+but formalizing the unique choice axiom schema already requires syntactic pairing.
+Moreover, to justify notation `upair (x,y)`, the pair argument must belong to a class.
+(Notation `upair x y` would even require functional types.)
+So we just assume syntactic pairs of sets are sets.
+---
+assume pair_set: ∀x ∈ Set. ∀y ∈ Set. (x,y) ∈ Set.
+note! pair_set[rule].
 
 obtain upair where
-	upair_Set! if x ∈ Set, y ∈ Set then upair x y ∈ Set,
-	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair x y ⟺ z = x ∨ z = y;
-- for thesis if assm;
-	apply unique_choice2_cond[of ((x,y). x ∈ Set ∧ y ∈ Set) ((x,y,z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y) Set, simp, THEN ex_elim];
-	- by ex1_upair.
-	- for f if f;
-		apply assm[of f];
-		- if x: x ∈ Set, y: y ∈ Set; use f[OF x y].
-		- if x: x ∈ Set, y: y ∈ Set; use f[OF x y].
+	upair_Set! if x ∈ Set, y ∈ Set then upair(x,y) ∈ Set,
+	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair(x,y) ⟺ z = x ∨ z = y;
+	- for thesis if assm;
+		apply unique_choice_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) (((x,y),z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y) Set, simp, THEN ex_elim];
+		- by ex1_upair.
+		- for f if f;
+			apply assm[of f];
+			- if x: x ∈ Set, y: y ∈ Set; use f[OF x y eq.refl].
+			- if x: x ∈ Set, y: y ∈ Set; use f[OF x y eq.refl].
+			.
 		.
 	.
-.
 
 ---
 ## Singleton
@@ -97,25 +106,18 @@ The unordered pair `{x,x}` gives the singleton `{x}`.
 obtain _singleton where
 	singleton_Set! if x ∈ Set then {x} ∈ Set,
 	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
-- for thesis if assm;
-	apply abbrev_cond[of (x. x ∈ Set) (x. upair x x) Set, THEN ex_elim];
-	- by in.all_intro.
-	- for f if f;
-		apply assm[of f, unfold f];
-		- .
-		- if ! x ∈ Set, ! y ∈ Set then y ∈ upair x x ⟺ x = y;
-			unfold upair_iff or.idem;
-			by iff_eq.commute.
+	- for thesis if assm;
+		apply abbrev_cond[of (x. x ∈ Set) (x. upair(x,x)) Set, THEN ex_elim];
+		- by in.all_intro.
+		- for f if f;
+			apply assm[of f, unfold f];
+			- .
+			- if ! x ∈ Set, ! y ∈ Set then y ∈ upair(x,x) ⟺ x = y;
+				unfold upair_iff or.idem;
+				by iff_eq.commute.
+			.
 		.
 	.
-.
----
-Standard formulations of ZF "define" pairs using unordered pairs,
-but formalizing the unique choice axiom schema already requires syntactic pairing.
-So we just assume syntactic pairs of sets are sets.
----
-assume pair_set: ∀x ∈ Set. ∀y ∈ Set. (x,y) ∈ Set.
-note! pair_set[rule].
 
 ---
 ### Power Set
@@ -137,19 +139,19 @@ lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (�
 obtain Pow where
 	Pow_Set! if x ∈ Set then Pow x ∈ Set,
 	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
-- for thesis if assm;
-	apply unique_choice_cond[of (x. x ∈ Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)) Set, THEN ex_elim];
-	simp;
-	- by Pow_ex1.
-	- for f if f;
-		apply assm[of f];
-		- if x: x ∈ Set;
-			use f[OF x].
-		- if x: x ∈ Set, y: y ∈ Set;
-			use f[OF x]; by y.
+	- for thesis if assm;
+		apply unique_choice_cond[of (x. x ∈ Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)) Set, THEN ex_elim];
+		simp;
+		- by Pow_ex1.
+		- for f if f;
+			apply assm[of f];
+			- if x: x ∈ Set;
+				use f[OF x].
+			- if x: x ∈ Set, y: y ∈ Set;
+				use f[OF x]; by y.
+			.
 		.
 	.
-.
 
 ---
 ### Unions
@@ -186,14 +188,21 @@ obtain (⋃) where
 		.
 	.
 
+infix ∪(,) 71 70 71.
+infix ∩(,) 81 80 81.
+infix `(,) 101 100 100.
+infix ×(,) 111 110 110.
+
 obtain (∪) where
 	cup_Set! if x ∈ Set, y ∈ Set then x ∪ y ∈ Set,
 	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
 	- for thesis if assm;
-		apply abbrev2_cond[of ((x,y). x ∈ Set ∧ y ∈ Set) ((x,y). ⋃(upair x y)) Set, simp, THEN ex_elim];
+		apply abbrev_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) ((x,y). ⋃(upair(x,y))) Set, simp, THEN ex_elim];
 		- by in.all_intro.
-		- for (∪) if cup_def;
-			apply assm[of (∪), simp cup_def];
+		- for (∪) if cup;
+note cup2: cup[for x y z, of z x, OF _, of y].
+			apply assm[of (∪)];
+			use cup[for z x, OF _ _ eq.refl]; .
 			by #simp CUP_iff upair_iff or_and_distrib in.ex_or_distrib in.ex_eq_and_iff.
 		.
 	.
@@ -218,33 +227,33 @@ assume replacement_schema: ∀P.
 lemma replacement_ex1: for P A
 	if A! A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P x y
 	then ∃!B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y);
--	apply replacement_schema[THEN in.all_elim1, OF A ex1, THEN in.ex_elim];
-	- for B if ! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y);
-		apply+ in.ex1_intro1[of B] in.all_intro;
-		- for y if ! y ∈ Set then y ∈ B ⟺ (∃x ∈ A. P x y);
-			by inB[THEN in.all_elim1].
-		- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. P x y) then B' = B;
-			by set_eq_intro #simp inB[rule] inB'[rule].
+	-	apply replacement_schema[THEN in.all_elim1, OF A ex1, THEN in.ex_elim];
+		- for B if ! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y);
+			apply+ in.ex1_intro1[of B] in.all_intro;
+			- for y if ! y ∈ Set then y ∈ B ⟺ (∃x ∈ A. P x y);
+				by inB[THEN in.all_elim1].
+			- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. P x y) then B' = B;
+				by set_eq_intro #simp inB[rule] inB'[rule].
+			.
 		.
 	.
-.
 
 obtain Replace where
 	Replace_Set: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y then Replace P A ∈ Set,
 	Replace_iff: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y then ∀y ∈ Set. y ∈ Replace P A ⟺ (∃x ∈ A. P x y);
-- for thesis if assm;
-	apply unique_choice2_cond[of ((P,A). A ∈ Set ∧ (∀x ∈ A. ∃!y ∈ Set. P x y)) ((P,A,B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y)) Set, simp, THEN ex_elim];
-	- for P A if A, ex1;
-		by replacement_ex1[OF A ex1].
-	- for f if f;
-		apply assm[of f];
+	- for thesis if assm;
+		apply unique_choice2_cond[of ((P,A). A ∈ Set ∧ (∀x ∈ A. ∃!y ∈ Set. P x y)) ((P,A,B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y)) Set, simp, THEN ex_elim];
 		- for P A if A, ex1;
-			use f[OF A ex1].
-		- for P A if A, ex1;
-			use f[OF A ex1].
+			by replacement_ex1[OF A ex1].
+		- for f if f;
+			apply assm[of f];
+			- for P A if A, ex1;
+				use f[OF A ex1].
+			- for P A if A, ex1;
+				use f[OF A ex1].
+			.
 		.
 	.
-.
 
 ---
 ### Separation Schema
@@ -252,18 +261,17 @@ obtain Replace where
 The separation schema assumes for any set and any predicate,
 the existence of the subset of the former whose elements satisfy the latter.
 ---
-assume separation_schema:
-	∀P. ∀A ∈ Set. ∃B ∈ Set. ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x].
+assume separation_schema: ∀P. ∀A ∈ Set. ∃B ∈ Set. ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x].
 
 lemma separation_ex1:
 	for P if A: A ∈ Set
 	then ∃!B ∈ Set. ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x];
-	apply separation_schema[of P, THEN in.all_elim1, OF A, THEN in.ex_elim];
+	apply separation_schema[of P, rule, OF A, THEN in.ex_elim];
 	- for B if B, Bspec;
 		apply+ in.ex1_intro1[of B] in.all_intro B;
-		- by yspec[THEN in.all_elim1](simp).
+		- by Bspec[rule](simp).
 		- for B' if B', B'spec;
-			by set_eq_intro B B' #unfold yspec[THEN in.all_elim1] B'spec[THEN in.all_elim1].
+			by set_eq_intro B B' #simp Bspec[rule] B'spec[rule].
 		.
 	.
 

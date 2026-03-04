@@ -168,7 +168,11 @@ public:
 		auto child = thm.ctxt().fork();
 		return Intro(thm,thm.subst(child),0,0);
 	}
-	/** @brief Makes implication a rule. */
+	/** @brief Makes implication a rule.
+	 * @param thm
+	 * @param n the number of expanded implications
+	 * @param all flags that the last universal quantifiers are expanded
+	 */
 	static Intro imp( Thm const& thm, size_t n, bool all );
 	/** @brief Makes a theorem into a rule. */
 	static Intro rule( Thm const& thm );

@@ -269,11 +269,6 @@ begin
 			.
 	end
 
-	theory Currying:
-		import Pair.
-		assume curry: ∀f. ∃f'. ∀x y. f (x,y) = f' x y.
-	end
-
 	theory The:
 		import Ex1.
 		fix (THE).

@@ -1,6 +1,6 @@
 interpret Base.
 
-fix false (∧) (∨)(¬) (⟺) (∃).
+fix false (∧) (∨) (¬) (⟺) (∃).
 
 interpret True.
 import And.

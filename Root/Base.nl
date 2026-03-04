@@ -73,10 +73,6 @@ infix ⊏ 51 51 50.
 infix ⊐ 51 51 50.
 
 infix → 61 60 60.
-infix ∪ 71 70 71.
-infix ∩ 81 80 81.
-infix ` 101 100 100.
-infix × 111 110 110.
 
 infix + 100 101 100.
 infix - 100 101 100.

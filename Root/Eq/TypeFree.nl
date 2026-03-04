@@ -161,6 +161,14 @@ begin
 		note(cong) in.ex1_cong.
 	end
 
+	theory TheIn:
+		import AllEx1In.
+		import The.
+		fix _TheIn.
+		assume TheIn_eq_The: (THE x ∈ A. P.[x]) = (THE x. x ∈ A ∧ P.[x]).
+	begin
+	end
+
 	theory AllEx1Sub:
 		import AllEx1In.
 		import sub: Ex1Rel (⊆) (∀⊆) (∃⊆) (∃!⊆).
@@ -216,10 +224,23 @@ begin
 				note(cong) eq_cong_meta[of P] eq_cong_meta[of F].
 				apply abbrev2_cond[of ((x,y). P.[y]) ((x,y). F.[y]), simp, OF ty, THEN ex_elim];
 				- for f if f;
-					apply ex_intro1[of (f _)];
+					apply ex_intro1[for x, of (f x)];
 					unfold f.
 				.
 			.
+--- requires functional types!
+		lemma abbrev3: for P F A if ty: ∀x y z. F.[x,y,z] ∈ A then ∃f. ∀x y z. f x y z = F.[x,y,z];
+			apply abbrev2[of (((x,y),z). F.[x,y,z])];
+			- for f2 if (simp);
+				apply abbrev2[of ((x,y). f2 (x,y))];
+				- for f3 if (simp);
+					apply ex_intro;
+					- for thesis if assm;
+						by assm[of f3] #cong eq.cong_meta[of F].
+					.
+				.
+			.
+---
 	end
 
 	theory UniqueChoice:
@@ -233,6 +254,17 @@ begin
 			unfold in.all_def;
 			apply unique_choice_cond;
 			by ex1[rule].
+		interpret Abbrev;
+			- if F: ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x];
+				note(cong) eq_cong_meta[of F].
+				apply unique_choice_cond[of P ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+				- for f if f;
+					apply ex_intro1[of f];
+					- for x if Px;
+						use f[OF Px].
+					.
+				.
+			.
 	end
 
 	theory UniqueChoice2:
@@ -247,7 +279,7 @@ begin
 				note(cong) eq_cong_meta[of P] eq_cong_meta[of Q].
 				apply unique_choice2_cond[of ((x,y). P.[y]) ((x,y,z). Q.[y,z]), simp, OF ex1, THEN ex_elim];
 				- for f if f;
-					apply ex_intro1[of (f _)];
+					apply ex_intro1[for x, of (f x)];
 					by f.
 				.
 			.
@@ -288,3 +320,10 @@ theory Classical:
 begin
 	interpret .Intuitionistic.
 end
+
+theory Fun:
+	import Membership.
+	fix FUN.
+	assume FUN: if F.[x] ∈ A then FUN A (x. F.[x]) x = F.[x].
+end
+

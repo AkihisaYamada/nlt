@@ -41,6 +41,7 @@ public:
 		int level;
 		int llevel;
 		int rlevel;
+		Opt<std::string> cons;// "," if x + y reads +(x,y)
 	};
 	struct Binder {
 		int llevel;
@@ -79,8 +80,8 @@ public:
 	Opt<std::pair<std::string const,Prefix> const&> finds_prefix(std::string_view const& sym) const {
 		return _prefixes.finds(sym);
 	}
-	void infix(std::string const& sym, int level, int llevel, int rlevel) {
-		_infixes.insert({sym,{level,llevel,rlevel}});
+	void infix( std::string const& sym, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
+		_infixes.insert({sym,{level,llevel,rlevel,cons}});
 	}
 	Opt<std::pair<std::string const,Infix> const&> finds_infix(std::string_view const& sym) const {
 		return _infixes.finds(sym);

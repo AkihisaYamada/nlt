@@ -96,13 +96,13 @@ void init_lex( Lex& lex ) {
 	lex.register_multi_op('^');
 }
 void init_syntax( Syntax& syntax ) {
-	syntax.infix(":",50,51,50);
-	syntax.infix(",",-20,-19,-20);
-	syntax.infix(";",-30,-29,-30);
-	syntax.infix(":=",-1,-1,-2);
+	syntax.infix(":",50,51,50,{});
+	syntax.infix(",",-20,-19,-20,{});
+	syntax.infix(";",-30,-29,-30,{});
+	syntax.infix(":=",-1,-1,-2,{});
 	syntax.prefix("if",-1,-2);
-	syntax.infix("then",-2,-1,-2);
-	syntax.infix("else",-2,-2,-1);
+	syntax.infix("then",-2,-1,-2,{});
+	syntax.infix("else",-2,-2,-1,{});
 	syntax.prefix("for",-1,-1);
 }
 
@@ -142,11 +142,7 @@ public:
 		return _thy;
 	}
 	Opt<Thm> gets_thm() {
-		auto loc = _thy.branch();
-		if( auto const& thm = _gets_thm(loc) ) {
-			return thm->intro();
-		}
-		return {};
+		return _gets_thm(_thy);
 	}
 	Thm get_thm() {
 		auto ret = gets_thm();
@@ -197,51 +193,52 @@ public:
 		}
 		return ret;
 	}
-	Opt<Thm> _gets_thm( Thy& loc ) {
+	Opt<Thm> _gets_thm( Thy& thy ) {
 		auto const& opt = gets_thm_name();
 		if( !opt ) {
 			return {};
 		}
-		Thm ret = loc.thm(*opt);
+		Thm ret = thy.thm(*opt);
 		if( skips("[") ) {
+			auto loc = thy.branch();
+			auto tmp = loc.weaken(ret);
 			for(;;) {
-				if( skips("of") ) {
-					auto sub = loc.fork();
-					auto tmp = ret.subst(sub);
-					while( auto t = gets_term(1000) ) {
-						tmp = tmp.allE(sub.ctxt().enclose(*t));
+				if( skips("for") ) {
+					while( auto x = gets(Lexer::Word) ) {
+						loc.fix(*x);
 					}
-					ret = tmp.intro();
+				} else if( skips("of") ) {
+					while( auto t = gets_term(1000) ) {
+						tmp = tmp.allE(loc.cterm(*t));
+					}
 				} else if( skips("OF") ) {
-					auto sub = loc.branch();
-					auto tmp = sub.weaken(ret);
 					for(;;) {
-						if( skips("_") ) {
+						if( skips("_") ) {// assume the condition
+							tmp = strip_all(tmp,loc.self()).first;
 							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							tmp = discharge(tmp,sub.assume(imp->first));
-						} else if( auto const& arg = _gets_thm(sub) ) {
+							tmp = tmp.impE(loc.assume(imp->first));
+						} else if( auto const& arg = _gets_thm(loc) ) {// unify the condition
 							tmp = discharge(tmp,*arg);
-						} else if( skips("!") ) {
+						} else if( skips("!") ) {// auto discharge
 							auto imp = tmp.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise to blast\"");
-							tmp = tmp.impE(sub.prove(imp->first,_out_resolver));
+							tmp = tmp.impE(loc.prove(imp->first,_out_resolver));
 						} else {
 							break;
 						}
 					}
-					ret = tmp.intro();
 				} else if( skips("THEN") ) {
 					auto sub = loc.branch();
-					auto tmp = sub.weaken(ret);
-					auto thm = _get_thm(sub);
+					auto tmp2 = sub.weaken(tmp); // φ ⟹... ψ
+					auto thm = _get_thm(sub);// ψ ⟹ χ
 					auto sub2strip = sub.fork();
 					auto [strip_thm,n] = strip_all(thm,sub2strip);
 					auto strip_ctxt = strip_thm.ctxt();
 					auto imp = strip_thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
 					auto cond = imp->first;
-					auto arg = tmp.subst(sub2strip);
+					auto arg = tmp2.subst(sub2strip);
 					for(;;){
 						arg = strip_all(arg,strip_ctxt.self()).first;
 						auto imp = arg.cbinary(IMP);
@@ -264,33 +261,30 @@ public:
 						}
 					}
 					thm = strip_thm.subst(strip2sub);
-					ret = thm.impE(arg.subst(strip2sub)).intro();
-				} else if( skips("for") ) {
-					while( auto x = gets(Lexer::Word) ) {
-						loc.fix(*x);
-					}
+					tmp = thm.impE(arg.subst(strip2sub)).intro();
 				} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 					auto resolver = loc.resolver(_out_resolver);
 					auto ctrl = _get_rewrite(resolver,loc,mode==2);
-					ret = resolver.rewrites(loc,ret,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
+					tmp = resolver.rewrites(loc,tmp,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
 				} else if( skips("simp") ) {
 					auto const& rew = loc.rewriter(SIMP);
 					auto resolver = Resolver(rew,_out_resolver);
-					while( auto thm = gets_thm() ) {
+					while( auto thm = _gets_thm(loc) ) {
 						rew.add_rewrite_rule(resolver.rules,*thm,false);
 					}
-					ret = resolver.rewrites(loc,ret,{SIMP},1,255,true,{});
+					tmp = resolver.rewrites(loc,tmp,{SIMP},1,255,true,{});
 				} else if( skips("rule") ) {
 					auto const& rew = loc.rewriter(RULIFY);
 					auto resolver = Resolver(rew,_out_resolver);
-					ret = resolver.rewrites(loc,ret,{RULIFY},1,255,true,{});
+					tmp = resolver.rewrites(loc,tmp,{RULIFY},1,255,true,{});
 				} else if( skips("dual") ) {
 					auto resolver = Resolver({},_out_resolver);
-					ret = loc.dualize(ret,resolver);
+					tmp = loc.dualize(tmp,resolver);
 				} else break;
 				if( !skips(",") ) break;
 			}
 			skip("]");
+			ret = tmp.intro();
 		}
 		return ret;
 	}
@@ -1560,13 +1554,22 @@ public:
 				skip(".");
 			} else if( skips("infix") ) {
 				string sym = get();
+				Opt<string> cons;
+				if( skips("(") ) {
+					cons = {get()};
+					skip(")");
+				}
 				int llevel = get_int();
 				int rlevel = get_int();
 				int level = get_int();
 				_make_own_parser();
-				_thy.modify_syntax().infix(sym,level,llevel,rlevel);
-				if MSG cout << "new infix operator " << sym << endl;
+				_thy.modify_syntax().infix(sym,level,llevel,rlevel,cons);
 				skip(".");
+				if MSG {
+					cout << "new infix: _ " << sym << " _ := (" << sym;
+					if( cons ) cout << ")(_, _)" << endl;
+					else cout << ") _ _" << endl;
+				}
 			} else if( skips("syntax") ) {
 				auto opener = get();
 				if( skips("_") ) {
