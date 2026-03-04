@@ -272,7 +272,7 @@ begin
 	theory The:
 		import Ex1.
 		fix (THE).
-		assume ex1_imp_THE: if ∃!x. P.[x] then P.[THE x. P.[x]].
+		assume THE_intro: if ∃!x. P.[x] then P.[THE x. P.[x]].
 	end
 
 end

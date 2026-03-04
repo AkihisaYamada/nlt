@@ -12,7 +12,8 @@ print.
 import Eq.
 import TypeFree.
 import Minimal.
-import AllEx1In.
+import AllExIn.
+import Ex1In.
 fix Set.
 
 ---
@@ -56,12 +57,10 @@ lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set.
 		apply in.ex1_intro1[of z];
 		- by in.all_intro zall.
 		- by z.
-		- apply in.all_intro;
-			- for z' if !, z'all;
-				apply set_eq_intro;
-				- for w if w!;
-					unfold z'all[rule] zall[rule].
-				.
+		- for z' if !, z'all;
+			apply set_eq_intro;
+			- for w if w!;
+				unfold z'all[rule] zall[rule].
 			.
 		.
 	.
@@ -76,7 +75,7 @@ import UniqueChoice.
 Standard formulations of ZF "define" pairs using unordered pairs,
 but formalizing the unique choice axiom schema already requires syntactic pairing.
 Moreover, to justify notation `upair (x,y)`, the pair argument must belong to a class.
-(Notation `upair x y` would even require functional types.)
+(Notation `upair x y` would even require Currying.)
 So we just assume syntactic pairs of sets are sets.
 ---
 assume pair_set: ∀x ∈ Set. ∀y ∈ Set. (x,y) ∈ Set.
@@ -130,7 +129,6 @@ lemma Pow_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (�
 		apply in.ex1_intro1[of X];
 		apply Xspec;
 		apply X;
-		apply in.all_intro;
 		- for X' if X'!, X'spec;
 			by set_eq_intro #simp Xspec[rule] X'spec[rule].
 		.
@@ -164,7 +162,6 @@ lemma CUP_ex1: if x! x ∈ Set then ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ (�
 		apply in.ex1_intro1[of y];
 		- apply yspec.
 		- apply y.
-		apply in.all_intro;
 		- for y' if y'!, y'spec;
 			apply set_eq_intro;
 			- for z if z!;
@@ -215,32 +212,35 @@ assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
 
 The axiom schema of replacement would be:
 `∀P. ∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P.[x,y]) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P.[x,y])`
-but this formulation would not allow obtaining notation for given P via unique choice:
-`∀P. ∀A ∈ Set. ∀x ∈ A. ∃!y ∈ Set. P.[x,y] ⟹ ∀y ∈ Set. y ∈ Replace A P ⟺ (∃x ∈ A. P.[x,y])`
-This `P` have to be made into functional form:
+but this formulation would not allow obtaining notation for given P:
+`∀P. ... ⟹ ∀y ∈ Set. y ∈ Replace A P ⟺ (∃x ∈ A. P.[x,y])`
+via unique choice, because this `P` have to be made into functional form:
 ---
 assume replacement_schema: ∀P.
-	∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P x y) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y).
+	∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P(x,y)) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y)).
 
 lemma replacement_ex1: for P A
-	if A! A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P x y
-	then ∃!B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y);
+	if A! A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P(x,y)
+	then ∃!B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y));
 	-	apply replacement_schema[THEN in.all_elim1, OF A ex1, THEN in.ex_elim];
-		- for B if ! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y);
+		- for B if ! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y));
 			apply+ in.ex1_intro1[of B] in.all_intro;
-			- for y if ! y ∈ Set then y ∈ B ⟺ (∃x ∈ A. P x y);
+			- for y if ! y ∈ Set then y ∈ B ⟺ (∃x ∈ A. P(x,y));
 				by inB[THEN in.all_elim1].
-			- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. P x y) then B' = B;
+			- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. P(x,y)) then B' = B;
 				by set_eq_intro #simp inB[rule] inB'[rule].
 			.
 		.
 	.
 
 obtain Replace where
-	Replace_Set: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y then Replace P A ∈ Set,
-	Replace_iff: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P x y then ∀y ∈ Set. y ∈ Replace P A ⟺ (∃x ∈ A. P x y);
+	Replace_Set: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P(x,y) then Replace(P,A) ∈ Set,
+	Replace_iff: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P(x,y), y ∈ Set then y ∈ Replace(P,A) ⟺ (∃x ∈ A. P(x,y));
 	- for thesis if assm;
-		apply unique_choice2_cond[of ((P,A). A ∈ Set ∧ (∀x ∈ A. ∃!y ∈ Set. P x y)) ((P,A,B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P x y)) Set, simp, THEN ex_elim];
+		apply unique_choice_cond[of
+				(p. ∃P A. p = (P,A) ∧ A ∈ Set ∧ (∀x ∈ A. ∃!y ∈ Set. P(x,y)))
+				(((P,A),B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y))) Set,
+			simp, THEN ex_elim];
 		- for P A if A, ex1;
 			by replacement_ex1[OF A ex1].
 		- for f if f;
