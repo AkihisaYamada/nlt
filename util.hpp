@@ -131,18 +131,14 @@ Opt<Subst> match( Term const& pat, CTerm const& val, std::function<bool(std::str
 Opt<Subst> unify(CTerm const& l, CTerm const& r, std::function<bool(std::string const&)> const& fvar);
 
 /**
- * @brief Automatically instantiate universally quantified variables so that implication premises are discharged.
+ * @brief Resolution:
+ * Automatically instantiate universally quantified variables so that implication premises are discharged.
  * 
  * @param t should be of form ∀x... (∀y... φ) ⟹ ψ
  * @param arg should be of form ∀z... χ, where φ and χ are unifiable by θ
  * @return the resulting theorem, ∀w... ψθ
  */
-Thm discharge(Thm t, Thm arg);
-
-/** Discharge */
-inline Thm operator<<(Thm const& t, Thm arg) {
-	return discharge(t,arg);
-}
+Thm operator<<( Thm t, Thm arg );
 
 /** detects trivial abstraction x. y.[x], and returns y */
 Opt<std::string> virtual_var( CTerm const& t );

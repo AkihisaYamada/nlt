@@ -333,7 +333,7 @@ Opt<Subst> unify(CTerm const& l, CTerm const& r, function<bool(string const&)> c
 	}
 }
 
-Thm discharge(Thm thm, Thm arg) {
+Thm operator<<( Thm thm, Thm arg ) {
 	Ctxt ctxt = thm.ctxt();
 	// expand thm into fix x... ⊢ (∀y... prem) ⟹ concl
 	auto concl_intp = ctxt.fork();

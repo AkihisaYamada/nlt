@@ -214,15 +214,15 @@ public:
 				} else if( skips("OF") ) {
 					for(;;) {
 						if( skips("_") ) {// assume the condition
-							tmp = strip_all(tmp,loc.self()).first;
-							auto imp = tmp.cbinary(IMP);
+							auto subsub = loc.fork();
+							auto imp = strip_all(tmp,subsub).first.cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							tmp = tmp.impE(loc.assume(imp->first));
+							tmp = tmp << loc.assume(loc.enclose(imp->first));
 						} else if( auto const& arg = _gets_thm(loc) ) {// unify the condition
-							tmp = discharge(tmp,*arg);
+							tmp = tmp << *arg;
 						} else if( skips("!") ) {// auto discharge
 							auto imp = tmp.cbinary(IMP);
-							if( !imp ) throw Error("\"no premise to blast\"");
+							if( !imp ) throw Error("\"no premise to resolve\"");
 							tmp = tmp.impE(loc.prove(imp->first,_out_resolver));
 						} else {
 							break;
@@ -1474,7 +1474,7 @@ public:
 				auto rule = Intro::rule(goal.intro());
 				thesis.apply(rule,true);
 				if( !more ) return thesis.discharge_all();
-				if MSG print_goal( thesis, "used goal: " );
+				if MSG print_goals( thesis, "used goals:\n\t" );
 			} else if( skips("oops") ) {
 				return {};
 			} else if( skips("") ) {

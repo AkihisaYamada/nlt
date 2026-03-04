@@ -200,10 +200,8 @@ obtain (∪) where
 		apply abbrev_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) ((x,y). ⋃(upair(x,y))) Set, simp, THEN ex_elim];
 		- by in.all_intro.
 		- for (∪) if cup;
-note cup2: cup[for x y z, of z x, OF _, of y].
 			apply assm[of (∪)];
-			use cup[for z x, OF _ _ eq.refl]; .
-			by #simp CUP_iff upair_iff or_and_distrib in.ex_or_distrib in.ex_eq_and_iff.
+			by #simp cup[OF _ _ eq.refl] CUP_iff upair_iff or_and_distrib in.ex_or_distrib in.ex_eq_and_iff.
 		.
 	.
 
