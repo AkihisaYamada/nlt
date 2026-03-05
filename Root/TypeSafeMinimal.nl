@@ -289,29 +289,33 @@ begin
 		by nnot_intro.
 	lemma all_true_iff: (∀x < a. true) ⟺ true;
 		simp all_def.
+
+	theory ExRel:
+		fix (∃<).
+		assume ex_def: (∃x < a. P.[x]) ⟺ (∃x. x < a ∧ P.[x]).
+	begin
+		lemma ex_intro1: if x: x < a, Px: P.[x] then ∃x < a. P.[x];
+			unfold ex_def;
+			by ex_intro1[of x] x Px.
+		lemma ex_intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
+			apply assm;
+			- for x;
+				by ex_intro1[of x].
+			.
+	end
 end
 
 theory AllIn:
-	import Membership.
 	import in: .AllRel (∈) (∀∈).
 begin
 	note(intro) in.all_intro.
 	note(elim) in.all_elim.
 	note(rule) in.all_def in.all_imp.
-end
-
-theory ExRel:
-	fix (<) (∃<).
-	assume ex_def: (∃x < a. P.[x]) ⟺ (∃x. x < a ∧ P.[x]).
-begin
-	lemma ex_intro1: if x: x < a, Px: P.[x] then ∃x < a. P.[x];
-		unfold ex_def;
-		by ex_intro1[of x] x Px.
-	lemma ex_intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
-		apply assm;
-		- for x;
-			by ex_intro1[of x].
-		.
+	theory ExIn:
+		fix (∃∈).
+		import in: in.ExRel (∃∈).
+thy.
+	end
 end
 
 theory RestrictedComprehension:

@@ -9,15 +9,24 @@ We base on the minimal first order equational logic, where
 `Set` is the (sole) quantifiable and equational type.
 ---
 print.
+fix Set.
 import Eq.
 import TypeFree.
 import Minimal.
-import AllExIn.
+import Membership.
+import AllIn.
+import ExIn.
 import Ex1In.
-fix Set.
 
 ---
+## Axiomatization
+
 ### Extensionality
+
+Extentionality asserts that sets `A` and `B` are equal if `x ∈ A ⟺ x ∈ B` for any `x`.
+Strictly speaking, ZF variables range over sets, so this axiom would be formalized to
+`∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A ⟺ x ∈ B) ⟹ A = B`
+but restricting `x` to `Set` here is useless.
 ---
 assume extensionality_axiom: ∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A ⟺ x ∈ B) ⟹ A = B.
 
@@ -186,9 +195,6 @@ obtain (⋃) where
 	.
 
 infix ∪(,) 71 70 71.
-infix ∩(,) 81 80 81.
-infix `(,) 101 100 100.
-infix ×(,) 111 110 110.
 
 obtain (∪) where
 	cup_Set! if x ∈ Set, y ∈ Set then x ∪ y ∈ Set,
@@ -212,46 +218,74 @@ assume infinity_axiom: ∃x ∈ Set. {} ∈ x ∧ (∀y ∈ x. y ∪ {y}).
 
 The axiom schema of replacement would be:
 `∀P. ∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P.[x,y]) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P.[x,y])`
-but this formulation would not allow obtaining notation for given P:
-`∀P. ... ⟹ ∀y ∈ Set. y ∈ Replace A P ⟺ (∃x ∈ A. P.[x,y])`
-via unique choice, because this `P` have to be made into functional form:
+but this formulation would not allow obtaining notation `Replace(A,P)` for this `B`,
+because this `P` cannot be given as a tuple argument to the unique choice schema.
+Instead, we assume the following slightly stronger version:
 ---
-assume replacement_schema: ∀P.
-	∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P(x,y)) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y)).
+assume image_ex: ∀f.
+	∀A ∈ Set. (∀x ∈ A. f x ∈ Set) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x).
+---
+As we have already assumed unique choice, the standard axiom schema is derivable:
+---
+lemma replacement_schema:
+	if A: A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P.[x,y]
+	then ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P.[x,y]);
+	- apply unique_choice_cond[of (x. x ∈ A) P Set, THEN ex_elim];
+		- by ex1[rule].
+		- for f if f;
+			have Pf: for x y if x: x ∈ A, y: y ∈ Set then P.[x,y] ⟺ y = f x;
+				have fx: f x ∈ Set;
+					use f[OF x].
+				have Pfx: P.[x, f x];
+					use f[OF x].
+				unfold ex1[rule, OF x, THEN in.ex1_imp_iff_eq, OF fx Pfx y];
+				by iff_eq.commute.
+			apply image_ex[of f, rule, OF A, THEN in.ex_elim];
+			- for x if x; use f[OF x].
+			- for B if B, B_iff;
+				apply in.ex_intro1[OF B];
+				simp B_iff[rule] Pf.
+			.
+		.
+	.
 
-lemma replacement_ex1: for P A
-	if A! A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P(x,y)
-	then ∃!B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y));
-	-	apply replacement_schema[THEN in.all_elim1, OF A ex1, THEN in.ex_elim];
-		- for B if ! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y));
+lemma image_ex1: for f
+	if A! A ∈ Set, f: ∀x ∈ A. f x ∈ Set
+	then ∃!B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x);
+	-	apply image_ex[rule, OF A f[rule], THEN in.ex_elim];
+		- for B if B! B ∈ Set, inB: ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x);
 			apply+ in.ex1_intro1[of B] in.all_intro;
-			- for y if ! y ∈ Set then y ∈ B ⟺ (∃x ∈ A. P(x,y));
-				by inB[THEN in.all_elim1].
-			- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. P(x,y)) then B' = B;
+			- by inB[rule].
+			-.
+			- for B' if ! B' ∈ Set, inB': ∀y ∈ Set. y ∈ B' ⟺ (∃x ∈ A. y = f x) then B' = B;
 				by set_eq_intro #simp inB[rule] inB'[rule].
 			.
 		.
 	.
 
-obtain Replace where
-	Replace_Set: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P(x,y) then Replace(P,A) ∈ Set,
-	Replace_iff: for P if A ∈ Set, ∀x ∈ A. ∃!y ∈ Set. P(x,y), y ∈ Set then y ∈ Replace(P,A) ⟺ (∃x ∈ A. P(x,y));
+infix `(,) 101 100 100.
+obtain (`) where
+	image_Set: if A ∈ Set, ∀x ∈ A. f x ∈ Set then f ` A ∈ Set,
+	image_iff: if A ∈ Set, ∀x ∈ A. f x ∈ Set, y ∈ Set then y ∈ f ` A ⟺ (∃x ∈ A. y = f x);
 	- for thesis if assm;
-		apply unique_choice_cond[of
-				(p. ∃P A. p = (P,A) ∧ A ∈ Set ∧ (∀x ∈ A. ∃!y ∈ Set. P(x,y)))
-				(((P,A),B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P(x,y))) Set,
+		apply unique_choice_cond[
+			of (p. ∃f. ∃A ∈ Set. p = (f,A) ∧ (∀x ∈ A. f x ∈ Set))
+			   (((f,A),B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x)) Set,
 			simp, THEN ex_elim];
-		- for P A if A, ex1;
-			by replacement_ex1[OF A ex1].
-		- for f if f;
-			apply assm[of f];
-			- for P A if A, ex1;
-				use f[OF A ex1].
-			- for P A if A, ex1;
-				use f[OF A ex1].
+		- by image_ex1.
+		- for (`) if im;
+			apply assm[of (`)];
+			- if A: A ∈ Set, f: ∀x ∈ A. f x ∈ Set;
+				use im[OF A eq.refl f].
+			- if A: A ∈ Set, f: ∀x ∈ A. f x ∈ Set;
+				use im[OF A eq.refl f];.
 			.
 		.
 	.
+
+infix ∩(,) 81 80 81.
+infix ×(,) 111 110 110.
+
 
 ---
 ### Separation Schema

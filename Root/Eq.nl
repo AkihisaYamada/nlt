@@ -205,6 +205,32 @@ begin
 	lemma ex_eq2: ∃x. a = x;
 		apply ex_intro1[of a].
 
+	theory Ex1:
+		fix (∃!).
+		assume ex1_def: (∃!x. P.[x]) ⟺ (∃x. P.[x] ∧ (∀y. P.[y] ⟹ y = x)).
+	begin
+		lemma ex1_intro1: for x P if Px: P.[x], u: ∀y. P.[y] ⟹ y = x then ∃!x. P.[x];
+			unfold ex1_def;
+			by ex_intro1[of x] Px u.
+		lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
+			apply assm;
+			- for x if Px;
+				by ex1_intro1[OF Px].
+			.
+		lemma ex1_eq1: ∃!x. x = a;
+			apply ex1_intro1[of a].
+		lemma ex1_eq2: ∃!x. a = x;
+			apply ex1_intro1[of a];
+			-.
+			- for x; apply eq.sym>0.
+			.
+		theory The:
+			fix (THE).
+			assume THE_intro: if ∃!x. P.[x] then P.[THE x. P.[x]].
+		end
+
+	end
+
 	theory AllRel:
 		import AllRel.
 	begin
@@ -225,6 +251,18 @@ begin
 				by iff_intro.
 			unfold 1;
 			unfold all_eq_imp_iff.
+
+		theory ExRel:
+			import ExRel.
+		begin
+			theory Ex1Rel:
+				import Ex1.
+				fix (∃!<).
+				assume ex1_def: (∃!x < a. P.[x]) ⟺ (∃!x. x < a ∧ P.[x]).
+			begin
+			end
+		end
+
 	end
 
 	theory Pair:
@@ -246,33 +284,6 @@ begin
 			- if xy;
 				by xy.
 			.
-	end
-
-	theory Ex1:
-		fix (∃!).
-		assume ex1_def: (∃!x. P.[x]) ⟺ (∃x. P.[x] ∧ (∀y. P.[y] ⟹ y = x)).
-	begin
-		lemma ex1_intro1: for x P if Px: P.[x], u: ∀y. P.[y] ⟹ y = x then ∃!x. P.[x];
-			unfold ex1_def;
-			by ex_intro1[of x] Px u.
-		lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
-			apply assm;
-			- for x if Px;
-				by ex1_intro1[OF Px].
-			.
-		lemma ex1_eq1: ∃!x. x = a;
-			apply ex1_intro1[of a].
-		lemma ex1_eq2: ∃!x. a = x;
-			apply ex1_intro1[of a];
-			-.
-			- for x; apply eq.sym>0.
-			.
-	end
-
-	theory The:
-		import Ex1.
-		fix (THE).
-		assume THE_intro: if ∃!x. P.[x] then P.[THE x. P.[x]].
 	end
 
 end

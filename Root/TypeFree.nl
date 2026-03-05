@@ -128,49 +128,52 @@ begin
 	---
 	## Theories
 	---
-	theory ExRel:
-		import ExRel.
-	begin
-		lemma ex_elim: if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
-			apply ex[unfold ex_def, THEN ex_elim];
-			- for x;
-				by imp[of x].
-			.
-		lemma ex_cong_strong:
-			if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
-			then (∃x < a. P.[x]) ⟺ (∃x < a'. P'.[x]);
-			unfold+ ex_def a P.
-		lemma ex_cong_weak:
-			if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∃x < a. P.[x]) ⟺ (∃x < a. P'.[x]);
-			unfold+ ex_def P.
-		lemma ex_imp_iff: ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x. x < a ⟹ P.[x] ⟹ Q);
-			apply iff_intro;
-			- if imp, x: x < a, Px: P.[x];
-				apply imp ex_intro1[OF x Px].
-			- if all, ex;
-				apply ex_elim[OF ex];
-				- for x if x, Px;
-					apply all[OF x Px].
-				.
-			.
-		lemma ex_or_distrib: (∃x < a. P.[x] ∨ Q.[x]) ⟺ (∃x < a. P.[x]) ∨ (∃x < a. Q.[x]);
-			simp ex_def and_or_distrib .ex_or_distrib.
-	end
-
-	theory AllExRel:
+	theory AllRel:
 		import AllRel.
-		import ExRel.
 	begin
-		lemma ex_iff: (∃x < a. P.[x]) ⟺ (∀Q. (∀x < a. P.[x] ⟹ Q) ⟹ Q);
-			unfold ex_def ex_iff all_def.
-		lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
-			unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+		theory ExRel:
+			import ExRel.
+		begin
+			lemma ex_elim: if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
+				apply ex[unfold ex_def, THEN ex_elim];
+				- for x;
+					by imp[of x].
+				.
+			lemma ex_cong_strong:
+				if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
+				then (∃x < a. P.[x]) ⟺ (∃x < a'. P'.[x]);
+				unfold+ ex_def a P.
+			lemma ex_cong_weak:
+				if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∃x < a. P.[x]) ⟺ (∃x < a. P'.[x]);
+				unfold+ ex_def P.
+			lemma ex_imp_iff: ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x. x < a ⟹ P.[x] ⟹ Q);
+				apply iff_intro;
+				- if imp, x: x < a, Px: P.[x];
+					apply imp ex_intro1[OF x Px].
+				- if all, ex;
+					apply ex_elim[OF ex];
+					- for x if x, Px;
+						apply all[OF x Px].
+					.
+				.
+			lemma ex_or_distrib: (∃x < a. P.[x] ∨ Q.[x]) ⟺ (∃x < a. P.[x]) ∨ (∃x < a. Q.[x]);
+				simp ex_def and_or_distrib .ex_or_distrib.
+			lemma ex_iff: (∃x < a. P.[x]) ⟺ (∀Q. (∀x < a. P.[x] ⟹ Q) ⟹ Q);
+				unfold ex_def ex_iff all_def.
+			lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
+				unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+		end
 	end
 
-	theory AllExIn:
+	theory AllIn:
 		import AllIn.
-		import in: AllExRel (∈) (∀∈) (∃∈).
 	begin
+		interpret in: AllRel (∈) (∀∈).
+		theory ExIn:
+			import ExIn.
+		begin
+			interpret in: in.ExRel (∃∈).
+		end
 	end
 
 	theory Choice:
