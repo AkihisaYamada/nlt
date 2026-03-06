@@ -161,8 +161,11 @@ Import& Thy::add_import( string_view const& prefix, Import const& import, bool u
 		}
 	}
 	return _ref->imports.emplace(prefix,import)->second;
-};
-
+}
+void Thy::erase_import( string_view const& prefix ) & {
+	auto [it,end] = _ref->imports.equal_range(prefix);
+	_ref->imports.erase(it,end);
+}
 function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =
 	[]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm> {
 		return {thm.subst(import)};

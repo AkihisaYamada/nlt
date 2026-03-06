@@ -6,6 +6,8 @@ fix (∈).
 
 begin
 
+interpret in: MetaRelation (∈).
+
 theory Member:
 	fix x A.
 	assume closed! x ∈ A.
@@ -133,10 +135,18 @@ end
 
 theory CollectRel:
 	fix (<) _CollectLt.
-	assume collect_intro: if x < a, P.[x] then x ∈ {x < a. P.[x]}.
-	assume collect_elim0: if x ∈ {x < a. P.[x]} then x < a.
-	assume collect_elim1: if x ∈ {x < a. P.[x]} then P.[x].
+	assume Collect_intro: if x < a, P.[x] then x ∈ {x < a. P.[x]}.
+	assume Collect_elim0: if x ∈ {x < a. P.[x]} then x < a.
+	assume Collect_elim1: if x ∈ {x < a. P.[x]} then P.[x].
 begin
-	lemma collect_elim: if x: x ∈ {x < a. P.[x]}, assm: x < a ⟹ P.[x] ⟹ Q then Q;
-		apply assm[OF collect_elim0[OF x] collect_elim1[OF x]].
+	lemma Collect_elim: if x: x ∈ {x < a. P.[x]}, assm: x < a ⟹ P.[x] ⟹ Q then Q;
+		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
+end
+
+theory AllIn:
+	import in: AllRel (∈) (∀∈).
+end
+
+theory CollectIn:
+	import in: CollectRel (∈) _CollectIn.
 end

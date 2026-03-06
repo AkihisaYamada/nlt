@@ -566,6 +566,7 @@ public:
 			}
 			thy.add_import("_",thy.self(),false);// file root
 			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
+			thy.erase_import("_");
 			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
 				if( !MSG ) cout << _indent(' ');
 				cout << "loaded " << filename << endl;

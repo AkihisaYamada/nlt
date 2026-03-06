@@ -126,3 +126,14 @@ begin
 	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
 		by iff_intro #simp all_def.
 end
+
+theory Membership:
+	import Membership.
+begin
+print.
+	theory AllIn:
+		import in: ..AllRel (∈) (∀∈).
+	begin
+		interpret Membership.AllIn.
+	end
+end

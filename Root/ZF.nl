@@ -76,7 +76,7 @@ lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set.
 ---
 Usual formulations of ZF then introduces a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) such `z`.
-In Naive Logic, this assumption must be explicitly formalized.
+In Naive Logic, the assumption that one can do this must be explicitly formalized.
 We do so by a unique choice axiom schema.
 ---
 import UniqueChoice.
@@ -220,7 +220,7 @@ The axiom schema of replacement would be:
 `∀P. ∀A ∈ Set. (∀x ∈ A. ∃!y ∈ Set. P.[x,y]) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P.[x,y])`
 but this formulation would not allow obtaining notation `Replace(A,P)` for this `B`,
 because this `P` cannot be given as a tuple argument to the unique choice schema.
-Instead, we assume the following slightly stronger version:
+Instead, we assume the following variant:
 ---
 assume image_ex: ∀f.
 	∀A ∈ Set. (∀x ∈ A. f x ∈ Set) ⟹ ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x).

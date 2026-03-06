@@ -90,6 +90,8 @@ public:
 	CTerm weaken( CTerm const& t ) const;
 	/** Adds an import. */
 	Import& add_import( std::string_view const& prefix, Import const& im, bool unnamed ) &;
+	/** Remove import */
+	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of imports */
 	StrMMap<Import> const& imports() const;
 	/** @brief Finds a theory.

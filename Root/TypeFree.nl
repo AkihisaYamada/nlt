@@ -165,15 +165,21 @@ begin
 		end
 	end
 
-	theory AllIn:
-		import AllIn.
+	theory Membership:
+		import Membership.
 	begin
-		interpret in: AllRel (∈) (∀∈).
-		theory ExIn:
-			import ExIn.
+
+		theory AllIn:
+			import AllIn.
 		begin
-			interpret in: in.ExRel (∃∈).
+			interpret in: AllRel (∈) (∀∈).
+			theory ExIn:
+				import ExIn.
+			begin
+				interpret in: in.ExRel (∃∈).
+			end
 		end
+
 	end
 
 	theory Choice:

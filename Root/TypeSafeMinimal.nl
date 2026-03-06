@@ -305,24 +305,33 @@ begin
 	end
 end
 
-theory AllIn:
-	import in: .AllRel (∈) (∀∈).
+theory Membership:
+	import Iff.Membership.
 begin
-	note(intro) in.all_intro.
-	note(elim) in.all_elim.
-	note(rule) in.all_def in.all_imp.
-	theory ExIn:
-		fix (∃∈).
-		import in: in.ExRel (∃∈).
-thy.
+
+	theory AllIn:
+		import AllIn.
+	begin
+		interpret in: _.AllRel (∈) (∀∈).
+		note(intro) in.all_intro.
+		note(elim) in.all_elim.
+		note(rule) in.all_def in.all_imp.
+		theory ExIn:
+			fix (∃∈).
+			import in: in.ExRel (∃∈).
+		end
 	end
+	theory CollectRel:
+		import CollectRel.
+	begin
+		lemma Collect_iff: x ∈ {x < a. P.[x]} ⟺ x < a ∧ P.[x];
+			by iff_intro Collect_intro #elim Collect_elim.
+	end
+
+	theory CollectIn:
+		import CollectIn.
+	begin
+		interpret in: .CollectRel (∈) _CollectIn.
+	end
+
 end
-
-theory RestrictedComprehension:
-	import Membership.
-	fix _CollectIn.
-	assume in_CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x].
-begin
-
-end
-

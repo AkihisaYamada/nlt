@@ -66,46 +66,6 @@ begin
 
 	end
 
-	theory Abbrev:-- Restricted Unary Abbreviation
-		import Membership.
-		assume abbrev_cond: for P F A
-			if ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x].
-	begin
-		lemma abbrev:
-			if ty: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
-			by abbrev_cond[of (x. true) F A, simp, OF ty].
-	end
-
-	theory Abbrev2:-- Restricted Binary Abbreviation
-		import Pair.
-		import Membership.
-		assume abbrev2_cond: for P F A
-			if ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y].
-	begin
-		interpret Abbrev;
-			- for P F A if ty;
-				note(cong) eq_cong_meta[of P] eq_cong_meta[of F].
-				apply abbrev2_cond[of ((x,y). P.[y]) ((x,y). F.[y]), simp, OF ty, THEN ex_elim];
-				- for f if f;
-					apply ex_intro1[for x, of (f x)];
-					unfold f.
-				.
-			.
-		--- requires functional types!
-		lemma abbrev3: for P F A if ty: ∀x y z. F.[x,y,z] ∈ A then ∃f. ∀x y z. f x y z = F.[x,y,z];
-			apply abbrev2[of (((x,y),z). F.[x,y,z])];
-			- for f2 if (simp);
-				apply abbrev2[of ((x,y). f2 (x,y))];
-				- for f3 if (simp);
-					apply ex_intro;
-					- for thesis if assm;
-						by assm[of f3] #cong eq.cong_meta[of F].
-					.
-				.
-			.
-		---
-	end
-
 	theory AllRel:
 		import eq? eq.AllRel.
 	begin
@@ -185,16 +145,17 @@ begin
 					simp and.left_assoc ex1_eq_and_iff.
 				lemma ex1_eq_iff: (∃!x < a. x = b) ⟺ b < a;
 					by ex1_eq_and_iff[of (x. true), simp].
+
 				theory TheRel:
 					fix _TheLt.
 					import The.
 					assume THE_def: (THE x < a. P.[x]) = (THE x. x < a ∧ P.[x]).
 				begin
-					lemma THE_intro: (∃!x < a. P.[x]) ⟹ P.[THE x < a. P.[x]];
+					lemma THE_intro1: (∃!x < a. P.[x]) ⟹ P.[THE x < a. P.[x]];
 						note(cong) eq_cong_meta[of P].
 						unfold ex1_def THE_def;
 						by #elim The.THE_intro.
-					lemma THE_rel: (∃!x < a. P.[x]) ⟹ (THE x < a. P.[x]) < a;
+					lemma THE_intro0: (∃!x < a. P.[x]) ⟹ (THE x < a. P.[x]) < a;
 						note(cong) eq_cong_meta[of P].
 						unfold ex1_def THE_def;
 						by #elim The.THE_intro.
@@ -209,127 +170,209 @@ begin
 		end
 	end
 
-	theory AllIn:
-		import base? base.AllIn.
+	theory Membership:
+		import base? Membership.
 	begin
-		interpret in: .AllRel (∈) (∀∈).
-		theory ExIn:
-			import base? base.ExIn.
+
+		theory Abbrev:-- Restricted Unary Abbreviation
+			assume abbrev_cond: for P F A
+				if ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x].
 		begin
-			interpret in: in.ExRel (∃∈).
-			note(cong) in.all_cong in.ex_cong.
-			note(rule) in.all_def.
-			note(simp) in.ex_imp_iff.
+			lemma abbrev:
+				if ty: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
+				by abbrev_cond[of (x. true) F A, simp, OF ty].
+		end
 
-			theory Ex1In:
-				import Ex1.
-				import in: in.Ex1Rel (∃!∈).
+		theory TypedLambda:
+			fix (λ∈).
+			assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].
+		begin
+		end
+
+		theory Lambda:-- Dynamically typed
+			fix (λ).
+			assume fun_app: for A if F.[x] ∈ A then (λy. F.[y]) x = F.[x].
+		begin
+			theory Fun:
+				import Fun.
+				assume lambda_type: if ∀x. x ∈ A ⟹ F.[x] ∈ B then (λx. F.[x]) ∈ A → B.
+			end
+		end
+
+		theory AllIn:
+			import base? base.AllIn.
+		begin
+			interpret in: ..AllRel (∈) (∀∈).
+			theory ExIn:
+				import base? base.ExIn.
 			begin
-				note(cong) in.ex1_cong.
+				interpret in: in.ExRel (∃∈).
+				note(cong) in.all_cong in.ex_cong.
+				note(rule) in.all_def.
+				note(simp) in.ex_imp_iff.
 
-				theory TheIn:
-					import The.
-					fix _TheIn.
-					import in: in.TheRel _TheIn.
+				theory Ex1In:
+					import Ex1.
+					import in: in.Ex1Rel (∃!∈).
 				begin
+					note(cong) in.ex1_cong.
+
+					theory UniqueChoice:
+						import Pair.
+						assume unique_choice_cond: for P Q A
+							if ∀x. P.[x] ⟹ ∃!y ∈ A. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A ∧ Q.[x, f x].
+					begin
+						lemma unique_choice: for P A B
+							if ex1: ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f. ∀x ∈ A. f x ∈ B ∧ P.[x, f x];
+							unfold in.all_def;
+							apply unique_choice_cond;
+							by ex1[rule].
+						interpret Abbrev;
+							- if F: ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x];
+								note(cong) eq_cong_meta[of F].
+								apply unique_choice_cond[of P ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+								- for f if f;
+									apply ex_intro1[of f];
+									- for x if Px;
+										use f[OF Px].
+									.
+								.
+							.
+					end
+
+					theory TheIn:
+						import The.
+						fix _TheIn.
+						import in: in.TheRel _TheIn.
+					begin
+						theory Lambda:
+							import Lambda.
+						begin
+							theory Pair:
+								import Pair.
+							begin
+								interpret UniqueChoice;
+									- for P Q A if P_imp_ex1;
+										apply ex_intro1[of (λx. THE y ∈ A. Q.[x,y])];
+										- if Px: P.[x];
+											note ex1: P_imp_ex1[OF Px].
+											note! in.THE_intro0[OF ex1] in.THE_intro1[OF ex1].
+											note(cong) eq_cong_meta[of Q].
+											unfold fun_app[of A].
+										.
+									.
+							end
+						end
+					end
 				end
 			end
 		end
-	end
 
-	theory Prod: --- Product Class ---
-		import AllIn.
-		import ExIn.
-		import .Pair.
-		fix (×).
-		assume in_prod_iff: p ∈ A × B ⟺ (∃x ∈ A. ∃y ∈ B. p = (x,y)).
-	begin
-		lemma pair_in_prod_iff(simp) (x,y) ∈ A × B ⟺ x ∈ A ∧ y ∈ B;
-			apply iff_intro;
-			simp in_prod_iff;
-			- if x': x' ∈ A, y': y' ∈ B, xx': x = x', yy': y = y';
-				by x' y' #simp xx' yy'.
-			- if x: x ∈ A, y: y ∈ B;
-				by in.ex_intro1[OF x] in.ex_intro1[OF y].
-			.
-		lemma pair_in_prod: if ! x ∈ A, ! y ∈ B then (x,y) ∈ A × B.
-		lemma allIn_prod: (∀p ∈ A × B. P.[p]) ⟺ (∀x ∈ A. ∀y ∈ B. P.[x,y]);
-			note(cong) eq_cong_meta[of P].
-			simp in.all_def imp_all_iff in_prod_iff;
-			apply iff_intro;
-			- if l for x y if x, y;
-				by l[OF x y eq.refl].
-			- if r for p x y if x, y, p;
-				by r x y #simp p.
-			.
-	end
+		----- maybe not useful
+		theory Pair:
+			import Pair.
+		begin
 
-	theory UniqueChoice:
-		import AllIn.
-		import ExIn.
-		import Ex1In.
-		import Pair.
-		assume unique_choice_cond: for P Q A
-			if ∀x. P.[x] ⟹ ∃!y ∈ A. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A ∧ Q.[x, f x].
-	begin
-		lemma unique_choice: for P A B
-			if ex1: ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f. ∀x ∈ A. f x ∈ B ∧ P.[x, f x];
-			unfold in.all_def;
-			apply unique_choice_cond;
-			by ex1[rule].
-		interpret Abbrev;
-			- if F: ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x];
-				note(cong) eq_cong_meta[of F].
-				apply unique_choice_cond[of P ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
-				- for f if f;
-					apply ex_intro1[of f];
-					- for x if Px;
-						use f[OF Px].
+			theory Abbrev2:-- Restricted Binary Abbreviation
+				assume abbrev2_cond: for P F A
+					if ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y].
+			begin
+				interpret Abbrev;
+					- for P F A if ty;
+						note(cong) eq_cong_meta[of P] eq_cong_meta[of F].
+						apply abbrev2_cond[of ((x,y). P.[y]) ((x,y). F.[y]), simp, OF ty, THEN ex_elim];
+						- for f if f;
+							apply ex_intro1[for x, of (f x)];
+							unfold f.
+						.
 					.
-				.
-			.
-	end
-
-	theory UniqueChoice2:
-		import AllIn.
-		import ExIn.
-		import Ex1In.
-		import Pair.
-		assume unique_choice2_cond: for P Q A
-			if ∀x y. P.[x,y] ⟹ ∃!z ∈ A. Q.[x,y,z]
-			then ∃f. ∀x y. P.[x,y] ⟹ f x y ∈ A ∧ Q.[x, y, f x y].
-	begin
-		interpret UniqueChoice;
-			- for P Q A if ex1;
-				note(cong) eq_cong_meta[of P] eq_cong_meta[of Q].
-				apply unique_choice2_cond[of ((x,y). P.[y]) ((x,y,z). Q.[y,z]), simp, OF ex1, THEN ex_elim];
-				- for f if f;
-					apply ex_intro1[for x, of (f x)];
-					by f.
-				.
-			.
-		lemma curry_cond: for f if ty: ∀x y. P.[x,y] ⟹ f (x,y) ∈ A then ∃f'. ∀x y. P.[x,y] ⟹ f' x y = f (x,y);
-			apply unique_choice2_cond[of P ((x,y,z). z = f (x,y)) A, simp in.ex1_eq_iff, OF ty, THEN ex_elim];
-			- for f' if f';
-				apply ex_intro1[of f'];
-				- for x y if Pxy: P.[x,y];
-					use f'[OF Pxy].
-				.
-			.
-		lemma curry: for f if ty: ∀x y. f (x,y) ∈ A then ∃f'. ∀x y. f' x y = f (x,y);
-			by curry_cond[of f (_. true), simp, OF ty].
-
-		interpret Abbrev2;
-			- if F: ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y];
-				note(cong) eq_cong_meta[of F].
-				apply unique_choice2_cond[of P ((x,y,z). z = F.[x,y]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
-				- for f if f;
-					apply ex_intro1[of f];
-					- for x y if Pxy;
-						use f[OF Pxy].
+				--- requires functional types!
+				lemma abbrev3: for P F A if ty: ∀x y z. F.[x,y,z] ∈ A then ∃f. ∀x y z. f x y z = F.[x,y,z];
+					apply abbrev2[of (((x,y),z). F.[x,y,z])];
+					- for f2 if (simp);
+						apply abbrev2[of ((x,y). f2 (x,y))];
+						- for f3 if (simp);
+							apply ex_intro;
+							- for thesis if assm;
+								by assm[of f3] #cong eq.cong_meta[of F].
+							.
+						.
 					.
+				---
+			end
+
+
+			theory UniqueChoice2:
+				import AllIn.
+				import ExIn.
+				import Ex1In.
+				import Pair.
+				assume unique_choice2_cond: for P Q A
+					if ∀x y. P.[x,y] ⟹ ∃!z ∈ A. Q.[x,y,z]
+					then ∃f. ∀x y. P.[x,y] ⟹ f x y ∈ A ∧ Q.[x, y, f x y].
+			begin
+				interpret UniqueChoice;
+					- for P Q A if ex1;
+						note(cong) eq_cong_meta[of P] eq_cong_meta[of Q].
+						apply unique_choice2_cond[of ((x,y). P.[y]) ((x,y,z). Q.[y,z]), simp, OF ex1, THEN ex_elim];
+						- for f if f;
+							apply ex_intro1[for x, of (f x)];
+							by f.
+						.
+					.
+				lemma curry_cond: for f if ty: ∀x y. P.[x,y] ⟹ f (x,y) ∈ A then ∃f'. ∀x y. P.[x,y] ⟹ f' x y = f (x,y);
+					apply unique_choice2_cond[of P ((x,y,z). z = f (x,y)) A, simp in.ex1_eq_iff, OF ty, THEN ex_elim];
+					- for f' if f';
+						apply ex_intro1[of f'];
+						- for x y if Pxy: P.[x,y];
+							use f'[OF Pxy].
+						.
+					.
+				lemma curry: for f if ty: ∀x y. f (x,y) ∈ A then ∃f'. ∀x y. f' x y = f (x,y);
+					by curry_cond[of f (_. true), simp, OF ty].
+
+				interpret Abbrev2;
+					- if F: ∀x y. P.[x,y] ⟹ F.[x,y] ∈ A then ∃f. ∀x y. P.[x,y] ⟹ f x y = F.[x,y];
+						note(cong) eq_cong_meta[of F].
+						apply unique_choice2_cond[of P ((x,y,z). z = F.[x,y]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+						- for f if f;
+							apply ex_intro1[of f];
+							- for x y if Pxy;
+								use f[OF Pxy].
+							.
+						.
+					.
+			end
+
+		end
+
+		theory Prod: --- Product Class ---
+			import AllIn.
+			import ExIn.
+			import .Pair.
+			fix (×).
+			assume in_prod_iff: p ∈ A × B ⟺ (∃x ∈ A. ∃y ∈ B. p = (x,y)).
+		begin
+			lemma pair_in_prod_iff(simp) (x,y) ∈ A × B ⟺ x ∈ A ∧ y ∈ B;
+				apply iff_intro;
+				simp in_prod_iff;
+				- if x': x' ∈ A, y': y' ∈ B, xx': x = x', yy': y = y';
+					by x' y' #simp xx' yy'.
+				- if x: x ∈ A, y: y ∈ B;
+					by in.ex_intro1[OF x] in.ex_intro1[OF y].
 				.
-			.
+			lemma pair_in_prod: if ! x ∈ A, ! y ∈ B then (x,y) ∈ A × B.
+			lemma allIn_prod: (∀p ∈ A × B. P.[p]) ⟺ (∀x ∈ A. ∀y ∈ B. P.[x,y]);
+				note(cong) eq_cong_meta[of P].
+				simp in.all_def imp_all_iff in_prod_iff;
+				apply iff_intro;
+				- if l for x y if x, y;
+					by l[OF x y eq.refl].
+				- if r for p x y if x, y, p;
+					by r x y #simp p.
+				.
+		end
+		-----
 	end
 
 end
@@ -346,14 +389,4 @@ begin
 	interpret .Intuitionistic.
 end
 
-theory Lambda:-- Dynamically typed
-	fix (λ).
-	import Membership.
-	assume in_imp_fun_app: for A if F.[x] ∈ A then (λy. F.[y]) x = F.[x].
-begin
-	theory Fun:
-		import Fun.
-		assume lambda_type: if ∀x. x ∈ A ⟹ F.[x] ∈ B then (λx. F.[x]) ∈ A → B.
-	end
-end
 
