@@ -219,6 +219,11 @@ begin
 
 					theory UniqueChoice:
 						import Pair.
+						assume unique_choice: for P A
+							if ∀x. ∃!y ∈ A. P.[x,y] then ∃f. ∀x. f x ∈ A ∧ P.[x, f x].
+					end
+					theory UniqueChoiceCond:
+						import Pair.
 						assume unique_choice_cond: for P Q A
 							if ∀x. P.[x] ⟹ ∃!y ∈ A. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A ∧ Q.[x, f x].
 					begin
@@ -251,7 +256,7 @@ begin
 							theory Pair:
 								import Pair.
 							begin
-								interpret UniqueChoice;
+								interpret UniqueChoiceCond;
 									- for P Q A if P_imp_ex1;
 										apply ex_intro1[of (λx. THE y ∈ A. Q.[x,y])];
 										- if Px: P.[x];

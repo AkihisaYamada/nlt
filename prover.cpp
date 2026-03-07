@@ -199,7 +199,7 @@ public:
 			return {};
 		}
 		Thm ret = thy.thm(*opt);
-		if( skips("[") ) {
+		while( skips("[") ) {
 			auto loc = thy.branch();
 			auto tmp = loc.weaken(ret);
 			for(;;) {
