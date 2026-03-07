@@ -1,5 +1,3 @@
-import Base.
-
 import NegativeTranslation.
 
 thm nnProp.pierce_law.
@@ -7,7 +5,7 @@ thm nnProp.excluded_middle.
 
 thm nnProp.in.ex_def.
 
-import ZF.
+import Classes.
 
 end
 

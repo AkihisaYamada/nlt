@@ -175,12 +175,8 @@ begin
 	begin
 
 		theory Abbrev:-- Restricted Unary Abbreviation
-			assume abbrev_cond: for P F A
-				if ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x].
-		begin
-			lemma abbrev:
-				if ty: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
-				by abbrev_cond[of (x. true) F A, simp, OF ty].
+			assume abbrev: for A F
+				if ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x].
 		end
 
 		theory TypedLambda:
@@ -219,8 +215,20 @@ begin
 
 					theory UniqueChoice:
 						import Pair.
-						assume unique_choice: for P A
+						assume unique_choice: for A P
 							if ∀x. ∃!y ∈ A. P.[x,y] then ∃f. ∀x. f x ∈ A ∧ P.[x, f x].
+					begin
+						interpret Abbrev;
+							- for A if F: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
+								note(cong) eq_cong_meta[of F].
+								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+								- for f if f;
+									apply ex_intro1[of f];
+									- for x;
+										use f[of x].
+									.
+								.
+							.
 					end
 					theory UniqueChoiceCond:
 						import Pair.
@@ -232,17 +240,6 @@ begin
 							unfold in.all_def;
 							apply unique_choice_cond;
 							by ex1[rule].
-						interpret Abbrev;
-							- if F: ∀x. P.[x] ⟹ F.[x] ∈ A then ∃f. ∀x. P.[x] ⟹ f x = F.[x];
-								note(cong) eq_cong_meta[of F].
-								apply unique_choice_cond[of P ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
-								- for f if f;
-									apply ex_intro1[of f];
-									- for x if Px;
-										use f[OF Px].
-									.
-								.
-							.
 					end
 
 					theory TheIn:

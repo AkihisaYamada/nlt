@@ -208,8 +208,16 @@ public:
 						loc.fix(*x);
 					}
 				} else if( skips("of") ) {
-					while( auto t = gets_term(1000) ) {
-						tmp = tmp.allE(loc.cterm(*t));
+					for(;;) {
+						if( skips("_") ) {
+							auto const& all = tmp.cbinder(ALL);
+							if( !all ) throw Error("\"no variable for _\"");
+							tmp = tmp.allE(loc.fix(std::get<0>(*all)));
+						} else if( auto t = gets_term(1000) ) {
+							tmp = tmp.allE(loc.cterm(*t));
+						} else {
+							break;
+						}
 					}
 				} else if( skips("OF") ) {
 					for(;;) {

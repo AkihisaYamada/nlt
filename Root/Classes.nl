@@ -62,30 +62,61 @@ obtain _Collect where
 	Collect_Class! {x. P.[x]} ∈ Class,
 	Collect_iff: x ∈ {x. P.[x]} ⟺ x ∈ Object ∧ P.[x];
 	- for thesis if assm;
-		apply unique_choice[of (p. ∃P A. p = (P,A) ∧ (∀x. x ∈ A ⟺ x ∈ Object ∧ P.[x])) Class, THEN ex_elim];
+		apply unique_choice[of Class (p. ∃P A. p = (P,A) ∧ (∀x. x ∈ A ⟺ x ∈ Object ∧ P.[x])), THEN ex_elim];
 		- for P;
-			apply imp_commute[OF in.ex1_cong[of Class, OF eq.refl, THEN iff_elim1], OF comprehension_ex1];
-			- for x;
-				simp iff_iff_and;
+			apply imp_commute[OF in.ex1_cong[of Class, OF eq.refl, THEN iff_elim1], OF comprehension_ex1, of P];
+			- for A if Aty!;
+				apply iff_intro;
+				- if Aiff;
+					apply ex_intro1[of P];
+					apply ex_intro1[of A];
+					simp Aiff.
+				simp;
+				- for P' A' if PP', (simp), (simp);
+					simp eq_cong_meta[for x, of (P. P.[x]), OF PP'].
+				.
+			.
+		- for _Collect if C;
+			apply assm[of _Collect];
+			- for P;
+				use C[of (x. P.[x])].
+			- for x P;
+				use C[of (x. P.[x])];
+				simp;
+			 	- if ty for P' C' if P', C', iff;
+					simp iff[fold C' P'] eq_cong_meta[for z, of (P. P.[z]), OF P'].
+				.
+			.
+		.
+	.
 
 lemma Collect_cong(cong)
 	if PQ: ∀x. x ∈ Object ⟹ P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]};
 	apply Class_eq_intro;
-	by PQ(simp).
+	by #simp Collect_iff PQ.
 
-obtain {} where empty_Class: {} ∈ Class, not_in_empty: ¬x ∈ {};
+obtain {} where empty_def: {} = {x. false};
 	- for thesis if assm;
-		apply assm[of {x. false}];
-		simp in.Collect_iff;.
+		by assm[OF eq.refl].
 	.
 
-obtain (⋃) where
-	CUP_Class: if ∀X ∈ XX. X ∈ Class then ⋃XX ∈ Class,
-	CUP_iff: if ∀X ∈ XX. X ∈ Class then x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X);
-	- for thesis if assm;
-		apply assm[of (λXX. {x. ∃X ∈ XX. x ∈ X})];
-		.
+lemma empty_Class! {} ∈ Class;
+	unfold empty_def.
+
+lemma not_in_empty: ¬x ∈ {};
+	by nand_false #simp empty_def Collect_iff.
+
+obtain (⋃) where CUP_def: ⋃XX = {x. ∃X ∈ XX. x ∈ X};
+	fold ex_iff;
+	apply abbrev[of Class];
 	.
+
+lemma CUP_Class: ⋃XX ∈ Class;
+	unfold CUP_def.
+
+lemma CUP_iff: x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X);
+	unfold CUP_def;
+	simp Collect_iff; .
 
 obtain (⋂) where
 	CAP_iff: if ∀X ∈ XX. X ∈ Class then x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X),
