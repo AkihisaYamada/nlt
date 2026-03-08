@@ -1,5 +1,5 @@
 #include<fstream>
-#include"definer.hpp"
+#include"theory.hpp"
 #include"parser.hpp"
 
 using namespace std;
@@ -16,16 +16,15 @@ struct Thy::_Body {
 	Ref<Syntax> syntax;
 	StrMap<pair<Ref<Rewrite>,bool>> rewriter;
 	bool is_scope;
-	OptRef<Definer> definer;
-	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax, OptRef<Definer> const& definer ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax), definer(definer) {
+	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax) {
 	}
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make(),OptRef<Definer>())) {};
+Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
 
 Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope, Intp const& intp ) const& {
-	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax,_ref->definer), intp.ctxt() );
+	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
 	for( auto [rew_name,p] : _ref->rewriter ) {
 		child._ref->rewriter.emplace(rew_name,pair(p.first,false));
@@ -101,18 +100,6 @@ void Thy::import_rewrite( Thy const& src, Intp const& intp ) & {
 		rew.import(*val.first,src,intp);
 	}
 }
-OptRef<Definer>& Thy::definer() & {
-	return _ref->definer;
-}
-void Thy::setup_definer( Thm const& beta ) & {
-	if( _ref->definer ) throw Error("\"definer already setup\"")(beta);
-	_ref->definer = OptRef<Definer>::make(*this,beta);
-}
-pair<string,Thm> Thy::define( Term const& fxs, Term const& r, Opt<string const&> name ) & {
-	if( !_ref->definer ) throw Error("\"definer not setup\"");
-	return _ref->definer->define(*this,fxs,r,name);
-}
-
 Thm Thy::thm(string_view const& name) const {
 	auto opt = find_thm(name);
 	if( !opt ) throw Error("\"theorem not found\"")(name);

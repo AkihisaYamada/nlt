@@ -3,7 +3,6 @@
 #include<ranges>
 #include"inference.hpp"
 #include"parser.hpp"
-#include"definer.hpp"
 
 #define FLAG_ERR (1 << 0)
 #define FLAG_SYS (1 << 1)
@@ -661,9 +660,6 @@ public:
 			_update_parent(src);// in case of interpreting a child.
 			if( unprefixed || prefix == "" ) {
 				_thy.import_rewrite(src,intp);
-				if( !_thy.definer() && src.definer() ) {
-					_thy.setup_definer(src.definer()->beta().subst(intp));
-				}
 			}
 			_thy.add_import(prefix,std::move(intp),unprefixed);
 			if THY {
@@ -1120,19 +1116,14 @@ public:
 	}
 	void _define( Thy& org_thy ) {
 		Opt<string> name_op;
-		if( skips("[") ) {
+		if( skips("(") ) {
 			name_op = get();
-			skip("]");
+			skip(")");
 		}
-		Term l = get_term();
-		skip(":=");
-		Term r = get_term();
+		Term eq = get_term();
 		skip(".");
-		auto [f,spec] = org_thy.define(l,r,name_op);
-		Thm def = spec << _thy.thm("imp.refl");
-		string name = (name_op ? *name_op : f) + "_def";
-		_thy.add_thm(name,def);
-		if MSG cout << "defined " << name << ": " << _thy.pretty(l) << " := " << _thy.pretty(r) << endl;
+		auto [def_name,def_thm] = org_thy.define(eq,name_op);
+		if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
 	}
 	void local_thy( Thy& loc, bool finalized ) {
 		_depth++;
@@ -1533,10 +1524,6 @@ public:
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
 					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
-				} else if( skips("define") ) {
-					Thm const& beta = get_thm();
-					if MSG cout << " beta: " << _thy.pretty(beta) << endl;
-					_thy.setup_definer(beta);
 				}
 				skip(".");
 			} else if( skips("symbol") ) {

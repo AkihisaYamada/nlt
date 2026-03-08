@@ -173,27 +173,7 @@ begin
 	theory Membership:
 		import base? Membership.
 	begin
-
-		theory Abbrev:-- Restricted Unary Abbreviation
-			assume abbrev: for A F
-				if ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x].
-		end
-
-		theory TypedLambda:
-			fix (λ∈).
-			assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].
-		begin
-		end
-
-		theory Lambda:-- Dynamically typed
-			fix (λ).
-			assume fun_app: for A if F.[x] ∈ A then (λy. F.[y]) x = F.[x].
-		begin
-			theory Fun:
-				import Fun.
-				assume lambda_type: if ∀x. x ∈ A ⟹ F.[x] ∈ B then (λx. F.[x]) ∈ A → B.
-			end
-		end
+		interpret _..Membership.
 
 		theory AllIn:
 			import base? base.AllIn.
@@ -219,11 +199,11 @@ begin
 							if ∀x. ∃!y ∈ A. P.[x,y] then ∃f. ∀x. f x ∈ A ∧ P.[x, f x].
 					begin
 						interpret Abbrev;
-							- for A if F: ∀x. F.[x] ∈ A then ∃f. ∀x. f x = F.[x];
+							- for A if F: ∀x. F.[x] ∈ A, assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note(cong) eq_cong_meta[of F].
 								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
-									apply ex_intro1[of f];
+									apply assm[of f];
 									- for x;
 										use f[of x].
 									.

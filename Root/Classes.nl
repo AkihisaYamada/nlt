@@ -58,7 +58,8 @@ lemma comprehension_ex1: for P then ∃!A ∈ Class. ∀x. x ∈ A ⟺ x ∈ Obj
 		.
 	.
 
-obtain _Collect where
+syntax {_. _} := Collect.
+obtain Collect where
 	Collect_Class! {x. P.[x]} ∈ Class,
 	Collect_iff: x ∈ {x. P.[x]} ⟺ x ∈ Object ∧ P.[x];
 	- for thesis if assm;
@@ -95,10 +96,8 @@ lemma Collect_cong(cong)
 	apply Class_eq_intro;
 	by #simp Collect_iff PQ.
 
-obtain {} where empty_def: {} = {x. false};
-	- for thesis if assm;
-		by assm[OF eq.refl].
-	.
+syntax {} := empty.
+define {} = {x. false}.
 
 lemma empty_Class! {} ∈ Class;
 	unfold empty_def.
@@ -106,39 +105,65 @@ lemma empty_Class! {} ∈ Class;
 lemma not_in_empty: ¬x ∈ {};
 	by nand_false #simp empty_def Collect_iff.
 
-obtain (⋃) where CUP_def: ⋃XX = {x. ∃X ∈ XX. x ∈ X};
-	fold ex_iff;
-	apply abbrev[of Class];
-	.
+syntax {_} := singleton.
+obtain singleton where singleton_def: {a} = {x. a = x};
+	apply abbrev[of Class]>1=.
 
-lemma CUP_Class: ⋃XX ∈ Class;
+lemma singleton_iff(simp) x ∈ Object ⟹ x ∈ {a} ⟺ x = a;
+	by iff_eq.commute #simp singleton_def Collect_iff.
+
+obtain (⋃) where CUP_def: ⋃XX = {x. ∃X ∈ XX. x ∈ X};
+	apply abbrev[of Class]>1=.
+
+lemma CUP_Class! ⋃XX ∈ Class;
 	unfold CUP_def.
 
-lemma CUP_iff: x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X);
-	unfold CUP_def;
-	simp Collect_iff; .
+lemma CUP_iff: x ∈ Object ⟹ x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X);
+	simp CUP_def Collect_iff.
 
-obtain (⋂) where
-	CAP_iff: if ∀X ∈ XX. X ∈ Class then x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X),
-	CAP_Class: if ∀X ∈ XX. X ∈ Class then ⋂XX ∈ Class;
-	- for thesis if assm;
-		apply assm[of (λXX. {x. ∀X ∈ XX. x ∈ XX})];
+obtain (⋂) where CAP_def: ⋂XX = {x. ∀X ∈ XX. x ∈ X};
+	apply abbrev[of Class]>1=.
+
+lemma CAP_Class! ⋂XX ∈ Class;
+	unfold CAP_def.
+
+lemma CAP_iff: x ∈ Object ⟹ x ∈ ⋂XX ⟺ (∀X ∈ XX. x ∈ X);
+	simp CAP_def Collect_iff.
 
 fix (×).
 assume pair_in_prod_iff: (x,y) ∈ A × B ⟺ x ∈ A ∧ y ∈ B.
 assume prod_Class: if A ∈ Class, B ∈ Class then A × B ∈ Class.
 
-obtain (∪) where
-	cup_Class! if A ∈ Class, B ∈ Class then A ∪ B ∈ Class,
-	cup_iff: if A ∈ Class, B ∈ Class then x ∈ A ∪ B ⟺ x ∈ A ∨ x ∈ B;
+infix ∪(,) 71 70 71.
+obtain (∪) where cup_def: A ∪ B = {x. x ∈ A ∨ x ∈ B};
 	- for thesis if assm;
-		apply assm[of (λ(A,B). {x. x ∈ A ∨ x ∈ B})];
+		apply abbrev[of Class ((A,B). {x. x ∈ A ∨ x ∈ B})];	
+		-.
+		- for (∪) if cup_def;
+			apply assm[of (∪)];
+			simp cup_def;.
+		.
+	.
 
-obtain (∩) where
-	cap_Class! if A ∈ Class, B ∈ Class then A ∩ B ∈ Class,
-	cap_iff: 
+lemma cup_Class! A ∪ B ∈ Class;
+	unfold cup_def.
 
-obtain _CollectIn where
+lemma cup_iff: x ∈ Object ⟹ x ∈ A ∪ B ⟺ x ∈ A ∨ x ∈ B;
+	simp cup_def Collect_iff.
+
+infix ∩(,) 81 80 81.
+obtain (∩) where cap_def: A ∩ B = {x. x ∈ A ∧ x ∈ B};
+	- for thesis if assm;
+		apply abbrev[of Class ((A,B). {x. x ∈ A ∧ x ∈ B})];
+		-.
+		- for (∩) if cap_def;
+			apply assm[of (∩)];
+			simp cap_def.
+		.
+	.
+
+syntax {_ ∈ _. _} := CollectIn.
+obtain CollectIn where
 	CollectIn_Class! if A ∈ Class then {x ∈ A. P.[x]} ∈ Class,
 	CollectIn_iff: if A ∈ Class then x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;

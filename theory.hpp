@@ -5,7 +5,6 @@
 
 class AThm;
 class Import;
-class Definer;
 using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule>;
 
 template<typename T>
@@ -139,9 +138,7 @@ public:
 	void import_rewrite( Thy const& src, Intp const& intp ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
-	void setup_definer( Thm const& beta ) &;
-	OptRef<Definer>& definer() &;
-	std::pair<std::string,Thm> define( Term const& fxs, Term const& r, Opt<std::string const&> name) &;
+	std::pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
 	/** Pretty printer for the theory */
 	std::function<std::ostream&(std::ostream&)> pretty( size_t& indent, bool scope = false, bool path = true ) const &;
 	std::function<std::ostream&(std::ostream&)> print_name( bool path = true ) const&;

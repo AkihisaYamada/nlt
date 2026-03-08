@@ -177,6 +177,27 @@ begin
 		interpret PseudoOrder.
 	end
 
+	theory Abbrev:-- Restricted Unary Abbreviation
+		assume abbrev: for A F
+			if ∀x. F.[x] ∈ A, ∀f. (∀x. f x = F.[x]) ⟹ P then P.
+	end
+
+	theory TypedLambda:
+		fix (λ∈).
+		assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].
+	begin
+	end
+
+	theory Lambda:-- Dynamically typed
+		fix (λ).
+		assume fun_app: for A if F.[x] ∈ A then (λy. F.[y]) x = F.[x].
+	begin
+		theory Fun:
+			import Fun.
+			assume lambda_type: if ∀x. x ∈ A ⟹ F.[x] ∈ B then (λx. F.[x]) ∈ A → B.
+		end
+	end
+
 end
 
 theory TypeSafeMinimal:

@@ -58,10 +58,6 @@ syntax ∀ _ ≤ _. _ := ∀≤.
 syntax ∃ _ ≤ _. _ := ∃≤.
 syntax ∃! _ ≤ _. _ := ∃!≤.
 
-syntax {} := _empty.
-syntax {_} := _singleton.
-syntax {_. _} := _Collect.
-syntax {_ ∈ _. _} := _CollectIn.
 syntax {_ < _. _} := _CollectLt.
 
 
