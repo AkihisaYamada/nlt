@@ -18,35 +18,24 @@ import Ex1In.
 import Pair.
 import UniqueChoice.
 
-fix Class.
-assume Class_eq_intro: if ∀x. x ∈ A ⟺ x ∈ B, A ∈ Class, B ∈ Class then A = B.
-
-fix Object.
-assume Object_Class: Object ∈ Class.
-assume Object_iff: x ∈ Object ⟺ (∃A ∈ Class. x ∈ A).
-
-lemma in_Class_imp_Object: if A: A ∈ Class, x: x ∈ A then x ∈ Object;
-	unfold Object_iff;
-	apply in.ex_intro1[OF A];
-	by x.
-
 fix Pow.
-assume comprehension_schema: ∀A P. ∃B ∈ Pow A. ∀x. x ∈ B ⟺ x ∈ A ∧ P.[x].
+assume comprehension_schema: ∀A P. ∃X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x].
+assume Pow_eq_intro: for A if ∀x. x ∈ X ⟺ x ∈ Y, X ∈ Pow A, Y ∈ Pow A then X = Y.
 
-lemma comprehension_ex1: for A P then ∃!B ∈ Pow A. ∀x. x ∈ B ⟺ x ∈ A ∧ P.[x];
+lemma comprehension_ex1: for A P then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x];
 	apply comprehension_schema[of A P, THEN in.ex_elim];
-	- for B if Bty!, B;
-		apply in.ex1_intro1[of B];
-		- by B.
-		- by Bty.
-		- for C if Cty!, C;
-			apply Class_eq_intro;
-			simp B C;
+	- for X if Xty!, X;
+		apply in.ex1_intro1[of X];
+		- by X.
+		- by Xty.
+		- for Y if Yty!, Y;
+			apply Pow_eq_intro[of A];
+			simp X Y;
 			.
 		.
 	.
 
-syntax {_ ∈ _. _} := CollectIn.
+syntax {_ ∈ _. _} := CollectIn(,).
 obtain CollectIn where
 	CollectIn_Class! {x ∈ A. P.[x]} ∈ Pow A,
 	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];

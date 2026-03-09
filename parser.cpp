@@ -98,7 +98,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 				skip(op.closer);
 				auto bind = _bind(*fst,fv)(body);
 				init = Term(actual);
-				init = cons ? init(Term(*cons)(bind)) : init(range)(bind);
+				init = cons ? init(Term(*cons)(range)(bind)) : init(range)(bind);
 			} else {// { _ }
 				auto inner = _get_follow(*fst,0,syn,fv);
 				skip(op.closer);
