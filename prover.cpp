@@ -1490,6 +1490,15 @@ public:
 			if MSG cout << _indent();
 		}
 	}
+	Opt<string> _gets_cons() & {
+		auto ret = Opt<string>();
+		if( skips("(") ) {
+			ret = get();
+			skip(")");
+		};
+		return ret;
+	}
+
 	void loop() {
 		for(;;) try {
 			if( _stats() || _thy_decl() || _shared_decl() ) {
@@ -1569,7 +1578,7 @@ public:
 			} else if( skips("syntax") ) {
 				auto opener = get();
 				if( skips("_") ) {
-					if( skips(".") ) {
+					if( skips(".") ) {// ∀_. _
 						skip("_");
 						auto closer = get();
 						skip(":=");
@@ -1581,25 +1590,34 @@ public:
 						if( skips("_") ) {
 							skip(".");
 							skip("_");
-							if( skips(":=") ) {
+							if( skips(":=") ) {// ∀_ < _. _
 								auto actual = get_sym();
-								_thy.modify_syntax().binder_mid(opener,next,actual);
-								if MSG cout << "binder middle " << opener << " x " << next << " y. z := " << actual << " y (x. z)" << endl;
-							} else {
+								auto cons = _gets_cons();
+								_thy.modify_syntax().binder_mid(opener,next,actual,cons);
+								if MSG {
+									cout << "binder middle " << opener << " x " << next << " y. z := " << actual;
+									if( cons ) {
+										cout << "(y " << *cons << " z)" << endl;
+									} else {
+										cout << " y (x. z)" << endl;
+									}
+								}
+							} else {// {_ < _. _}
 								auto closer = get();
 								skip(":=");
 								auto actual = get_sym();
-								_thy.modify_syntax().bcompr(opener,next,closer,actual);
+								auto cons = _gets_cons();
+								_thy.modify_syntax().bcompr(opener,next,closer,actual,cons);
 								if MSG cout << "bounded comprehension: " << opener << "x " << next << "y. z" << closer << " := " << _thy.pretty(actual) << " y (x. z)" << endl;
 							}
-						} else {
+						} else {// {_}
 							skip(":=");
 							auto actual = get_sym();
 							_thy.modify_syntax().singleton_compr(opener,next,actual);
 							if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
 						}
 					}
-				} else {
+				} else {// {}
 					auto closer = get();
 					skip(":=");
 					auto actual = get_sym();

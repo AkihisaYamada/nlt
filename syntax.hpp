@@ -46,16 +46,33 @@ public:
 	struct Binder {
 		int llevel;
 		int rlevel;
-		StrMap<std::string> bbinds;// ∀x ∈ X. _
-		StrMap<std::string> mid_of;// bbind -> "∈"
+		StrMap<std::pair<std::string,Opt<std::string>>> bbinds;// "∈" → ("∀∈", ",")
 	};
 	struct Opener {
 		std::string closer;
 		Opt<std::string> empty;// {}
 		Opt<std::string> singleton;// {_}
-		Opt<std::string> compr;// {x. _}
-		StrMap<std::string> bcompr;// {x ∈ X. _}
-		StrMap<std::string> mid_of;// bcompr -> "∈"
+		Opt<std::string> compr;// {_. _}
+		StrMap<std::pair<std::string,Opt<std::string>>> bcompr;// "∈" → ("{_∈_._}", ",")
+	};
+	struct Empty {
+		std::string opener, closer;
+	};
+	struct Singleton {
+		std::string opener, closer;
+	};
+	struct Compr {
+		std::string opener, closer;
+	};
+	struct BinderRel {
+		int llevel;
+		int rlevel;
+		std::string binder, mid;
+		Opt<std::string> cons;
+	};
+	struct ComprRel {
+		std::string opener, mid, closer;
+		Opt<std::string> cons;
 	};
 private:
 	StrMap<Opener> _openers;
@@ -63,8 +80,7 @@ private:
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
 	StrMap<Binder> _binders;
-	StrMap<std::string> _binder_of;// "λ∈" → "λ"
-	StrMap<std::string> _opener_of;// "{_. _}" → "{"
+	StrMap<Sum<Empty,Singleton,Compr,BinderRel,ComprRel>> _pretty_of;
 	bool _print_ctxt = false;
 public:
 	Syntax();
@@ -98,36 +114,40 @@ public:
 	auto finds_binder( std::string_view const& binder ) const& {
 		return _binders.finds(binder);
 	}
-	void binder_mid( std::string_view const& prefix, std::string_view const& mid, std::string_view const& actual ) & {
-		auto binder = _binders.finds(prefix);
-		if( !binder ) throw Error("\"binder not registered\"")(prefix)(mid);
-		binder->second.bbinds.emplace(mid,actual);
-		binder->second.mid_of.emplace(actual,mid);
-		_binder_of.emplace(actual,prefix);
+	void binder_mid(
+		std::string_view const& prefix,
+		std::string_view const& mid,
+		std::string_view const& actual,
+		Opt<std::string> const& cons 
+	) & {
+		auto x = _binders.finds(prefix);
+		if( !x ) throw Error("\"binder not registered\"")(prefix)(mid);
+		auto& [sym,binder] = *x;
+		binder.bbinds.emplace(mid,std::pair{std::string(actual),cons});
+		_pretty_of.emplace(actual,BinderRel{binder.llevel,binder.rlevel,std::string(prefix),std::string(mid),cons});
 	}
 	void empty_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
 		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
 		it->second.empty.emplace(actual);
-		_opener_of.emplace(actual,opener);
+		_pretty_of.emplace(actual,Empty{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
 	void singleton_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
 		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
 		it->second.singleton.emplace(actual);
-		_opener_of.emplace(actual,opener);
+		_pretty_of.emplace(actual,Singleton{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
 	void compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
 		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
 		it->second.compr.emplace(actual);
-		_opener_of.emplace(actual,opener);
+		_pretty_of.emplace(actual,Compr{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
-	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual ) & {
+	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual, Opt<std::string> const& cons ) & {
 		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
-		it->second.bcompr.emplace(mid,actual);
-		it->second.mid_of.emplace(actual,mid);
-		_opener_of.emplace(actual,opener);
+		it->second.bcompr.emplace(mid,std::pair{actual,cons});
+		_pretty_of.emplace(actual,ComprRel{std::string(opener),std::string(mid),std::string(closer),cons});
 		_closers.emplace(closer);
 	}
 	std::ostream& pretty_sym( std::ostream& os, std::string_view const& sym ) const &;

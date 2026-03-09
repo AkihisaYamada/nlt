@@ -30,40 +30,28 @@ lemma in_Class_imp_Object: if A: A ∈ Class, x: x ∈ A then x ∈ Object;
 	apply in.ex_intro1[OF A];
 	by x.
 
-assume comprehension_schema: ∀P. ∃A ∈ Class. ∀x ∈ Object. x ∈ A ⟺ P.[x].
+fix Pow.
+assume comprehension_schema: ∀A P. ∃B ∈ Pow A. ∀x. x ∈ B ⟺ x ∈ A ∧ P.[x].
 
-lemma comprehension_strong: for P then ∃A ∈ Class. ∀x. x ∈ A ⟺ x ∈ Object ∧ P.[x];
-	apply comprehension_schema[of P, THEN in.ex_elim];
-	- for A if Aty, A1;
-		apply in.ex_intro1[OF Aty];
-		- for x then x ∈ A ⟺ x ∈ Object ∧ P.[x];
-			apply iff_intro;
-			- if xA;
-				note xO: in_Class_imp_Object[OF Aty xA].
-				by xO xA[unfold A1[rule, OF xO]].
-			simp A1[rule].
-		.
-	.
-
-lemma comprehension_ex1: for P then ∃!A ∈ Class. ∀x. x ∈ A ⟺ x ∈ Object ∧ P.[x];
-	apply comprehension_strong[of P, THEN in.ex_elim];
-	- for A if Aty!, A;
-		apply in.ex1_intro1[of A];
-		- by A.
-		- by Aty.
-		- for B if Bty!, B;
+lemma comprehension_ex1: for A P then ∃!B ∈ Pow A. ∀x. x ∈ B ⟺ x ∈ A ∧ P.[x];
+	apply comprehension_schema[of A P, THEN in.ex_elim];
+	- for B if Bty!, B;
+		apply in.ex1_intro1[of B];
+		- by B.
+		- by Bty.
+		- for C if Cty!, C;
 			apply Class_eq_intro;
-			simp A B;
+			simp B C;
 			.
 		.
 	.
 
-syntax {_. _} := Collect.
-obtain Collect where
-	Collect_Class! {x. P.[x]} ∈ Class,
-	Collect_iff: x ∈ {x. P.[x]} ⟺ x ∈ Object ∧ P.[x];
+syntax {_ ∈ _. _} := CollectIn.
+obtain CollectIn where
+	CollectIn_Class! {x ∈ A. P.[x]} ∈ Pow A,
+	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;
-		apply unique_choice[of Class (p. ∃P A. p = (P,A) ∧ (∀x. x ∈ A ⟺ x ∈ Object ∧ P.[x])), THEN ex_elim];
+		apply unique_choice[of Class (t. ∃A P B. t = ((A,P),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
 		- for P;
 			apply imp_commute[OF in.ex1_cong[of Class, OF eq.refl, THEN iff_elim1], OF comprehension_ex1, of P];
 			- for A if Aty!;

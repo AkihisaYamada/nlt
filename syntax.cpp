@@ -13,14 +13,12 @@ Syntax::Syntax() {
 }
 
 ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
-	if( _prefixes.contains(sym) || _binders.contains(sym) || _binder_of.contains(sym) || _infixes.contains(sym) ) {
+	if( _prefixes.contains(sym) || _binders.contains(sym) || _infixes.contains(sym) || _pretty_of.contains(sym) ) {
 		return os << '(' << sym << ')';
 	}
-	if( auto const& x = _opener_of.finds(sym) ) {
-		auto const& opener = x->second;
-		auto const& op = _openers.finds(opener)->second;
-		if( op.empty.contains(sym) ) {
-			return os << opener << op.closer;
+	if( auto const& x = _pretty_of.finds(sym) ) {
+		if( auto y = x->second.ref<Empty>() ) {
+			return os << y->opener << y->closer;
 		}
 	}
 	return os << sym;
@@ -39,8 +37,8 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 				if( level > op.llevel ) os << ')';
 				return os;
 			} else if( auto const& x = _binders.finds(*sym) ) {// ∀x. _
+				auto const& op = x->second;
 				if( auto const& abs = arg.bind() ) {
-					auto const& op = x->second;
 					if( level > op.llevel ) os << '(';
 					os << *sym << ' ' << pretty_sym(abs->first);
 					Term cur = abs->second;
@@ -52,26 +50,43 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					if( level > op.llevel ) os << ')';
 					return os;
 				}
-			} else if( auto const& x = _opener_of.finds(*sym) ) {
-				auto const& opener = x->second;
-				auto const& op = _openers.finds(opener)->second;
-				if( op.compr.contains(*sym ) ) {// {x. _}
-					if( auto const& abs = arg.bind() ) {
-						return os << opener << pretty_sym(abs->first) << ". " <<
-							pretty(abs->second,0) << op.closer;
+			} else if( auto const& x = _pretty_of.finds(*sym) ) {
+				auto const& sum = x->second;
+				if( auto const& abs = arg.bind() ) {
+					if( auto op = sum.ref<Compr>() ) {// {x. _}
+						return os << op->opener << pretty_sym(abs->first) << ". "
+							<< pretty(abs->second,0) << op->closer;
 					}
-				} else if( op.singleton.contains(*sym) ) {// {_}
-					return os << opener << pretty(arg,0) << op.closer;
+				} else if( auto const& op = sum.ref<BinderRel>() ) {// (∀∈)(A, x. P.[x]) → ∀x ∈ A. P.[x]
+					if( op->cons )
+					if( auto const& pair = arg.binary(*op->cons) )
+					if( auto const& bind = pair->second.bind() ) {
+						if( level > op->llevel ) os << '(';
+						os << op->binder << pretty_sym(bind->first) << ' '
+							<< op->mid << ' ' << pretty(pair->first,0) << ". "
+							<< pretty(bind->second);
+						if( level > op->llevel ) os << ')';
+						return os;
+					}
+				} else if( auto const& op = sum.ref<ComprRel>() ) {// {_∈_._}(A, x. P.[x]) → {x ∈ A. P.[x]}
+					if( op->cons )
+					if( auto const& pair = arg.binary(*op->cons) )
+					if( auto const& bind = pair->second.bind() ) {
+						return os << op->opener << pretty_sym(bind->first) << ' '
+							<< op->mid << ' ' << pretty(pair->first,0) << ". "
+							<< pretty(bind->second);
+					}
+				} else if( auto const& op = sum.ref<Singleton>() ) {// {_}
+					return os << op->opener << pretty(arg,0) << op->closer;
 				}
 			} else if( auto const& x = finds_infix(*sym) ) {
 				auto const& op = x->second;
-				if( auto const& cons = op.cons ) {
-					if( auto const& pair = arg.binary(*cons) ) {
-						if( level > op.llevel ) os << '(';
-						os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
-						if( level > op.llevel ) os << ')';
-						return os;
-					}
+				if( auto const& cons = op.cons )
+				if( auto const& pair = arg.binary(*cons) ) {
+					if( level > op.llevel ) os << '(';
+					os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
+					if( level > op.llevel ) os << ')';
+					return os;
 				}
 			}
 		} else if( auto app_in = fun.app() ) {
@@ -92,22 +107,21 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					os << pretty(arg,op.rlevel);
 					if( level > op.level ) os << ')';
 					return os;
-				} else if( auto const& x = _binder_of.finds(*sym) ) {
-					auto const& prefix = x->second;
-					auto const& op = _binders.finds(prefix)->second;
-					if( auto abs = arg.bind() ) {
-						if( level > op.llevel ) os << '(';
-						os << prefix << ' ' << abs->first << ' ' << op.mid_of.finds(*sym)->second << ' ' << pretty(arg_in,op.rlevel) << ". " << pretty(abs->second,op.rlevel);
-						if( level > op.llevel ) os << ')';
-						return os;
-					}
-				} else if( auto const& x = _opener_of.finds(*sym) ) {
-					auto const& opener = x->second;
-					auto const& op = _openers.finds(opener)->second;
-					if( auto const& y = op.mid_of.finds(*sym ) ) {// {x ∈ X. _}
+				} else if( auto const& x = _pretty_of.finds(*sym) ) {
+					auto const& sum = x->second;
+					if( auto const& op = sum.ref<BinderRel>() ) {
+						if( !op->cons )
+						if( auto abs = arg.bind() ) {
+							if( level > op->llevel ) os << '(';
+							os << op->binder << ' ' << abs->first << ' ' << op->mid << ' ' << pretty(arg_in,op->rlevel) << ". " << pretty(abs->second,op->rlevel);
+							if( level > op->llevel ) os << ')';
+							return os;
+						}
+					} else if( auto const& op = sum.ref<ComprRel>() ) {// {_ ∈ _. _}
+						if( !op->cons )
 						if( auto const& abs = arg.bind() ) {
-							return os << opener << pretty_sym(abs->first) << ' ' << y->second << ' '
-								<< pretty(app_in->second) << ". " << pretty(abs->second) << op.closer;
+							return os << op->opener << pretty_sym(abs->first) << ' ' << op->mid << ' '
+								<< pretty(app_in->second) << ". " << pretty(abs->second) << op->closer;
 						}
 					}
 				}

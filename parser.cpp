@@ -91,12 +91,14 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 				init = Term(*op.compr)(_bind(*fst,fv)(body));
 			} else if( auto y = op.bcompr.finds(follow) ) {// {_ < _. _}
 				ignore_token();
-				auto bcompr = y->second;
+				auto [actual,cons] = y->second;
 				auto range = _get_term(0,fv);
 				skip(".");
 				auto body = _get_term(0,fv);
 				skip(op.closer);
-				init = Term(bcompr)(range)(_bind(*fst,fv)(body)),level;
+				auto bind = _bind(*fst,fv)(body);
+				init = Term(actual);
+				init = cons ? init(Term(*cons)(bind)) : init(range)(bind);
 			} else {// { _ }
 				auto inner = _get_follow(*fst,0,syn,fv);
 				skip(op.closer);
@@ -130,14 +132,15 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 			auto follow = peek_token();
 			if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
 				ignore_token();
-				auto actual = y->second;
+				auto [actual,cons] = y->second;
 				auto range = _get_term(0,fv);
 				skip(".");
-				auto body = _get_term(op.rlevel,fv);
-				init = Term(actual)(range)(f(body));
+				auto bind = f(_get_term(op.rlevel,fv));
+				init = Term(actual);
+				init = cons ? init(Term(*cons)(range)(bind)) : init(range)(bind);
 			} else {// ∀x y z. _
-				auto body = _nest_abs(binder,op.rlevel,fv);
-				init = Term(binder)(f(body));
+				auto bind = f(_nest_abs(binder,op.rlevel,fv));
+				init = Term(binder)(bind);
 			}
 		} else {
 			init = binder;
