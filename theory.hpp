@@ -42,9 +42,9 @@ public:
 	 */
 	Thy branch() const&;
 	/** Creates a named branch. */
-	Thy branch( std::string_view const& name, std::string_view const& dir ) &;
+	Thy& branch( std::string_view const& name, std::string_view const& dir ) &;
 	/** Creates a namespace. */
-	Thy scope( std::string_view const& name ) &;
+	Thy& scope( std::string_view const& name ) &;
 	Thy scope_temp( std::string_view const& name ) const &;
 	std::string const& name() const &;
 	auto name() && = delete;

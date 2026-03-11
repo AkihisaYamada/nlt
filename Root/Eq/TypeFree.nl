@@ -3,7 +3,7 @@ begin
 interpret base? Root.TypeFree.
 
 theory Minimal:
-	import base? Minimal.
+	import base? base.Minimal.
 begin
 
 	interpret eq? ..TypeSafeMinimal.
@@ -18,9 +18,7 @@ begin
 			by ex_intro1[of a] Pa.
 		.
 
-	theory Ex1:
-		import Ex1.
-	begin
+	extend Ex1 begin
 		lemma ex1_cong(cong)
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_def iff.
@@ -50,9 +48,7 @@ begin
 		lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
 			simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 
-		theory The:
-			import The.
-		begin
+		extend The begin
 			lemma THE_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
 				apply ex1_elim[OF ex1];
 				- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
@@ -171,7 +167,7 @@ begin
 	end
 
 	theory Membership:
-		import base? Membership.
+		import base? base.Membership.
 	begin
 		interpret _..Membership.
 
@@ -222,12 +218,8 @@ begin
 						fix _TheIn.
 						import in: in.TheRel _TheIn.
 					begin
-						theory Lambda:
-							import Lambda.
-						begin
-							theory Pair:
-								import Pair.
-							begin
+						extend Lambda begin
+							extend Pair begin
 								interpret UniqueChoiceCond;
 									- for A P Q if P_imp_ex1;
 										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];

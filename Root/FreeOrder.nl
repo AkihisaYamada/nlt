@@ -20,20 +20,20 @@ interpret Propositional;
 	.
 
 theory Minimal:
-	import Minimal.
+	import Propositional.Minimal.
 	import in: AllExRel (∈) (∀∈) (∃∈).
 begin
 
 end
 
 theory Intuitionistic:
-	import .Minimal.
-	import Intuitionistic.
+	import Propositional.Intuitionistic.
+	import _.Minimal.
 begin
 end
 
 theory Classical:
-	import .Intuitionistic.
-	import Classical.
+	import Propositional.Classical.
+	import _.Intuitionistic.
 begin
 end

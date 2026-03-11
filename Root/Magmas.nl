@@ -137,9 +137,7 @@ context Reflexive begin
 
 	interpret Magmas (≤).
 
-	theory Compatible:
-		import Compatible.
-	begin
+	extend Compatible begin
 		interpret Monotone A (≤) (*);
 			- if 1: y ≤ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ≤ x * y';
 				apply comp[OF refl[OF x] 1].

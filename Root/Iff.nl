@@ -106,7 +106,28 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ---
 ## Deriving Restricted Quantifiers via `(⟺)`
 ---
-theory AllRel:
+extend AllRel begin
+
+	lemma all_def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]);
+		apply iff_intro;
+		- by #elim all_elim.
+		by all_intro.
+
+	lemma all_cong_strong:
+		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
+		then (∀x < a. P.[x]) ⟺ (∀x < a'. P'.[x]);
+		unfold+ all_def a P.
+
+	lemma all_cong_weak:
+		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∀x < a. P.[x]) ⟺ (∀x < a. P'.[x]);
+		unfold+ all_def P.
+
+	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
+		by iff_intro #simp all_def.
+
+end
+
+theory AllRelViaIff:
 	fix (<) (∀<).
 	assume all_def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]).
 begin
@@ -116,20 +137,9 @@ begin
 		- for x if allIn: ∀y < a. P.[y], x: x < a then P.[x];
 			by allIn[unfold all_def, OF x].
 		.
-	lemma all_cong_strong:
-		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
-		then (∀x < a. P.[x]) ⟺ (∀x < a'. P'.[x]);
-		unfold+ all_def a P.
-	lemma all_cong_weak:
-		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∀x < a. P.[x]) ⟺ (∀x < a. P'.[x]);
-		unfold+ all_def P.
-	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
-		by iff_intro #simp all_def.
 end
 
-theory Membership:
-	import Membership.
-begin
+extend Membership begin
 	theory AllIn:
 		import in: ..AllRel (∈) (∀∈).
 	begin

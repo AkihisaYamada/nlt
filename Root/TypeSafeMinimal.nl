@@ -309,9 +309,7 @@ theory Membership:
 	import Iff.Membership.
 begin
 
-	theory AllIn:
-		import AllIn.
-	begin
+	extend AllIn begin
 		interpret in: _.AllRel (∈) (∀∈).
 		note(intro) in.all_intro.
 		note(elim) in.all_elim.
@@ -321,16 +319,13 @@ begin
 			import in: in.ExRel (∃∈).
 		end
 	end
-	theory CollectRel:
-		import CollectRel.
-	begin
+
+	extend CollectRel begin
 		lemma Collect_iff: x ∈ {x < a. P.[x]} ⟺ x < a ∧ P.[x];
 			by iff_intro Collect_intro #elim Collect_elim.
 	end
 
-	theory CollectIn:
-		import CollectIn.
-	begin
+	extend CollectIn begin
 		interpret in: .CollectRel (∈) _CollectIn.
 	end
 

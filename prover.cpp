@@ -586,6 +586,21 @@ public:
 			cout << prefix << ": ";
 		}
 	}
+	void _auto_import( string const& prefix, Import& intp, bool change, bool unprefixed ){
+		for(;;) {
+			if( auto const& fix = intp.fixing() ) {
+				_auto_instantiate(intp,*fix,change);
+			} else if( auto const& assume = intp.assuming() ) {
+				auto infer = _thy.resolver(_out_resolver);
+				_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
+			} else if( auto const& obtain = intp.obtaining() ) {
+				auto infer = _thy.resolver(_out_resolver);
+				_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
+			} else {
+				break;
+			}
+		}
+	}
 	void import( bool change ) {
 		string prefix;
 		string name;
@@ -639,19 +654,7 @@ public:
 			_depth--;
 		} else {
 			skip(".");
-			for(;;) {
-				if( auto const& fix = intp.fixing() ) {
-					_auto_instantiate(intp,*fix,change);
-				} else if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(_thy,prefix,intp,*assume,change,infer,unprefixed);
-				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.resolver(_out_resolver);
-					_auto_retain(_thy,prefix,intp,*obtain,infer,unprefixed);
-				} else {
-					break;
-				}
-			}
+			_auto_import(prefix,intp,change,unprefixed);
 			if( _no_syntax ) {
 				_no_syntax = false;
 				_thy.modify_syntax() = src.syntax();
@@ -1126,12 +1129,12 @@ public:
 		auto [def_name,def_thm] = org_thy.define(eq,name_op);
 		if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
 	}
-	void local_thy( Thy& loc, bool finalized ) {
+	void local_thy( Thy& loc, bool finalized, function<void()> const& op ) {
 		_depth++;
 		if MSG cout << _indent();
 		swap(_thy,loc);
 		swap(_final,finalized);
-		loop();
+		op();
 		swap(_thy,loc);
 		swap(_final,finalized);
 		_depth--;
@@ -1314,15 +1317,29 @@ public:
 			while( auto sym = gets_sym() ) {
 				loc.fix(*sym);
 			}
-			if( skips(":") ) {
-				if THY {
-					if( !MSG ) cout << _indent(' ');
-					cout << "creating theory " << name << endl;
-				}
-				local_thy(loc,false);
-				_thy.add_thy(loc);
-				if MSG cout << "created theory " << name << endl;
+			skip(":");
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "creating theory " << name << endl;
 			}
+			local_thy(loc,false,[this]{ loop(); });
+			if MSG cout << "created theory " << name << endl;
+		} else if( skips("extend") ) {
+			string name = get(Lexer::Word);
+			skip("begin");
+			auto org = _thy.find_thy(name,reader());
+			if( !org ) throw Error("\"extended theory not found\"")(name);
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "creating theory " << name << endl;
+			}
+			local_thy(_thy.branch(name,""),true,[&]{
+				auto intp = org->compose(*_thy.parent());
+				_auto_import(name,intp,true,true);
+				_thy.add_import(name,intp,true);
+				_thy.import_rewrite(intp.source(),intp);
+				loop();
+			});
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
 			skip(":");
@@ -1331,8 +1348,7 @@ public:
 				cout << "creating namespace " << name << endl;
 			}
 			auto loc = _thy.scope(name);
-			local_thy(loc,_final);
-			_thy.add_thy(loc);
+			local_thy(loc,_final,[this]{ loop(); });
 			if MSG cout << "created namespace " << name << endl;
 		} else if( skips("context") ) {
 			string name = get();
@@ -1343,7 +1359,7 @@ public:
 				cout << "in context " << name << endl;
 			}
 			loc.reset_rewrite();
-			local_thy(loc,true);
+			local_thy(loc,true,[&]{ loop(); });
 			if MSG cout << "left " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
@@ -1758,12 +1774,15 @@ private:
 };
 
 void run( istream& is, string const& name, bool exit_on_error, char out, string const& cmddir, string const& locdir ) {
-	auto root = Thy("Root",cmddir+"/Root");// the empty root theory, linked to the "Root" directory
+	auto rootdir = cmddir+"/Root";
+	auto root = Thy("Root",rootdir);// the empty root theory, linked to the "Root" directory
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
-	Thy dir = root.branch("_dir",locdir);
-	Thy thy = dir.branch(name,"");
+	Thy thy = locdir == rootdir ? root.branch(name,"") : [&]{
+		Thy dir = root.branch("_dir",locdir);
+		return dir.branch(name,"");
+	}();
 	root.add_import("Root",root.self(),false);// root
 	thy.add_import("_",thy.self(),false);// file root
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);

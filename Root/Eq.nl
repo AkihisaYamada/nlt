@@ -152,9 +152,7 @@ begin
 		simp p.
 end
 
-theory Membership:
-	import Membership.
-begin
+extend Membership begin
 
 	interpret Magmas.
 
@@ -208,9 +206,7 @@ begin
 
 end
 
-theory TypeSafeMinimal:
-	import TypeSafeMinimal.
-begin
+extend TypeSafeMinimal begin
 
 	lemma eq_refl_iff(simp) x = x ⟺ true;
 		by iff_intro.
@@ -260,9 +256,7 @@ begin
 
 	end
 
-	theory AllRel:
-		import AllRel.
-	begin
+	extend AllRel begin
 		lemma all_cong:
 			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);
@@ -281,9 +275,7 @@ begin
 			unfold 1;
 			unfold all_eq_imp_iff.
 
-		theory ExRel:
-			import ExRel.
-		begin
+		extend ExRel begin
 			theory Ex1Rel:
 				import Ex1.
 				fix (∃!<).
@@ -294,9 +286,7 @@ begin
 
 	end
 
-	theory Pair:
-		import Pair.
-	begin
+	extend Pair begin
 		lemma pair_eq_pair(simp) (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
 			- if eq;

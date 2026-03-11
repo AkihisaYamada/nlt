@@ -37,17 +37,15 @@ void Thy::add_thy( Thy const& thy ) & {
 Thy Thy::branch() const& {
 	return _branch("","",false,Ctxt::fork());
 }
-Thy Thy::branch( string_view const& name, string_view const& dir ) & {
-	return _branch(name,dir,false,Ctxt::fork());
+Thy& Thy::branch( string_view const& name, string_view const& dir ) & {
+	return _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork())).first->second;
 }
 Thy Thy::scope_temp( string_view const& name ) const & {
 	return _branch(name,"",true,Ctxt::self());
 }
-Thy Thy::scope( string_view const& name ) & {
+Thy& Thy::scope( string_view const& name ) & {
 	auto const& intp = Ctxt::self();
-	auto const& loc = _branch(name,"",true,intp);
-	add_import(name,Import(intp,loc),false);
-	return loc;
+	return add_import(name,Import(intp,_branch(name,"",true,intp)),false).source();
 }
 
 string const& Thy::name() const & {

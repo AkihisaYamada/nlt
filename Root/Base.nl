@@ -37,11 +37,11 @@ binder Π 51 0.
 infix ∈ 51 51 50.
 syntax ∀ _ ∈ _. _ := ∀∈.
 syntax ∃ _ ∈ _. _ := ∃∈.
-syntax λ _ ∈ _. _ := λ.∈.
+syntax λ _ ∈ _. _ := λ∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
 syntax THE _ ∈ _. _ := _TheIn.
 syntax SOME _ ∈ _. _ := _SomeIn.
-syntax Π _ ∈ _. _ := Π.∈.
+syntax Π _ ∈ _. _ := Π∈.
 
 infix ⊆ 51 51 50.
 syntax ∀ _ ⊆ _. _ := ∀⊆.
@@ -234,9 +234,7 @@ context MetaPartialEquivalence begin
 		import MetaCommutative.
 	end
 
-	theory MetaLeftNeutral:
-		import MetaLeftNeutral.
-	begin
+	extend MetaLeftNeutral begin
 		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
 			have 1: e ~ 1 * e;
 				apply sym;
@@ -245,9 +243,7 @@ context MetaPartialEquivalence begin
 			by all.
 	end
 
-	theory MetaRightNeutral:
-		import MetaRightNeutral.
-	begin
+	extend MetaRightNeutral	begin
 		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
 			have 1: e ~ e * 1;
 				apply sym;
@@ -256,9 +252,7 @@ context MetaPartialEquivalence begin
 			by all.
 	end
 
-	theory MetaNeutral:
-		import MetaNeutral.
-	begin
+	extend MetaNeutral begin
 		interpret MetaLeftNeutral.
 		interpret MetaRightNeutral.
 	end
@@ -283,9 +277,7 @@ context MetaPartialEquivalence begin
 		interpret MetaMonoid.
 	end
 
-	theory MetaLeftAbsorb:
-		import MetaLeftAbsorb.
-	begin
+	extend MetaLeftAbsorb begin
 		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
 			have 1: e ~ 0 * e;
 				apply sym;
@@ -294,9 +286,7 @@ context MetaPartialEquivalence begin
 			by left_absorb.
 	end
 
-	theory MetaRightAbsorb:
-		import MetaRightAbsorb.
-	begin
+	extend MetaRightAbsorb begin
 		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
 			have 1: e ~ e * 0;
 				apply sym;
@@ -305,9 +295,7 @@ context MetaPartialEquivalence begin
 			by right_absorb.
 	end
 
-	theory MetaAbsorb:
-		import MetaAbsorb.
-	begin
+	extend MetaAbsorb begin
 		interpret MetaLeftAbsorb.
 		interpret MetaRightAbsorb.
 	end
