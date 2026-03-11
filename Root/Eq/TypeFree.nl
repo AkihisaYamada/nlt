@@ -196,10 +196,10 @@ begin
 					theory UniqueChoice:
 						import Pair.
 						assume unique_choice: for A P
-							if ∀x. ∃!y ∈ A. P.[x,y] then ∃f. ∀x. f x ∈ A ∧ P.[x, f x].
+							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
 					begin
 						interpret Abbrev;
-							- for A if F: ∀x. F.[x] ∈ A, assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note(cong) eq_cong_meta[of F].
 								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
@@ -212,14 +212,9 @@ begin
 					end
 					theory UniqueChoiceCond:
 						import Pair.
-						assume unique_choice_cond: for P Q A
-							if ∀x. P.[x] ⟹ ∃!y ∈ A. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A ∧ Q.[x, f x].
+						assume unique_choice_cond: for A P Q
+							if ∀x. P.[x] ⟹ ∃!y ∈ A.[x]. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A.[x] ∧ Q.[x, f x].
 					begin
-						lemma unique_choice: for P A B
-							if ex1: ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f. ∀x ∈ A. f x ∈ B ∧ P.[x, f x];
-							unfold in.all_def;
-							apply unique_choice_cond;
-							by ex1[rule].
 					end
 
 					theory TheIn:
@@ -234,8 +229,8 @@ begin
 								import Pair.
 							begin
 								interpret UniqueChoiceCond;
-									- for P Q A if P_imp_ex1;
-										apply ex_intro1[of (λx. THE y ∈ A. Q.[x,y])];
+									- for A P Q if P_imp_ex1;
+										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];
 										- if Px: P.[x];
 											note ex1: P_imp_ex1[OF Px].
 											note! in.THE_intro0[OF ex1] in.THE_intro1[OF ex1].

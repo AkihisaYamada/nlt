@@ -12,9 +12,11 @@
 extern const Error SyntaxError;
 
 // returns the size of the character
-int char_size( char start );
+unsigned char char_size( char start );
 
-int int_of_chars( char const* start );
+unsigned int uint_of_chars( char const* start );
+
+std::string to_hex( unsigned int i );
 
 /**
  * @brief Lexical grammar
@@ -22,6 +24,7 @@ int int_of_chars( char const* start );
 class Lex {
 public:
 	enum CharType {
+		None = 0,
 		Letter = 1 << 0,
 		Digit = 1 << 1,
 		Blank = 1 << 2,// space or nothing
@@ -33,21 +36,24 @@ public:
 		DotBlank = 1 << 8,// special treatment of dot followed by blank
 	};
 private:
-	std::map<int,CharType> _char_map;
+	struct _CharRange {
+		int lower;// 
+		CharType type;
+	};
+	Map<int,_CharRange> _char_ranges;// key is the upper bound
 public:
 	Lex();
-	Lex( Lex const& other ) : _char_map(other._char_map) {}
-	void register_single_op( int c ) {
-		_char_map.emplace(c,SingleOp);
-	}
-	void register_multi_op( int c ) {
-		_char_map.emplace(c,MultiOp);
+	Lex( Lex const& other ) : _char_ranges(other._char_ranges) {}
+	void register_range( int lower, int upper, CharType type );
+	void register_char( int c, CharType type ) {
+		register_range(c,c,type);
 	}
 	CharType char_type( int c ) const {
-		if( auto it = _char_map.find(c); it != _char_map.end() ) {
-			return it->second;
+		auto u = _char_ranges.finds_bound(c);
+		if( !u || c < u->second.lower ) {
+			return None;// not covered
 		}
-		return Letter;
+		return u->second.type;
 	}
 	friend CharType operator|( CharType a, CharType b ) {
 		return (CharType)((int)a|(int)b);
@@ -76,7 +82,7 @@ public:
 	/** reset peeked token */
 	virtual void reset() = 0;
 	/** peeked token type */
-	virtual TokenType peeked_token_type() = 0;
+	virtual TokenType peeked_token_type() const = 0;
 	/** peeks (not process) the next token */
 	virtual std::string_view peek_token() = 0;
 	Opt<std::string> gets( TokenType t ) {
@@ -177,7 +183,7 @@ private:
 	// read pointer
 	size_t rp = 0;
 	// writes one character into the buffer
-	int fetch_char();
+	unsigned int fetch_char();
 	void fetch_continue( Lex::CharType t );
 public:
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
@@ -187,7 +193,7 @@ public:
 	void reset() {
 		token_type = Unset;
 	}
-	TokenType peeked_token_type() {
+	TokenType peeked_token_type() const {
 		return token_type;
 	}
 	/** references the istream */

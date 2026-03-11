@@ -130,7 +130,6 @@ end
 theory Membership:
 	import Membership.
 begin
-print.
 	theory AllIn:
 		import in: ..AllRel (∈) (∀∈).
 	begin

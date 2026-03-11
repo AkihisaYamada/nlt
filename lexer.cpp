@@ -8,7 +8,7 @@ using namespace std;
 
 const Error SyntaxError = Error("#syntax_error");
 
-int char_size( char start ) {
+unsigned char char_size( char start ) {
 	if( (start & 0x80) == 0x00 ) {
 		return 1;
 	}
@@ -24,41 +24,65 @@ int char_size( char start ) {
 	assert(false);
 }
 
-int int_of_chars( char const* start, int size ) {
-	int ret = 0;
-	memcpy(&ret,start,size);
+unsigned int uint_of_chars( unsigned char const* start, unsigned char size ) {
+	unsigned int ret = 0;
+	for( size_t i = 0; i < size; i++ ) {
+		ret = (ret << 8) | (unsigned char)start[i];
+	}
 	return ret;
 }
-int int_of_chars( char const* start ) {
-	return int_of_chars( start, char_size(start[0]) );
+unsigned int uint_of_chars( char const* start ) {
+	return uint_of_chars( (unsigned char*)start, char_size(start[0]) );
+}
+string to_hex( unsigned int i ) {
+	static char const* H = "0123456789abcdef";
+	if( i == 0 ) return "0";
+	size_t l = sizeof(int)*8 - 4;
+	unsigned char d;
+	for(;;) {
+		d = i>>l;
+		if( d != 0 ) break;
+		l -= 4;
+	}
+	string ret = {H[d]};
+	while( l != 0 ) {
+		i ^= d<<l;
+		l -= 4;
+		d = i>>l;
+		ret.push_back(H[d]);
+	};
+	return ret;
 }
 Lex::Lex() :
-	_char_map({
-		{std::char_traits<char>::eof(),Control},
-		{'.',Dot},
-		{'0',Digit},
-		{'1',Digit},
-		{'2',Digit},
-		{'3',Digit},
-		{'4',Digit},
-		{'5',Digit},
-		{'6',Digit},
-		{'7',Digit},
-		{'8',Digit},
-		{'9',Digit},
-		{' ',Blank},
-		{'\t',Blank},
-		{'\n',Blank},
-		{'\r',Blank},
-		{'(',SingleOp},
-		{')',SingleOp},
-		{'[',SingleOp},
-		{']',SingleOp},
-		{'{',SingleOp},
-		{'}',SingleOp},
+	_char_ranges({
+		{std::char_traits<char>::eof(),{std::char_traits<char>::eof(),Control}},
+		{'.',{'.',Dot}},
+		{'9',{'0',Digit}},
+		{' ',{' ',Blank}},
+		{'\t',{'\t',Blank}},
+		{'\n',{'\n',Blank}},
+		{'\r',{'\r',Blank}},
+		{')',{'(',SingleOp}},
+		{'[',{'[',SingleOp}},
+		{']',{']',SingleOp}},
+		{'{',{'{',SingleOp}},
+		{'}',{'}',SingleOp}},
+		{'Z',{'A',Letter}},
+		{'z',{'a',Letter}},
 	}) {}
 
-int Lexer::fetch_char() {
+void Lex::register_range( int lower, int upper, CharType type ) {
+	if( upper < lower ) throw Error("\"negative range\"")(to_hex(lower))(to_hex(upper));
+	if( auto l = _char_ranges.finds_bound(lower) ) {
+		if( l->first <= lower || l->second.lower <= upper ) throw Error("\"char range overlapping with lower\"");
+		if( auto u = _char_ranges.finds_bound(upper) ) {
+			if( u->first <= upper ) throw Error("\"char range overlapping with upper\"");
+		}
+	}
+	_char_ranges.emplace(upper,_CharRange{lower,type});
+}
+
+unsigned int Lexer::fetch_char() {
 	if( wp >= sizeof buf - 4 ) {
 		memcpy( buf+20, "...", 4 );
 		throw SyntaxError("\"Too long token\"")(string("\"")+buf+"\"");
@@ -129,7 +153,7 @@ int Lexer::fetch_char() {
 	case 2:
 		buf[wp] = pis->get();
 		wp++;
-		ch = int_of_chars(start,len);
+		ch = uint_of_chars((unsigned char*)start,len);
 		break;
 	}
 	peeked_column += len;
@@ -221,10 +245,6 @@ string_view Lexer::peek_token() {
 		token_type = Operator;
 		fetched_char_type = Lex::Blank;
 		break;
-	case Lex::Control:
-		token_type = Special;
-		fetched_char_type = Lex::Blank;
-		break;
 	case Lex::MultiOp:
 		fetch_continue( Lex::MultiOp );
 		_fetch_follower();
@@ -234,6 +254,10 @@ string_view Lexer::peek_token() {
 		fetch_continue( Lex::Letter | Lex::Digit );
 		_fetch_follower();
 		token_type = Word;
+		break;
+	default:
+		token_type = Special;
+		fetched_char_type = Lex::Blank;
 		break;
 	}
 	peeked_token = string_view(buf,rp);

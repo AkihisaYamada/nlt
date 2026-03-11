@@ -9,7 +9,7 @@ class Map : std::map<K,T,std::less<>> {
 	using M = std::map<K,T,std::less<>>;
 public:
 	using typename M::value_type, M::iterator, M::const_iterator;
-	using M::map, M::find, M::insert, M::begin, M::end, M::size, M::empty, M::insert_or_assign;
+	using M::map, M::find, M::insert, M::begin, M::end, M::size, M::empty, M::insert_or_assign, M::lower_bound, M::upper_bound;
 	/**
 	 * @brief emplaces a key-value pair.
 	 * @return the pair of the iterator to the key-value pair and bool if insertion took place
@@ -39,6 +39,14 @@ public:
 	}
 	Opt<std::pair<K const,T> const&> finds( K const& k ) const & {
 		return finds<K>(k);
+	}
+	template<typename L>
+	Opt<std::pair<K const,T> const&> finds_bound( L const& k ) const & {
+		auto it = M::lower_bound(k);
+		if( it == end() ) {
+			return {};
+		}
+		return *it;
 	}
 	template<typename L>
 	void erase( L const& k ) {

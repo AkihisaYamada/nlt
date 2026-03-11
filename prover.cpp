@@ -78,21 +78,22 @@ pair<fstream,string> file_of_thy( string_view const& dir, string_view const& nam
 }
 
 void init_lex( Lex& lex ) {
-	lex.register_multi_op(int_of_chars("∀"));
-	lex.register_multi_op(int_of_chars("⟹"));
-	lex.register_single_op(',');
-	lex.register_single_op(';');
-	lex.register_multi_op(':');
-	lex.register_multi_op('<');
-	lex.register_multi_op('=');
-	lex.register_multi_op('>');
-	lex.register_multi_op('!');
-	lex.register_multi_op('?');
-	lex.register_multi_op('*');
-	lex.register_multi_op('+');
-	lex.register_multi_op('-');
-	lex.register_multi_op('#');
-	lex.register_multi_op('^');
+	lex.register_char('!',Lex::MultiOp);
+	lex.register_range('#','&',Lex::MultiOp);
+	lex.register_char('\'',Lex::Letter);
+	lex.register_range('*','+',Lex::MultiOp);
+	lex.register_char(',',Lex::SingleOp);
+	lex.register_char('-',Lex::MultiOp);
+	lex.register_char('/',Lex::MultiOp);
+	lex.register_char(':',Lex::MultiOp);
+	lex.register_char(';',Lex::SingleOp);
+	lex.register_range('<','@',Lex::MultiOp);
+	lex.register_char('\\',Lex::MultiOp);
+	lex.register_char('^',Lex::MultiOp);
+	lex.register_char('_',Lex::Letter);
+	lex.register_char('`',Lex::MultiOp);
+	lex.register_char('|',Lex::MultiOp);
+	lex.register_char('~',Lex::MultiOp);
 }
 void init_syntax( Syntax& syntax ) {
 	syntax.infix(":",50,51,50,{});
@@ -1533,22 +1534,29 @@ public:
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
 					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
+				} else if( int mode = skips("letter") ? 1 : skips("symbol") ? 2 : skips("solo") ? 3 : 0 ) {
+					auto [msg,type] =
+						mode == 1 ? pair{"letters", Lex::Letter} :
+						mode == 2 ? pair{"symbols", Lex::MultiOp} : pair{"solo symbols", Lex::SingleOp};
+					if MSG cout << "registering " << msg << ": ";
+					for(;;) {
+						string const& lsym = get(Special);
+						unsigned int l = uint_of_chars(lsym.data());
+						if( skips("-") ) {
+							string const& rsym = get(Special);
+							unsigned int r = uint_of_chars(rsym.data());
+							if MSG cout << lsym  << '-' << rsym << '(' << to_hex(l) << '-' << to_hex(r) << ')';
+							lex.register_range(l,r,type);
+						} else {
+							if MSG cout << lsym;
+							lex.register_char(l,type);
+						}
+						if( !skips(",") ) break;
+						if MSG cout << ", ";
+					};
+					if MSG cout << endl;
 				}
 				skip(".");
-			} else if( skips("symbol") ) {
-				bool solo = skips("solo");
-				if MSG cout << "registering symbols";
-				while( !skips(".") ) {
-					string const& sym = get();
-					int ch = int_of_chars(sym.data());
-					if( solo ) {
-						lex.register_single_op(ch);
-					} else {
-						lex.register_multi_op(ch);
-					}
-					if MSG cout << ' ' << sym;
-				}
-				if MSG cout << endl;
 			} else if( skips("prefix") ) {
 				string sym = get();
 				int rlevel = get_int();
@@ -1608,7 +1616,14 @@ public:
 								auto actual = get_sym();
 								auto cons = _gets_cons();
 								_thy.modify_syntax().bcompr(opener,next,closer,actual,cons);
-								if MSG cout << "bounded comprehension: " << opener << "x " << next << "y. z" << closer << " := " << _thy.pretty(actual) << " y (x. z)" << endl;
+								if MSG {
+									cout << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
+									if( cons ) {
+										cout << "(y " << *cons << " (x. z))" << endl;
+									} else {
+										cout << " y (x. z)" << endl;
+									}
+								}
 							}
 						} else {// {_}
 							skip(":=");

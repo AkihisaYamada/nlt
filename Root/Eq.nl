@@ -84,15 +84,22 @@ theory MetaInjective:
 end
 
 theory MetaInverse:
-	fix f f⁻.
-	assume inverse: f⁻ (f x) = x.
+	fix f g.
+	assume inverse: g (f x) = x.
 begin
 	interpret MetaInjective;
 		- for x x' if eq: f x = f x';
-			have 1: f⁻ (f x) = f⁻ (f x');
+			have 1: g (f x) = g (f x');
 				unfold eq.
 			by 1[unfold inverse].
 		.
+end
+
+theory Id:
+	fix id.
+	assume id(simp) id x = x.
+begin
+	
 end
 
 theory If:
@@ -179,23 +186,24 @@ begin
 
 	theory Abbrev:-- Restricted Unary Abbreviation
 		assume abbrev: for A F
-			if ∀x. F.[x] ∈ A, ∀f. (∀x. f x = F.[x]) ⟹ P then P.
+			if ∀x. F.[x] ∈ A.[x], ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 	end
 
 	theory TypedLambda:
 		fix (λ∈).
 		assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].
 	begin
+		theory DependentType:
+			fix (Π∈).
+			assume Pi_elim: if f ∈ Πx ∈ A. B.[x], x ∈ A then f x ∈ B.[x].
+			assume lambda_Pi: if ∀x. x ∈ A ⟹ F.[x] ∈ B.[x] then (λx ∈ A. F.[x]) ∈ Πx ∈ A. B.[x].
+		end
 	end
 
 	theory Lambda:-- Dynamically typed
 		fix (λ).
-		assume fun_app: for A if F.[x] ∈ A then (λy. F.[y]) x = F.[x].
+		assume fun_app: for A if F.[x] ∈ A.[x] then (λy. F.[y]) x = F.[x].
 	begin
-		theory Fun:
-			import Fun.
-			assume lambda_type: if ∀x. x ∈ A ⟹ F.[x] ∈ B then (λx. F.[x]) ∈ A → B.
-		end
 	end
 
 end

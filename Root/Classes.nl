@@ -15,8 +15,6 @@ import Membership.
 import AllIn.
 import ExIn.
 import Ex1In.
-import Pair.
-import UniqueChoice.
 
 fix Pow.
 assume comprehension_schema: ∀A P. ∃X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x].
@@ -30,19 +28,26 @@ lemma comprehension_ex1: for A P then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A
 		- by Xty.
 		- for Y if Yty!, Y;
 			apply Pow_eq_intro[of A];
-			simp X Y;
-			.
+			simp X Y.
 		.
 	.
 
+import Abbrev.
+import TheIn.
+import Pair.
+
 syntax {_ ∈ _. _} := CollectIn(,).
-obtain CollectIn where
+obtain CollectIn where CollectIn_def: {x ∈ A. P.[x]} = (THE X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]);
+	- for thesis if assm;
+		apply abbrev[for _, of ((A,P). Pow A) (p. THE X. ∀A P. p = (A,P) ⟹ X ∈ Pow A ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]))];
+
+lemma
 	CollectIn_Class! {x ∈ A. P.[x]} ∈ Pow A,
 	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;
-		apply unique_choice[of Class (t. ∃A P B. t = ((A,P),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
-		- for P;
-			apply imp_commute[OF in.ex1_cong[of Class, OF eq.refl, THEN iff_elim1], OF comprehension_ex1, of P];
+		apply unique_choice[of ((A,P). Pow A) (t. ∃A P B. t = ((A,P),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
+		- for A;
+			apply imp_commute[OF in.ex1_cong[of (Pow A), OF eq.refl, THEN iff_elim1], OF comprehension_ex1, of (_. A A)];
 			- for A if Aty!;
 				apply iff_intro;
 				- if Aiff;

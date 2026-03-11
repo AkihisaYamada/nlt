@@ -7,11 +7,21 @@ begin -- Base doesn't have any axiom
 ---
 ## Notations
 ---
+
+set symbol
+	Γ-Δ, Θ, Λ, Ξ, Π, Σ, Φ, Ψ-Ω, α-ξ, π-ω,-- Greek
+	ℂ, ℋ, ℍ, ℐ-ℓ, ℕ, ℘-ℝ, ℤ, ℬ-ℭ, ℰ-ℱ, ℵ-ℸ, ℼ-⅀, ⅅ-ⅉ, -- Letterlike Symbols
+	𝒜, 𝒞-𝒟, 𝒢, 𝒥-𝒦, 𝒩-𝒬, 𝒮-𝒵, 𝔸-𝔹, 𝔻-𝔾, 𝕀-𝕄, 𝕆, 𝕊-𝕐,𝕒-𝕫, 𝟘-𝟡, -- Mathematical Alphanumeric Symbols
+	∀-⋿, -- Mathematical Operators
+	⟀-⟯, -- Miscellaneous Mathematical Symbols-A
+	←-⇿, -- Arrows
+	⟰-⟿, -- Supplemental Arrows-A
+	⨀-⫿. -- Supplemental Mathematical Operators
+
+set solo ¬.
+
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
-
-symbol λ ∧ ∨ ∃ ≠ ≈ ≤ ≥ ∈ ∋ ⊆ ⊇ ⊂ ⊃ ∩ ∪ → × ⋅ ∘ • ⋂ ⋃ ⋀ ⋁ ⟶ ⟷ ⊑ ⊒ ⊏ ⊐.
-symbol solo ¬.
 
 infix ⟺ 1 1 0.
 infix ∨ 10 11 10.
@@ -22,14 +32,16 @@ binder ∃! 0 0.
 binder λ 0 0.
 binder THE 0 0.
 binder SOME 0 0.
+binder Π 51 0.
 
 infix ∈ 51 51 50.
 syntax ∀ _ ∈ _. _ := ∀∈.
 syntax ∃ _ ∈ _. _ := ∃∈.
-syntax λ _ ∈ _. _ := λ∈.
+syntax λ _ ∈ _. _ := λ.∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
 syntax THE _ ∈ _. _ := _TheIn.
 syntax SOME _ ∈ _. _ := _SomeIn.
+syntax Π _ ∈ _. _ := Π.∈.
 
 infix ⊆ 51 51 50.
 syntax ∀ _ ⊆ _. _ := ∀⊆.
