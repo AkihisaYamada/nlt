@@ -17,6 +17,9 @@ begin
 		- if Pa: P.[a];
 			by ex_intro1[of a] Pa.
 		.
+	lemma ex_eq_and_iff2: (∃x. a = x ∧ P.[x]) ⟺ P.[a];
+		unfold iff_eq.commute;
+		by ex_eq_and_iff.
 
 	extend Ex1 begin
 		lemma ex1_cong(cong)
@@ -206,11 +209,19 @@ begin
 								.
 							.
 					end
+
 					theory UniqueChoiceCond:
 						import Pair.
-						assume unique_choice_cond: for A P Q
+						assume unique_choice_cond: for P A Q
 							if ∀x. P.[x] ⟹ ∃!y ∈ A.[x]. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A.[x] ∧ Q.[x, f x].
 					begin
+						interpret UniqueChoice;
+							- for A P if ex1;
+								apply unique_choice_cond[of (x. true) (x. A.[x]) P, simp, OF ex1, THEN ex_elim];
+								- for f if f;
+									by ex_intro1[of f] f.
+								.
+							.
 					end
 
 					theory TheIn:
@@ -221,7 +232,7 @@ begin
 						extend Lambda begin
 							extend Pair begin
 								interpret UniqueChoiceCond;
-									- for A P Q if P_imp_ex1;
+									- for P A Q if P_imp_ex1;
 										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];
 										- if Px: P.[x];
 											note ex1: P_imp_ex1[OF Px].

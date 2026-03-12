@@ -41,15 +41,12 @@ begin
 		.
 	note(cong) or.cong.
 
-	interpret or: iff.MetaCommAbsorb (∨) true;
-		by iff_intro[OF or.sym or.sym].
-
 	interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
 		by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
 
 	interpret or: iff.MetaIdempotent (∨);
 		- then P ∨ P ⟺ P;
-			by iff_intro or_elim(elim).
+			by iff_intro #elim or_elim.
 		.
 
 	lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
@@ -110,7 +107,7 @@ begin
 
 	lemma ex_imp_iff_all(simp) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		apply iff_intro;
-		- if imp: (∃x. P.[x]) ⟹ Q for x if Px: P.[x];
+		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
 			by imp ex_intro1[OF Px].
 		- if imp: ∀x. P.[x] ⟹ Q;
 			by #elim imp ex_elim.
@@ -170,10 +167,6 @@ begin
 			end
 		end
 
-	end
-
-	theory Choice:
-		assume choice: (∀x. ∃y. P x y) ⟹ ∃f. ∀x. P x (f x).
 	end
 
 	theory ChoiceOperator:

@@ -74,7 +74,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					if( auto const& bind = pair->second.bind() ) {
 						return os << op->opener << pretty_sym(bind->first) << ' '
 							<< op->mid << ' ' << pretty(pair->first,0) << ". "
-							<< pretty(bind->second);
+							<< pretty(bind->second) << op->closer;
 					}
 				} else if( auto const& op = sum.ref<Singleton>() ) {// {_}
 					return os << op->opener << pretty(arg,0) << op->closer;

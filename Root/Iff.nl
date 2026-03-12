@@ -125,6 +125,9 @@ extend AllRel begin
 	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
 		by iff_intro #simp all_def.
 
+	lemma all_imp: ((∀x < a. P.[x]) ⟹ Q) ⟺ ((∀x. x < a ⟹ P.[x]) ⟹ Q);
+		simp all_def.
+
 end
 
 theory AllRelViaIff:
@@ -140,9 +143,7 @@ begin
 end
 
 extend Membership begin
-	theory AllIn:
-		import in: ..AllRel (∈) (∀∈).
-	begin
-		interpret Membership.AllIn.
+	extend AllIn begin
+		interpret in: ..AllRel (∈) (∀∈).
 	end
 end

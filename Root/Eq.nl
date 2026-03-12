@@ -187,6 +187,22 @@ extend Membership begin
 			if ∀x. F.[x] ∈ A.[x], ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 	end
 
+	theory AbbrevCond:
+		assume abbrev_cond: for P A F
+			if ∀x. P.[x] ⟹ F.[x] ∈ A.[x], ∀f. (∀x. P.[x] ⟹ f x = F.[x]) ⟹ Q then Q.
+	begin
+		interpret Abbrev;
+			- for A F if ty for P if assm;
+				apply abbrev_cond[of (x. ∀y. y ⟹ y) A F];
+				- for f if f;
+					by ty.
+				- for f if f;
+					apply assm[of f];
+					by f.
+				.
+			.
+	end
+
 	theory TypedLambda:
 		fix (λ∈).
 		assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].

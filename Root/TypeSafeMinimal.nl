@@ -262,11 +262,7 @@ begin
 		.
 end
 
-theory AllRel:
-	import Iff.AllRel.
-begin
-	lemma all_imp: ((∀x < a. P.[x]) ⟹ Q) ⟺ ((∀x. x < a ⟹ P.[x]) ⟹ Q);
-		simp all_def.
+extend AllRel begin
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
 	lemma not_imp_not_all: if nP: ¬P.[x], x: x < a then ¬(∀y < a. P.[y]);
@@ -305,9 +301,7 @@ begin
 	end
 end
 
-theory Membership:
-	import Iff.Membership.
-begin
+extend Membership begin
 
 	extend AllIn begin
 		interpret in: _.AllRel (∈) (∀∈).

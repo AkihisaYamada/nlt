@@ -32,42 +32,41 @@ lemma comprehension_ex1: for A P then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A
 		.
 	.
 
-import Abbrev.
-import TheIn.
-import Pair.
+import UniqueChoiceCond.
 
 syntax {_ ∈ _. _} := CollectIn(,).
-obtain CollectIn where CollectIn_def: {x ∈ A. P.[x]} = (THE X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]);
-	- for thesis if assm;
-		apply abbrev[for _, of ((A,P). Pow A) (p. THE X. ∀A P. p = (A,P) ⟹ X ∈ Pow A ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]))];
-
-lemma
+obtain CollectIn where
 	CollectIn_Class! {x ∈ A. P.[x]} ∈ Pow A,
 	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;
-		apply unique_choice[of ((A,P). Pow A) (t. ∃A P B. t = ((A,P),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
-		- for A;
-			apply imp_commute[OF in.ex1_cong[of (Pow A), OF eq.refl, THEN iff_elim1], OF comprehension_ex1, of (_. A A)];
-			- for A if Aty!;
+		apply unique_choice_cond[of
+			(p. ∃A P. p = (A, x. P.[x]))
+			((A,P). Pow A)
+			(t. ∃A P B. t = ((A, x. P.[x]),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
+		simp;
+		- for p A P if p;
+			apply in.ex1_cong[OF eq.refl, THEN imp_commute[OF iff_elim1][OF comprehension_ex1], of A (x. P.[x])];
+			- for X if Xty!;
 				apply iff_intro;
-				- if Aiff;
-					apply ex_intro1[of P];
+				- if Xiff;
 					apply ex_intro1[of A];
-					simp Aiff.
-				simp;
-				- for P' A' if PP', (simp), (simp);
+					apply ex_intro1[of P];
+					simp Xiff p ex_eq_and_iff2.
+				simp p;
+				- for A' P' X' if (simp), PP', (simp);
 					simp eq_cong_meta[for x, of (P. P.[x]), OF PP'].
 				.
 			.
-		- for _Collect if C;
-			apply assm[of _Collect];
-			- for P;
-				use C[of (x. P.[x])].
-			- for x P;
-				use C[of (x. P.[x])];
+		- for CollectIn if C;
+			note C2: C[OF eq.refl].
+			apply assm[of CollectIn];
+			- for A P;
+				use C2[of A P];.
+			- for x A P;
+				use C2[of A P];
 				simp;
-			 	- if ty for P' C' if P', C', iff;
-					simp iff[fold C' P'] eq_cong_meta[for z, of (P. P.[z]), OF P'].
+			 	- if ty for A' P' C' if A', P', C', iff;
+					simp iff[fold A' C'] eq_cong_meta[for z, of (P. P.[z]), OF P'].
 				.
 			.
 		.
