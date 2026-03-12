@@ -97,7 +97,6 @@ public:
 	 * @return initial import of the theory into this theory.
 	 */
 	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader, bool ancestor = true );
-	void add_thy( Thy const& thy ) &;
 	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;

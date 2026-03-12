@@ -1773,16 +1773,14 @@ private:
 */	}
 };
 
-void run( istream& is, string const& name, bool exit_on_error, char out, string const& cmddir, string const& locdir ) {
+void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path const& locdir ) {
 	auto rootdir = cmddir+"/Root";
 	auto root = Thy("Root",rootdir);// the empty root theory, linked to the "Root" directory
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
-	Thy thy = locdir == rootdir ? root.branch(name,"") : [&]{
-		Thy dir = root.branch("_dir",locdir);
-		return dir.branch(name,"");
-	}();
+	Thy thy = filesystem::equivalent(rootdir,locdir) ?
+		root.branch(name,"") : root.branch("_dir",string(locdir)).branch(name,"");
 	root.add_import("Root",root.self(),false);// root
 	thy.add_import("_",thy.self(),false);// file root
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
@@ -1802,8 +1800,10 @@ int main(int argc, char* argv[]) {
 		run(cin,"#stdin",false,FLAGS_DEFAULT,cmddir,filesystem::current_path());
 	} else {
 		auto file = filesystem::path(argv[1]);
+		auto locdir = file.parent_path();
+		if( locdir.empty() ) locdir = ".";
 		auto fin = fstream(file);
-		run(fin,file.stem(),true,FLAGS_DEFAULT,cmddir,file.parent_path());
+		run(fin,file.stem(),true,FLAGS_DEFAULT,cmddir,locdir);
 	}
 	cout << "bye!" << endl;
 	return 0;

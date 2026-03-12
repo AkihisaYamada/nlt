@@ -31,9 +31,6 @@ Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope
 	}
 	return child;
 }
-void Thy::add_thy( Thy const& thy ) & {
-	_ref->thys.emplace(thy.name(),thy);
-}
 Thy Thy::branch() const& {
 	return _branch("","",false,Ctxt::fork());
 }
@@ -240,7 +237,6 @@ Opt<Import> Thy::_find_thy( string_view const& thyname, function<void(Thy&,istre
 		auto fullpath = filepath + ".nl";
 		if( auto fis = fstream(fullpath) ) {
 			Thy thy = branch(thyname,filepath);
-			add_thy(thy);
 			reader(thy,fis,fullpath);
 			return {Import::make(thy,*this)};
 		}
