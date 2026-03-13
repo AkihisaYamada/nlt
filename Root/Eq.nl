@@ -32,6 +32,9 @@ note(dual) eq.sym.
 lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
 
+lemma unbind_cong: if XY: X = Y then X.[z] = Y.[z];
+	by eq_cong_meta[of (X. X.[z]), OF XY].
+
 lemma eq_imp: if PQ: P = Q, P: P then Q;
 	by eq_elim[of (x. x), OF PQ P].
 
@@ -183,17 +186,17 @@ extend Membership begin
 	end
 
 	theory Abbrev:-- Restricted Unary Abbreviation
-		assume abbrev: for A F
+		assume abbrev:
 			if ∀x. F.[x] ∈ A.[x], ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 	end
 
 	theory AbbrevCond:
-		assume abbrev_cond: for P A F
+		assume abbrev_cond:
 			if ∀x. P.[x] ⟹ F.[x] ∈ A.[x], ∀f. (∀x. P.[x] ⟹ f x = F.[x]) ⟹ Q then Q.
 	begin
 		interpret Abbrev;
-			- for A F if ty for P if assm;
-				apply abbrev_cond[of (x. ∀y. y ⟹ y) A F];
+			- for F A if ty for P if assm;
+				apply abbrev_cond[of (x. ∀y. y ⟹ y) F A];
 				- for f if f;
 					by ty.
 				- for f if f;

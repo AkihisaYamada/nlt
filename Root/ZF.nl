@@ -23,7 +23,7 @@ import Ex1In.
 
 ### Extensionality
 
-Extentionality asserts that sets `A` and `B` are equal if `x ∈ A ⟺ x ∈ B` for any `x`.
+Extensionality asserts that sets `A` and `B` are equal if `x ∈ A ⟺ x ∈ B` for any `x`.
 Strictly speaking, ZF variables range over sets, so this axiom would be formalized to
 `∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A ⟺ x ∈ B) ⟹ A = B`
 but restricting `x` to `Set` here is useless.
@@ -43,7 +43,8 @@ The empty set is specified by an existential axiom (of type `Prop`):
 ---
 assume ex_empty: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 
-obtain _empty where empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
+syntax {} := empty.
+obtain empty where empty_Set! {} ∈ Set, nex_in_empty: ¬(∃x ∈ Set. x ∈ {});
 	- for thesis if assm;
 		apply in.ex_elim[OF ex_empty];
 		- for e;
@@ -79,7 +80,7 @@ given `x` and `y` as arguments, denotes the (unique) such `z`.
 In Naive Logic, the assumption that one can do this must be explicitly formalized.
 We do so by a unique choice axiom schema.
 ---
-import UniqueChoice.
+import UniqueChoiceCond.
 ---
 Standard formulations of ZF "define" pairs using unordered pairs,
 but formalizing the unique choice axiom schema already requires syntactic pairing.
@@ -94,7 +95,7 @@ obtain upair where
 	upair_Set! if x ∈ Set, y ∈ Set then upair(x,y) ∈ Set,
 	upair_iff: if x ∈ Set, y ∈ Set, z ∈ Set then z ∈ upair(x,y) ⟺ z = x ∨ z = y;
 	- for thesis if assm;
-		apply unique_choice_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) (((x,y),z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y) Set, simp, THEN ex_elim];
+		apply unique_choice_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) (p. Set) (((x,y),z). ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y), simp, THEN ex_elim];
 		- by ex1_upair.
 		- for f if f;
 			apply assm[of f];
@@ -111,11 +112,12 @@ obtain upair where
 ---
 The unordered pair `{x,x}` gives the singleton `{x}`.
 ---
-obtain _singleton where
+syntax {_} := singleton.
+obtain singleton where
 	singleton_Set! if x ∈ Set then {x} ∈ Set,
 	singleton_iff: if x ∈ Set, y ∈ Set then y ∈ {x} ⟺ x = y;
 	- for thesis if assm;
-		apply abbrev_cond[of (x. x ∈ Set) (x. upair(x,x)) Set, THEN ex_elim];
+		apply abbrev_cond[of (x. x ∈ Set) (x. upair(x,x)) (x. Set)];
 		- by in.all_intro.
 		- for f if f;
 			apply assm[of f, unfold f];
@@ -147,7 +149,7 @@ obtain Pow where
 	Pow_Set! if x ∈ Set then Pow x ∈ Set,
 	Pow_iff: if x ∈ Set, y ∈ Set then y ∈ Pow x ⟺ (∀z ∈ Set. z ∈ y ⟹ z ∈ x);
 	- for thesis if assm;
-		apply unique_choice_cond[of (x. x ∈ Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)) Set, THEN ex_elim];
+		apply unique_choice_cond[of (x. x ∈ Set) (x. Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∀w ∈ Set. w ∈ z ⟹ w ∈ x)), THEN ex_elim];
 		simp;
 		- by Pow_ex1.
 		- for f if f;
@@ -183,7 +185,7 @@ obtain (⋃) where
 	CUP_Set! if x ∈ Set then ⋃x ∈ Set,
 	CUP_iff: if x ∈ Set, y ∈ Set then y ∈ ⋃x ⟺ (∃z ∈ Set. z ∈ x ∧ y ∈ z);
 	- for thesis if assm;
-		apply unique_choice_cond[of (x. x ∈ Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w)), simp, OF CUP_ex1, THEN ex_elim];
+		apply unique_choice_cond[of (x. x ∈ Set) (x. Set) ((x,y). ∀z ∈ Set. z ∈ y ⟺ (∃w ∈ Set. w ∈ x ∧ z ∈ w)), simp, OF CUP_ex1, THEN ex_elim];
 		- for f if f;
 			apply assm[of f];
 			- for x if x;
@@ -200,7 +202,7 @@ obtain (∪) where
 	cup_Set! if x ∈ Set, y ∈ Set then x ∪ y ∈ Set,
 	cup_iff: if x ∈ Set, y ∈ Set, z ∈ Set then x ∈ y ∪ z ⟺ x ∈ y ∨ x ∈ z;
 	- for thesis if assm;
-		apply abbrev_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) ((x,y). ⋃(upair(x,y))) Set, simp, THEN ex_elim];
+		apply abbrev_cond[of (p. ∃x ∈ Set. ∃y ∈ Set. p = (x,y)) ((x,y). ⋃(upair(x,y))) (p. Set), simp];
 		- by in.all_intro.
 		- for (∪) if cup;
 			apply assm[of (∪)];
@@ -230,7 +232,7 @@ As we have already assumed unique choice, the standard axiom schema is derivable
 lemma replacement_schema:
 	if A: A ∈ Set, ex1: ∀x ∈ A. ∃!y ∈ Set. P.[x,y]
 	then ∃B ∈ Set. ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. P.[x,y]);
-	- apply unique_choice_cond[of (x. x ∈ A) P Set, THEN ex_elim];
+	- apply unique_choice_cond[of (x. x ∈ A) (x. Set) P, THEN ex_elim];
 		- by ex1[rule].
 		- for f if f;
 			have Pf: for x y if x: x ∈ A, y: y ∈ Set then P.[x,y] ⟺ y = f x;
@@ -270,7 +272,8 @@ obtain (`) where
 	- for thesis if assm;
 		apply unique_choice_cond[
 			of (p. ∃f. ∃A ∈ Set. p = (f,A) ∧ (∀x ∈ A. f x ∈ Set))
-			   (((f,A),B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x)) Set,
+			   (p. Set)
+			   (((f,A),B). ∀y ∈ Set. y ∈ B ⟺ (∃x ∈ A. y = f x)),
 			simp, THEN ex_elim];
 		- by image_ex1.
 		- for (`) if im;
@@ -307,19 +310,36 @@ lemma separation_ex1:
 		.
 	.
 
-obtain separation where
-	separation_type: for P then separation ∈ Set → Set → Set,
-	separation_iff: if p ∈ Set → Prop, x ∈ Set, z ∈ Set then z ∈ separation x p ⟺ z ∈ x ∧ p z;
+syntax {_ ∈ _. _} := CollectIn(,).
+obtain CollectIn where
+	CollectIn: for A P if A ∈ Set then {x ∈ A. P.[x]} ∈ Set,
+	CollectIn_iff: for A P if A ∈ Set, x ∈ Set then x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;
-		apply unique_choice2_set[of (t. ∀z ∈ Set. z ∈ snd (snd t) ⟺ z ∈ fst t ∧ fst (snd t) z), THEN in.ex_elim];
+		apply unique_choice_cond[
+			of (p. ∃A P. p = (A, x. P.[x]) ∧ A ∈ Set)
+			   (p. Set)
+			   (t. ∀A P B. t = ((A, x. P.[x]), B) ⟹ ∀x ∈ Set. x ∈ B ⟺ x ∈ A ∧ P.[x]),
+			THEN ex_elim];
 		simp;
-		- apply separation_ex1
-		- for f if ty, f;
-			apply assm[of f, folded+ and_imp_iff_imp_imp all_and_distrib imp_and_distrib];
-			- if p: p ∈ Set → Prop, x: x ∈ Set;
-				have 1: ∃!y ∈ Set. ∀z ∈ Set. z ∈ y ⟺ z ∈ fst (x,p) ∧ snd (x,p) z;
-					by separation_ex1[OF p x].
-				by TheIn_in[OF 1, folded f] TheIn_intro[OF 1, folded f, simplified, THEN allIn_elim1].
+		- for p A P if p, A;
+			apply separation_ex1[OF A, THEN in.ex1_cong[THEN iff_elim1, OF eq.refl _ (1)], of (x. P.[x])];
+			simp p;
+			- for B if Bty;
+				apply iff_intro;
+				- if B for A' P' B' if A', P', B';
+					fold A' unbind_cong[OF P'] B';
+					by B.
+				- if imp;
+					apply imp;
+					simp.
+				.
+			.
+		- for CollectIn if c;
+			apply assm[of CollectIn];
+			- for A P if A;
+				apply c[THEN and_elim1, of (A, x. P.[x]), simp, OF eq.refl eq.refl A].
+			- for A P if A;
+				use c[THEN and_elim2, of (A, x. P.[x]), simp, OF eq.refl eq.refl A eq.refl eq.refl eq.refl];.
 			.
 		.
 	.
@@ -327,6 +347,6 @@ obtain separation where
 ---
 ### Foundation
 ---
-assume foundation_axiom: ∀x ∈ Set. x ≠ {} ⟹ ∃y ∈ Set. x ∈ y ∧ (∀z ∈ Set. z ∈ x ⟹ z ∉ y).
+assume foundation_axiom: ∀x ∈ Set. ¬ x = {} ⟹ ∃y ∈ Set. x ∈ y ∧ (∀z ∈ Set. z ∈ x ⟹ ¬ z ∈ y).
 
 begin

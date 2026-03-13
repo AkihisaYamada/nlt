@@ -194,11 +194,11 @@ begin
 
 					theory UniqueChoice:
 						import Pair.
-						assume unique_choice: for A P
+						assume unique_choice:
 							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
 					begin
 						interpret Abbrev;
-							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+							- if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note(cong) eq_cong_meta[of F].
 								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
@@ -212,7 +212,7 @@ begin
 
 					theory UniqueChoiceCond:
 						import Pair.
-						assume unique_choice_cond: for P A Q
+						assume unique_choice_cond:
 							if ∀x. P.[x] ⟹ ∃!y ∈ A.[x]. Q.[x,y] then ∃f. ∀x. P.[x] ⟹ f x ∈ A.[x] ∧ Q.[x, f x].
 					begin
 						interpret UniqueChoice;
@@ -220,6 +220,17 @@ begin
 								apply unique_choice_cond[of (x. true) (x. A.[x]) P, simp, OF ex1, THEN ex_elim];
 								- for f if f;
 									by ex_intro1[of f] f.
+								.
+							.
+						interpret AbbrevCond;
+							- if F: ∀x. P.[x] ⟹ F.[x] ∈ A.[x] for Q if assm;
+								note(cong) eq_cong_meta[of F].
+								apply unique_choice_cond[of P A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+								- for f if f;
+									apply assm[of f];
+									- for x if Px;
+										use f[OF Px].
+									.
 								.
 							.
 					end

@@ -220,21 +220,53 @@ public:
 						}
 					}
 				} else if( skips("OF") ) {
+					auto prems = vector<Sum<Thm,CTerm,int>>();
+					auto args = vector<Thm>();
+					auto reorder = map<int,CTerm>();
+					auto sub = loc.fork();
+					auto subctxt = sub.ctxt();
+					CTerm subtmp = tmp.subst(sub);
 					for(;;) {
 						if( skips("_") ) {// assume the condition
-							auto subsub = loc.fork();
-							auto imp = strip_all(tmp,subsub).first.cbinary(IMP);
+							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
 							if( !imp ) throw Error("\"no premise for _\"");
-							tmp = tmp << loc.assume(loc.enclose(imp->first));
+							subtmp = imp->second;
+							prems.push_back(CTerm{imp->first});
+						} else if( skips("(") ) {
+							auto i = get_int();
+							skip(")");
+							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
+							if( !imp ) throw Error("\"no premise for index\"");
+							subtmp = imp->second;
+							prems.push_back(i);
+							reorder.emplace(i,imp->first);
 						} else if( auto const& arg = _gets_thm(loc) ) {// unify the condition
-							tmp = tmp << *arg;
-						} else if( skips("!") ) {// auto discharge
-							auto imp = tmp.cbinary(IMP);
-							if( !imp ) throw Error("\"no premise to resolve\"");
-							tmp = tmp.impE(loc.prove(imp->first,_out_resolver));
+							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
+							if( !imp ) throw Error("\"no premise\"")(*arg);
+							subtmp = imp->second;
+							prems.push_back(Thm{subctxt.assume(imp->first)});
+							args.push_back(*arg);
 						} else {
 							break;
 						}
+					}
+					tmp = tmp.subst(sub);// reorder arguments
+					auto reorder_thm = map<int,Thm>();
+					for( auto [i,prem] : reorder ) {
+						reorder_thm.emplace(i,subctxt.assume(prem));
+					}
+					for( auto const& prem : prems ) {
+						if( auto p = prem.ref<CTerm>() ) {
+							tmp = tmp << subctxt.assume(*p);
+						} else if( auto t = prem.ref<Thm>() ) {
+							tmp = tmp << *t;
+						} else if( auto i = prem.ref<int>() ) {
+							tmp = tmp << reorder_thm.find(i)->second;
+						} else assert(false);
+					}
+					tmp = tmp.intro();
+					for( auto const& arg : args ) {
+						tmp = tmp << arg;
 					}
 				} else if( skips("THEN") ) {
 					auto sub = loc.branch();

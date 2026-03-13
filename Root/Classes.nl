@@ -17,8 +17,14 @@ import ExIn.
 import Ex1In.
 
 fix Pow.
+assume Pow_ext: ∀A B. ∀X ∈ Pow A. ∀Y ∈ Pow B. (∀x. x ∈ X ⟺ x ∈ Y) ⟹ X = Y.
+
+lemma Pow_eq_intro: if iff: ∀x. x ∈ X ⟺ x ∈ Y, X: X ∈ Pow A, Y: Y ∈ Pow B then X = Y;
+	apply Pow_ext[rule, OF X Y iff].
+
+assume Pow_Pow! Pow A ∈ Pow (Pow A).
+
 assume comprehension_schema: ∀A P. ∃X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x].
-assume Pow_eq_intro: for A if ∀x. x ∈ X ⟺ x ∈ Y, X ∈ Pow A, Y ∈ Pow A then X = Y.
 
 lemma comprehension_ex1: for A P then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x];
 	apply comprehension_schema[of A P, THEN in.ex_elim];
@@ -36,13 +42,13 @@ import UniqueChoiceCond.
 
 syntax {_ ∈ _. _} := CollectIn(,).
 obtain CollectIn where
-	CollectIn_Class! {x ∈ A. P.[x]} ∈ Pow A,
+	CollectIn_Pow! {x ∈ A. P.[x]} ∈ Pow A,
 	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
 	- for thesis if assm;
 		apply unique_choice_cond[of
 			(p. ∃A P. p = (A, x. P.[x]))
 			((A,P). Pow A)
-			(t. ∃A P B. t = ((A, x. P.[x]),B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
+			(t. ∃A P B. t = ((A, x. P.[x]), B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
 		simp;
 		- for p A P if p;
 			apply in.ex1_cong[OF eq.refl, THEN imp_commute[OF iff_elim1][OF comprehension_ex1], of A (x. P.[x])];
@@ -72,10 +78,16 @@ obtain CollectIn where
 		.
 	.
 
-lemma Collect_cong(cong)
-	if PQ: ∀x. x ∈ Object ⟹ P.[x] ⟺ Q.[x] then {x. P.[x]} = {x. Q.[x]};
+lemma CollectIn_cong(cong)
+	if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x] then {x ∈ A. P.[x]} = {x ∈ B. Q.[x]};
 	apply Class_eq_intro;
-	by #simp Collect_iff PQ.
+	by #simp Collect_iff AB PQ.
+
+lemma CollectIn_true(simp) {x ∈ A. true} = Pow A;
+	apply Pow_eq_intro;
+
+ff
+
 
 syntax {} := empty.
 define {} = {x. false}.
