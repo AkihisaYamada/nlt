@@ -637,20 +637,30 @@ public:
 		string prefix;
 		string name;
 		bool unprefixed;
+		bool recursive;
 		if( skips("!") ) {// canonical prefix
 			prefix = name = get_thm_name();
 			unprefixed = false;
+			recursive = false;
+		} else if( skips(":") ) {// unprefixed, but non-recursive
+			name = get_thm_name();
+			prefix = NONREC_IMPORT;
+			unprefixed = true;
+			recursive = false;
 		} else {
 			prefix = get_thm_name();
 			if( skips(":") ) {// explicit prefix
 				name = get();
 				unprefixed = false;
+				recursive = false;
 			} else if( skips("?") ) {// optional prefix
 				name = get();
 				unprefixed = true;
+				recursive = true;
 			} else {// optional canonical prefix
 				name = prefix;
 				unprefixed = true;
+				recursive = true;
 			}
 		}
 		auto intp = _thy.thy(name,reader());
@@ -694,10 +704,10 @@ public:
 		}
 		if( success ) {
 			_update_parent(src);// in case of interpreting a child.
-			if( unprefixed || prefix == "" ) {
+			if( recursive || prefix == "" ) {
 				_thy.import_rewrite(src,intp);
 			}
-			_thy.add_import(prefix,std::move(intp),unprefixed);
+			_thy.add_import(prefix,std::move(intp),recursive);
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				if( change ) cout << "imported ";
@@ -789,7 +799,7 @@ public:
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
 					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
-			} else if( skips("-") ) {
+			} else if( int mode = skips("-") ? 1 : skips("->") ? 2 : 0 ) {
 				auto pat = _get_subgoal();
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
@@ -798,10 +808,16 @@ public:
 						auto infer = _thy.resolver(_out_resolver);
 						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
 					} else if( auto const& assume = intp.assuming() ) {
-						auto [match,thm] = goal_matches(pat,assume->first);
+						auto thesis = Thesis::claim_exact(_thy,assume->first); 
+						if( mode == 2 ) {
+							auto rulify = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
+							rulify.rewrites(thesis,{RULIFY},1,255,true,{},{});
+						}
+						auto [match,thm] = goal_matches(pat,thesis.goal());
 						if( match ) {
 							if( thm ) {
-								intp.discharge(*thm);
+								thesis.discharge(*thm);
+								intp.discharge(*thesis.concluding());
 								if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
 							} else {
 								if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
@@ -1480,9 +1496,13 @@ public:
 				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
-			} else if( skips("-") ) {
+			} else if( int mode = skips("-") ? 1 : skips("->") ? 2 : 0 ) {
 				auto pat = _get_subgoal();
 				for(;;) {
+					if( mode == 2 ) {
+						auto resolver = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
+						resolver.rewrites(thesis,{RULIFY},1,255,true,{},{});
+					}
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");
 					auto [match,thm] = goal_matches(pat,*goal);
@@ -1530,7 +1550,7 @@ public:
 				cerr << location() << ": Unexpected EOF" << endl;
 				exit(0);
 			} else {
-				throw Error("\"unexpected\"")(get());
+				throw Error("\"Unexpected\"")(get());
 			}
 			if MSG cout << _indent();
 		} catch ( Term const& e ) {

@@ -116,10 +116,19 @@ begin
 				lemma ex1_cong(cong)
 					if eq: a = b, iff: ∀x. x < b ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
 					simp ex1_def eq iff;.
-				lemma ex1_intro1:
-					for x a P if Px: P.[x], x: x < a, uniq: ∀y. y < a ⟹ P.[y] ⟹ y = x then ∃!x < a. P.[x];
+				lemma ex1_intro1: for x a P
+					if Px: P.[x], x: x < a, uniq: ∀y. y < a ⟹ P.[y] ⟹ y = x then ∃!x < a. P.[x];
 					unfold ex1_def;
 					by .ex1_intro1[of x] Px x uniq.
+
+				lemma ex1_intro: for a P
+					if assm: ∀Q. (∀x. x < a ⟹ P.[x] ⟹ (∀y. y < a ⟹ P.[y] ⟹ y = x) ⟹ Q) ⟹ Q
+					then ∃!x < a. P.[x];
+					unfold ex1_def;
+					apply .ex1_intro;
+					simp;
+					apply assm>0=.
+
 				lemma ex1_elim:
 					if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y. y < a ⟹ P.[y] ⟹ y = x) ⟹ Q then Q;
 					apply ex1[unfold ex1_def, THEN .ex1_elim];

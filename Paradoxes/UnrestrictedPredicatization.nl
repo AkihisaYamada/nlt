@@ -12,17 +12,13 @@ assume abbrev: for P if ∀p. (∀x. p x ⟺ P.[x]) ⟹ Q then Q.
 
 begin
 
-theorem inconsistent: P;-- Any term is provable
-	obtain R where R_def: R x ⟺ (x x ⟹ P);
-		- for thesis if assm;
-			apply abbrev[of (x. x x ⟹ P)];
-			- for R if (simp);
-				apply assm[of R].
-			.
+theorem inconsistent: false;-- Any term is provable
+	obtain R where R_def: R x ⟺ (x x ⟹ false);
+		- for thesis; apply abbrev>0.
 		.
-	have RR_iff_nRR: R R ⟺ (R R ⟹ P);
+	have RR_iff_nRR: R R ⟺ (R R ⟹ false);
 		by R_def.
-	have nRR: if RR: R R then P;
+	have nRR: if RR: R R then false;
 		by RR[unfold RR_iff_nRR] RR.
 	have RR: R R;
 		by nRR[fold RR_iff_nRR].

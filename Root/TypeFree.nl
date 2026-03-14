@@ -284,6 +284,13 @@ begin
 	interpret Explosion.
 end
 
+context Minimal begin
+	context Explosion begin
+		interpret: Intuitionistic;
+			retain false := false.
+			.
+	end
+end
 
 ---
 We define classical logic as intuitionistic logic plus excluded middle.
@@ -292,7 +299,6 @@ theory Classical:
 	import Intuitionistic.
 	import ExcludedMiddle.
 begin
-
 	interpret DoubleNegationElimination;
 		- if nnP: ¬¬P then P;
 			apply cases[of P];
@@ -301,4 +307,10 @@ begin
 			.
 		.
 
+end
+
+context Minimal begin
+	context DoubleNegationElimination begin
+		interpret: Classical.
+	end
 end
