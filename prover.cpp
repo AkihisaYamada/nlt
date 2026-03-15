@@ -208,17 +208,28 @@ public:
 						loc.fix(*x);
 					}
 				} else if( skips("of") ) {
+					auto sub = loc.fork();
+					auto subctxt = sub.ctxt();
+					tmp = tmp.subst(sub);
+					auto strip_imp = [&]{
+						while( auto imp = tmp.cbinary(IMP) ) {
+							tmp = tmp.impE(subctxt.assume(imp->first));
+						}
+					};
 					for(;;) {
 						if( skips("_") ) {
+							strip_imp();
 							auto const& all = tmp.cbinder(ALL);
 							if( !all ) throw Error("\"no variable for _\"");
-							tmp = tmp.allE(loc.fix(std::get<0>(*all)));
+							tmp = tmp.allE(subctxt.fix(std::get<0>(*all)));
 						} else if( auto t = gets_term(1000) ) {
-							tmp = tmp.allE(loc.cterm(*t));
+							strip_imp();
+							tmp = tmp.allE(subctxt.cterm(*t));
 						} else {
 							break;
 						}
 					}
+					tmp = tmp.intro();
 				} else if( skips("OF") ) {
 					auto prems = vector<Sum<Thm,CTerm,int>>();
 					auto args = vector<Thm>();
@@ -373,7 +384,7 @@ public:
 			return os << ' ' << flush;
 		};
 	}
-	Opt<ClaimStatus> gets_claim_status( bool need_claim = true, bool allow_claim = true ) {
+	Opt<ClaimStatus> gets_claim_status() {
 		ClaimStatus cs;
 		if( skips("!") ) {
 			cs.intro = true;
@@ -755,6 +766,206 @@ public:
 			if( n == 0 ) return;
 		}
 	}
+	struct Fix : string {};
+	struct Assume {
+		Opt<string> name;
+		Opt<ClaimStatus> cs;
+		Opt<Term> assm;
+	};
+	struct GoalPat {
+		Opt<string> name;
+		Opt<ClaimStatus> cs;
+		vector<Sum<Fix,Assume>> decls;
+		Opt<Term> concl;
+		bool proof;
+	};
+	GoalPat _get_subgoal() {
+		auto ret = GoalPat();
+		bool show;
+		if( show = skips("show") ) {
+			ret.name = gets( Tokenizer::Word | Tokenizer::Number );
+			ret.cs = gets_claim_status();
+			if( !ret.cs ) skip(":");
+		}
+		bool modified = false;
+		for(;;) {
+			if( skips("for") ) {
+				while( auto o = gets_sym() ) {
+					ret.decls.emplace_back(Fix{*o});
+				}
+				modified = true;
+			} else if( skips("if") ) {
+				do {
+					auto name = gets( Tokenizer::Word | Tokenizer::Number );
+					auto const& cs = gets_claim_status();
+					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
+					ret.decls.emplace_back(Assume{name,cs,assm});
+				} while( skips(",") );
+				modified = true;
+			} else {
+				break;
+			}
+		}
+		if( modified ) {
+			if( skips("then") ) {
+				ret.concl = {get_term()};
+			}
+		} else if( show ) {
+			ret.concl = gets_term();
+		} else {
+			ret.proof = !skips(".");
+			return ret;
+		}
+		if( ret.proof = skips(";") ) {
+		} else {
+			skip(".");
+		}
+		return ret;
+	}
+	/** @return first whether the goal pattern matches, and then the theorem if the proof was not aborted. */
+	Opt<Opt<Thm>> goal_matches( GoalPat const& pat, CTerm const& goal ) {
+		auto loc = _thy.branch();
+		auto to_loc = *loc.parent();
+		auto loc_goal = goal.subst(to_loc);
+		auto css = vector<pair<Opt<string>,Opt<ClaimStatus>>>();
+		for( auto const& decl : pat.decls ) {
+			if( auto const& var = decl.ref<Fix>() ) {
+				auto all = loc_goal.cunary(ALL);
+				if( !all || !all->bind() ) {
+					return {};
+				}
+				loc_goal = all->inst(loc.fix(*var));
+			} else if( auto const& p = decl.ref<Assume>() ) {
+				auto const& [name,cs,stmt] = *p;
+				if( stmt ) {
+					size_t prev = loc.revision();
+					auto assm = loc.assume(*stmt);
+					while( auto const& v = loc.fixed(prev) ) {
+						auto all = loc_goal.cunary(ALL);
+						if( !all || !all->bind() ) {
+							return {};
+						}
+						loc_goal = all->inst(loc.cterm(*v));
+						prev++;
+					}
+					auto imp = loc_goal.cbinary(IMP);
+					if( !imp || *stmt != imp->first ) {
+						return {};
+					}
+					add_claim(loc,name,cs,assm);
+					loc_goal = imp->second;
+				} else {
+					auto imp = loc_goal.cbinary(IMP);
+					if( !imp ) {
+						return {};
+					}
+					auto assm = loc.assume(imp->first);
+					add_claim(loc,name,cs,assm);
+					loc_goal = imp->second;
+				}
+				css.emplace_back(name,cs);
+			} else {
+				assert(false);
+			}
+		}
+		if( pat.concl ) {
+			size_t prev = loc.revision();
+			auto concl = loc.enclose(*pat.concl);
+			while( auto const& v = loc.fixed(prev) ) {
+				auto all = loc_goal.cunary(ALL);
+				if( !all || !all->bind() ) return {};
+				loc_goal = all->inst(loc.cterm(*v));
+				prev++;
+			}
+			if( loc_goal != concl ) return {};
+		}
+		if( pat.proof ) {
+			if MSG {
+				cout << "show: ";
+				auto csi = css.begin();
+				if( auto n = loc.revision() ) {
+					for( size_t i = 0; i < n; ) {
+						if( auto const& v = loc.fixed(i) ) {
+							cout << "for " << _thy.pretty(*v) << ' ';
+							for(;;) {
+								i++;
+								auto const& v = loc.fixed(i);
+								if(!v) break;
+								cout << _thy.pretty(*v) << ' ';
+							}
+							continue;
+						}
+						if( auto const& assm = loc.assumed(i) ) {
+							cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+							for(;;) {
+								i++;
+								csi++;
+								auto const assm = loc.assumed(i);
+								if( !assm ) break;
+								cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+							}
+							cout << ' ';
+							continue;
+						}
+						assert(false);
+					}
+					cout << "then ";
+				}
+				cout << _thy.pretty(loc_goal) << endl;
+			}
+			auto thesis = Thesis::claim_exact(loc,loc_goal);
+			_depth++;
+			if MSG cout << _indent();
+			auto thm = _prove(thesis);
+			_depth--;
+			if( !thm ) return {{}};
+			Thm ret = thm->intro();
+			add_claim(_thy,pat.name,pat.cs,ret);
+			return {{ret}};
+		}
+		auto infer = loc.resolver(_out_resolver);
+		Thm ret = infer.prove(loc,loc_goal,{SIMP}).intro();
+		add_claim(_thy,pat.name,pat.cs,ret);
+		return {{ret}};
+	}
+	Opt<Opt<Thm>> rulify_goal_matches( GoalPat const& pat,CTerm const& assm ) {
+		auto thesis = Thesis::claim_exact(_thy,assm); 
+		auto rulify = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
+		if( rulify.rewrites(thesis,{RULIFY},0,255,true,{},{}) )
+		if( auto opt = goal_matches(pat,thesis.goal()) ) {
+			if( *opt ) {
+				thesis.discharge(**opt);
+				return { thesis.concluding() };
+			}
+			return {{}};
+		}
+		return {};
+	};
+	Opt<Thm> _discharge( function<Opt<Opt<Thm>>(CTerm const&)> f, Import& intp, Thy& org_thy, string const& prefix, bool change, bool unprefixed ) {
+		for(;;) {
+			if( auto const& assume = intp.assuming() ) {
+				if( auto const& opt = f(assume->first) ) {
+					if( *opt ) {
+						intp.discharge(**opt);
+						if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(**opt) << endl;
+					} else {
+						if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
+					}
+					return *opt;
+				} else {
+					auto infer = _thy.resolver(_out_resolver);
+					_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
+				}
+			} else if( auto const& fix = intp.fixing() ) {
+				_auto_instantiate(intp,*fix,change);
+			} else if( auto const& obtain = intp.obtaining() ) {
+				auto infer = _thy.resolver(_out_resolver);
+				_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
+			} else {
+				throw Error("\"unexpected discharge\"");
+			}
+		}
+	}
 	bool _import_loop( string const& prefix, Import& intp, bool change, bool unprefixed ) {
 		auto org_thy = _thy;
 		_thy = org_thy.scope_temp("#import");// namespace
@@ -799,43 +1010,12 @@ public:
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
 					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
-			} else if( int mode = skips("-") ? 1 : skips("->") ? 2 : 0 ) {
+			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
-				for(;;) {
-					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.resolver(_out_resolver);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
-					} else if( auto const& assume = intp.assuming() ) {
-						auto thesis = Thesis::claim_exact(_thy,assume->first); 
-						if( mode == 2 ) {
-							auto rulify = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
-							rulify.rewrites(thesis,{RULIFY},1,255,true,{},{});
-						}
-						auto [match,thm] = goal_matches(pat,thesis.goal());
-						if( match ) {
-							if( thm ) {
-								thesis.discharge(*thm);
-								intp.discharge(*thesis.concluding());
-								if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(*thm) << endl;
-							} else {
-								if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
-							}
-							break;
-						} else {
-							auto infer = _thy.resolver(_out_resolver);
-							_auto_discharge(org_thy,prefix,intp,*assume,change,infer,unprefixed);
-						}
-					} else if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
-					} else if( auto const& obtain = intp.obtaining() ) {
-						auto infer = _thy.resolver(_out_resolver);
-						_auto_retain(org_thy,prefix,intp,*obtain,infer,unprefixed);
-					} else {
-						break;
-					}
-				}
+				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, prefix, change, unprefixed );
+			} else if( skips("->") ) {
+				auto pat = _get_subgoal();
+				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, prefix, change, unprefixed );
 			} else if( skips("obtain") ) {
 				_obtain(org_thy);
 			} else if( skips("define") ) {
@@ -1195,150 +1375,6 @@ public:
 			return false;
 		}
 	}
-	struct Fix : string {};
-	struct Assume {
-		Opt<string> name;
-		Opt<ClaimStatus> cs;
-		Opt<Term> assm;
-	};
-	struct GoalPat {
-		Opt<string> name;
-		Opt<ClaimStatus> cs;
-		vector<Sum<Fix,Assume>> decls;
-		Opt<Term> concl;
-		bool proof;
-	};
-	GoalPat _get_subgoal() {
-		auto ret = GoalPat();
-		for(;;) {
-			if( skips("for") ) {
-				while( auto o = gets_sym() ) {
-					ret.decls.emplace_back(Fix{*o});
-				}
-			} else if( skips("if") ) {
-				do {
-					auto name = gets( Tokenizer::Word | Tokenizer::Number );
-					auto const& cs = gets_claim_status();
-					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
-					ret.decls.emplace_back(Assume{name,cs,assm});
-				} while( skips(",") );
-			} else {
-				break;
-			}
-		}
-		if( skips("then") ) {
-			ret.concl = {get_term()};
-		}
-		ret.proof = skips(".") ? false :
-			ret.decls.empty() && !ret.concl ? true : (skip(";"), true);
-		return ret;
-	}
-	/** @return first whether the goal pattern matches, and then the theorem if the proof was not aborted. */
-	pair<bool,Opt<Thm>> goal_matches( GoalPat const& pat, CTerm const& goal ) {
-		auto loc = _thy.branch();
-		auto to_loc = *loc.parent();
-		auto loc_goal = goal.subst(to_loc);
-		auto css = vector<pair<Opt<string>,Opt<ClaimStatus>>>();
-		for( auto const& decl : pat.decls ) {
-			if( auto const& var = decl.ref<Fix>() ) {
-				auto all = loc_goal.cunary(ALL);
-				if( !all || !all->bind() ) {
-					return {false,{}};
-				}
-				loc_goal = all->inst(loc.fix(*var));
-			} else if( auto const& p = decl.ref<Assume>() ) {
-				auto const& [name,cs,stmt] = *p;
-				if( stmt ) {
-					size_t prev = loc.revision();
-					auto assm = loc.assume(*stmt);
-					while( auto const& v = loc.fixed(prev) ) {
-						auto all = loc_goal.cunary(ALL);
-						if( !all || !all->bind() ) {
-							return {false,{}};
-						}
-						loc_goal = all->inst(loc.cterm(*v));
-						prev++;
-					}
-					auto imp = loc_goal.cbinary(IMP);
-					if( !imp || *stmt != imp->first ) {
-						return {false,{}};
-					}
-					add_claim(loc,name,cs,assm);
-					loc_goal = imp->second;
-				} else {
-					auto imp = loc_goal.cbinary(IMP);
-					if( !imp ) {
-						return {false,{}};
-					}
-					auto assm = loc.assume(imp->first);
-					add_claim(loc,name,cs,assm);
-					loc_goal = imp->second;
-				}
-				css.emplace_back(name,cs);
-			} else {
-				assert(false);
-			}
-		}
-		if( pat.concl ) {
-			size_t prev = loc.revision();
-			auto concl = loc.enclose(*pat.concl);
-			while( auto const& v = loc.fixed(prev) ) {
-				auto all = loc_goal.cunary(ALL);
-				if( !all || !all->bind() ) return {false,{}};
-				loc_goal = all->inst(loc.cterm(*v));
-				prev++;
-			}
-			if( loc_goal != concl ) return {false,{}};
-		}
-		if( pat.proof ) {
-			if MSG {
-				cout << "show: ";
-				auto csi = css.begin();
-				if( auto n = loc.revision() ) {
-					for( size_t i = 0; i < n; ) {
-						if( auto const& v = loc.fixed(i) ) {
-							cout << "for " << _thy.pretty(*v) << ' ';
-							for(;;) {
-								i++;
-								auto const& v = loc.fixed(i);
-								if(!v) break;
-								cout << _thy.pretty(*v) << ' ';
-							}
-							continue;
-						}
-						if( auto const& assm = loc.assumed(i) ) {
-							cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
-							for(;;) {
-								i++;
-								csi++;
-								auto const assm = loc.assumed(i);
-								if( !assm ) break;
-								cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
-							}
-							cout << ' ';
-							continue;
-						}
-						assert(false);
-					}
-					cout << "then ";
-				}
-				cout << _thy.pretty(loc_goal) << endl;
-			}
-			auto thesis = Thesis::claim_exact(loc,loc_goal);
-			_depth++;
-			if MSG cout << _indent();
-			auto thm = _prove(thesis);
-			_depth--;
-			if( !thm ) return {true,{}};
-			Thm ret = thm->intro();
-			add_claim(_thy,pat.name,pat.cs,ret);
-			return {true,{ret}};
-		}
-		auto infer = loc.resolver(_out_resolver);
-		Thm ret = infer.prove(loc,loc_goal,{SIMP}).intro();
-		add_claim(_thy,pat.name,pat.cs,ret);
-		return {true,{ret}};
-	}
 	CTerm _get_assm( Thy const& org_thy ) {
 		Ctxt assm_loc = org_thy.Ctxt::fork().ctxt();
 		for(;;) {
@@ -1448,17 +1484,6 @@ public:
 			} else if( skips("have") ) {
 				_state();
 				if MSG print_goals(thesis);
-			} else if( skips("show") ) {
-				if( auto o = _state() ) {
-					auto [name,cs,thm] = *o;
-					for(;;) {
-						auto goal = thesis.has_goal();
-						if( !goal ) throw Error("\"no goal to matches\"")(thm);
-						if( *goal == thm ) break;
-						thesis.auto_discharge();
-					}
-					thesis.discharge(thm);
-				}
 			} else if( skips("apply") ) {
 				int min, max;
 				bool normalize, wide;
@@ -1501,14 +1526,13 @@ public:
 				for(;;) {
 					if( mode == 2 ) {
 						auto resolver = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
-						resolver.rewrites(thesis,{RULIFY},1,255,true,{},{});
+						resolver.rewrites(thesis,{RULIFY},0,255,true,{},{});
 					}
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");
-					auto [match,thm] = goal_matches(pat,*goal);
-					if( match ) {
-				 		if( thm ) {
-							thesis.discharge(*thm);
+					if( auto opt = goal_matches(pat,*goal) ) {
+				 		if( *opt ) {
+							thesis.discharge(**opt);
 						} else {
 							if MSG cout << "proof aborted: " << _thy.pretty(*goal) << endl;
 						}

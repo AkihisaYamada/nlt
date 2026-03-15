@@ -193,6 +193,7 @@ begin
 				interpret in: in.ExRel (∃∈).
 				note(cong) in.all_cong in.ex_cong.
 				note(rule) in.all_def.
+				note(elim) in.ex_elim.
 				note(simp) in.ex_imp_iff.
 
 				theory Ex1In:
@@ -207,7 +208,7 @@ begin
 							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
 					begin
 						interpret Abbrev;
-							- if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note(cong) eq_cong_meta[of F].
 								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
@@ -232,7 +233,7 @@ begin
 								.
 							.
 						interpret AbbrevCond;
-							- if F: ∀x. P.[x] ⟹ F.[x] ∈ A.[x] for Q if assm;
+							- for P A if F: ∀x. P.[x] ⟹ F.[x] ∈ A.[x] for Q if assm;
 								note(cong) eq_cong_meta[of F].
 								apply unique_choice_cond[of P A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;

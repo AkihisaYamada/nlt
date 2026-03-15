@@ -92,7 +92,7 @@ lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x
 ---
 ## Negation
 ---
-lemma not_iff_imp_false: ¬P ⟺ (P ⟹ false);
+lemma not_iff_imp_false(rule) ¬P ⟺ (P ⟹ false);
 	apply iff_intro;
 	- apply not_imp_false>0.
 	- apply not_intro>0.
@@ -216,8 +216,7 @@ lemma ex_iff_true: for x if Px: P.[x] then (∃y. P.[y]) ⟺ true;
 The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
 ---
 lemma nnall_imp: if nnall: ¬¬(∀x. P.[x]) for x then ¬¬P.[x];
-	apply not_intro;
-	- if nPx: ¬P.[x];
+	-> if nPx: ¬P.[x];
 		by not_imp_false[OF nnall] not_imp_not_all[OF nPx].
 	.
 
@@ -252,13 +251,10 @@ theory MetaOrder:
 	import MetaTransitive (<).
 begin
 	interpret MetaAsymmetric;
-		- for x y if xy: x < y then ¬ y < x;
-			apply not_intro;
-			- if yx: y < x;
-				have xx: x < x;
-					by trans[OF xy yx].
-				by not_imp_false[OF irrefl xx].
-			.
+		-> for x y if xy: x < y, yx: y < x then false;
+			have xx: x < x;
+				by trans[OF xy yx].
+			by not_imp_false[OF irrefl xx].
 		.
 end
 
@@ -266,17 +262,13 @@ extend AllRel begin
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
 	lemma not_imp_not_all: if nP: ¬P.[x], x: x < a then ¬(∀y < a. P.[y]);
-		apply not_intro;
-		- if all;
+		-> if all;
 			use nP all_elim1[OF all x].
 		.
 	lemma nnall_imp: if nnall: ¬¬(∀x < a. P.[x]) then ∀x < a. ¬¬P.[x];
 		apply all_intro;
-		- if x: x < a;
-			apply not_intro;
-			- if nPx: ¬P.[x];
-				by not_imp_false[OF nnall] not_imp_not_all[OF nPx] x.
-			.
+		-> if x: x < a, nPx: ¬P.[x];
+			by not_imp_false[OF nnall] not_imp_not_all[OF nPx] x.
 		.
 	lemma nnall_not_iff: ¬¬(∀x < a. ¬P.[x]) ⟺ (∀x < a. ¬P.[x]);
 		apply iff_intro;

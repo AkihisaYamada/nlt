@@ -187,16 +187,16 @@ extend Membership begin
 
 	theory Abbrev:-- Restricted Unary Abbreviation
 		assume abbrev:
-			if ∀x. F.[x] ∈ A.[x], ∀f. (∀x. f x = F.[x]) ⟹ P then P.
+			for A if ∀x. F.[x] ∈ A.[x], ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 	end
 
 	theory AbbrevCond:
 		assume abbrev_cond:
-			if ∀x. P.[x] ⟹ F.[x] ∈ A.[x], ∀f. (∀x. P.[x] ⟹ f x = F.[x]) ⟹ Q then Q.
+			for P A if ∀x. P.[x] ⟹ F.[x] ∈ A.[x], ∀f. (∀x. P.[x] ⟹ f x = F.[x]) ⟹ Q then Q.
 	begin
 		interpret Abbrev;
-			- for F A if ty for P if assm;
-				apply abbrev_cond[of (x. ∀y. y ⟹ y) F A];
+			- for A F if ty for P if assm;
+				apply abbrev_cond[of (x. ∀y. y ⟹ y) A F];
 				- for f if f;
 					by ty.
 				- for f if f;

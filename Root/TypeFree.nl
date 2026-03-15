@@ -45,9 +45,11 @@ begin
 		by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
 
 	interpret or: iff.MetaIdempotent (∨);
-		- then P ∨ P ⟺ P;
+		- show: P ∨ P ⟺ P;
 			by iff_intro #elim or_elim.
 		.
+
+	note(simp) or.idem.
 
 	lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 		apply iff_intro;
@@ -161,9 +163,10 @@ begin
 	extend Membership begin
 
 		extend AllIn begin
-			interpret in: AllRel (∈) (∀∈).
+			interpret in: ..AllRel (∈) (∀∈).
 			extend ExIn begin
 				interpret in: in.ExRel (∃∈).
+				note(rule) in.ex_imp_iff.
 			end
 		end
 
@@ -238,7 +241,7 @@ begin
 				by 0.
 			.
 		interpret ExcludedMiddle;
-			- then P ∨ ¬P;
+			- show: P ∨ ¬P;
 				apply or_intro;
 				- for Q if PQ: P ⟹ Q, nPQ: ¬ P ⟹ Q then Q;
 					apply contradiction;
