@@ -101,13 +101,13 @@ begin
 		- apply ex_intro>0.
 		.
 
-	lemma ex_cong(cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
+	lemma ex_cong(cong,rule_cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
 		unfold ex_iff eq.
 
 	lemma ex_indep(simp) (∃x. P) ⟺ P;
 		by iff_intro ex_intro1 ex_elim(elim).
 
-	lemma ex_imp_iff_all(simp) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+	lemma ex_imp_iff_all(simp,rule) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		apply iff_intro;
 		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
 			by imp ex_intro1[OF Px].
@@ -115,14 +115,26 @@ begin
 			by #elim imp ex_elim.
 		.
 
-	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
-		simp not_iff_imp_false.
+	lemma ex_and1(rule) (∃x. P.[x]) ∧ Q ⟺ (∃x. P.[x] ∧ Q);
+		simp iff_iff_and imp_and_distrib;
+		- for x;
+			by ex_intro1[of x].
+		.
+
+	lemma ex_and2(rule) P ∧ (∃x. Q.[x]) ⟺ (∃x. P ∧ Q.[x]);
+		simp iff_iff_and imp_and_distrib;
+		- for x;
+			by ex_intro1[of x].
+		.
 
 	lemma ex_or_distrib: (∃x. P.[x] ∨ Q.[x]) ⟺ (∃x. P.[x]) ∨ (∃x. Q.[x]);
 		simp iff_iff_and or_imp_iff all_and_distrib[dual];
 		- for x;
 			by ex_intro1[of x].
 		.
+
+	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+		simp not_iff_imp_false.
 
 	---
 	## Theories
