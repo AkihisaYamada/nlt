@@ -1,7 +1,7 @@
 ---
 # If-and-only-if
 ---
-import Base.
+interpret Base.
 
 fix (⟺).
 
@@ -30,7 +30,7 @@ note! iff.refl.
 set simp iff_elim1 iff_elim2 iff.refl iff.trans.
 set rule iff_elim1 iff_elim2 iff.refl iff.trans.
 
-note(dual) iff.sym.
+note#dual iff.sym.
 
 interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
@@ -46,9 +46,9 @@ interpret iff: iff.MetaCompatible (⟺);
 		.
 	.
 
-note(cong) iff.cong.
+note#cong iff.cong.
 
-lemma imp_cong(cong) if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
+lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
 	- if PR, Q;
 		note P: Q[fold PQ].
@@ -60,7 +60,7 @@ lemma imp_cong(cong) if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹
 		by S[fold RS[OF Q]].
 	.
 
-lemma imp_cong_right(rule_cong) if QR: Q ⟺ R then (P ⟹ Q) ⟺ (P ⟹ R);
+lemma imp_cong_right#rule_cong if QR: Q ⟺ R then (P ⟹ Q) ⟺ (P ⟹ R);
 	unfold QR.
 
 interpret imp: iff.MetaCompatible (⟹);
@@ -68,7 +68,7 @@ interpret imp: iff.MetaCompatible (⟹);
 		simp PQ RS.
 	.
 
-lemma all_cong(cong,rule_cong) if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
+lemma all_cong#cong#rule_cong if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
 	apply iff_intro;
 	- if ! ∀x. P.[x] then ∀x. Q.[x];
 		by iff_elim1[OF PQ].
@@ -91,7 +91,7 @@ lemma imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
 		by PQQ[OF PQ].
 	.
 
-lemma all_indep(simp) (∀x. P) ⟺ P;
+lemma all_indep#simp (∀x. P) ⟺ P;
 	by iff_intro.
 
 lemma imp_all_iff: (P ⟹ ∀x. Q.[x]) ⟺ (∀x. P ⟹ Q.[x]);

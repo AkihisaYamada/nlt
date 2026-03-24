@@ -18,7 +18,7 @@ set symbol
 	⟰-⟿, -- Supplemental Arrows-A
 	⨀-⫿. -- Supplemental Mathematical Operators
 
-set solo ¬.
+set symbol ¬.
 
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
@@ -39,8 +39,8 @@ syntax ∀ _ ∈ _. _ := ∀∈.
 syntax ∃ _ ∈ _. _ := ∃∈.
 syntax λ _ ∈ _. _ := λ∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
-syntax THE _ ∈ _. _ := _TheIn.
-syntax SOME _ ∈ _. _ := _SomeIn.
+syntax THE _ ∈ _. _ := TheIn.
+syntax SOME _ ∈ _. _ := SomeIn.
 syntax Π _ ∈ _. _ := Π∈.
 
 infix ⊆ 51 51 50.
@@ -62,15 +62,15 @@ infix < 51 51 50.
 syntax ∀ _ < _. _ := ∀<.
 syntax ∃ _ < _. _ := ∃<.
 syntax ∃! _ < _. _ := ∃!<.
-syntax THE _ < _. _ := _TheLt.
-syntax SOME _ < _. _ := _SomeLt.
+syntax THE _ < _. _ := TheLt.
+syntax SOME _ < _. _ := SomeLt.
 
 infix ≤ 51 51 50.
 syntax ∀ _ ≤ _. _ := ∀≤.
 syntax ∃ _ ≤ _. _ := ∃≤.
 syntax ∃! _ ≤ _. _ := ∃!≤.
 
-syntax {_ < _. _} := _CollectLt.
+syntax {_ < _. _} := CollectLt.
 
 
 infix > 51 51 50.
@@ -360,21 +360,13 @@ lemma all_indep_imp: if all: ∀x. P ⟹ Q.[x] then P ⟹ ∀x. Q.[x];
 lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
 	by imp all.
 
-theory True:
-begin
-	obtain true where true_intro! true;
-		- for thesis if assm: ∀true. true ⟹ thesis then thesis;
-			by assm[of (∀x. x ⟹ x)].
-		.
-end
-
 theory And:
 	fix (∧).
 	assume and_intro! for P Q if P, Q then P ∧ Q.
 	assume and_elim1: if P ∧ Q then P.
 	assume and_elim2: if P ∧ Q then Q.
 begin
-	lemma and_elim(elim) if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
+	lemma and_elim#elim if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
 		by PQR and_elim1[OF PQ] and_elim2[OF PQ].
 	lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q then R;
 		by and_elim[OF PQ PQR].
@@ -384,7 +376,7 @@ end
 theory Not:
 	fix false (¬).
 	assume not_intro: if P ⟹ false then ¬P.
-	assume not_imp_false(weak after 1) if ¬P, P then false.
+	assume not_imp_false#weak[after 1] if ¬P, P then false.
 begin
 	lemma not_false: ¬false;
 		by not_intro.
@@ -400,25 +392,25 @@ begin
 	lemma not_imp_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
 		by imp_not_imp[OF QP nP].
 	lemma imp_not_sym: if PnQ: P ⟹ ¬Q then Q ⟹ ¬P;
-		by not_intro PnQ(elim).
-	lemma nnot_intro: P ⟹ ¬¬P;
+		by not_intro #elim PnQ.
+	lemma nnot_intro: P ⟹ ¬ ¬P;
 		by not_intro.
-	lemma nnot_imp: if imp: ¬¬P ⟹ Q then P ⟹ Q;
+	lemma nnot_imp: if imp: ¬ ¬P ⟹ Q then P ⟹ Q;
 		by imp nnot_intro.
-	lemma not_imp_not_all: ¬P.[x] ⟹ ¬(∀y. P.[y]);
+	lemma not_imp_not_all: ¬ P.[x] ⟹ ¬(∀y. P.[y]);
 		by not_intro.
-	lemma nnot_imp_nnot: if nnP: ¬¬P, PQ: P ⟹ Q then ¬¬Q;
+	lemma nnot_imp_nnot: if nnP: ¬ ¬P, PQ: P ⟹ Q then ¬ ¬Q;
 		apply not_intro;
 		- if nQ: ¬Q;
 			use nnP;
 			by imp_not_imp[OF PQ nQ].
 		.
-	lemma nnot_not_imp_nimp: if nnP: ¬¬P, ! ¬Q then ¬(P ⟹ Q);
+	lemma nnot_not_imp_nimp: if nnP: ¬ ¬ P, ! ¬Q then ¬(P ⟹ Q);
 		apply not_intro;
 		- if PQ: P ⟹ Q;
 			by nnot_imp_nnot[OF nnP PQ].
 		.
-	lemma nnimp_imp_nnot: if nnPQ: ¬¬(P ⟹ Q), P: P then ¬¬Q;
+	lemma nnimp_imp_nnot: if nnPQ: ¬ ¬(P ⟹ Q), P: P then ¬ ¬Q;
 		apply not_intro;
 		- if nQ: ¬Q;
 			have nPQ: ¬(P ⟹ Q);

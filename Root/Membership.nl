@@ -134,7 +134,7 @@ theory Monotone:
 end
 
 theory CollectRel:
-	fix (<) _CollectLt.
+	fix (<) CollectLt.
 	assume Collect_intro: if x < a, P.[x] then x ∈ {x < a. P.[x]}.
 	assume Collect_elim0: if x ∈ {x < a. P.[x]} then x < a.
 	assume Collect_elim1: if x ∈ {x < a. P.[x]} then P.[x].
@@ -148,5 +148,5 @@ theory AllIn:
 end
 
 theory CollectIn:
-	import in: CollectRel (∈) _CollectIn.
+	import in: CollectRel (∈) CollectIn.
 end

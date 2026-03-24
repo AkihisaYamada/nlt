@@ -12,29 +12,29 @@ import Minimal.
 import in: Minimal.AllRel (∈) (∀∈).
 
 fix nnProp nnor nnex nnexIn.
-assume in_nnProp_iff: P ∈ nnProp ⟺ (¬¬P ⟹ P).
+assume in_nnProp_iff: P ∈ nnProp ⟺ (¬ ¬P ⟹ P).
 
 --The negative translation of disjunction is specified as follows.
 assume nnor_def: nnor P Q ⟺ ¬(¬P ∧ ¬Q).
 
 -- The existential quantifier is translated as follows:
-assume nnex_def: nnex (x. Y.[x]) ⟺ ¬(∀x. ¬Y.[x]).
+assume nnex_def: nnex (x. Y.[x]) ⟺ ¬(∀x. ¬ Y.[x]).
 
-assume nnexIn_def: nnexIn A (x. Y.[x]) ⟺ ¬(∀x ∈ A. ¬Y.[x]).
+assume nnexIn_def: nnexIn A (x. Y.[x]) ⟺ ¬(∀x ∈ A. ¬ Y.[x]).
 
 begin
 thy.
-lemma nnProp_imp_nnot: P ∈ nnProp ⟹ ¬¬P ⟺ P;
+lemma nnProp_imp_nnot: P ∈ nnProp ⟹ ¬ ¬P ⟺ P;
 	by iff_intro nnot_intro #simp in_nnProp_iff.
 
-lemma in_nnProp_intro: if nn: ¬¬P ⟹ P then P ∈ nnProp;
+lemma in_nnProp_intro: if nn: ¬ ¬P ⟹ P then P ∈ nnProp;
 	by nn #simp in_nnProp_iff.
 
 ----
 ## Proving that the image of double negation and operators satisfy the classical logic axioms.
 ----
 
-note(cong) in.all_cong_weak.
+note#cong in.all_cong_weak.
 
 interpret nnProp: FreeOrder;
 	instantiate Prop := nnProp, (∨) := nnor, (∃∈) := nnexIn.
@@ -86,7 +86,7 @@ interpret nnProp: nnProp.Classical;
 			by not_imp_false[OF all Px].
 		.
 	- if or: nnor P Q, ! R ∈ nnProp, PR: P ⟹ R, QR: Q ⟹ R then R;
-		have nnR: ¬¬R;
+		have nnR: ¬ ¬R;
 			apply not_intro;
 			- if nR: ¬R then false;
 				apply+ or[unfold nnor_def, THEN not_imp_false] and_intro not_intro;
@@ -98,28 +98,25 @@ interpret nnProp: nnProp.Classical;
 			.
 		by nnR[unfold nnProp_imp_nnot].
 	- if ex: nnex (x. P.[x]), imp: ∀x. P.[x] ⟹ Q, ! Q ∈ nnProp then Q;
-		have nnQ: ¬¬Q;
+		have nnQ: ¬ ¬Q;
 			apply not_intro;
 			- if nQ: ¬Q then false;
 				apply+ ex[unfold nnex_def, THEN not_imp_false];
-				- then ¬ P.[x];
-					apply not_intro;
-					- if Px: P.[x];
-						apply not_imp_false[OF nQ imp[OF Px]].
-					.
+				-> if Px: P.[x];
+					apply not_imp_false[OF nQ imp[OF Px]].
 				.
 			.
 		by nnQ[unfold nnProp_imp_nnot].
 	- if 0: false, ! P ∈ nnProp then P;
-		have nnP: ¬¬P;
+		have nnP: ¬ ¬P;
 			by not_intro 0.
 		by nnP[unfold nnProp_imp_nnot].
-	- if ! P ∈ nnProp then nnor P (¬ P);
+	- if ! P ∈ nnProp then nnor P (¬P);
 		unfold nnor_def;
 		by non_contradiction.
 	- by in.all_intro.
 	- by #elim in.all_elim.
-	- then nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
+	- show: nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
 		unfold nnexIn_def nnex_def in.all_def imp_not_iff_nand;.
 	.
 

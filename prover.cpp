@@ -392,23 +392,12 @@ public:
 		} else if( skips("?") ) {
 			cs.weak = true;
 			cs.inflated = true;
-		} else if( skips("(") ) {
+		} else if( skips("#") ) {
 			do {
 				if( skips("weak") ) {
 					cs.weak = true;
-					if( skips("after") ) {
-						cs.after = get_int();
-					}
 				} else if( skips("intro") ) {
 					cs.intro = true;
-					if( skips("after") ) {
-						cs.after = get_int();
-					} else if( auto n = gets_int() ) {
-						cs.prems = *n;
-					}
-					if( skips("=") ) {
-						cs.strip_all = false;
-					}
 				} else if( skips("cong") ) {
 					cs.cong = true;
 				} else if( skips("fallback") ) {
@@ -423,16 +412,24 @@ public:
 					cs.dual = true;
 				} else if( skips("simp") ) {
 					cs.unfold = true;
-					if( skips("after") ) {
-						cs.after = get_int();
-					}
 				} else if( skips("fold") ) {
 					cs.fold = true;
 				} else {
 					throw Error("\"unknown rule\"")(peek_token());
 				}
-			} while( skips(",") );
-			skip(")");
+				if( skips("[") ) {
+					do {
+						if( skips("after") ) {
+							cs.after = get_int();
+						} else if( skips("prems") ) {
+							cs.prems = get_int();
+						} else if( skips("no_expand") ) {
+							cs.strip_all = false;
+						} else break;
+					} while( skips(",") );
+					skip("]");
+				}
+			} while( skips("#") );
 		} else {
 			return {};
 		}
@@ -1125,35 +1122,11 @@ public:
 			auto resolver = _thy.resolver(_out_resolver);
 			while( auto thm = gets_thm() ) {
 				resolver.inflate(_thy,*thm);
-				if( auto cs = gets_claim_status() ) {
-					add_claim(_thy,{},cs,*thm);
-				} else {
-					add_intro(_thy,*thm,true);
-				}
+				add_intro(_thy,*thm,true);
 			}
-			while( skips("#") ) {
-				if( skips("weak") ) {
-					while( auto thm = gets_thm() ) {
-						add_intro(_thy,*thm,false);
-					}
-				} else if( skips("elim") ) {
-					while( auto thm = gets_thm() ) {
-						_thy.add_thm(ELIM,*thm,Elim::rule(*thm,0,'?'));
-					}
-				} else if( int type = skips("simp") ? 1 : skips("fold") ? 2 : skips("cong") ? 3 : 0 ) {
-					while( auto const& thm = _gets_thm(_thy) ) {
-						auto rule = *thm;
-						if( type == 2 ) {
-							rule = _thy.dualize(rule,resolver);
-						}
-						if PRF {
-							if( !MSG ) cout << _indent(' ');
-							cout << "adding rewrite rule: " << _thy.pretty(rule) << endl;
-						}
-						resolver.rew->add_rewrite_rule(resolver.rules,rule,type==3);
-					}
-				} else {
-					throw Error("\"unexpected\"")(get());
+			while( auto cs = gets_claim_status() ) {
+				while( auto thm = gets_thm() ) {
+					add_claim(_thy,{},cs,*thm);
 				}
 			}
 			skip(".");

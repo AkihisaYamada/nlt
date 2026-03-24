@@ -39,7 +39,7 @@ begin
 		- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 			by iff_intro #elim or_elim #simp PQ RS.
 		.
-	note(cong) or.cong.
+	note#cong or.cong.
 
 	interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
 		by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
@@ -49,7 +49,7 @@ begin
 			by iff_intro #elim or_elim.
 		.
 
-	note(simp) or.idem.
+	note#simp or.idem.
 
 	lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
 		apply iff_intro;
@@ -68,21 +68,21 @@ begin
 		unfold and.commute;
 		unfold and_or_distrib.
 
-	lemma nor_iff: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
+	lemma nor_iff: ¬ (P ∨ Q) ⟺ ¬P ∧ ¬Q;
 		unfold not_iff_imp_false;
 		by or_imp_iff.
 
-	lemma nnot_excluded_middle: ¬¬(P ∨ ¬P);
+	lemma nnot_excluded_middle: ¬ ¬ (P ∨ ¬P);
 		unfold nor_iff;
 		by non_contradiction.
 
-	lemma nnot_nor_iff: ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
+	lemma nnot_nor_iff: ¬ (¬ ¬ P ∨ Q) ⟺ ¬ (P ∨ Q);
 		unfold nor_iff nnnot_iff.
 
-	lemma nor_nnot_iff: ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
+	lemma nor_nnot_iff: ¬ (P ∨ ¬ ¬ Q) ⟺ ¬ (P ∨ Q);
 		unfold nor_iff nnnot_iff.
 
-	lemma or_imp_nand: P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
+	lemma or_imp_nand: P ∨ Q ⟹ ¬ (¬P ∧ ¬Q);
 		by not_intro #elim or_elim.
 
 	---
@@ -101,13 +101,13 @@ begin
 		- apply ex_intro>0.
 		.
 
-	lemma ex_cong(cong,rule_cong) if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
+	lemma ex_cong#cong#rule_cong if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
 		unfold ex_iff eq.
 
-	lemma ex_indep(simp) (∃x. P) ⟺ P;
-		by iff_intro ex_intro1 ex_elim(elim).
+	lemma ex_indep#simp (∃x. P) ⟺ P;
+		by iff_intro ex_intro1 #elim ex_elim.
 
-	lemma ex_imp_iff_all(simp,rule) ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+	lemma ex_imp_iff_all#simp#rule ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		apply iff_intro;
 		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
 			by imp ex_intro1[OF Px].
@@ -115,13 +115,13 @@ begin
 			by #elim imp ex_elim.
 		.
 
-	lemma ex_and1(rule) (∃x. P.[x]) ∧ Q ⟺ (∃x. P.[x] ∧ Q);
+	lemma ex_and1#rule (∃x. P.[x]) ∧ Q ⟺ (∃x. P.[x] ∧ Q);
 		simp iff_iff_and imp_and_distrib;
 		- for x;
 			by ex_intro1[of x].
 		.
 
-	lemma ex_and2(rule) P ∧ (∃x. Q.[x]) ⟺ (∃x. P ∧ Q.[x]);
+	lemma ex_and2#rule P ∧ (∃x. Q.[x]) ⟺ (∃x. P ∧ Q.[x]);
 		simp iff_iff_and imp_and_distrib;
 		- for x;
 			by ex_intro1[of x].
@@ -133,7 +133,7 @@ begin
 			by ex_intro1[of x].
 		.
 
-	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+	lemma nex_iff_all_not: ¬ (∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
 		simp not_iff_imp_false.
 
 	---
@@ -167,7 +167,7 @@ begin
 				simp ex_def and_or_distrib .ex_or_distrib.
 			lemma ex_iff: (∃x < a. P.[x]) ⟺ (∀Q. (∀x < a. P.[x] ⟹ Q) ⟹ Q);
 				unfold ex_def ex_iff all_def.
-			lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
+			lemma nex_iff_all_not: ¬ (∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
 				unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 		end
 	end
@@ -178,7 +178,7 @@ begin
 			interpret in: ..AllRel (∈) (∀∈).
 			extend ExIn begin
 				interpret in: in.ExRel (∃∈).
-				note(rule) in.ex_imp_iff.
+				note#rule in.ex_imp_iff.
 			end
 		end
 
@@ -193,7 +193,7 @@ begin
 	### Law of Explosion
 	---
 	theory Explosion:
-		assume false_elim(elim) -- (Latin: *ex falso quodlibet*)
+		assume false_elim#elim -- (Latin: *ex falso quodlibet*)
 			if false then P.
 	begin -- It yields intuitionistic logic.
 
@@ -203,18 +203,18 @@ begin
 		lemma not_elim: if nP: ¬P, P: P then Q;
 			use not_imp_false[OF nP P].
 
-		lemma false_imp_iff(simp) (false ⟹ P) ⟺ true;
+		lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
 			by iff_true.
 
 		interpret and: iff.MetaCommAbsorb (∧) false;
 			by iff_intro.
 
-		note(simp) and.left_absorb and.right_absorb.
+		note#simp and.left_absorb and.right_absorb.
 
 		interpret or: iff.MetaCommNeutral (∨) false;
 			by iff_intro or_intro #elim or_elim false_elim.
 
-		note(simp) or.left_neutral or.right_neutral.
+		note#simp or.left_neutral or.right_neutral.
 
 	end
 
@@ -237,11 +237,11 @@ begin
 	### Double Negation Elimination
 	---
 	theory DoubleNegationElimination:
-		assume nnot_imp: if ¬¬P then P.
+		assume nnot_imp: if ¬ ¬ P then P.
 		-- This alone yields classical logic.
 	begin
 
-		lemma nnot_iff(simp) ¬¬P ⟺ P;
+		lemma nnot_iff#simp ¬ ¬ P ⟺ P;
 			apply iff_intro[OF nnot_imp nnot_intro].
 
 		lemma contradiction: (¬P ⟹ false) ⟹ P;-- (Latin: *reductio ad absurdum* (RAA))
@@ -255,7 +255,7 @@ begin
 		interpret ExcludedMiddle;
 			- show: P ∨ ¬P;
 				apply or_intro;
-				- for Q if PQ: P ⟹ Q, nPQ: ¬ P ⟹ Q then Q;
+				- for Q if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
 					apply contradiction;
 					- if nQ: ¬Q then false;
 						have nP: ¬P;
@@ -277,7 +277,7 @@ begin
 					.
 				.
 			.
-		lemma or_iff_nand: P ∨ Q ⟺ ¬(¬P ∧ ¬Q);
+		lemma or_iff_nand: P ∨ Q ⟺ ¬ (¬P ∧ ¬Q);
 			fold nor_iff.
 
 	end
@@ -290,7 +290,7 @@ end
 We can obtain `false` via `∀P. P` to satisfy the law of explosion.
 ---
 theory Intuitionistic:
-	obtain false where false_elim(elim) if false then P;
+	obtain false where false_elim#elim if false then P;
 		- for thesis if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
 			apply assm[of (∀P. P)].
 		.
@@ -315,7 +315,7 @@ theory Classical:
 	import ExcludedMiddle.
 begin
 	interpret DoubleNegationElimination;
-		- if nnP: ¬¬P then P;
+		- if nnP: ¬ ¬ P then P;
 			apply cases[of P];
 			- if nP: ¬P;
 				by not_elim[OF nnP nP].

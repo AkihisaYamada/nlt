@@ -11,7 +11,7 @@ begin
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		apply iff_intro;
 		simp;
-		note(cong) eq_cong_meta[of P].
+		note#cong eq_cong_meta[of P].
 		- if xa: x = a, Px: P.[x];
 			by Px #fold xa.
 		- if Pa: P.[a];
@@ -22,7 +22,7 @@ begin
 		by ex_eq_and_iff.
 
 	extend Ex1 begin
-		lemma ex1_cong(cong)
+		lemma ex1_cong#cong
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_def iff.
 		lemma ex1_elim: if ex1: ∃!x. P.[x], all: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
@@ -44,7 +44,7 @@ begin
 			apply iff_intro;
 			- by ex1_imp_eq[OF ex1 Px].
 			- if eq;
-				note(cong) eq_cong_meta[of P].
+				note#cong eq_cong_meta[of P].
 				by Px[unfold eq].
 			.
 
@@ -113,7 +113,7 @@ begin
 				import Ex1.
 				assume ex1_def: (∃!x < a. P.[x]) ⟺ (∃!x. x < a ∧ P.[x]).
 			begin
-				lemma ex1_cong(cong)
+				lemma ex1_cong#cong
 					if eq: a = b, iff: ∀x. x < b ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
 					simp ex1_def eq iff;.
 				lemma ex1_intro1: for x a P
@@ -155,16 +155,16 @@ begin
 					by ex1_eq_and_iff[of (x. true), simp].
 
 				theory TheRel:
-					fix _TheLt.
+					fix TheLt.
 					import The.
 					assume THE_def: (THE x < a. P.[x]) = (THE x. x < a ∧ P.[x]).
 				begin
 					lemma THE_intro1: (∃!x < a. P.[x]) ⟹ P.[THE x < a. P.[x]];
-						note(cong) eq_cong_meta[of P].
+						note#cong eq_cong_meta[of P].
 						unfold ex1_def THE_def;
 						by #elim The.THE_intro.
 					lemma THE_intro0: (∃!x < a. P.[x]) ⟹ (THE x < a. P.[x]) < a;
-						note(cong) eq_cong_meta[of P].
+						note#cong eq_cong_meta[of P].
 						unfold ex1_def THE_def;
 						by #elim The.THE_intro.
 					lemma THE_eq_intro: if ex1: ∃!y < a. P.[y], Px: P.[x], xa: x < a then (THE y < a. P.[y]) = x;
@@ -191,16 +191,16 @@ begin
 				import base? base.ExIn.
 			begin
 				interpret in: in.ExRel (∃∈).
-				note(cong) in.all_cong in.ex_cong.
-				note(rule) in.all_def.
-				note(elim) in.ex_elim.
-				note(simp) in.ex_imp_iff.
+				note#cong in.all_cong in.ex_cong.
+				note#rule in.all_def.
+				note#elim in.ex_elim.
+				note#simp in.ex_imp_iff.
 
 				theory Ex1In:
 					import Ex1.
 					import in: in.Ex1Rel (∃!∈).
 				begin
-					note(cong) in.ex1_cong.
+					note#cong in.ex1_cong.
 
 					theory UniqueChoice:
 						import Pair.
@@ -209,7 +209,7 @@ begin
 					begin
 						interpret Abbrev;
 							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
-								note(cong) eq_cong_meta[of F].
+								note#cong eq_cong_meta[of F].
 								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
 									apply assm[of f];
@@ -234,7 +234,7 @@ begin
 							.
 						interpret AbbrevCond;
 							- for P A if F: ∀x. P.[x] ⟹ F.[x] ∈ A.[x] for Q if assm;
-								note(cong) eq_cong_meta[of F].
+								note#cong eq_cong_meta[of F].
 								apply unique_choice_cond[of P A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
 								- for f if f;
 									apply assm[of f];
@@ -247,8 +247,8 @@ begin
 
 					theory TheIn:
 						import The.
-						fix _TheIn.
-						import in: in.TheRel _TheIn.
+						fix TheIn.
+						import in: in.TheRel TheIn.
 					begin
 						extend Lambda begin
 							extend Pair begin
@@ -258,7 +258,7 @@ begin
 										- if Px: P.[x];
 											note ex1: P_imp_ex1[OF Px].
 											note! in.THE_intro0[OF ex1] in.THE_intro1[OF ex1].
-											note(cong) eq_cong_meta[of Q].
+											note#cong eq_cong_meta[of Q].
 											unfold fun_app[of A].
 										.
 									.

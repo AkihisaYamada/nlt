@@ -113,10 +113,10 @@ theory UnorderedPairAxiom:
 begin
 	lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
 		apply upair_axiom[rule, OF x y, THEN in.ex_elim];
-		- for z if z! z ∈ Set, zall;
+		- for z if ! z ∈ Set, zall;
 			apply in.ex1_intro1[of z];
 			- by zall.
-			- by z.
+			-.
 			- for z' if !, z'all;
 				by set_eq_intro #simp z'all[rule] zall[rule].
 			.
@@ -143,11 +143,11 @@ begin
 
 	lemma ExIn_upair_iff: if !x ∈ Set, !y ∈ Set then (∃z ∈ upair(x,y). P.[z]) ⟺ P.[x] ∨ P.[y];
 		apply iff_intro;
-		note(cong) eq_cong_meta[of P].
+		note#cong eq_cong_meta[of P].
 		-> for z if z;
 			apply upair_elim[OF z];
-			- if (simp).
-			- if (simp).
+			- if #simp.
+			- if #simp.
 			.
 		- if or;
 			apply or_elim[OF or];
@@ -236,7 +236,7 @@ begin
 		apply separation_schema[of P, rule, OF A, THEN in.ex_elim];
 		- for B if B, Bspec;
 			apply+ in.ex1_intro1[of B] in.all_intro B;
-			- by Bspec[rule](simp).
+			- by #simp Bspec[rule].
 			- for B' if B', B'spec;
 				by set_eq_intro B B' #simp Bspec[rule] B'spec[rule].
 			.
@@ -286,7 +286,7 @@ context UniqueChoiceCond begin
 						- show Cset: for A P if A: A ∈ Set then {x ∈ A. P.[x]} ∈ Set;
 							apply C[THEN and_elim1, of (A, x. P.[x]) A P, simp, OF A].
 						- for A P if A for x;
-							note(simp) C[THEN and_elim2, of (A, x. P.[x]) A P, simp, OF A eq.refl eq.refl eq.refl, rule].
+							note#simp C[THEN and_elim2, of (A, x. P.[x]) A P, simp, OF A eq.refl eq.refl eq.refl, rule].
 							apply iff_intro;
 							- if xC;
 								have! x ∈ Set;
@@ -572,7 +572,7 @@ theory CUP:
 	assume CUP_iff: if AA ∈ Set then x ∈ ⋃AA ⟺ (∃A ∈ AA. x ∈ A).
 begin
 
-	lemma ExIn_CUP(simp) if AA! AA ∈ Set then (∃x ∈ ⋃AA. P.[x]) ⟺ (∃A ∈ AA. ∃x ∈ A. P.[x]);
+	lemma ExIn_CUP#simp if AA! AA ∈ Set then (∃x ∈ ⋃AA. P.[x]) ⟺ (∃A ∈ AA. ∃x ∈ A. P.[x]);
 		simp in.ex_def CUP_iff;
 		apply iff_intro;
 		-> for x A if ! A ∈ AA, ! x ∈ A, ! P.[x];

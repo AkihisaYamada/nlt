@@ -8,6 +8,8 @@ In type theory, being a member of a type is crucial.
 In this theory, we call members of classes objects.
 We further allow comprehension w.r.t. non-formulas.
 ---
+fix class.
+
 import Eq.
 import TypeFree.
 import Minimal.
@@ -16,89 +18,117 @@ import AllIn.
 import ExIn.
 import Ex1In.
 
-fix Pow.
-assume Pow_ext: ∀A B. ∀X ∈ Pow A. ∀Y ∈ Pow B. (∀x. x ∈ X ⟺ x ∈ Y) ⟹ X = Y.
-
-lemma Pow_eq_intro: if iff: ∀x. x ∈ X ⟺ x ∈ Y, X: X ∈ Pow A, Y: Y ∈ Pow B then X = Y;
-	apply Pow_ext[rule, OF X Y iff].
-
-assume Pow_Pow! Pow A ∈ Pow (Pow A).
-
-assume comprehension_schema: ∀A P. ∃X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x].
-
-lemma comprehension_ex1: for A P then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x];
-	apply comprehension_schema[of A P, THEN in.ex_elim];
-	- for X if Xty!, X;
-		apply in.ex1_intro1[of X];
-		- by X.
-		- by Xty.
-		- for Y if Yty!, Y;
-			apply Pow_eq_intro[of A];
-			simp X Y.
-		.
-	.
-
-import UniqueChoiceCond.
-
-syntax {_ ∈ _. _} := CollectIn(,).
-obtain CollectIn where
-	CollectIn_Pow! {x ∈ A. P.[x]} ∈ Pow A,
-	CollectIn_iff: x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
-	- for thesis if assm;
-		apply unique_choice_cond[of
-			(p. ∃A P. p = (A, x. P.[x]))
-			((A,P). Pow A)
-			(t. ∃A P B. t = ((A, x. P.[x]), B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
-		simp;
-		- for p A P if p;
-			apply in.ex1_cong[OF eq.refl, THEN imp_commute[OF iff_elim1][OF comprehension_ex1], of A (x. P.[x])];
-			- for X if Xty!;
-				apply iff_intro;
-				- if Xiff;
-					apply ex_intro1[of A];
-					apply ex_intro1[of P];
-					simp Xiff p ex_eq_and_iff2.
-				simp p;
-				- for A' P' X' if (simp), PP', (simp);
-					simp eq_cong_meta[for x, of (P. P.[x]), OF PP'].
-				.
-			.
-		- for CollectIn if C;
-			note C2: C[OF eq.refl].
-			apply assm[of CollectIn];
-			- for A P;
-				use C2[of A P];.
-			- for x A P;
-				use C2[of A P];
-				simp;
-			 	- if ty for A' P' C' if A', P', C', iff;
-					simp iff[fold A' C'] eq_cong_meta[for z, of (P. P.[z]), OF P'].
-				.
-			.
-		.
-	.
-
-lemma CollectIn_cong(cong)
-	if AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x] then {x ∈ A. P.[x]} = {x ∈ B. Q.[x]};
-	apply Class_eq_intro;
-	by #simp Collect_iff AB PQ.
-
-lemma CollectIn_true(simp) {x ∈ A. true} = Pow A;
-	apply Pow_eq_intro;
-
-ff
-
+---
+Classes are identified by their memberships.
+---
+assume class_ext: if class X, class Y, ∀x. x ∈ X ⟺ x ∈ Y then X = Y.
 
 syntax {} := empty.
-define {} = {x. false}.
-
-lemma empty_Class! {} ∈ Class;
-	unfold empty_def.
-
-lemma not_in_empty: ¬x ∈ {};
-	by nand_false #simp empty_def Collect_iff.
-
 syntax {_} := singleton.
+infix ∪(,) 71 70 71.
+infix ∩(,) 81 80 81.
+infix ×(,) 111 110 110.
+infix `(,) 101 100 100.
+syntax {_ ∈ _. _} := CollectIn(,).
+
+begin
+
+lemma class_eq_intro: if iff: ∀x. x ∈ X ⟺ x ∈ Y, X: class X, Y: class Y then X = Y;
+	apply class_ext[OF X Y iff].
+
+theory CollectIn:
+	fix CollectIn.
+	assume CollectIn_class! if class A then class {x ∈ A. P.[x]}.
+	assume CollectIn_iff: if class A then x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x].
+begin
+
+	lemma CollectIn_cong#cong
+		if A: class A, AB: A = B, PQ: ∀x. x ∈ B ⟹ P.[x] ⟺ Q.[x]
+		then {x ∈ A. P.[x]} = {x ∈ B. Q.[x]};
+		apply class_eq_intro;
+		by #simp CollectIn_iff AB PQ #intro A[simp].
+
+	lemma CollectIn_true: if A: class A then {x ∈ A. true} = A;
+		apply class_eq_intro;
+		by A #simp CollectIn_iff.
+
+end
+
+theory ComprehensionSchema:
+	assume comprehension_schema: for A P if class A then ∃X. class X ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]).
+begin
+	lemma comprehension_ex1: for A P if A: class A then ∃!X. class X ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]);
+		apply comprehension_schema[of A P, OF A, THEN ex_elim];
+		-> for X if Xty!, X;
+			apply ex1_intro1[of X];
+			- by #simp X.
+			-> for Y if Yty!, Y;
+				apply class_eq_intro;
+				simp X Y.
+			.
+		.
+end
+
+extend UniqueChoiceCond begin
+
+	extend ComprehensionSchema begin
+
+		interpret CollectIn;
+			obtain CollectIn where
+				CollectIn_class! if class A then class {x ∈ A. P.[x]},
+				CollectIn_iff: if class A then x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x];
+				- for thesis if assm;
+					apply unique_choice_cond[of
+						(p. ∃A P. p = (A, x. P.[x]))
+						((A,P). Pow A)
+						(t. ∃A P B. t = ((A, x. P.[x]), B) ∧ (∀x. x ∈ B ⟺ x ∈ A ∧ P.[x])), THEN ex_elim];
+					simp;
+					- for p A P if p;
+						apply ex1_cong[OF eq.refl, THEN imp_commute[OF iff_elim1][OF comprehension_ex1], of A (x. P.[x])];
+						- for X if Xty!;
+							apply iff_intro;
+							- if Xiff;
+								apply ex_intro1[of A];
+								apply ex_intro1[of P];
+								simp Xiff p ex_eq_and_iff2.
+							simp p;
+							- for A' P' X' if (simp), PP', (simp);
+								simp eq_cong_meta[for x, of (P. P.[x]), OF PP'].
+							.
+						.
+					- for CollectIn if C;
+						note C2: C[OF eq.refl].
+						apply assm[of CollectIn];
+						- for A P;
+							use C2[of A P];.
+						- for x A P;
+							use C2[of A P];
+							simp;
+						 	- if ty for A' P' C' if A', P', C', iff;
+								simp iff[fold A' C'] eq_cong_meta[for z, of (P. P.[z]), OF P'].
+							.
+						.
+					.
+				.
+			.
+	end
+
+end
+
+theory PowerClass:
+	fix Pow.
+	assume Pow_class: if class A then class (Pow A).
+	assume Pow_iff: if class A then X ∈ Pow A ⟺ class X ∧ (∀x. x ∈ X ⟹ x ∈ A).
+end
+
+theory MK:
+	fix Object.
+	assume Object_class! class Object.
+	import CollectIn.
+begin
+	define
+
+
 obtain singleton where singleton_def: {a} = {x. a = x};
 	apply abbrev[of Class]>1=.
 

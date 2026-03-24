@@ -13,7 +13,7 @@ assume exIn_type!  if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) 
 begin
 
 interpret Propositional;
-	obtain false where ! false ∈ Prop;-- One can obtain false.
+	obtain false where false_prop: false ∈ Prop;-- One can obtain false.
 		- for thesis if assm;
 			apply assm[of (∀P ∈ Prop. P)].
 		.

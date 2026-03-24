@@ -8,7 +8,7 @@ fix (=).
 
 import eq: MetaReflexive (=).
 
-assume eq_elim: for X y z if y = z, X.[y] then X.[z].
+assume eq_elim: for P x y if x = y, P.[x] then P.[y].
 
 begin
 ---
@@ -27,7 +27,7 @@ interpret eq: MetaEquivalence (=);
 		by eq_elim[of (w. x = w), OF yz xy].
 	.
 
-note(dual) eq.sym.
+note#dual eq.sym.
 
 lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
@@ -49,7 +49,7 @@ lemma arg_cong: if xy: x = y then f x = f y;
 lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
-lemma cong(fallback) if fg: f = g, xy: x = y then f x = g y;
+lemma cong#fallback if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;
 		by arg_cong[OF xy].
 	apply eq.trans[OF 1];
@@ -100,7 +100,7 @@ end
 
 theory Id:
 	fix id.
-	assume id(simp) id x = x.
+	assume id#simp id x = x.
 begin
 	
 end
@@ -117,8 +117,8 @@ end
 
 theory Pair: --- Syntactic Pairing ---
 	fix (,) fst snd.
-	assume fst(simp) fst (x,y) = x.
-	assume snd(simp) snd (x,y) = y.
+	assume fst#simp fst (x,y) = x.
+	assume snd#simp snd (x,y) = y.
 begin
 	interpret pair: MetaInjective (,);
 		- for x x' if eq: (,) x = (,) x' then x = x';
@@ -149,9 +149,9 @@ begin
 			unfold snd.
 		by eq.trans[OF 3].
 
-	lemma eq_pair_fst(simp after 1) if p: p = (x,y) then fst p = x;
+	lemma eq_pair_fst#simp[after 1] if p: p = (x,y) then fst p = x;
 		simp p.
-	lemma eq_pair_snd(simp after 1) if p: p = (x,y) then snd p = y;
+	lemma eq_pair_snd#simp[after 1] if p: p = (x,y) then snd p = y;
 		simp p.
 end
 
@@ -227,13 +227,13 @@ end
 
 extend TypeSafeMinimal begin
 
-	lemma eq_refl_iff(simp) x = x ⟺ true;
+	lemma eq_refl_iff#simp x = x ⟺ true;
 		by iff_intro.
 
 	interpret iff_eq: iff.MetaCommutative (=);
 		by iff_intro[OF eq.sym eq.sym].
 
-	lemma eq_imp_iff(fallback) if eq: P = Q then P ⟺ Q;
+	lemma eq_imp_iff#fallback if eq: P = Q then P ⟺ Q;
 		unfold[on (=)] eq.
 
 	lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
@@ -241,7 +241,7 @@ extend TypeSafeMinimal begin
 		- if all;
 			apply all.
 		- if Pa: P.[a], xa: x = a;
-			note(cong) eq_cong_meta[of P].
+			note#cong eq_cong_meta[of P].
 			by Pa #simp xa.
 		.
 	lemma ex_eq1: ∃x. x = a;
@@ -306,7 +306,7 @@ extend TypeSafeMinimal begin
 	end
 
 	extend Pair begin
-		lemma pair_eq_pair(simp) (x,y) = (x',y') ⟺ x = x' ∧ y = y';
+		lemma pair_eq_pair#simp (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
 			- if eq;
 				by pair_eq_pair_elim1[OF eq] pair_eq_pair_elim2[OF eq].
@@ -316,7 +316,7 @@ extend TypeSafeMinimal begin
 			.
 		lemma all_pair: (∀(x,y). P.[x,y]) ⟺ (∀x y. P.[x,y]);
 			apply iff_intro;
-			note(cong) eq_cong_meta[of P].
+			note#cong eq_cong_meta[of P].
 			- if pair for x y;
 				by pair[of (x,y),simp].
 			- if xy;

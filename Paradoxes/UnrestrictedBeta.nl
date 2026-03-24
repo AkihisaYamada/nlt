@@ -11,4 +11,4 @@ interpret UnrestrictedAbbrev;
 		.
 	.
 
-thm inconsistent.
+thm inconsistent. -- ∀false. false

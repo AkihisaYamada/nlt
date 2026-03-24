@@ -6,6 +6,7 @@
     {"include": "#block-comments"},
     {"include": "#commands"},
     {"include": "#structures"},
+	{"include": "#tags"},
     {"include": "#proof-steps"},
     {"include": "#proof-structures"}
   ],
@@ -24,7 +25,7 @@
     "commands": {
       "patterns": [{
         "name": "storage.nlt",
-        "match": ":\\=?|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|extend|define|instantiate|retain|set|prefix|infix|syntax)\\b"
+        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|extend|define|instantiate|retain|set|prefix|infix|syntax)\\b"
       }]
     },
     "structures": {
@@ -33,6 +34,12 @@
         "match": "\\b(begin|end)\\b"
       }]
     },
+    "tags": {
+      "patterns": [{
+        "name": "support.type.property-name",
+        "match": ":|!|\\?|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|dual|fold)\\b"
+      }]
+	},
     "proof-steps": {
       "patterns": [{
         "name": "keyword.control.nlt",

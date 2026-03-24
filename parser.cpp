@@ -76,7 +76,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	}
 	Term init;
 	if( skips("(") ) {
-		init = _get_term(-1000,fv);
+		init = _get_term(INT_MIN,fv);
 		skip(")");
 	} else if( auto const& x = syn.finds_opener(peek) ) {
 		ignore_token();
@@ -145,8 +145,8 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		} else {
 			init = binder;
 		}
-	} else if( auto x = syn.finds_infix(peek) ) {
-		if( x->second.level < level ) {
+	} else if( auto x = syn.finds_infix(peek) ) {// + 1
+		if( level != INT_MIN ) {
 			return {};
 		}
 		init = Term(x->first);

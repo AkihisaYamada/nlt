@@ -16,14 +16,10 @@ theorem inconsistent: false;-- Any term is provable
 	obtain R where R_def: R x ⟺ (x x ⟹ false);
 		- for thesis; apply abbrev>0.
 		.
-	have RR_iff_nRR: R R ⟺ (R R ⟹ false);
-		by R_def.
 	have nRR: if RR: R R then false;
-		by RR[unfold RR_iff_nRR] RR.
+		by RR[unfold R_def] RR.
 	have RR: R R;
-		by nRR[fold RR_iff_nRR].
+		by nRR[fold R_def].
 	by nRR[OF RR].
 
 thy.
-
-end

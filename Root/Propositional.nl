@@ -1,7 +1,7 @@
 ---
 ## Propositional Logics
 
-We fix a class `Prop` in which implication is closed.
+We fix a class `Prop` in which logical operators are closed.
 ---
 import Membership.
 
@@ -12,14 +12,15 @@ import or: Magma Prop (∨).
 import not: Unary (¬) Prop Prop.
 import iff: Magma Prop (⟺).
 assume false_prop! false ∈ Prop.
+
+begin
+
 -- `true` is obtained via `false ⟹ false`.
 note! imp.closed.
 obtain true where true_intro! true, true_prop! true ∈ Prop;
 	- for thesis if assm;
 		apply assm[of (false ⟹ false)].
 	.
-
-begin
 
 note! and.closed or.closed not.closed iff.closed.
 
@@ -54,7 +55,7 @@ begin
 		- if PQ: P ⟺ Q;
 			by iff_intro #elim or_elim #simp PQ.
 		.
-	note(cong) or.cong.
+	note#cong or.cong.
 
 	interpret or: iff_Prop.CommSemigroupAbsorb (∨) true;
 		by iff_intro #elim or_elim.
@@ -89,14 +90,14 @@ begin
 		unfold not_iff_imp_false;
 		by or_imp_iff.
 
-	lemma nnot_excluded_middle: if !P ∈ Prop then ¬¬(P ∨ ¬P);
+	lemma nnot_excluded_middle: if !P ∈ Prop then ¬ ¬(P ∨ ¬P);
 		unfold nor_iff;
 		by non_contradiction.
 
-	lemma nnot_nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(¬¬P ∨ Q) ⟺ ¬(P ∨ Q);
+	lemma nnot_nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬ (¬ ¬ P ∨ Q) ⟺ ¬(P ∨ Q);
 		unfold nor_iff nnnot_iff.
 
-	lemma nor_nnot_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ ¬¬Q) ⟺ ¬(P ∨ Q);
+	lemma nor_nnot_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ ¬ ¬ Q) ⟺ ¬(P ∨ Q);
 		unfold nor_iff nnnot_iff.
 
 	lemma or_imp_nand: if !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
@@ -110,7 +111,7 @@ begin
 		- for x if imp: P.[x] ⟹ Q;
 			by imp all.
 		.
-	lemma ex_imp_iff_all(simp)
+	lemma ex_imp_iff_all#simp
 		if ! Q ∈ Prop then ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		apply iff_intro;
 		- if imp, Px: P.[x];
@@ -121,17 +122,17 @@ begin
 				by imp[of x].
 			.
 		.
-	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬P.[x]);
+	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
 		simp not_iff_imp_false.
 
 	theory AllExRel:
 		import AllRel.
 		import ExRel.
 	begin
-		lemma ex_imp_iff_all(simp)
+		lemma ex_imp_iff_all#simp
 			if ! Q ∈ Prop then ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x < a. P.[x] ⟹ Q);
 			simp ex_def all_def.
-		lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬P.[x]);
+		lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
 			simp ex_def all_def nex_iff_all_not nand_iff_imp_not.
 	end
 
@@ -146,7 +147,7 @@ begin
 	lemma not_imp_iff_false: if nP: ¬P, !P ∈ Prop then P ⟺ false;
 		by iff_intro not_imp_false[OF nP] #elim false_elim.
 
-	lemma false_imp_iff(simp) if ! P ∈ Prop then (false ⟹ P) ⟺ true;
+	lemma false_imp_iff#simp if ! P ∈ Prop then (false ⟹ P) ⟺ true;
 		by iff_true #elim false_elim.
 
 	interpret and: iff_Prop.CommMonoidAbsorb (∧) false true;
@@ -155,7 +156,7 @@ begin
 	interpret or: iff_Prop.CommMonoidAbsorb (∨) true false;
 		by iff_intro #elim or_elim false_elim.
 
-	note(simp) and.left_absorb and.right_absorb or.left_neutral or.right_neutral.
+	note#simp and.left_absorb and.right_absorb or.left_neutral or.right_neutral.
 
 	lemma not_elim: if nP: ¬P, P: P, ! Q ∈ Prop then Q;
 		apply false_elim;
@@ -175,7 +176,7 @@ begin
 		- by nPQ.
 		.
 
-	lemma nnot_iff: if ! P ∈ Prop then ¬¬P ⟺ P;
+	lemma nnot_iff: if ! P ∈ Prop then ¬ ¬P ⟺ P;
 		apply prop_cases[of P];
 		- if P: P;
 			unfold iff_true[OF P] not_true_iff iff_true[OF not_false].
