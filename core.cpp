@@ -1,6 +1,5 @@
 #include<cstring>
 #include"core.hpp"
-#include"syntax.hpp"
 using namespace std;
 
 string const IMP = "⟹";

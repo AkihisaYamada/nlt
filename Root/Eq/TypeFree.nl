@@ -1,13 +1,9 @@
 begin
-
+print.
 interpret base? Root.TypeFree.
 
-theory Minimal:
-	import base? base.Minimal.
-begin
-
-	interpret eq? ..TypeSafeMinimal.
-
+context Minimal begin
+	interpret _..TypeSafeMinimal.
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		apply iff_intro;
 		simp;
@@ -21,7 +17,7 @@ begin
 		unfold iff_eq.commute;
 		by ex_eq_and_iff.
 
-	extend Ex1 begin
+	context Ex1 begin
 		lemma ex1_cong#cong
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_def iff.
@@ -51,7 +47,7 @@ begin
 		lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
 			simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 
-		extend The begin
+		context The begin
 			lemma THE_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
 				apply ex1_elim[OF ex1];
 				- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
@@ -65,15 +61,10 @@ begin
 
 	end
 
-	theory AllRel:
-		import eq? eq.AllRel.
-	begin
-		interpret base? base.AllRel.
+	context AllRel begin
 
-		theory ExRel:
-			import eq? eq.ExRel.
-		begin
-			interpret base? base.ExRel.
+		context ExRel begin
+
 			lemma ex_cong:
 				if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 				then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
@@ -250,8 +241,8 @@ begin
 						fix TheIn.
 						import in: in.TheRel TheIn.
 					begin
-						extend Lambda begin
-							extend Pair begin
+						context Lambda begin
+							context Pair begin
 								interpret UniqueChoiceCond;
 									- for P A Q if P_imp_ex1;
 										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];

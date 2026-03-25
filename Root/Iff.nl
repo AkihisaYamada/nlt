@@ -106,7 +106,8 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ---
 ## Deriving Restricted Quantifiers via `(⟺)`
 ---
-extend AllRel begin
+
+context AllRel begin
 
 	lemma all_def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]);
 		apply iff_intro;
@@ -142,8 +143,8 @@ begin
 		.
 end
 
-extend Membership begin
-	extend AllIn begin
+context Membership begin
+	context AllIn begin
 		interpret in: ..AllRel (∈) (∀∈).
 	end
 end

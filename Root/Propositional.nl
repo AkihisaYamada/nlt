@@ -4,6 +4,7 @@
 We fix a class `Prop` in which logical operators are closed.
 ---
 import Membership.
+import Magmas.
 
 fix Prop (∧) (∨) (¬) (⟺) false.
 import imp: Magma Prop (⟹).
@@ -24,7 +25,7 @@ obtain true where true_intro! true, true_prop! true ∈ Prop;
 
 note! and.closed or.closed not.closed iff.closed.
 
-interpret iff: Magmas (⟺).
+interpret iff: MetaRelation (⟺).
 
 theory Minimal:
 	--- Typed minimal logic allows elimination rules only derive propositions. ---

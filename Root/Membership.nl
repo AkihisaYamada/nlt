@@ -55,21 +55,29 @@ end
 theory Reflexive:
 	fix A (≤).
 	assume refl: if x ∈ A then x ≤ x.
+begin
+	interpret MetaRelation (≤).
 end
 
 theory Symmetric:
 	fix A (=).
 	assume sym: if x = y, x ∈ A, y ∈ A then y = x.
+begin
+	interpret MetaRelation (=).
 end
 
 theory SemiAttractive:
 	fix A (≤).
 	assume attract: if x ≤ y, y ≤ x, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
+begin
+	interpret MetaRelation (≤).
 end
 
 theory DualAttractive:
 	fix A (≤).
 	assume dual_attract: if x ≤ y, y ≤ x, x ≤ z, x ∈ A, y ∈ A, z ∈ A then y ≤ z.
+begin
+	interpret MetaRelation (≤).
 end
 
 theory Attractive:
@@ -81,6 +89,7 @@ theory Transitive:
 	fix A (≤).
 	assume trans: if x ≤ y, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
 begin
+	interpret MetaRelation (≤).
 	interpret Attractive;
 		- if xy: x ≤ y, yx: y ≤ x, yz: y ≤ z, !, !, !;
 			by trans[OF xy yz].
@@ -115,22 +124,6 @@ theory Equivalence:
 begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
-end
-
-theory LeftMonotone:
-	fix A B (≤) (*).
-	assume left_mono: if y ≤ y', x ∈ A, y ∈ B, y' ∈ B then x * y ≤ x * y'.
-end
-
-theory RightMonotone:
-	fix A B (≤) (*).
-	assume right_mono: if x ≤ x', x ∈ A, x' ∈ A, y ∈ B then x * y ≤ x' * y.
-end
-
-theory Monotone:
-	fix A (≤) (*).
-	import LeftMonotone A A.
-	import RightMonotone A A.
 end
 
 theory CollectRel:

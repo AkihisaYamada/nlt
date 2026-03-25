@@ -9,7 +9,8 @@ disjunction and existential quantifier are instantiated by certain forms.
 ---
 import TypeFree.
 import Minimal.
-import in: Minimal.AllRel (∈) (∀∈).
+import Membership.
+import AllIn.
 
 fix nnProp nnor nnex nnexIn.
 assume in_nnProp_iff: P ∈ nnProp ⟺ (¬ ¬P ⟹ P).
@@ -23,7 +24,7 @@ assume nnex_def: nnex (x. Y.[x]) ⟺ ¬(∀x. ¬ Y.[x]).
 assume nnexIn_def: nnexIn A (x. Y.[x]) ⟺ ¬(∀x ∈ A. ¬ Y.[x]).
 
 begin
-thy.
+
 lemma nnProp_imp_nnot: P ∈ nnProp ⟹ ¬ ¬P ⟺ P;
 	by iff_intro nnot_intro #simp in_nnProp_iff.
 
@@ -59,6 +60,7 @@ interpret nnProp: FreeOrder;
 	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ nnProp then (∀x ∈ A. P.[x]) ∈ nnProp;
 		unfold in_nnProp_iff;
 		fold nnProp_imp_nnot;
+print prover 20.
 		unfold in.nnall_not_iff;
 		simp nnProp_imp_nnot.
 	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ nnProp then nnexIn A (x. P.[x]) ∈ nnProp;

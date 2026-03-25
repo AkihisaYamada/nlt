@@ -139,8 +139,10 @@ begin
 	---
 	## Theories
 	---
-	extend AllRel begin
-		extend ExRel begin
+
+	context AllRel begin
+
+		context ExRel begin
 			lemma ex_elim: if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
 				apply ex[unfold ex_def, THEN ex_elim];
 				- for x;
@@ -172,11 +174,11 @@ begin
 		end
 	end
 
-	extend Membership begin
+	context Membership begin
 
-		extend AllIn begin
+		context AllIn begin
 			interpret in: ..AllRel (∈) (∀∈).
-			extend ExIn begin
+			context ExIn begin
 				interpret in: in.ExRel (∃∈).
 				note#rule in.ex_imp_iff.
 			end

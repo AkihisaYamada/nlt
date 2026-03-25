@@ -1,144 +1,160 @@
 ----
 # Properties for Magmas
 ----
-fix (=).
-import Membership.
 begin
 
-theory Compatible:
-	fix A (*).
-	assume comp: if x = x', y = y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y = x' * y'.
-begin
-	lemma cong:
-		if !x ∈ A, !y ∈ A, ! x = x', ! y = y', !x' ∈ A, !y' ∈ A then x * y = x' * y';
-		apply comp.
-end
+context MetaRelation begin -- Every binary symbol defines magma properties.
 
-theory Commutative:
-	fix A (*).
-	assume commute: if x ∈ A, y ∈ A then x * y = y * x.
-end
+	theory LeftMonotone:
+		fix A B (*).
+		assume left_mono: if y ≤ y', x ∈ A, y ∈ B, y' ∈ B then x * y ≤ x * y'.
+	end
 
-theory Idempotent:
-	fix A (*).
-	assume idem: if x ∈ A then x * x = x.
-end
+	theory RightMonotone:
+		fix A B (*).
+		assume right_mono: if x ≤ x', x ∈ A, x' ∈ A, y ∈ B then x * y ≤ x' * y.
+	end
 
-theory LeftCancellative:
-	fix A B (*).
-	assume left_cancels: if x * y = x * y', x ∈ A, y ∈ B, y' ∈ B then y = y'.
-end
+	theory Monotone:
+		fix A (*).
+		import LeftMonotone A A.
+		import RightMonotone A A.
+	end
 
-theory RightCancellative:
-	fix A B (*).
-	assume right_cancels: if x * y = x' * y, x ∈ A, x' ∈ A, y ∈ B then x = x'.
-end
+	theory Compatible:
+		fix A (*).
+		assume comp: if x ≤ x', y ≤ y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y ≤ x' * y'.
+	begin
+		lemma cong:
+			if !x ∈ A, !y ∈ A, ! x ≤ x', ! y ≤ y', !x' ∈ A, !y' ∈ A then x * y ≤ x' * y';
+			apply comp.
+	end
 
-theory LeftAssociative:
-	fix A B (*) (⋅).
-	assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z = x ⋅ y ⋅ z.
-end
+	theory Commutative:
+		fix A (*).
+		assume commute: if x ∈ A, y ∈ A then x * y ≤ y * x.
+	end
 
-theory RightAssociative:
-	fix A B (^) (*).
-	assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) = x ^ y ^ z.
-end
+	theory Idempotent:
+		fix A (*).
+		assume idem: if x ∈ A then x * x ≤ x.
+	end
 
-theory LeftDistributive:
-	fix A B (*) (+).
-	assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) = x * y + x * z.
-end
+	theory LeftCancellative:
+		fix A B (*).
+		assume left_cancels: if x * y ≤ x * y', x ∈ A, y ∈ B, y' ∈ B then y ≤ y'.
+	end
 
-theory RightDistributive:
-	fix A B (+) (*).
-	assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z = x * z + y * z.
-end
+	theory RightCancellative:
+		fix A B (*).
+		assume right_cancels: if x * y ≤ x' * y, x ∈ A, x' ∈ A, y ∈ B then x ≤ x'.
+	end
 
-theory Distributive:
-	fix A (*) (+).
-	import LeftDistributive A A (*) (+).
-	import RightDistributive A A (+) (*).
-end
+	theory LeftAssociative:
+		fix A B (*) (⋅).
+		assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z ≤ x ⋅ y ⋅ z.
+	end
 
-theory LeftAbsorb:
-	fix A (*) (0).
-	assume left_absorb: if x ∈ A then 0 * x = 0.
-end
+	theory RightAssociative:
+		fix A B (^) (*).
+		assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ≤ x ^ y ^ z.
+	end
 
-theory RightAbsorb:
-	fix A (*) (0).
-	assume right_absorb: if x ∈ A then x * 0 = 0.
-end
+	theory LeftDistributive:
+		fix A B (*) (+).
+		assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) ≤ x * y + x * z.
+	end
 
-theory LeftNeutral:
-	fix A (*) (1).
-	assume left_neutral: if x ∈ A then 1 * x = x.
-end
+	theory RightDistributive:
+		fix A B (+) (*).
+		assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z ≤ x * z + y * z.
+	end
 
-theory RightNeutral:
-	fix A (*) (1).
-	assume right_neutral: if x ∈ A then x * 1 = x.
-end
+	theory Distributive:
+		fix A (*) (+).
+		import LeftDistributive A A (*) (+).
+		import RightDistributive A A (+) (*).
+	end
 
-theory LeftCancel:
-	fix A B (*) (\).
-	assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) = y.
-end
+	theory LeftAbsorb:
+		fix A (*) (0).
+		assume left_absorb: if x ∈ A then 0 * x ≤ 0.
+	end
 
-theory RightCancel:
-	fix A B (*) (/).
-	assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y = x.
-end
+	theory RightAbsorb:
+		fix A (*) (0).
+		assume right_absorb: if x ∈ A then x * 0 ≤ 0.
+	end
 
-theory LeftInverse:
-	fix A (*) (1) inverse.
-	assume left_inverse: if x ∈ A then inverse x * x = 1.
-end
+	theory LeftNeutral:
+		fix A (*) (1).
+		assume left_neutral: if x ∈ A then 1 * x ≤ x.
+	end
 
-theory RightInverse:
-	fix A (*) (1) inv.
-	assume right_inverse: if x ∈ A then x * inverse x = 1.
-end
+	theory RightNeutral:
+		fix A (*) (1).
+		assume right_neutral: if x ∈ A then x * 1 ≤ x.
+	end
 
-theory CommMagma:
-	import Magma.
-	import Commutative.
-end
+	theory LeftCancel:
+		fix A B (*) (\).
+		assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) ≤ y.
+	end
 
-theory Action:
-	import LeftAssociative A B (∘) (⋅).
-	import comp: Magma A (∘).
-	import app: Binary (⋅) A B B.
-end
+	theory RightCancel:
+		fix A B (*) (/).
+		assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ≤ x.
+	end
 
-theory LeftModuloid:
-	import LeftDistributive.
-	import mul: Binary (*) A B B.
-	import add: Magma B (+).
-end
+	theory LeftInverse:
+		fix A (*) (1) inverse.
+		assume left_inverse: if x ∈ A then inverse x * x ≤ 1.
+	end
 
-theory RightModuloid:
-	import RightDistributive.
-	import add: Magma A (+).
-	import mul: Binary (*) B A B.
-end
+	theory RightInverse:
+		fix A (*) (1) inv.
+		assume right_inverse: if x ∈ A then x * inverse x ≤ 1.
+	end
 
-theory Ringoid:
-	fix A (*) (+).
-	import mul: Magma A (*).
-	import add: Magma A (+).
-	import Distributive A (*) (+).
-begin
-interpret LeftModuloid A A (*) (+).
-interpret RightModuloid A A (+) (*).
+	theory CommMagma:
+		import Magma.
+		import Commutative.
+	end
+
+	theory Action:
+		import LeftAssociative A B (∘) (⋅).
+		import comp: Magma A (∘).
+		import app: Binary (⋅) A B B.
+	end
+
+	theory LeftModuloid:
+		import LeftDistributive.
+		import mul: Binary (*) A B B.
+		import add: Magma B (+).
+	end
+
+	theory RightModuloid:
+		import RightDistributive.
+		import add: Magma A (+).
+		import mul: Binary (*) B A B.
+	end
+
+	theory Ringoid:
+		fix A (*) (+).
+		import mul: Magma A (*).
+		import add: Magma A (+).
+		import Distributive A (*) (+).
+	begin
+		interpret LeftModuloid A A (*) (+).
+		interpret RightModuloid A A (+) (*).
+	end
+
 end
 
 context Reflexive begin
 
-	interpret Magmas (≤).
-
-	extend Compatible begin
-		interpret Monotone A (≤) (*);
+	context Compatible begin
+		interpret Monotone A (*);
 			- if 1: y ≤ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ≤ x * y';
 				apply comp[OF refl[OF x] 1].
 			- if 1: x ≤ x', ! x ∈ A, ! x' ∈ A, y! y ∈ A then x * y ≤ x' * y;
@@ -149,8 +165,6 @@ context Reflexive begin
 end
 
 context Transitive begin
-
-	interpret Magmas (≤).
 
 	theory MonoMagma:
 		import Magma.
@@ -369,7 +383,7 @@ context PartialEquivalence begin
 		fix (*) (\).
 		import Magma.
 		import lcancel: Magma A (\).
-		import lcancel: LeftMonotone A A (=) (\).
+		import lcancel: LeftMonotone A A (\).
 		import LeftCancel A A.
 	begin
 		note! lcancel.closed.
@@ -391,7 +405,7 @@ context PartialEquivalence begin
 		fix (*) (/).
 		import Magma.
 		import rcancel: Magma A (/).
-		import rcancel: RightMonotone A A (=) (/).
+		import rcancel: RightMonotone A A (/).
 		import RightCancel A A.
 	begin
 		note! rcancel.closed.

@@ -217,7 +217,6 @@ context MetaRelation begin
 end
 
 context MetaPartialEquivalence begin
-
 	theory MetaSemigroup:
 		fix (*).
 		import MetaLeftAssociative (*) (*).
@@ -234,7 +233,7 @@ context MetaPartialEquivalence begin
 		import MetaCommutative.
 	end
 
-	extend MetaLeftNeutral begin
+	context MetaLeftNeutral begin
 		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
 			have 1: e ~ 1 * e;
 				apply sym;
@@ -243,7 +242,7 @@ context MetaPartialEquivalence begin
 			by all.
 	end
 
-	extend MetaRightNeutral	begin
+	context MetaRightNeutral begin
 		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
 			have 1: e ~ e * 1;
 				apply sym;
@@ -252,7 +251,7 @@ context MetaPartialEquivalence begin
 			by all.
 	end
 
-	extend MetaNeutral begin
+	context MetaNeutral begin
 		interpret MetaLeftNeutral.
 		interpret MetaRightNeutral.
 	end
@@ -277,7 +276,7 @@ context MetaPartialEquivalence begin
 		interpret MetaMonoid.
 	end
 
-	extend MetaLeftAbsorb begin
+	context MetaLeftAbsorb begin
 		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
 			have 1: e ~ 0 * e;
 				apply sym;
@@ -286,7 +285,7 @@ context MetaPartialEquivalence begin
 			by left_absorb.
 	end
 
-	extend MetaRightAbsorb begin
+	context MetaRightAbsorb begin
 		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
 			have 1: e ~ e * 0;
 				apply sym;
@@ -295,7 +294,7 @@ context MetaPartialEquivalence begin
 			by right_absorb.
 	end
 
-	extend MetaAbsorb begin
+	context MetaAbsorb begin
 		interpret MetaLeftAbsorb.
 		interpret MetaRightAbsorb.
 	end

@@ -160,12 +160,13 @@ function<ostream&(ostream&)> Syntax::pretty_thms(StrMap<Thm> const& thms) const 
 	};
 }
 
-ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev ) const & {
+ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev,
+	function<ostream&(ostream&)> const& endl ) const & {
 	function<void(ostream&,Term const&)> term = [this](ostream& os, Term const& t) {
 		os << pretty(t);
 	};
 	if( auto p = ctxt.find_parent() ) {
-		pretty_ctxt( os, p->first, p-> second );
+		pretty_ctxt(os,p->first,p->second,endl);
 	}
 	if( _print_ctxt ) {
 		os << "-- ctxt @" << ctxt.id() << endl;

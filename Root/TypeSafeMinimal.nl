@@ -261,7 +261,8 @@ begin
 		.
 end
 
-extend AllRel begin
+context AllRel begin
+
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
 		simp all_def all_and_distrib imp_and_distrib.
 	lemma not_imp_not_all: if nP: ¬ P.[x], x: x < a then ¬ (∀y < a. P.[y]);
@@ -296,9 +297,9 @@ extend AllRel begin
 	end
 end
 
-extend Membership begin
+context Membership begin
 
-	extend AllIn begin
+	context AllIn begin
 		interpret in: _.AllRel (∈) (∀∈).
 		note#intro in.all_intro.
 		note#elim in.all_elim.
@@ -309,12 +310,12 @@ extend Membership begin
 		end
 	end
 
-	extend CollectRel begin
+	context CollectRel begin
 		lemma Collect_iff: x ∈ {x < a. P.[x]} ⟺ x < a ∧ P.[x];
 			by iff_intro Collect_intro #elim Collect_elim.
 	end
 
-	extend CollectIn begin
+	context CollectIn begin
 		interpret in: .CollectRel (∈) CollectIn.
 	end
 

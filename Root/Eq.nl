@@ -155,7 +155,7 @@ begin
 		simp p.
 end
 
-extend Membership begin
+context Membership begin
 
 	interpret Magmas.
 
@@ -225,7 +225,7 @@ extend Membership begin
 
 end
 
-extend TypeSafeMinimal begin
+context TypeSafeMinimal begin
 
 	lemma eq_refl_iff#simp x = x ⟺ true;
 		by iff_intro.
@@ -275,7 +275,7 @@ extend TypeSafeMinimal begin
 
 	end
 
-	extend AllRel begin
+	context AllRel begin
 		lemma all_cong:
 			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);
@@ -294,7 +294,7 @@ extend TypeSafeMinimal begin
 			unfold 1;
 			unfold all_eq_imp_iff.
 
-		extend ExRel begin
+		context ExRel begin
 			theory Ex1Rel:
 				import Ex1.
 				fix (∃!<).
@@ -305,7 +305,7 @@ extend TypeSafeMinimal begin
 
 	end
 
-	extend Pair begin
+	context Pair begin
 		lemma pair_eq_pair#simp (x,y) = (x',y') ⟺ x = x' ∧ y = y';
 			apply iff_intro;
 			- if eq;

@@ -5,6 +5,9 @@
 #include"core.hpp"
 #include"lexer.hpp"
 
+std::function<std::ostream&(std::ostream&)> const ENDL =
+	[]( std::ostream& os )->std::ostream&{ return os << std::endl; };
+
 template<class I, class T>
 void out_sep(
 	std::ostream& os, I it, I const& end, std::string const& sep,
@@ -162,11 +165,20 @@ public:
 			return pretty(os,term,level);
 		};
 	}
-	std::function<std::ostream&(std::ostream&)> pretty_thms(StrMap<Thm> const& thms) const &;
-	std::ostream& pretty_ctxt( std::ostream& os, Ctxt const& ctxt, size_t rev ) const &;
-	std::function<std::ostream&(std::ostream&)> pretty_ctxt(Ctxt const& ctxt) const & {
-		return [this,ctxt]( std::ostream& os )->std::ostream& {
-			return pretty_ctxt(os,ctxt,ctxt.revision());
+	std::function<std::ostream&(std::ostream&)> pretty_thms( StrMap<Thm> const& thms ) const &;
+	std::ostream& pretty_ctxt(
+		std::ostream& os,
+		Ctxt const& ctxt,
+		size_t rev,
+		std::function<std::ostream&(std::ostream&)> const& endl
+	) const &;
+	/** CAUTION: do not move around */
+	std::function<std::ostream&(std::ostream&)> pretty_ctxt(
+		Ctxt const& ctxt,
+		std::function<std::ostream&(std::ostream&)> const& endl = ENDL
+	) const & {
+		return [&]( std::ostream& os )->std::ostream& {
+			return pretty_ctxt(os,ctxt,ctxt.revision(),endl);
 		};
 	}
 	std::function<std::ostream&(std::ostream&)> pretty_subst(Subst const& subst) const &;

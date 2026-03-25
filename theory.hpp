@@ -1,6 +1,7 @@
 #ifndef _THEORY_HPP
 #define _THEORY_HPP
 #include<map>
+#include<deque>
 #include"rewrite.hpp"
 
 class AThm;
@@ -26,7 +27,7 @@ class Thy : public Ctxt {
 		std::string_view const& path,
 		Import const& import,
 		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
-		bool ancestor
+		bool allow_ancestor
 	) const;
 	/** @brief Finds a named theorem with prefix from the theory or an ancestor. */
 	Opt<Thm> _find_thm(
@@ -38,7 +39,7 @@ class Thy : public Ctxt {
 	Opt<Import> _find_thy(
 		std::string_view const& path,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-		bool ancestor
+		bool allow_ancestor
 	);
 	Opt<Import> _find_thy(
 		std::string_view const& pre,
@@ -59,10 +60,10 @@ public:
 	 */
 	Thy branch() const&;
 	/** Creates a named branch. */
-	Thy& branch( std::string_view const& name, std::string_view const& dir ) &;
+	Thy branch( std::string_view const& name, std::string_view const& dir );
 	/** Creates a namespace. */
-	Thy& scope( std::string_view const& name ) &;
-	Thy scope_temp( std::string_view const& name ) const &;
+	Thy scope( std::string_view const& name );
+	Thy scope_temp( std::string_view const& name ) const;
 	std::string const& name() const &;
 	auto name() && = delete;
 	/** Self import */
@@ -96,17 +97,32 @@ public:
 	Thm weaken( Thm const& thm ) const;
 	/** Weaken closed term from an ancestor. */
 	CTerm weaken( CTerm const& t ) const;
-	/** Adds an import. */
-	Import& add_import( std::string_view const& prefix, Import const& im, bool unnamed ) &;
+	/** Adds a qualified import. */
+	Import& add_import( std::string_view const& prefix, Import const& im ) &;
+	/** Adds an unqualified import. */
+	Import& add_import( Import const& im, bool prior = true ) &;
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
-	/** multimap of imports */
+	/** multimap of qualified imports */
 	StrMMap<Import> const& imports() const;
+	std::deque<Import> const& unqualified_imports() const;
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
-	Opt<Import> find_thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
-	Import thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader );
+	Opt<Import> find_thy(
+		std::string_view const& path,
+		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
+		bool allow_ancestor = true
+	);
+	Opt<Import> find_thy_local(
+		std::string_view const& name,
+		std::function<void(Thy&,std::istream&,std::string_view const&)> reader
+	);
+	Import thy(
+		std::string_view const& name,
+		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
+		bool allow_ancestor = true
+	);
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
 	auto pretty_sym( std::string_view const& s ) const& {
@@ -148,8 +164,25 @@ public:
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	std::pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
 	/** Pretty printer for the theory */
-	std::function<std::ostream&(std::ostream&)> pretty( size_t& indent, bool scope = false, bool path = true ) const &;
-	std::function<std::ostream&(std::ostream&)> print_name( bool path = true ) const&;
+	std::ostream& pretty(
+		std::ostream& os,
+		std::function<std::ostream&(std::ostream&)> const& endl,
+		size_t indent,
+		bool scope,
+		bool path
+	) const &;
+	/** CAUTION: Do not move around */
+	auto const pretty(
+		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
+		size_t indent = 0,
+		bool scope = false,
+		bool path = true
+	) const & {
+		return [endl,indent,scope,path,this]( std::ostream& os )->std::ostream&{
+			return pretty(os,endl,indent,scope,path);
+		};
+	}
+	std::function<std::ostream&(std::ostream&)> print_path( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 };
 
@@ -160,9 +193,7 @@ class Import : public Intp {
 	 * @param src the theory to be interpreted
 	 * @param tgt the theory that interprets src
 	 */
-	Import( Intp const& intp, Thy const& src ) :
-		Intp(intp), _src(src) {
-	}
+	Import( Intp const& intp, Thy const& src ) : Intp(intp), _src(src) {}
 public:
 	/** @brief Import a child theory into the parent.
 	 */
@@ -235,7 +266,10 @@ public:
 		Intp::retain(c,thm);
 	}
 	/** Pretty printer for import */
-	std::function<std::ostream&(std::ostream&)> const pretty( size_t indent = 0 ) const &;
+	std::function<std::ostream&(std::ostream&)> pretty(
+		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
+		size_t indent = 0
+	) const &;
 };
 
 /** Annotated theorem */
@@ -250,15 +284,18 @@ public:
 inline Import Thy::self() const& {
 	return Import(Ctxt::self(),*this);
 }
-inline Import Thy::thy( std::string_view const& name, std::function<void(Thy&,std::istream&,std::string_view const&)> reader ) {
-	auto ret = find_thy(name,reader);
+inline Import Thy::thy(
+	std::string_view const& name,
+	std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
+	bool allow_ancestor
+) {
+	auto ret = find_thy(name,reader,allow_ancestor);
 	if( !ret ) throw Error("\"theory not found\"")(name);
 	return *ret;
 }
 auto operator<<(std::ostream& os, Thy && loc) = delete;
-inline std::ostream& operator<<(std::ostream& os, Thy const& loc) {
-	size_t indent = 0;
-	return os << loc.pretty(indent);
+inline std::ostream& operator<<( std::ostream& os, Thy const& loc ) {
+	return os << loc.pretty([]( std::ostream& os )->std::ostream&{ return os << std::endl; });
 }
 
 #endif

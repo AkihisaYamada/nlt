@@ -238,7 +238,7 @@ bool Resolver::_step_cond(
 	vector<char>::const_iterator pos_end
 ) & {
 	if( log > 15 ) {
-		_log() << "{ rewriting condition (" << rew->_rels[ind] << "): " << thy.pretty(cond) << endl;
+		_log() << "{ rewriting condition (" << rew->_rels[ind] << "): " << thy.pretty(cond.Term::subst(intp)) << endl;
 	}
 	indent++;
 	Thy subthy = thy.branch();
