@@ -237,10 +237,6 @@ bool Resolver::_step_cond(
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 15 ) {
-		_log() << "{ rewriting condition (" << rew->_rels[ind] << "): " << thy.pretty(cond.Term::subst(intp)) << endl;
-	}
-	indent++;
 	Thy subthy = thy.branch();
 	Term pat = cond;// φ... ⟹ x = y or ∀v. φ.[v]... ⟹ X.[v] = Y.[v]
 	CTerm source = cond;// unused default
@@ -283,16 +279,13 @@ bool Resolver::_step_cond(
 		auto res = t.lift(thy.cterm(ALL));// Γ ⊢ ∀v'. t.[v']
 		intp.instantiate( all ? res.capp()->second : res );
 		intp.discharge(eq.intro());// Γ ⊢ ∀v'. φθ.[v']... ⟹ Xθ.[v'] = res.[v']
-		indent--;
-		if( log > 14 ) _log() << "} condition rewritten: " << thy.pretty(eq) << endl;
 		return true;
 	}
 	auto eq = _make_refl(subthy,source,ind);
 	auto res = source.lift(thy.cterm(ALL));
 	intp.instantiate( all ? res.capp()->second : res );
 	intp.discharge(eq.intro());
-	indent--;
-	if( log > 14 ) _log() << "}! condition reflected: " << thy.pretty(eq) << endl;
+	if( log > 14 ) _log() << "! condition reflected: " << thy.pretty(eq) << endl;
 	return false;
 }
 Thm Resolver::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
@@ -313,7 +306,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 15 ) _log() << "{ applying " << ( rule.cong ? "rewrite" : "congruence" ) << " rule: " << thy.pretty(rule) << endl;
+	if( log > 12 ) _log() << "{ " << ( rule.cong ? "cong" : "rewrite" ) << " rule " << "matched: " << thy.pretty(rule.thm) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();// (Δ, ∀x..., ∀y, s = y, ...)
@@ -364,15 +357,15 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 		if( log > 12 ) _log() << "} rewritten: " << thy.pretty(ret) << endl;
 		return {ret.intro()};
 	}
-	if( log > 10 ) _log() << "}! failed to rewrite: " << endl;
+	if( log > 13 ) _log() << "}! failed to apply: " << thy.pretty(rule) << endl;
 	return {};
 }
 
 Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	if( log > 12 ) {
-		_log() << "{ trying to rewrite ";
+		_log() << "- rewriting ";
 		if( pos_it != pos_end ) {
-			cerr << "[ ";
+			cerr << "[at ";
 			for( auto it = pos_it; it != pos_end; it++ ) {
 				cerr << (int)*it << ' ';
 			}
@@ -384,26 +377,29 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 	auto apply = [&]( Rewrite::Rule const& rule, Subst const& matcher, Intp const& intp )->Opt<Thm> {
 		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,simp,pos_it,pos_end) ) {
 			indent--;
-			if( log > 11 ) _log() << "} rewritten: " << thy.pretty(*ret) << endl;
+			if( log > 19 ) _log() << "* rewritten: " << thy.pretty(*ret) << endl;
 			return ret;
 		}
 		return {};
 	};
 	if( pos_it == pos_end ) {// active position
 		for( auto const& rule : rules[ind] ) {
-			if( log > 13 ) _log() << "- testing explicit rule: " << thy.pretty(rule) << endl;
-			if( auto const& m = match(rule.pat,source,is_patvar) )
-			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
-				return {{*ret,ret->capp()->second}};
+			if( auto const& m = match(rule.pat,source,is_patvar) ) {
+				if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+					return {{*ret,ret->capp()->second}};
+				}
+			} else {
+				if( log > 15 ) _log() << "! explicit rule didn't match: " << thy.pretty(rule) << endl;
 			}
 		}
 		if( simp )
 		if( auto const& ret = thy.find_thm( *simp + rew->_rels[ind], [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
-			if( log > 15 ) _log() << "- testing simp rule: " << thy.pretty(thm) << endl;
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {
 				return apply(*rule,*m,import);
+			} else {
+				if( log > 15 ) _log() << "! simp rule didn't match: " << thy.pretty(thm) << endl;
 			}
 			return {};
 		}) ) {
@@ -411,22 +407,26 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 		}
 	}
 	for( auto const& rule : rew->_congs[ind] ) {
-		if( log > 16 ) _log() << "- testing cong rule: " << thy.pretty(rule) << endl;
-		if( auto const& m = match(rule.pat,source,is_patvar) )
-		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
-			return {{*ret,ret->capp()->second}};
+		if( auto const& m = match(rule.pat,source,is_patvar) ) {
+			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+				return {{*ret,ret->capp()->second}};
+			}
+		} else {
+			if( log > 15 ) _log() << "! cong rule didn't match: " << thy.pretty(rule) << endl;
 		}
 	}
 	if( auto const& o = rew->_fallbacks.finds(ind) ) {
 		auto const& rule = o->second;
-		if( log > 14 ) _log() << "- testing fall-back rule: " << thy.pretty(rule) << endl;
-		if( auto const& m = match(rule.pat,source,is_patvar) )
-		if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
-			return {{*ret,ret->capp()->second}};
+		if( auto const& m = match(rule.pat,source,is_patvar) ) {
+			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+				return {{*ret,ret->capp()->second}};
+			}
+		} else {
+			if( log > 15 ) _log() << "- testing fall-back rule: " << thy.pretty(rule) << endl;
 		}
 	}
 	indent--;
-	if( log > 10 ) _log() << "}! not rewritten: " << thy.pretty(source) << endl;
+	if( log > 19 ) _log() << "! not rewritten: " << thy.pretty(source) << endl;
 	return {};
 }
 

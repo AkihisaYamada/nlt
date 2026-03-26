@@ -60,7 +60,6 @@ interpret nnProp: FreeOrder;
 	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ nnProp then (∀x ∈ A. P.[x]) ∈ nnProp;
 		unfold in_nnProp_iff;
 		fold nnProp_imp_nnot;
-print prover 20.
 		unfold in.nnall_not_iff;
 		simp nnProp_imp_nnot.
 	- if ! ∀x. x ∈ A ⟹ P.[x] ∈ nnProp then nnexIn A (x. P.[x]) ∈ nnProp;

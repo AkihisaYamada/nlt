@@ -3,12 +3,13 @@ print.
 interpret base? Root.TypeFree.
 
 context Minimal begin
-	interpret _..TypeSafeMinimal.
+
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		apply iff_intro;
 		simp;
 		note#cong eq_cong_meta[of P].
 		- if xa: x = a, Px: P.[x];
+print prover 20.
 			by Px #fold xa.
 		- if Pa: P.[a];
 			by ex_intro1[of a] Pa.
