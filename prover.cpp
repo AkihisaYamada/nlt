@@ -10,7 +10,8 @@
 #define FLAG_CTXT (1 << 3)
 #define FLAG_THY (1 << 4)
 #define FLAG_MSG (1 << 5)
-#define FLAG_PRF (1 << 6)
+#define FLAG_LOG (1 << 6)
+#define FLAG_PRF (1 << 7)
 
 #define FLAGS_MIN (FLAG_SYS | FLAG_STA)
 #define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_THY | FLAG_MSG)
@@ -21,6 +22,7 @@
 #define CTXT ( _out & FLAG_CTXT )
 #define THY ( _out & FLAG_THY )
 #define MSG ( _out & FLAG_MSG )
+#define LOG ( _out & FLAG_LOG )
 #define PRF ( _out & FLAG_PRF )
 
 using namespace std;
@@ -666,10 +668,10 @@ public:
 				auto path = mkpath(name);
 				auto const& t = org.get(src_sym);
 				if( !t ) throw Error("\"failed to know replacement\"")(src_sym)(spec);
-				auto assm = spec.inst(_thy.cterm(*t));// TODO: should be known to be closed
+				auto assm = spec.Term::inst(*t);
 				auto o = _thy.find_thm(path,exact(assm));
 				if( !o ) throw Error("\"failed to transfer specification\"")(Term(":=")(src_sym)(*t))(assm);
-				intp.retain(*t,*o);
+				intp.retain(_thy.cterm(*t),*o);// TODO: known to be closed
 			} else {
 				break;
 			}
@@ -678,26 +680,36 @@ public:
 	void import( bool change ) {
 		string name;
 		Opt<string> prefix = {};
-		enum { NONE, PRIOR, POST, NONREC } extra;
-		if( skips(":") ) {// canonical prefix only
+		bool canonical_prefix;
+		enum { NONE, PRIOR, POST, NONREC } unqualified;
+		if( skips(":") ) {// canonical prefix
 			name = get_thm_name();
-			extra = NONE;
-		} else if( skips("?") ) {// non-recursive import
+			canonical_prefix = true;
+			unqualified = NONE;
+		} else if( skips("?") ) {// non-prior unqualified import
 			name = get_thm_name();
-			extra = NONREC;
+			canonical_prefix = true;
+			unqualified = POST;
+		} else if( skips("!") ) {// non-recursive import
+			name = get_thm_name();
+			canonical_prefix = true;
+			unqualified = NONREC;
 		} else {
 			auto str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
 				name = get();
 				prefix = {str1};
-				extra = NONE;
+				canonical_prefix = false;
+				unqualified = NONE;
 			} else if( skips("?") ) {// optionally qualified
 				name = get();
 				prefix = {str1};
-				extra = POST;
+				canonical_prefix = false;
+				unqualified = POST;
 			} else {// unqualified
 				name = str1;
-				extra = PRIOR;
+				canonical_prefix = true;
+				unqualified = PRIOR;
 			}
 		}
 		auto intp = _thy.thy(name,reader());
@@ -741,9 +753,8 @@ public:
 		}
 		if( success ) {
 			_update_parent(src);// in case of interpreting a child.
-			if( extra != NONE ) {
-				_thy.import_rewrite(src,intp);
-				switch( extra ) {
+			if( unqualified != NONE ) {
+				switch( unqualified ) {
 					case PRIOR: _thy.add_import(intp,true); break;
 					case POST: _thy.add_import(intp,false); break;
 					case NONREC: _thy.add_import(NONREC_IMPORT,intp); break;
@@ -751,8 +762,9 @@ public:
 			}
 			if( prefix ) {// qualified import
 				_thy.add_import(*prefix,intp);
-			} else {// canonical prefix
-				_thy.add_import(name,intp);
+			}
+			if( canonical_prefix ) {
+				_thy.add_import(src.name(),intp);
 			}
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -1181,21 +1193,21 @@ public:
 		if( skips("system") ) return FLAG_STA | FLAG_SYS;
 		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
 		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
-		if( skips("proof") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY | FLAG_PRF;
+		if( skips("log") ) return FLAGS_DEFAULT | FLAG_LOG;
+		if( skips("proof") ) return FLAGS_DEFAULT | FLAG_PRF;
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
 	bool _stats() {
 		if( skips("ctxt") ) {
 			auto const indent_endl = [this]( ostream& os )->ostream&{ return os << endl << _indent(' '); };
-			if( skips(".") ) {
-				cout << _thy.pretty(indent_endl) << endl;
-			} else {
+			auto thy = _thy;
+			if( !skips(".") ) {
 				string name = get();
+				thy = thy.thy(name,reader()).source();
 				skip(".");
-				auto thy = _thy.thy(name,reader()).source();
-				cout << thy.pretty(indent_endl) << endl;
 			}
+			cout << thy.pretty(indent_endl) << endl;
 			return true;
 		} else if( skips("thm") ) {
 			string pref = "thm ";
@@ -1419,44 +1431,54 @@ public:
 		} else if( skips("context") ) {
 			string name = get(Lexer::Word);
 			skip("begin");
-			if( auto loc = _thy.find_thy_local(name,reader()) ) {
+			if( auto oloc = _thy.find_thy_local(name,reader()) ) {
 				if THY {
 					if( !MSG ) cout << _indent(' ');
 					cout << "reopening theory " << name << endl;
 				}
-				local_thy( loc->source(), true, [this]{ loop(); } );
+				local_thy( oloc->source(), true, [this]{ loop(); } );
 			} else {
 				Thy parent = _thy;
 				auto src2parent = parent.thy(name,reader());
+				auto src = src2parent.source();
+				auto loc = parent.branch(name,"");
 				if THY {
 					if( !MSG ) cout << _indent(' ');
-					cout << "extending theory " << src2parent.source().print_path(true) << endl;
+					cout << "adopting theory " << src.print_path(true)
+						<< " into " << loc.print_path() << endl;
 				}
-				local_thy(parent.branch(name,""),true,[&]{
-					auto const& parent2loc = *_thy.parent();
+				local_thy(loc,true,[&]{
+					auto const& parent2loc = *loc.parent();
 					auto src2loc = src2parent.compose(parent2loc);
 					_auto_import({},src2loc,true);
-					_thy.add_import(src2loc);
-					_thy.import_rewrite(src2loc.source(),src2loc);
-					// update original imports that have been extended locally
-					for( auto const& sub2org : src2parent.source().unqualified_imports() ) {
-						auto const& sub = sub2org.source();
+					loc.add_import(src2loc);
+					// updating original imports
+					for( auto const& sub2org : src.unqualified_imports() ) {
+						auto sub = sub2org.source();
 						auto const& subname = sub.name();
-						if( subname != name )// except the theory the original is extending
-						if( auto const& ext2parent = parent.find_thy_local(subname,reader()) ) {
-							if MSG cout << "merging unqualified import " << ext2parent->source().print_path() << endl << _indent(' ');
-							auto ext2loc = ext2parent->compose(parent2loc);
-							_emulate_import({},ext2loc,sub2org);
-							_thy.add_import(ext2loc);
+						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
+							auto ext = ext2parent->source();
+							if( !loc.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
+								if MSG cout << "merging import " << sub.print_path() << " into " << ext.print_path() << endl << _indent(' ');
+								auto ext2loc = ext2parent->compose(parent2loc);
+								_emulate_import({},ext2loc,sub2org);
+								_thy.add_import(ext2loc,false);
+							}
 						}
 					}
 					for( auto const& [prefix,sub2org] : src2parent.source().imports() ) {
-						auto const& sub = sub2org.source();
-						if( auto const& ext2parent = parent.find_thy_local(sub.name(),reader()) ) {
-							if MSG cout << "merging import " << prefix << ": " << sub.print_path() << endl << _indent(' ');
-							auto ext2loc = ext2parent->compose(parent2loc);
-							_emulate_import({prefix},ext2loc,sub2org);
-							_thy.add_import(prefix,ext2loc);
+						auto sub = sub2org.source();
+						auto const& subname = sub.name();
+						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
+							auto ext = ext2parent->source();
+							if( loc.find_import( prefix, [&]( Thy const& thy ) { return thy == ext; } ) ) {
+								if LOG cout << "unmerged import " << prefix << ": " << sub.print_path() << endl << _indent(' ');
+							} else {
+								if MSG cout << "merging import " << prefix << ": " << sub.print_path() << " into " << ext.print_path() << endl << _indent(' ');
+								auto ext2loc = ext2parent->compose(parent2loc);
+								_emulate_import(prefix,ext2loc,sub2org);
+								_thy.add_import(prefix,ext2loc);
+							}
 						}
 					}
 					loop();
@@ -1886,7 +1908,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	Thy thy = filesystem::equivalent(rootdir,locdir) ?
 		root.branch(name,"") : root.branch("_dir",string(locdir)).branch(name,"");
 	root.add_import("Root",root.self());// root
-	thy.add_import("_",thy.self());// file root
+	thy.add_import(name,thy.self());// file root
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	try {
 		prover.loop();
@@ -1901,7 +1923,7 @@ int main(int argc, char* argv[]) {
 
 	auto cmddir = cmd.parent_path();
 	if( argc == 1 ) {
-		run(cin,"#stdin",false,FLAGS_DEFAULT,cmddir,filesystem::current_path());
+		run(cin,"_stdin",false,FLAGS_DEFAULT,cmddir,filesystem::current_path());
 	} else {
 		auto file = filesystem::path(argv[1]);
 		auto locdir = file.parent_path();

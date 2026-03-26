@@ -260,7 +260,7 @@ begin
 			by not_imp_false[OF irrefl xx].
 		.
 end
-
+ctxt AllRel.
 context AllRel begin
 
 	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);

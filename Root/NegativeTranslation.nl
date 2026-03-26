@@ -108,6 +108,10 @@ interpret nnProp: nnProp.Classical;
 				.
 			.
 		by nnQ[unfold nnProp_imp_nnot].
+	- by in.all_intro.
+	- by #elim in.all_elim.
+	- show: nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
+		unfold nnexIn_def nnex_def in.all_def imp_not_iff_nand;.
 	- if 0: false, ! P ∈ nnProp then P;
 		have nnP: ¬ ¬P;
 			by not_intro 0.
@@ -115,10 +119,6 @@ interpret nnProp: nnProp.Classical;
 	- if ! P ∈ nnProp then nnor P (¬P);
 		unfold nnor_def;
 		by non_contradiction.
-	- by in.all_intro.
-	- by #elim in.all_elim.
-	- show: nnexIn A (x. P.[x]) ⟺ nnex (x. x ∈ A ∧ P.[x]);
-		unfold nnexIn_def nnex_def in.all_def imp_not_iff_nand;.
 	.
 
 thm nnProp.pierce_law.

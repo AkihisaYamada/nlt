@@ -38,13 +38,17 @@ class Thy : public Ctxt {
 	) const;
 	Opt<Import> _find_thy(
 		std::string_view const& path,
-		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-		bool allow_ancestor
+		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		bool allow_ancestor,
+		bool import_source,
+		std::function<bool(Thy const&)> const& test
 	);
 	Opt<Import> _find_thy(
 		std::string_view const& pre,
 		std::string_view const& rest,
-		std::function<void(Thy&,std::istream&,std::string_view const&)> reader
+		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		bool import_source,
+		std::function<bool(Thy const&)> const& test
 	) &;
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
@@ -76,7 +80,7 @@ public:
 	auto dir() && = delete;
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<Thm> find_thm(
-		std::string_view const& name,
+		std::string_view const& path,
 		std::function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test = _triv_test
 	) const;
 	/** @brief Obtains a named theorem from the theory.
@@ -93,6 +97,7 @@ public:
 	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name, bool declare );
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
+	bool has_ancestor( Ctxt const& ctxt ) const &;
 	/** Weaken theorem from an ancestor. */
 	Thm weaken( Thm const& thm ) const;
 	/** Weaken closed term from an ancestor. */
@@ -111,17 +116,29 @@ public:
 	 */
 	Opt<Import> find_thy(
 		std::string_view const& path,
-		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-		bool allow_ancestor = true
+		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
 	Opt<Import> find_thy_local(
-		std::string_view const& name,
-		std::function<void(Thy&,std::istream&,std::string_view const&)> reader
+		std::string_view const& path,
+		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
 	Import thy(
 		std::string_view const& name,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-		bool allow_ancestor = true
+		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
+	);
+	/** @brief Finds an unqualified import.
+	 */
+	Opt<Import> find_import(
+		std::function<bool(Thy const&)> const& test
+	);
+	/** @brief Finds an import.
+	 */
+	Opt<Import> find_import(
+		std::string_view const& path,
+		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
 	Syntax& modify_syntax() &;
 	Syntax const& syntax() const&;
@@ -159,7 +176,7 @@ public:
 	void reset_rewrite() &;
 	void register_dual( Thm const& thm ) &;
 	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
-	void import_rewrite( Thy const& src, Intp const& intp ) &;
+	void import_rewrite( Import const& import ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	std::pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
@@ -184,6 +201,9 @@ public:
 	}
 	std::function<std::ostream&(std::ostream&)> print_path( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
+	friend bool operator==( Thy const& x, Thy const& y ) {
+		return x._ref == y._ref;
+	}
 };
 
 class Import : public Intp {
@@ -287,12 +307,19 @@ inline Import Thy::self() const& {
 inline Import Thy::thy(
 	std::string_view const& name,
 	std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-	bool allow_ancestor
+	std::function<bool(Thy const&)> const& test
 ) {
-	auto ret = find_thy(name,reader,allow_ancestor);
+	auto ret = find_thy(name,reader,test);
 	if( !ret ) throw Error("\"theory not found\"")(name);
 	return *ret;
 }
+inline Opt<Import> Thy::find_import(
+	std::string_view const& path,
+	std::function<bool(Thy const&)> const& test
+) {
+	return _find_thy(path,[](auto&,auto&,auto){assert(false);},true,true,test);
+}
+
 auto operator<<(std::ostream& os, Thy && loc) = delete;
 inline std::ostream& operator<<( std::ostream& os, Thy const& loc ) {
 	return os << loc.pretty([]( std::ostream& os )->std::ostream&{ return os << std::endl; });

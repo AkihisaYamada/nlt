@@ -276,6 +276,7 @@ context TypeSafeMinimal begin
 	end
 
 	context AllRel begin
+
 		lemma all_cong:
 			if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 			then (∀x < a. P.[x]) ⟺ (∀x < b. Q.[x]);

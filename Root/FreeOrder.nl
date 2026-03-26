@@ -12,7 +12,7 @@ assume exIn_type!  if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) 
 
 begin
 
-interpret Propositional;
+interpret? Propositional;
 	obtain false where false_prop: false ∈ Prop;-- One can obtain false.
 		- for thesis if assm;
 			apply assm[of (∀P ∈ Prop. P)].
@@ -20,20 +20,20 @@ interpret Propositional;
 	.
 
 theory Minimal:
-	import Propositional.Minimal.
+	import? Propositional.Minimal.
 	import in: AllExRel (∈) (∀∈) (∃∈).
 begin
 
 end
 
 theory Intuitionistic:
-	import Propositional.Intuitionistic.
-	import _.Minimal.
+	import Minimal.
+	import? Propositional.Intuitionistic.
 begin
 end
 
 theory Classical:
-	import Propositional.Classical.
-	import _.Intuitionistic.
+	import Intuitionistic.
+	import? Propositional.Classical.
 begin
 end

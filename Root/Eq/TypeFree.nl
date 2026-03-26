@@ -1,15 +1,13 @@
 begin
-print.
+print log.
 interpret base? Root.TypeFree.
 
 context Minimal begin
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
-		apply iff_intro;
-		simp;
 		note#cong eq_cong_meta[of P].
-		- if xa: x = a, Px: P.[x];
-print prover 20.
+		apply iff_intro;
+		-> if xa: x = a, Px: P.[x];
 			by Px #fold xa.
 		- if Pa: P.[a];
 			by ex_intro1[of a] Pa.
@@ -64,6 +62,8 @@ print prover 20.
 
 	context AllRel begin
 
+		interpret? TypeSafeMinimal.AllRel.
+
 		context ExRel begin
 
 			lemma ex_cong:
@@ -95,7 +95,7 @@ print prover 20.
 			lemma ex_eq_and_iff: (∃x < a. x = b ∧ P.[x]) ⟺ (b < a ∧ P.[b]);
 				have 1: (∃x < a. x = b ∧ P.[x]) ⟺ (∃x. x = b ∧ x < a ∧ P.[x]);
 					unfold ex_def;
-					apply base.ex_cong;
+					apply ...ex_cong;-- TODO
 					by iff_intro.
 				unfold 1;
 				unfold and.left_assoc ex_eq_and_iff.
@@ -170,21 +170,16 @@ print prover 20.
 		end
 	end
 
-	theory Membership:
-		import base? base.Membership.
-	begin
-		interpret _..Membership.
-
-		theory AllIn:
-			import base? base.AllIn.
-		begin
-			interpret in: ..AllRel (∈) (∀∈).
-			theory ExIn:
-				import base? base.ExIn.
-			begin
+	context Membership begin
+ctxt.
+		context AllIn begin
+ctxt AllRel.
+ctxt.
+			note#cong in.all_cong.
+			note#rule in.all_def.
+			context ExIn begin
 				interpret in: in.ExRel (∃∈).
-				note#cong in.all_cong in.ex_cong.
-				note#rule in.all_def.
+				note#cong in.ex_cong.
 				note#elim in.ex_elim.
 				note#simp in.ex_imp_iff.
 
