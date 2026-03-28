@@ -52,6 +52,7 @@ class Thy : public Ctxt {
 	) &;
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
+	Import& _add_import( Import const& im, bool prior ) &;
 	friend Import;
 public:
 	struct Error : public ::Error {
@@ -104,13 +105,14 @@ public:
 	CTerm weaken( CTerm const& t ) const;
 	/** Adds a qualified import. */
 	Import& add_import( std::string_view const& prefix, Import const& im ) &;
-	/** Adds an unqualified import. */
-	Import& add_import( Import const& im, bool prior = true ) &;
+	Import& add_prior_import( Import const& im ) &;
+	Import& add_post_import( Import const& im ) &;
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */
 	StrMMap<Import> const& imports() const;
-	std::deque<Import> const& unqualified_imports() const;
+	std::vector<Import> const& prior_imports() const;
+	std::vector<Import> const& post_imports() const;
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
@@ -319,6 +321,14 @@ inline Opt<Import> Thy::find_import(
 ) {
 	return _find_thy(path,[](auto&,auto&,auto){assert(false);},true,true,test);
 }
+
+inline Import& Thy::add_prior_import( Import const& im ) & {
+	return _add_import(im,true);
+}
+inline Import& Thy::add_post_import( Import const& im ) & {
+	return _add_import(im,false);
+}
+
 
 auto operator<<(std::ostream& os, Thy && loc) = delete;
 inline std::ostream& operator<<( std::ostream& os, Thy const& loc ) {

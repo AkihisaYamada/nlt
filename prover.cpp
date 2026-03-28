@@ -755,8 +755,8 @@ public:
 			_update_parent(src);// in case of interpreting a child.
 			if( unqualified != NONE ) {
 				switch( unqualified ) {
-					case PRIOR: _thy.add_import(intp,true); break;
-					case POST: _thy.add_import(intp,false); break;
+					case PRIOR: _thy.add_prior_import(intp); break;
+					case POST: _thy.add_post_import(intp); break;
 					case NONREC: _thy.add_import(NONREC_IMPORT,intp); break;
 				}
 			}
@@ -1451,34 +1451,38 @@ public:
 					auto const& parent2loc = *loc.parent();
 					auto src2loc = src2parent.compose(parent2loc);
 					_auto_import({},src2loc,true);
-					loc.add_import(src2loc);
+					loc.add_prior_import(src2loc);
 					// updating original imports
-					for( auto const& sub2org : src.unqualified_imports() ) {
+					auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
 						auto sub = sub2org.source();
 						auto const& subname = sub.name();
 						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
 							auto ext = ext2parent->source();
-							if( !loc.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
+							if( ext != loc )// except the theory we are defining
+							if( src.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
+								if LOG cout << "already imported " << ext.print_path() << endl << _indent(' ');
+							} else {
 								if MSG cout << "merging import " << sub.print_path() << " into " << ext.print_path() << endl << _indent(' ');
 								auto ext2loc = ext2parent->compose(parent2loc);
-								_emulate_import({},ext2loc,sub2org);
-								_thy.add_import(ext2loc,false);
+								_emulate_import(prefix,ext2loc,sub2org);
+								return {ext2loc};
 							}
+						}
+						return {};
+					};
+					for( auto const& sub2org : src.prior_imports() ) {
+						if( auto const& o = f({},sub2org) ) {
+							_thy.add_prior_import(*o);
+						}
+					}
+					for( auto const& sub2org : src.post_imports() ) {
+						if( auto const& o = f({},sub2org) ) {
+							_thy.add_post_import(*o);
 						}
 					}
 					for( auto const& [prefix,sub2org] : src2parent.source().imports() ) {
-						auto sub = sub2org.source();
-						auto const& subname = sub.name();
-						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
-							auto ext = ext2parent->source();
-							if( loc.find_import( prefix, [&]( Thy const& thy ) { return thy == ext; } ) ) {
-								if LOG cout << "unmerged import " << prefix << ": " << sub.print_path() << endl << _indent(' ');
-							} else {
-								if MSG cout << "merging import " << prefix << ": " << sub.print_path() << " into " << ext.print_path() << endl << _indent(' ');
-								auto ext2loc = ext2parent->compose(parent2loc);
-								_emulate_import(prefix,ext2loc,sub2org);
-								_thy.add_import(prefix,ext2loc);
-							}
+						if( auto const& o = f(prefix,sub2org) ) {
+							_thy.add_import(prefix,*o);
 						}
 					}
 					loop();

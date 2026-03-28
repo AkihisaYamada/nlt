@@ -1,4 +1,5 @@
 #include<fstream>
+#include<ranges>
 #include"theory.hpp"
 #include"parser.hpp"
 
@@ -15,7 +16,8 @@ struct Thy::_Body {
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
 	multimap<string,Import,less<>> qualified_imports;
-	deque<Import> unqualified_imports;
+	vector<Import> prior_imports;// prior imports
+	vector<Import> post_imports;// posterior imports
 	Ref<Syntax> syntax;
 	StrMap<pair<Ref<Rewrite>,bool>> rewriter;
 	bool is_scope;
@@ -87,8 +89,9 @@ Rewrite& Thy::modify_rewriter( string_view const& rew_name ) & {
 void Thy::reset_rewrite() & {
 	for( auto& [rew_name,val] : _ref->rewriter ) {
 		auto& [rew,own] = val;
-		if( !own && _ref->parent ) {
-			rew = _ref->parent->source()._ref->rewriter.finds(rew_name)->second.first;
+		if( !own )
+		if( auto const& p = parent() ) {
+			rew = p->source()._ref->rewriter.finds(rew_name)->second.first;
 		}
 	}
 }
@@ -113,8 +116,11 @@ Opt<string> Thy::find_assm_name( size_t rev ) const {
 StrMMap<Import> const& Thy::imports() const {
 	return _ref->qualified_imports;
 }
-deque<Import> const& Thy::unqualified_imports() const {
-	return _ref->unqualified_imports;
+vector<Import> const& Thy::prior_imports() const {
+	return _ref->prior_imports;
+}
+vector<Import> const& Thy::post_imports() const {
+	return _ref->post_imports;
 }
 bool Thy::has_ancestor( Ctxt const& ctxt ) const & {
 	Thy const* ptr = this;
@@ -122,7 +128,7 @@ bool Thy::has_ancestor( Ctxt const& ctxt ) const & {
 		if( *ptr == ctxt ) {
 			return true;
 		}
-		auto const& parent = ptr->_ref->parent;
+		auto const& parent = ptr->parent();
 		if( !parent ) return false;
 		ptr = &parent->source();
 	}
@@ -135,7 +141,7 @@ Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 		if( *ptr == ctxt ) {
 			return ret;
 		}
-		auto const& parent = ptr->_ref->parent;
+		auto const& parent = ptr->parent();
 		if( !parent ) throw Error("\"wrong ancestor\"");
 		ret = parent->Intp::compose(ret);
 		ptr = &parent->source();
@@ -157,15 +163,11 @@ Import& Thy::add_import( string_view const& prefix, Import const& import ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	return _ref->qualified_imports.emplace(prefix,import)->second;
 }
-Import& Thy::add_import( Import const& import, bool prior ) & {
+Import& Thy::_add_import( Import const& import, bool prior ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	import.source()._check_loop_import(*this);// check looping import
 	import_rewrite(import);
-	if( prior ) {
-		return _ref->unqualified_imports.emplace_front(import);
-	} else {
-		return _ref->unqualified_imports.emplace_back(import);
-	}
+	return (prior ? _ref->prior_imports : _ref->post_imports).emplace_back(import);
 }
 void Thy::erase_import( string_view const& prefix ) & {
 	auto [it,end] = _ref->qualified_imports.equal_range(prefix);
@@ -178,8 +180,7 @@ function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_t
 
 Thm Thy::add_assm( string_view const& name, CTerm const& assm ) {
 	if( _ref->is_scope ) {
-		assert(_ref->parent);
-		return _ref->parent->source().add_assm( _ref->name+'.'+name, assm );
+		return parent()->source().add_assm( _ref->name+'.'+name, assm );
 	}
 	if( assm.ctxt() != *this ) throw Error("\"wrong context for add_assm\"")(assm);
 	size_t rev = revision();
@@ -220,13 +221,14 @@ Opt<Thm> Thy::_find_thm(
 	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
 	bool allow_ancestor
 ) const {
-	// find from local
-	if( auto sep = name.find('.'); sep != string::npos ) {// named imports
+	auto sep = name.find('.');
+	if( sep == 0 ) {// explicit parent
+		auto p = parent();
+		if( !p ) return {};
+		return p->_src._find_thm(name.substr(1),p->compose(import),test,allow_ancestor );
+	} else if( sep != string::npos ) {// qualified imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),import,test) ) {
 			return ret;
-		}
-		if( sep == 0 && _ref->parent ) {// explicit parent
-			return _ref->parent->source()._find_thm(name.substr(1),_ref->parent->compose(import),test,allow_ancestor);
 		}
 	} else {// unprefixed; find from local theorems
 		for( auto [fst,it] = _ref->thms.equal_range(name); it != fst; ) {
@@ -236,17 +238,25 @@ Opt<Thm> Thy::_find_thm(
 			}
 		}
 	}
-	// find from unqualified imports
-	for( auto const& prefix : _ref->unqualified_imports ) {
-		if( prefix.ready() )
-		if( auto opt = prefix._src._find_thm(name,prefix.compose(import),test,false) ) {
-			return opt;
+	auto f = [&]( Import const& pre )->Opt<Thm>{
+		if( pre.ready() ) {
+			return {pre._src._find_thm(name,pre.compose(import),test,false)};
 		}
+		return {};
+	};
+	// find from prior imports
+	for( auto const& pre : std::views::reverse(_ref->prior_imports) ) {
+		if( auto ret = f(pre) ) return ret;
 	}
 	// find from parent
 	if( allow_ancestor )
-	if( auto parent = _ref->parent ) {
-		return parent->source()._find_thm(name,parent->compose(import),test,true);
+	if( auto p = parent() )
+	if( auto ret = p->source()._find_thm(name,p->compose(import),test,true) ) {
+		return ret;
+	}
+	// find from posterior imports
+	for( auto const& pre : _ref->post_imports ) {
+		if( auto ret = f(pre) ) return ret;
 	}
 	return {};
 }
@@ -307,7 +317,7 @@ Opt<Import> Thy::find_thy_local(
 
 Opt<Import> Thy::find_import( std::function<bool(Thy const&)> const& test ) {
 	if( test(*this) ) return {self()};
-	for( auto const& im : _ref->unqualified_imports ) {
+	for( auto const& im : _ref->prior_imports ) {
 		if( auto o = im.source().find_import(test) ) {
 			return {o->compose(im)};
 		}
@@ -346,27 +356,35 @@ Opt<Import> Thy::_find_thy(
 			}
 		}
 	} else if( sep == 0 ) {// explicit parent
-		if( auto const& p = parent() )
-		if( auto o = p->_src._find_thy(path.substr(1),reader,allow_ancestor,import_source,test) ) {
+		auto p = parent();
+		if( !p ) return {};
+		if( auto o = p->_src._find_thy(path.substr(1),reader,true,import_source,test) ) {
 			return {o->compose(*p)};
 		}
-	} else {
+	} else {// explicit prefix
 		if( auto ret = _find_thy(path.substr(0,sep),path.substr(sep+1),reader,import_source,test) ) {
 			return ret;
 		}
 	}
-	// find from unqualified imports
-	for( auto& imp : _ref->unqualified_imports ) {
-		if( imp.ready() )
-		if( auto o = imp._src._find_thy(path,reader,false,import_source,test) ) {
-			return {o->compose(imp)};
+	auto f = [&]( Import const& pre )->Opt<Import>{
+		if( pre.ready() )
+		if( auto o = pre._src._find_thy(path,reader,false,import_source,test) ) {
+			return {o->compose(pre)};
 		}
+		return {};
+	};
+	// find from unqualified imports
+	for( auto& pre : std::views::reverse(_ref->prior_imports) ) {
+		if( auto ret = f(pre) ) return ret;
 	}
 	// find from parent
 	if( allow_ancestor )
 	if( auto const& p = parent() )
 	if( auto o = p->_src._find_thy(path,reader,allow_ancestor,import_source,test) ) {
 		return {o->compose(*p)};
+	}
+	for( auto& pre : _ref->post_imports ) {
+		if( auto ret = f(pre) ) return ret;
 	}
 	return {};
 }
@@ -473,16 +491,19 @@ ostream& Thy::pretty(
 		}
 	}
 	os << mk_indent(n) << "begin" << endl;
-	for( auto it = _ref->unqualified_imports.rbegin(); it != _ref->unqualified_imports.rend(); it++ ) {
-		os << mk_indent(n1) << "interpret " << it->pretty() << endl;
+	for( auto const& imp : _ref->prior_imports ) {
+		os << mk_indent(n1) << "interpret " << imp.pretty() << endl;
 	}
-	for( auto& [name,imp] : _ref->qualified_imports ) {
+	for( auto const& imp : _ref->post_imports ) {
+		os << mk_indent(n1) << "interpret? " << imp.pretty() << endl;
+	}
+	for( auto const& [name,imp] : _ref->qualified_imports ) {
 		os << mk_indent(n1) << "interpret " << name << ": " << imp.pretty() << endl;
 	}
-	for( auto& [name,thm] : _ref->thms ) {
+	for( auto const& [name,thm] : _ref->thms ) {
 		os << mk_indent(n1) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
 	}
-	for( auto& [name,thy] : _ref->thys ) {
+	for( auto const& [name,thy] : _ref->thys ) {
 		os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
 	}
 	return os << mk_indent(n) << "end";

@@ -61,11 +61,10 @@ context Minimal begin
 	end
 
 	context AllRel begin
-
-		interpret? TypeSafeMinimal.AllRel.
-
+		interpret? Root.TypeFree.Minimal.AllRel.
+ctxt.
 		context ExRel begin
-
+ctxt. e
 			lemma ex_cong:
 				if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 				then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
@@ -171,10 +170,7 @@ context Minimal begin
 	end
 
 	context Membership begin
-ctxt.
 		context AllIn begin
-ctxt AllRel.
-ctxt.
 			note#cong in.all_cong.
 			note#rule in.all_def.
 			context ExIn begin
