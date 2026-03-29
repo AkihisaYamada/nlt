@@ -248,15 +248,15 @@ Opt<Thm> Thy::_find_thm(
 	for( auto const& pre : std::views::reverse(_ref->prior_imports) ) {
 		if( auto ret = f(pre) ) return ret;
 	}
+	// find from posterior imports
+	for( auto const& pre : _ref->post_imports ) {
+		if( auto ret = f(pre) ) return ret;
+	}
 	// find from parent
 	if( allow_ancestor )
 	if( auto p = parent() )
 	if( auto ret = p->source()._find_thm(name,p->compose(import),test,true) ) {
 		return ret;
-	}
-	// find from posterior imports
-	for( auto const& pre : _ref->post_imports ) {
-		if( auto ret = f(pre) ) return ret;
 	}
 	return {};
 }
@@ -322,6 +322,11 @@ Opt<Import> Thy::find_import( std::function<bool(Thy const&)> const& test ) {
 			return {o->compose(im)};
 		}
 	}
+	for( auto const& im : _ref->post_imports ) {
+		if( auto o = im.source().find_import(test) ) {
+			return {o->compose(im)};
+		}
+	}
 	if( auto const& p = parent() )
 	if( auto const& o = p->source().find_import(test) ) {
 		return {o->compose(*p)};
@@ -377,14 +382,14 @@ Opt<Import> Thy::_find_thy(
 	for( auto& pre : std::views::reverse(_ref->prior_imports) ) {
 		if( auto ret = f(pre) ) return ret;
 	}
+	for( auto& pre : _ref->post_imports ) {
+		if( auto ret = f(pre) ) return ret;
+	}
 	// find from parent
 	if( allow_ancestor )
 	if( auto const& p = parent() )
 	if( auto o = p->_src._find_thy(path,reader,allow_ancestor,import_source,test) ) {
 		return {o->compose(*p)};
-	}
-	for( auto& pre : _ref->post_imports ) {
-		if( auto ret = f(pre) ) return ret;
 	}
 	return {};
 }
@@ -506,8 +511,38 @@ ostream& Thy::pretty(
 	for( auto const& [name,thy] : _ref->thys ) {
 		os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
 	}
+	for( auto const& [name,rew] : _ref->rewriter ) {
+		os << pretty_rewrite(
+			[&]( ostream& os )->ostream&{
+				return os << mk_indent(n) << "rewriter " << name;
+			},
+			[&]( ostream& os )->ostream&{ return os << endl << mk_indent(n); },
+			*rew.first
+		);
+	}
 	return os << mk_indent(n) << "end";
 }
+ostream& Thy::pretty_rewrite(
+	ostream& os,
+	function<ostream&(ostream&)> const& prefix,
+	function<ostream&(ostream&)> const& endl,
+	Rewrite const& rew
+) const & {
+	auto const& rels = rew.rels();
+	for( size_t i = 0; i < rels.size(); i++ ) {
+		auto const& rel = rels[i];
+		os << prefix << '[' << i << "] for (" << rel << ") " << endl
+			<< "  refl: " << pretty( rew.get_refl(i) ) << endl;
+		if( auto trans = rew._trans.finds(i) ) {
+			os << "  trans: " << pretty(trans->second) << endl;
+		}
+		if( auto fallback = rew._fallbacks.finds(i) ) {
+			os << "  fallback: " << pretty(fallback->second) << endl;
+		}
+	}
+	return os;
+}
+
 function<ostream&(ostream&)> Thy::print_thms( string_view const& name, string_view const& prefix ) const& {
 	return [&]( ostream& os )->ostream& {
 		auto fun = [&]( Import const& import, Thm const& thm, ThmInfo const& )->Opt<Thm>{

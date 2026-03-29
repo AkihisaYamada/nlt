@@ -2,7 +2,11 @@ begin
 print log.
 interpret base? Root.TypeFree.
 
-context Minimal begin
+theory Minimal:
+	import base? base.Minimal.
+begin
+
+	interpret TypeSafeMinimal.-- Eq/TypeSafeMinimal
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		note#cong eq_cong_meta[of P].
@@ -60,11 +64,13 @@ context Minimal begin
 
 	end
 
-	context AllRel begin
-		interpret? Root.TypeFree.Minimal.AllRel.
-ctxt.
+	context AllRel begin -- extending Eq.TypeSafeMinimal.AllRel
+
+		interpret base? base.AllRel.-- Root/Minimal/AllRel
+
 		context ExRel begin
-ctxt. e
+			interpret base? base.ExRel.-- Root/Minimal/AllRel/ExRel
+
 			lemma ex_cong:
 				if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
 				then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);

@@ -589,9 +589,10 @@ public:
 		Thm ret = infer.prove(_thy,assm,{SIMP});
 		intp.discharge(ret);
 	}
-	void _auto_retain( Thy& org_thy, Opt<string const&> prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer ) {
-		auto [org_sym,ex,spec,name] = obtain;
-		auto sym = prefix ? *prefix + '.' + org_sym : org_sym;
+	void _auto_retain( Thy& org_thy, Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, tuple<string,Thm,CTerm,string> const& obtain, Resolver& infer ) {
+		auto [org_sym,ex,spec,org_name] = obtain;
+		auto sym = sym_prefix ? *sym_prefix + '.' + org_sym : org_sym;
+		auto name = thm_prefix ? *thm_prefix + '.' + org_name : org_name;
 		if( auto csym = _thy.constant(sym) ) {
 			CTerm const& stmt = spec.inst(*csym);
 			if( auto const& o = _thy.find_thm(name,exact(stmt)) ) {
@@ -633,39 +634,41 @@ public:
 			}
 		};
 	}
-	void _auto_import( Opt<string const&> prefix, Import& intp, bool change ){
+	static auto _mkpath( Opt<string const&> prefix ) {
+		return prefix ?
+			(function<string(string const&)>)[&]( string const& name ){ return *prefix + '.' + name; } :
+			[&]( string const& name )->string{ return name; };
+	}
+	void _auto_import( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change ){
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.resolver(_out_resolver);
-				_auto_discharge(_thy,prefix,intp,*assume,change,infer);
+				_auto_discharge(_thy,thm_prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto infer = _thy.resolver(_out_resolver);
-				_auto_retain(_thy,prefix,intp,*obtain,infer);
+				_auto_retain(_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 			} else {
 				break;
 			}
 		}
 	}
-	void _emulate_import( Opt<string const&> prefix, Import& intp, Subst const& org ){
-		auto mkpath = prefix ?
-			(function<string(string const&)>)[&]( string const& name ){ return *prefix + '.' + name; } :
-			[&]( string const& name )->string{ return name; };
+	void _emulate_import( Opt<string const&> thm_prefix, Import& intp, Subst const& org ){
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
 				auto const& t = org.get(*fix);
-				if( !t ) throw Error("\"failed to update import variable\"")(mkpath(intp.source().name()))(*fix);
+				if( !t ) throw Error("\"failed to update import variable\"")(_mkpath(thm_prefix)(intp.source().name()))(*fix);
 				intp.instantiate(_thy.cterm(*t));// TODO: should be known to be closed
 			} else if( auto const& assume = intp.assuming() ) {
 				auto const& [assm,name] = *assume;
-				auto path = mkpath(name);
+				auto path = _mkpath(thm_prefix)(name);
 				auto o = _thy.find_thm(path,exact(assm));
 				if( !o ) throw Error("\"failed to update import assumption\"")(path)(assm);
 				intp.discharge(*o);
 			} else if( auto const& obtain = intp.obtaining() ) {
-				auto [src_sym,ex,spec,name] = *obtain;
-				auto path = mkpath(name);
+				auto [src_sym,ex,spec,src_name] = *obtain;
+				auto path = _mkpath(thm_prefix)(src_name);
 				auto const& t = org.get(src_sym);
 				if( !t ) throw Error("\"failed to know replacement\"")(src_sym)(spec);
 				auto assm = spec.Term::inst(*t);
@@ -679,7 +682,8 @@ public:
 	}
 	void import( bool change ) {
 		string name;
-		Opt<string> prefix = {};
+		Opt<string> thm_prefix = {};
+		Opt<string const&> sym_prefix = {};
 		bool canonical_prefix;
 		enum { NONE, PRIOR, POST, NONREC } unqualified;
 		if( skips(":") ) {// canonical prefix
@@ -698,12 +702,13 @@ public:
 			auto str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
 				name = get();
-				prefix = {str1};
+				thm_prefix = {str1};
+				sym_prefix = thm_prefix;
 				canonical_prefix = false;
 				unqualified = NONE;
 			} else if( skips("?") ) {// optionally qualified
 				name = get();
-				prefix = {str1};
+				thm_prefix = {str1};
 				canonical_prefix = false;
 				unqualified = POST;
 			} else {// unqualified
@@ -718,10 +723,10 @@ public:
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(_thy,prefix,intp,*assume,change,infer);
+					_auto_discharge(_thy,thm_prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_retain(_thy,prefix,intp,*obtain,infer);
+					_auto_retain(_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -735,17 +740,17 @@ public:
 		if( skips(";") ) {
 			if MSG {
 				cout << (change ? "importing " : "interpreting ");
-				if( prefix ) {
-					cout << *prefix << ": ";
+				if( thm_prefix ) {
+					cout << *thm_prefix << ": ";
 				}
 				cout << path << endl;
 			}
 			_depth++;
-			success = _import_loop(prefix,intp,change);
+			success = _import_loop(thm_prefix,sym_prefix,intp,change);
 			_depth--;
 		} else {
 			skip(".");
-			_auto_import(prefix,intp,change);
+			_auto_import(thm_prefix,sym_prefix,intp,change);
 			if( _no_syntax ) {
 				_no_syntax = false;
 				_thy.modify_syntax() = src.syntax();
@@ -760,17 +765,18 @@ public:
 					case NONREC: _thy.add_import(NONREC_IMPORT,intp); break;
 				}
 			}
-			if( prefix ) {// qualified import
-				_thy.add_import(*prefix,intp);
+			if( thm_prefix ) {// qualified import
+				_thy.add_import(*thm_prefix,intp);
 			}
 			if( canonical_prefix ) {
 				_thy.add_import(src.name(),intp);
 			}
 			if THY {
 				if( !MSG ) cout << _indent(' ');
-				if( change ) cout << "imported ";
-				else cout << "interpreted ";
-				if( prefix ) cout << *prefix << ": ";
+				cout << ( change ? "imported " : "interpreted ");
+				if( thm_prefix ) {
+					cout << *thm_prefix << ( unqualified == NONE ? ": " : "? " );
+				}
 				cout << path << endl;
 			}
 		}
@@ -988,7 +994,7 @@ public:
 		}
 		return {};
 	};
-	Opt<Thm> _discharge( function<Opt<Opt<Thm>>(CTerm const&)> f, Import& intp, Thy& org_thy, Opt<string const&> prefix, bool change ) {
+	Opt<Thm> _discharge( function<Opt<Opt<Thm>>(CTerm const&)> f, Import& intp, Thy& org_thy, Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, bool change ) {
 		for(;;) {
 			if( auto const& assume = intp.assuming() ) {
 				if( auto const& opt = f(assume->first) ) {
@@ -1001,19 +1007,19 @@ public:
 					return *opt;
 				} else {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+					_auto_discharge(org_thy,thm_prefix,intp,*assume,change,infer);
 				}
 			} else if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto infer = _thy.resolver(_out_resolver);
-				_auto_retain(org_thy,prefix,intp,*obtain,infer);
+				_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected discharge\"");
 			}
 		}
 	}
-	bool _import_loop( Opt<string const&> prefix, Import& intp, bool change ) {
+	bool _import_loop( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change ) {
 		auto org_thy = _thy;
 		_thy = org_thy.scope_temp("#import");// namespace
 		for(;;) try {
@@ -1043,10 +1049,10 @@ public:
 					for(;;) {
 						if( auto const& assume = intp.assuming() ) {
 							auto infer = _thy.resolver(_out_resolver);
-							_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+							_auto_discharge(org_thy,thm_prefix,intp,*assume,change,infer);
 						} else if( auto const& obtain = intp.obtaining() ) {
 							auto infer = _thy.resolver(_out_resolver);
-							_auto_retain(org_thy,prefix,intp,*obtain,infer);
+							_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
 							_auto_instantiate(intp,*fix,change);
@@ -1059,16 +1065,16 @@ public:
 				}
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
-				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, prefix, change );
+				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change );
 			} else if( skips("->") ) {
 				auto pat = _get_subgoal();
-				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, prefix, change );
+				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change );
 			} else if( skips("obtain") ) {
 				_obtain(org_thy);
 			} else if( skips("define") ) {
 				_define(org_thy);
 			} else if( skips("retain") ) {
-				_retain(prefix,intp,change,org_thy);
+				_retain(thm_prefix,sym_prefix,intp,change,org_thy);
 			} else if( skips("oops") ) {
 				return false;
 			} else if( auto ctrl = gets_concluder() ) {
@@ -1076,9 +1082,9 @@ public:
 					if( auto const& fix = intp.fixing() ) {
 						_auto_instantiate(intp,*fix,change);
 					} else if( auto const& assume = intp.assuming() ) {
-						_auto_discharge(org_thy,prefix,intp,*assume,change,*ctrl);
+						_auto_discharge(org_thy,thm_prefix,intp,*assume,change,*ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
-						_auto_retain(org_thy,prefix,intp,*obtain,*ctrl);
+						_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,*ctrl);
 					} else {
 						break;
 					}
@@ -1098,19 +1104,19 @@ public:
 		_thy = org_thy;
 		return true;
 	}
-	void _retain( Opt<string const&> prefix, Import& intp, bool change, Thy& org_thy ) {
+	void _retain( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change, Thy& org_thy ) {
 		auto sym = get_sym();// the symbol to be instantiated
-		auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
 				_auto_instantiate(intp,*fix,change);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.resolver(_out_resolver);
-				_auto_discharge(org_thy,prefix,intp,*assume,change,infer);
+				_auto_discharge(org_thy,thm_prefix,intp,*assume,change,infer);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto const& [osym,ex,spec,spec_name] = *obtain;
-				Thy thesis_loc = _thy.branch();
 				if( osym == sym ) {
+					Thy thesis_loc = _thy.branch();
+					auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
 						return _thy.constant(x);
 					}));
@@ -1149,7 +1155,7 @@ public:
 					break;
 				}
 				auto infer = _thy.resolver(_out_resolver);
-				_auto_retain(org_thy,prefix,intp,*obtain,infer);
+				_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 			} else {
 				throw Error("\"unexpected retain\"")(sym);
 			}
@@ -1450,7 +1456,7 @@ public:
 				local_thy(loc,true,[&]{
 					auto const& parent2loc = *loc.parent();
 					auto src2loc = src2parent.compose(parent2loc);
-					_auto_import({},src2loc,true);
+					_auto_import({},{},src2loc,true);
 					loc.add_prior_import(src2loc);
 					// updating original imports
 					auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
@@ -1459,10 +1465,18 @@ public:
 						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
 							auto ext = ext2parent->source();
 							if( ext != loc )// except the theory we are defining
-							if( src.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
-								if LOG cout << "already imported " << ext.print_path() << endl << _indent(' ');
+							if( sub.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
+								if LOG {
+									cout << "already imported ";
+									if( prefix ) cout << *prefix << ": ";
+									cout << ext.print_path() << endl << _indent(' ');
+								}
 							} else {
-								if MSG cout << "merging import " << sub.print_path() << " into " << ext.print_path() << endl << _indent(' ');
+								if MSG {
+									cout << "updating import ";
+									if( prefix ) cout << *prefix << ": ";
+									cout << sub.print_path() << " by " << ext.print_path() << endl << _indent(' ');
+								}
 								auto ext2loc = ext2parent->compose(parent2loc);
 								_emulate_import(prefix,ext2loc,sub2org);
 								return {ext2loc};

@@ -72,6 +72,9 @@ public:
 	bool empty() const {
 		return _rels.empty();
 	}
+	std::vector<std::string> const& rels() const {
+		return _rels;
+	}
 	Rules make_rules() const {
 		return Rules(_rels.size());
 	}
@@ -96,7 +99,6 @@ public:
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const &;
 	void import( Rewrite const& src, Thy const& thy, Intp const& intp ) &;
 	size_t get_ind( Opt<std::string> const& rel ) const &;
-private:
 };
 
 #endif

@@ -190,17 +190,33 @@ public:
 		bool scope,
 		bool path
 	) const &;
-	/** CAUTION: Do not move around */
 	auto const pretty(
 		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
 		size_t indent = 0,
 		bool scope = false,
 		bool path = true
 	) const & {
-		return [endl,indent,scope,path,this]( std::ostream& os )->std::ostream&{
+		return [&endl,indent,scope,path,this]( std::ostream& os )->std::ostream&{
 			return pretty(os,endl,indent,scope,path);
 		};
 	}
+	/** Pretty printer for rewriter */
+	std::ostream& pretty_rewrite(
+		std::ostream& os,
+		std::function<std::ostream&(std::ostream&)> const& prefix,
+		std::function<std::ostream&(std::ostream&)> const& endl,
+		Rewrite const& rew
+	) const &;
+	auto pretty_rewrite(
+		std::function<std::ostream&(std::ostream&)> const& prefix,
+		std::function<std::ostream&(std::ostream&)> const& endl,
+		Rewrite const& rew
+	) const & {
+		return [&]( std::ostream& os )->std::ostream&{
+			return pretty_rewrite(os,prefix,endl,rew);
+		};
+	}
+
 	std::function<std::ostream&(std::ostream&)> print_path( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 	friend bool operator==( Thy const& x, Thy const& y ) {

@@ -90,7 +90,7 @@ unsigned int Lexer::fetch_char() {
 	}
 	char c = pis->get();
 	peeked_column++;
-	while( c == '-' && pis->peek() == '-' ) {// comment starts with "--"
+	if( c == '-' && pis->peek() == '-' ) {// comment starts with "--"
 		unsigned int n = 0;
 		for(;;) {// count the number of '-'
 			pis->ignore();
@@ -125,7 +125,9 @@ unsigned int Lexer::fetch_char() {
 				peeked_column++;
 			}
 		}
-		c = pis->get();
+		// read comment as a space.
+		fetched_char_type = Lex::Blank;
+		return ' ';
 	}
 	if( c == char_traits<char>::eof() ) {
 		fetched_char_type = Lex::End;
