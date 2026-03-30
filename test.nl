@@ -1,4 +1,3 @@
-print load.
 import NegativeTranslation.
 
 thm nnProp.pierce_law.

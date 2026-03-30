@@ -10,11 +10,11 @@ string const NONREC_IMPORT = "#nonrec";
 struct Thy::_Body {
 	string name;
 	string dir;
-	Opt<Import> parent;
 	StrMMap<pair<Thm,ThmInfo>> thms;
 	/** local theories */
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
+	Opt<Import> parent;
 	multimap<string,Import,less<>> qualified_imports;
 	vector<Import> prior_imports;// prior imports
 	vector<Import> post_imports;// posterior imports
@@ -155,8 +155,8 @@ CTerm Thy::weaken( CTerm const& t ) const {
 }
 void Thy::_check_loop_import( Thy const& origin ) const {
 	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
-	for( auto [it,end] = _ref->qualified_imports.equal_range(""); it != end; it++ ) {
-		it->second.source()._check_loop_import(origin);
+	for( auto im : _ref->prior_imports ) {
+		im.source()._check_loop_import(origin);
 	}
 }
 Import& Thy::add_import( string_view const& prefix, Import const& import ) & {
@@ -222,10 +222,12 @@ Opt<Thm> Thy::_find_thm(
 	bool allow_ancestor
 ) const {
 	auto sep = name.find('.');
-	if( sep == 0 ) {// explicit parent
-		auto p = parent();
-		if( !p ) return {};
-		return p->_src._find_thm(name.substr(1),p->compose(import),test,allow_ancestor );
+	if( sep == 0 ) {
+		if( auto p = parent() ) {
+			if( auto ret = p->source()._find_thm(name.substr(1),p->compose(import),test,false) ) {
+				return ret;
+			}
+		}
 	} else if( sep != string::npos ) {// qualified imports
 		if( auto ret = _find_thm(name.substr(0,sep),name.substr(sep+1),import,test) ) {
 			return ret;
@@ -255,7 +257,7 @@ Opt<Thm> Thy::_find_thm(
 	// find from parent
 	if( allow_ancestor )
 	if( auto p = parent() )
-	if( auto ret = p->source()._find_thm(name,p->compose(import),test,true) ) {
+	if( auto ret = p->source()._find_thm(name,p->compose(import),test,allow_ancestor) ) {
 		return ret;
 	}
 	return {};
@@ -290,24 +292,24 @@ Opt<Import> Thy::find_thy(
 }
 
 Opt<Import> Thy::find_thy_local(
-	string_view const& path,
-	function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
-	std::function<bool(Thy const&)> const& test
+	string_view const& name,
+	function<void(Thy&,istream&,string_view const&)> const& reader,
+	function<bool(Thy const&)> const& test
 ) {
 	auto f = [&]( Thy const& thy )->Opt<Import> {
 		if( test(thy) ) return {Import::make(thy,*this)};
 		return {};
 	};
-	if( auto ret = _ref->thys.finds(path) ) {
+	if( auto ret = _ref->thys.finds(name) ) {
 		auto const& thy = ret->second;
-		assert( thy.name() == path );
+		assert( thy.name() == name );
 		return f(thy);
 	}
 	if( !_ref->dir.empty() ) {
-		auto filepath = _ref->dir+"/"+path;
+		auto filepath = _ref->dir+"/"+name;
 		auto fullpath = filepath + ".nl";
 		if( auto fis = fstream(fullpath) ) {
-			Thy thy = branch(path,filepath);
+			Thy thy = branch(name,filepath);
 			reader(thy,fis,fullpath);
 			return f(thy);
 		}
@@ -317,31 +319,41 @@ Opt<Import> Thy::find_thy_local(
 
 Opt<Import> Thy::find_import( std::function<bool(Thy const&)> const& test ) {
 	if( test(*this) ) return {self()};
-	for( auto const& im : _ref->prior_imports ) {
+	auto f = [&]( Import const& im )->Opt<Import>{
 		if( auto o = im.source().find_import(test) ) {
 			return {o->compose(im)};
 		}
+		return {};
+	};
+	for( auto const& im : _ref->prior_imports ) {
+		if( auto const& ret = f(im) ) return ret;
 	}
 	for( auto const& im : _ref->post_imports ) {
-		if( auto o = im.source().find_import(test) ) {
-			return {o->compose(im)};
-		}
+		if( auto const& ret = f(im) ) return ret;
 	}
 	if( auto const& p = parent() )
-	if( auto const& o = p->source().find_import(test) ) {
-		return {o->compose(*p)};
-	}
+	if( auto const& ret = f(*p) ) return ret;
 	return {};
 }
 Opt<Import> Thy::_find_thy(
 	string_view const& path,
-	function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+	function<void(Thy&,istream&,string_view const&)> const& reader,
 	bool allow_ancestor,
 	bool import_source,
 	std::function<bool(Thy const&)> const& test
 ) {
 	size_t sep = path.find('.');
-	if( sep == string::npos ) {
+	if( sep == 0 ) {
+		if( auto const& p = parent() ) {
+			if( auto ret = _find_thy(path.substr(1),reader,allow_ancestor,import_source,test) ) {
+				return ret;
+			}
+		}
+	} else if( sep != string::npos ) {// explicit prefix
+		if( auto ret = _find_thy(path.substr(0,sep),path.substr(sep+1),reader,import_source,test) ) {
+			return ret;
+		}
+	} else {
 		if( import_source ) {
 			for( auto [fst,it] = _ref->qualified_imports.equal_range(path); it != fst; ) {
 				it--;
@@ -360,37 +372,26 @@ Opt<Import> Thy::_find_thy(
 				return ret;
 			}
 		}
-	} else if( sep == 0 ) {// explicit parent
-		auto p = parent();
-		if( !p ) return {};
-		if( auto o = p->_src._find_thy(path.substr(1),reader,true,import_source,test) ) {
-			return {o->compose(*p)};
-		}
-	} else {// explicit prefix
-		if( auto ret = _find_thy(path.substr(0,sep),path.substr(sep+1),reader,import_source,test) ) {
-			return ret;
-		}
 	}
-	auto f = [&]( Import const& pre )->Opt<Import>{
+	auto f = [&]( Import const& pre, bool anc )->Opt<Import>{
 		if( pre.ready() )
-		if( auto o = pre._src._find_thy(path,reader,false,import_source,test) ) {
+		if( auto o = pre._src._find_thy(path,reader,anc,import_source,test) ) {
 			return {o->compose(pre)};
 		}
 		return {};
 	};
-	// find from unqualified imports
-	for( auto& pre : std::views::reverse(_ref->prior_imports) ) {
-		if( auto ret = f(pre) ) return ret;
+	// find from prior imports
+	for( auto& im : std::views::reverse(_ref->prior_imports) ) {
+		if( auto ret = f(im,false) ) return ret;
 	}
-	for( auto& pre : _ref->post_imports ) {
-		if( auto ret = f(pre) ) return ret;
+	// find from posterior imports
+	for( auto& im : _ref->post_imports ) {
+		if( auto ret = f(im,false) ) return ret;
 	}
 	// find from parent
 	if( allow_ancestor )
 	if( auto const& p = parent() )
-	if( auto o = p->_src._find_thy(path,reader,allow_ancestor,import_source,test) ) {
-		return {o->compose(*p)};
-	}
+	if( auto ret = f(*p,true) ) return ret;
 	return {};
 }
 
@@ -401,6 +402,10 @@ Opt<Import> Thy::_find_thy(
 	bool import_source,
 	std::function<bool(Thy const&)> const& test
 ) & {
+	if( pre == _ref->name )// explict self
+	if( auto ret = _find_thy(rest,reader,false,import_source,test) ) {
+		return ret;
+	}
 	for( auto [fst,it] = _ref->qualified_imports.equal_range(pre); it != fst; ) {
 		it--;
 		auto const& im = it->second;
@@ -410,10 +415,6 @@ Opt<Import> Thy::_find_thy(
 		}
 	}
 	return {};
-}
-
-auto _test_term_eq( Term const& x ) {
-	return [&]( Term const& y ) { return x == y; };
 }
 
 static function<ostream&(ostream&)> mk_indent( size_t n ) {
@@ -457,7 +458,7 @@ function<ostream&(ostream&)> Thy::print_path( bool ancestors ) const& {
 
 ostream& Thy::pretty(
 	ostream& os,
-	function<ostream&(ostream&)> const& endl, size_t n, bool scope, bool path
+	function<ostream&(ostream&)> const& endl, size_t n, bool scope, bool path, bool print_rewrite
 ) const & {
 	size_t n1 = n+1;
 	if( scope ) {
@@ -511,33 +512,31 @@ ostream& Thy::pretty(
 	for( auto const& [name,thy] : _ref->thys ) {
 		os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
 	}
-	for( auto const& [name,rew] : _ref->rewriter ) {
-		os << pretty_rewrite(
-			[&]( ostream& os )->ostream&{
-				return os << mk_indent(n) << "rewriter " << name;
-			},
-			[&]( ostream& os )->ostream&{ return os << endl << mk_indent(n); },
-			*rew.first
-		);
+	if( print_rewrite ) {
+		for( auto const& [name,rew] : _ref->rewriter ) {
+			os << pretty_rewrite(*rew.first,n1,[&](ostream&os)->ostream&{ return os << "rewriter " << name; },endl);
+		}
 	}
 	return os << mk_indent(n) << "end";
 }
 ostream& Thy::pretty_rewrite(
 	ostream& os,
+	Rewrite const& rew,
+	size_t n,
 	function<ostream&(ostream&)> const& prefix,
-	function<ostream&(ostream&)> const& endl,
-	Rewrite const& rew
+	function<ostream&(ostream&)> const& endl
 ) const & {
+	size_t n1 = n+1;
 	auto const& rels = rew.rels();
 	for( size_t i = 0; i < rels.size(); i++ ) {
 		auto const& rel = rels[i];
-		os << prefix << '[' << i << "] for (" << rel << ") " << endl
-			<< "  refl: " << pretty( rew.get_refl(i) ) << endl;
+		os << mk_indent(n) << prefix << '[' << i << "] for (" << rel << ") " << endl
+			<< mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
 		if( auto trans = rew._trans.finds(i) ) {
-			os << "  trans: " << pretty(trans->second) << endl;
+			os << mk_indent(n1) << "trans: " << pretty(trans->second) << endl;
 		}
 		if( auto fallback = rew._fallbacks.finds(i) ) {
-			os << "  fallback: " << pretty(fallback->second) << endl;
+			os << mk_indent(n1) << "fallback: " << pretty(fallback->second) << endl;
 		}
 	}
 	return os;

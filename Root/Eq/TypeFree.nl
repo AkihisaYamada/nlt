@@ -3,10 +3,10 @@ print log.
 interpret base? Root.TypeFree.
 
 theory Minimal:
-	import base? base.Minimal.
+	import base? base.Minimal.-- Root.TypeFree.Minimal
 begin
 
-	interpret TypeSafeMinimal.-- Eq/TypeSafeMinimal
+	interpret Eq.TypeSafeMinimal.-- Eq/TypeSafeMinimal
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		note#cong eq_cong_meta[of P].
@@ -64,7 +64,7 @@ begin
 
 	end
 
-	context AllRel begin -- extending Eq.TypeSafeMinimal.AllRel
+	context AllRel begin -- extending Eq/TypeSafeMinimal/AllRel
 
 		interpret base? base.AllRel.-- Root/Minimal/AllRel
 
@@ -175,7 +175,11 @@ begin
 		end
 	end
 
-	context Membership begin
+	theory Membership:
+		import base? base.Membership.
+	begin
+		interpret Eq.Membership.
+
 		context AllIn begin
 			note#cong in.all_cong.
 			note#rule in.all_def.
@@ -196,6 +200,7 @@ begin
 						assume unique_choice:
 							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
 					begin
+ctxt.
 						interpret Abbrev;
 							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note#cong eq_cong_meta[of F].

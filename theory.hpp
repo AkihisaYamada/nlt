@@ -122,7 +122,7 @@ public:
 		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
 	Opt<Import> find_thy_local(
-		std::string_view const& path,
+		std::string_view const& name,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
 		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
@@ -188,32 +188,36 @@ public:
 		std::function<std::ostream&(std::ostream&)> const& endl,
 		size_t indent,
 		bool scope,
-		bool path
+		bool path,
+		bool print_rewrite
 	) const &;
 	auto const pretty(
 		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
 		size_t indent = 0,
 		bool scope = false,
-		bool path = true
+		bool path = true,
+		bool print_rewrite = false
 	) const & {
-		return [&endl,indent,scope,path,this]( std::ostream& os )->std::ostream&{
-			return pretty(os,endl,indent,scope,path);
+		return [&endl,indent,scope,path,print_rewrite,this]( std::ostream& os )->std::ostream&{
+			return pretty(os,endl,indent,scope,path,print_rewrite);
 		};
 	}
 	/** Pretty printer for rewriter */
 	std::ostream& pretty_rewrite(
 		std::ostream& os,
+		Rewrite const& rew,
+		size_t n,
 		std::function<std::ostream&(std::ostream&)> const& prefix,
-		std::function<std::ostream&(std::ostream&)> const& endl,
-		Rewrite const& rew
+		std::function<std::ostream&(std::ostream&)> const& endl
 	) const &;
 	auto pretty_rewrite(
+		Rewrite const& rew,
+		size_t n,
 		std::function<std::ostream&(std::ostream&)> const& prefix,
-		std::function<std::ostream&(std::ostream&)> const& endl,
-		Rewrite const& rew
+		std::function<std::ostream&(std::ostream&)> const& endl
 	) const & {
-		return [&]( std::ostream& os )->std::ostream&{
-			return pretty_rewrite(os,prefix,endl,rew);
+		return [&rew,n,&prefix,&endl,this]( std::ostream& os )->std::ostream&{
+			return pretty_rewrite(os,rew,n,prefix,endl);
 		};
 	}
 

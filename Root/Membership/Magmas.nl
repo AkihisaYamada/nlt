@@ -152,6 +152,7 @@ context MetaRelation begin -- Every binary symbol defines magma properties.
 end
 
 context Reflexive begin
+	interpret .MetaRelation.
 
 	context Compatible begin
 		interpret Monotone A (*);
@@ -165,6 +166,7 @@ context Reflexive begin
 end
 
 context Transitive begin
+	interpret .MetaRelation.
 
 	theory MonoMagma:
 		import Magma.
@@ -182,6 +184,7 @@ context Transitive begin
 end
 
 context PartialEquivalence begin
+	interpret .Transitive A (=).
 
 	theory MagmaLeftNeutral:
 		fix (*) (1).
@@ -425,6 +428,8 @@ context PartialEquivalence begin
 end
 
 context Equivalence begin
+	interpret .PartialEquivalence A (=).
+	interpret .Reflexive A (=).
 
 	theory LeftQuasiGroup:
 		import MagmaLeftCancel.

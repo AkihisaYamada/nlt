@@ -173,10 +173,12 @@ begin
 				unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 		end
 	end
-
+print.
+ctxt AllRel.
 	context Membership begin
 
 		context AllIn begin
+ctxt.
 			interpret in: ..AllRel (∈) (∀∈).
 			context ExIn begin
 				interpret in: in.ExRel (∃∈).

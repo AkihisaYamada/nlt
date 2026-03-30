@@ -657,9 +657,11 @@ public:
 	void _emulate_import( Opt<string const&> thm_prefix, Import& intp, Subst const& org ){
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
-				auto const& t = org.get(*fix);
-				if( !t ) throw Error("\"failed to update import variable\"")(_mkpath(thm_prefix)(intp.source().name()))(*fix);
-				intp.instantiate(_thy.cterm(*t));// TODO: should be known to be closed
+				auto const& ot = org.get(*fix);
+				auto const& t = ot ? (Term)*ot : *fix;
+				auto ct = _thy.closed(t);// TODO: in case of o, should be known to be closed
+				if( !ct ) throw Error("failed to update fix")(*fix);
+				intp.instantiate(*ct);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto const& [assm,name] = *assume;
 				auto path = _mkpath(thm_prefix)(name);
@@ -669,12 +671,14 @@ public:
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto [src_sym,ex,spec,src_name] = *obtain;
 				auto path = _mkpath(thm_prefix)(src_name);
-				auto const& t = org.get(src_sym);
-				if( !t ) throw Error("\"failed to know replacement\"")(src_sym)(spec);
-				auto assm = spec.Term::inst(*t);
+				auto const& ot = org.get(src_sym);
+				auto const& t = ot ? (Term)*ot : src_sym;
+				auto ct = _thy.closed(t);// TODO: in case of o, should be known to be closed
+				if( !ct ) throw Error("\"failed to know replacement\"")(src_sym)(spec);
+				auto assm = spec.Term::inst(*ct);
 				auto o = _thy.find_thm(path,exact(assm));
-				if( !o ) throw Error("\"failed to transfer specification\"")(Term(":=")(src_sym)(*t))(assm);
-				intp.retain(_thy.cterm(*t),*o);// TODO: known to be closed
+				if( !o ) throw Error("\"failed to transfer specification\"")(Term(":=")(src_sym)(t))(assm);
+				intp.retain(*ct,*o);
 			} else {
 				break;
 			}
@@ -690,11 +694,11 @@ public:
 			name = get_thm_name();
 			canonical_prefix = true;
 			unqualified = NONE;
-		} else if( skips("?") ) {// non-prior unqualified import
+		} else if( skips("?") ) {// posterior unqualified import
 			name = get_thm_name();
 			canonical_prefix = true;
 			unqualified = POST;
-		} else if( skips("!") ) {// non-recursive import
+		} else if( skips("!") ) {// non-recursive unqualified import
 			name = get_thm_name();
 			canonical_prefix = true;
 			unqualified = NONREC;
@@ -1435,19 +1439,19 @@ public:
 			local_thy(loc,false,[this]{ loop(); });
 			if MSG cout << "created theory " << name << endl;
 		} else if( skips("context") ) {
-			string name = get(Lexer::Word);
+			string path = get(Lexer::Word);
 			skip("begin");
-			if( auto oloc = _thy.find_thy_local(name,reader()) ) {
+			if( auto oloc = _thy.find_thy_local(path,reader()) ) {
 				if THY {
 					if( !MSG ) cout << _indent(' ');
-					cout << "reopening theory " << name << endl;
+					cout << "reopening theory " << oloc->source().print_path() << endl;
 				}
 				local_thy( oloc->source(), true, [this]{ loop(); } );
 			} else {
 				Thy parent = _thy;
-				auto src2parent = parent.thy(name,reader());
+				auto src2parent = parent.thy(path,reader());
 				auto src = src2parent.source();
-				auto loc = parent.branch(name,"");
+				auto loc = parent.branch(src.name(),"");
 				if THY {
 					if( !MSG ) cout << _indent(' ');
 					cout << "adopting theory " << src.print_path(true)
@@ -1457,7 +1461,8 @@ public:
 					auto const& parent2loc = *loc.parent();
 					auto src2loc = src2parent.compose(parent2loc);
 					_auto_import({},{},src2loc,true);
-					loc.add_prior_import(src2loc);
+					loc.add_post_import(src2loc);
+/* not sure this should be automated
 					// updating original imports
 					auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
 						auto sub = sub2org.source();
@@ -1473,7 +1478,7 @@ public:
 								}
 							} else {
 								if MSG {
-									cout << "updating import ";
+									cout << "overriding import ";
 									if( prefix ) cout << *prefix << ": ";
 									cout << sub.print_path() << " by " << ext.print_path() << endl << _indent(' ');
 								}
@@ -1499,10 +1504,11 @@ public:
 							_thy.add_import(prefix,*o);
 						}
 					}
+*/
 					loop();
 				});
 			}
-			if MSG cout << "left " << name << endl;
+			if MSG cout << "left " << path << endl;
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
 			skip(":");
