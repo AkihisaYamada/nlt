@@ -3,7 +3,7 @@
 ----
 begin
 
-context MetaRelation begin -- Every binary symbol defines magma properties.
+extend MetaRelation begin -- Every binary symbol defines magma properties.
 
 	theory LeftMonotone:
 		fix A B (*).
@@ -151,10 +151,10 @@ context MetaRelation begin -- Every binary symbol defines magma properties.
 
 end
 
-context Reflexive begin
+extend Reflexive begin
 	interpret .MetaRelation.
 
-	context Compatible begin
+	extend Compatible begin
 		interpret Monotone A (*);
 			- if 1: y ≤ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ≤ x * y';
 				apply comp[OF refl[OF x] 1].
@@ -165,7 +165,7 @@ context Reflexive begin
 
 end
 
-context Transitive begin
+extend Transitive begin
 	interpret .MetaRelation.
 
 	theory MonoMagma:
@@ -183,7 +183,7 @@ context Transitive begin
 
 end
 
-context PartialEquivalence begin
+extend PartialEquivalence begin
 	interpret .Transitive A (=).
 
 	theory MagmaLeftNeutral:
@@ -427,7 +427,7 @@ context PartialEquivalence begin
 
 end
 
-context Equivalence begin
+extend Equivalence begin
 	interpret .PartialEquivalence A (=).
 	interpret .Reflexive A (=).
 

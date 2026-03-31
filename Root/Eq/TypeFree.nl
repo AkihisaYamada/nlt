@@ -1,5 +1,5 @@
 begin
-print log.
+
 interpret base? Root.TypeFree.
 
 theory Minimal:
@@ -20,7 +20,7 @@ begin
 		unfold iff_eq.commute;
 		by ex_eq_and_iff.
 
-	context Ex1 begin
+	extend Ex1 begin
 		lemma ex1_cong#cong
 			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
 			unfold ex1_def iff.
@@ -50,7 +50,7 @@ begin
 		lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
 			simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 
-		context The begin
+		extend The begin
 			lemma THE_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
 				apply ex1_elim[OF ex1];
 				- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
@@ -64,11 +64,11 @@ begin
 
 	end
 
-	context AllRel begin -- extending Eq/TypeSafeMinimal/AllRel
+	extend AllRel begin -- extending Eq/TypeSafeMinimal/AllRel
 
 		interpret base? base.AllRel.-- Root/Minimal/AllRel
 
-		context ExRel begin
+		extend ExRel begin
 			interpret base? base.ExRel.-- Root/Minimal/AllRel/ExRel
 
 			lemma ex_cong:
@@ -180,10 +180,13 @@ begin
 	begin
 		interpret Eq.Membership.
 
-		context AllIn begin
+		theory AllIn:
+			import base.AllIn.
+		begin
+			interpret in: AllRel (∈) (∀∈).
 			note#cong in.all_cong.
 			note#rule in.all_def.
-			context ExIn begin
+			extend ExIn begin
 				interpret in: in.ExRel (∃∈).
 				note#cong in.ex_cong.
 				note#elim in.ex_elim.
@@ -244,8 +247,8 @@ ctxt.
 						fix TheIn.
 						import in: in.TheRel TheIn.
 					begin
-						context Lambda begin
-							context Pair begin
+						extend Lambda begin
+							extend Pair begin
 								interpret UniqueChoiceCond;
 									- for P A Q if P_imp_ex1;
 										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];

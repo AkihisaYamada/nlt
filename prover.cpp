@@ -686,34 +686,27 @@ public:
 	}
 	void import( bool change ) {
 		string name;
-		Opt<string> thm_prefix = {};
-		Opt<string const&> sym_prefix = {};
-		bool canonical_prefix;
+		Opt<string> forced_prefix = {};
+		Opt<string> optional_prefix = {};
+		bool canonical_prefix = false;
 		enum { NONE, PRIOR, POST, NONREC } unqualified;
-		if( skips(":") ) {// canonical prefix
+		if( skips(":") ) {// non-recursive unqualified import
 			name = get_thm_name();
 			canonical_prefix = true;
-			unqualified = NONE;
+			unqualified = NONREC;
 		} else if( skips("?") ) {// posterior unqualified import
 			name = get_thm_name();
 			canonical_prefix = true;
 			unqualified = POST;
-		} else if( skips("!") ) {// non-recursive unqualified import
-			name = get_thm_name();
-			canonical_prefix = true;
-			unqualified = NONREC;
 		} else {
-			auto str1 = get_thm_name();
+			string str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
 				name = get();
-				thm_prefix = {str1};
-				sym_prefix = thm_prefix;
-				canonical_prefix = false;
+				forced_prefix = {str1};
 				unqualified = NONE;
 			} else if( skips("?") ) {// optionally qualified
 				name = get();
-				thm_prefix = {str1};
-				canonical_prefix = false;
+				optional_prefix = {str1};
 				unqualified = POST;
 			} else {// unqualified
 				name = str1;
@@ -727,10 +720,10 @@ public:
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(_thy,thm_prefix,intp,*assume,change,infer);
+					_auto_discharge(_thy,forced_prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_retain(_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
+					_auto_retain(_thy,forced_prefix,forced_prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -744,17 +737,20 @@ public:
 		if( skips(";") ) {
 			if MSG {
 				cout << (change ? "importing " : "interpreting ");
-				if( thm_prefix ) {
-					cout << *thm_prefix << ": ";
+				if( forced_prefix ) {
+					cout << *forced_prefix << ": ";
+				}
+				if( optional_prefix ) {
+					cout << *optional_prefix << "? ";
 				}
 				cout << path << endl;
 			}
 			_depth++;
-			success = _import_loop(thm_prefix,sym_prefix,intp,change);
+			success = _import_loop(forced_prefix,forced_prefix,intp,change);
 			_depth--;
 		} else {
 			skip(".");
-			_auto_import(thm_prefix,sym_prefix,intp,change);
+			_auto_import(forced_prefix,forced_prefix,intp,change);
 			if( _no_syntax ) {
 				_no_syntax = false;
 				_thy.modify_syntax() = src.syntax();
@@ -769,8 +765,11 @@ public:
 					case NONREC: _thy.add_import(NONREC_IMPORT,intp); break;
 				}
 			}
-			if( thm_prefix ) {// qualified import
-				_thy.add_import(*thm_prefix,intp);
+			if( forced_prefix ) {// qualified import
+				_thy.add_import(*forced_prefix,intp);
+			}
+			if( optional_prefix ) {
+				_thy.add_import(*optional_prefix,intp);
 			}
 			if( canonical_prefix ) {
 				_thy.add_import(src.name(),intp);
@@ -778,9 +777,8 @@ public:
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << ( change ? "imported " : "interpreted ");
-				if( thm_prefix ) {
-					cout << *thm_prefix << ( unqualified == NONE ? ": " : "? " );
-				}
+				if( forced_prefix ) cout << *forced_prefix << ": ";
+				if( optional_prefix ) cout << *optional_prefix << "? ";
 				cout << path << endl;
 			}
 		}
@@ -1441,73 +1439,76 @@ public:
 		} else if( skips("context") ) {
 			string path = get(Lexer::Word);
 			skip("begin");
-			if( auto oloc = _thy.find_thy_local(path,reader()) ) {
-				if THY {
-					if( !MSG ) cout << _indent(' ');
-					cout << "reopening theory " << oloc->source().print_path() << endl;
-				}
-				local_thy( oloc->source(), true, [this]{ loop(); } );
-			} else {
-				Thy parent = _thy;
-				auto src2parent = parent.thy(path,reader());
-				auto src = src2parent.source();
-				auto loc = parent.branch(src.name(),"");
-				if THY {
-					if( !MSG ) cout << _indent(' ');
-					cout << "adopting theory " << src.print_path(true)
-						<< " into " << loc.print_path() << endl;
-				}
-				local_thy(loc,true,[&]{
-					auto const& parent2loc = *loc.parent();
-					auto src2loc = src2parent.compose(parent2loc);
-					_auto_import({},{},src2loc,true);
-					loc.add_post_import(src2loc);
-/* not sure this should be automated
-					// updating original imports
-					auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
-						auto sub = sub2org.source();
-						auto const& subname = sub.name();
-						if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
-							auto ext = ext2parent->source();
-							if( ext != loc )// except the theory we are defining
-							if( sub.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
-								if LOG {
-									cout << "already imported ";
-									if( prefix ) cout << *prefix << ": ";
-									cout << ext.print_path() << endl << _indent(' ');
-								}
-							} else {
-								if MSG {
-									cout << "overriding import ";
-									if( prefix ) cout << *prefix << ": ";
-									cout << sub.print_path() << " by " << ext.print_path() << endl << _indent(' ');
-								}
-								auto ext2loc = ext2parent->compose(parent2loc);
-								_emulate_import(prefix,ext2loc,sub2org);
-								return {ext2loc};
-							}
-						}
-						return {};
-					};
-					for( auto const& sub2org : src.prior_imports() ) {
-						if( auto const& o = f({},sub2org) ) {
-							_thy.add_prior_import(*o);
-						}
-					}
-					for( auto const& sub2org : src.post_imports() ) {
-						if( auto const& o = f({},sub2org) ) {
-							_thy.add_post_import(*o);
-						}
-					}
-					for( auto const& [prefix,sub2org] : src2parent.source().imports() ) {
-						if( auto const& o = f(prefix,sub2org) ) {
-							_thy.add_import(prefix,*o);
-						}
-					}
-*/
-					loop();
-				});
+			auto oloc = _thy.find_thy_local(path,reader());
+			if( !oloc ) throw Error("bad context")(path);
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "reopening theory " << oloc->source().print_path() << endl;
 			}
+			local_thy( oloc->source(), true, [this]{ loop(); } );
+			if MSG cout << "left " << path << endl;
+		} else if( skips("extend") ) {
+			string path = get(Lexer::Word);
+			bool locked = skips("begin") || (skip(":"), false);
+			Thy parent = _thy;
+			auto src2parent = parent.thy(path,reader());
+			auto src = src2parent.source();
+			auto loc = parent.branch(src.name(),"");
+			if THY {
+				if( !MSG ) cout << _indent(' ');
+				cout << "extending theory " << src.print_path(true)
+					<< " into " << loc.print_path() << endl;
+			}
+			local_thy(loc,locked,[&]{
+				auto const& parent2loc = *loc.parent();
+				auto src2loc = src2parent.compose(parent2loc);
+				_auto_import({},{},src2loc,true);
+				loc.add_post_import(src2loc);
+/* not sure this should be automated
+				// updating original imports
+				auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
+					auto sub = sub2org.source();
+					auto const& subname = sub.name();
+					if( auto const& ext2parent = parent.find_thy(subname,reader()) ) {
+						auto ext = ext2parent->source();
+						if( ext != loc )// except the theory we are defining
+						if( sub.find_import( [&]( Thy const& thy ) { return thy == ext; } ) ) {
+							if LOG {
+								cout << "already imported ";
+								if( prefix ) cout << *prefix << ": ";
+								cout << ext.print_path() << endl << _indent(' ');
+							}
+						} else {
+							if MSG {
+								cout << "overriding import ";
+								if( prefix ) cout << *prefix << ": ";
+								cout << sub.print_path() << " by " << ext.print_path() << endl << _indent(' ');
+							}
+							auto ext2loc = ext2parent->compose(parent2loc);
+							_emulate_import(prefix,ext2loc,sub2org);
+							return {ext2loc};
+						}
+					}
+					return {};
+				};
+				for( auto const& sub2org : src.prior_imports() ) {
+					if( auto const& o = f({},sub2org) ) {
+						_thy.add_prior_import(*o);
+					}
+				}
+				for( auto const& sub2org : src.post_imports() ) {
+					if( auto const& o = f({},sub2org) ) {
+						_thy.add_post_import(*o);
+					}
+				}
+				for( auto const& [prefix,sub2org] : src2parent.source().imports() ) {
+					if( auto const& o = f(prefix,sub2org) ) {
+						_thy.add_import(prefix,*o);
+					}
+				}
+*/
+				loop();
+			});
 			if MSG cout << "left " << path << endl;
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
