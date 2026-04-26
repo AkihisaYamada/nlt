@@ -14,5 +14,3 @@ theorem inconsistent: false;-- Any term is provable
 	have RR: R R;
 		by nRR[fold R_def].
 	by nRR[OF RR].
-
-thy.

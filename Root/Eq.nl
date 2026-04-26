@@ -49,7 +49,7 @@ lemma arg_cong: if xy: x = y then f x = f y;
 lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
-lemma cong#fallback if fg: f = g, xy: x = y then f x = g y;
+lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
 	have 1: f x = f y;
 		by arg_cong[OF xy].
 	apply eq.trans[OF 1];
@@ -103,6 +103,21 @@ theory Id:
 	assume id#simp id x = x.
 begin
 	
+end
+
+theory Const:-- aka K
+	fix const.
+	assume const#simp const x y = x.
+end
+
+theory FunComp:-- aka B
+	fix (∘).
+	assume comp_app#simp (f ∘ g) x = f (g x).
+end
+
+theory RevApp:
+	fix (|>).
+	assume revapp#simp x |> f = f x.
 end
 
 theory If:
@@ -206,21 +221,14 @@ extend Membership begin
 			.
 	end
 
-	theory TypedLambda:
-		fix (λ∈).
-		assume fun_app: for A if x ∈ A then (λy ∈ A. F.[y]) x = F.[x].
-	begin
-		theory DependentType:
-			fix (Π∈).
-			assume Pi_elim: if f ∈ Πx ∈ A. B.[x], x ∈ A then f x ∈ B.[x].
-			assume lambda_Pi: if ∀x. x ∈ A ⟹ F.[x] ∈ B.[x] then (λx ∈ A. F.[x]) ∈ Πx ∈ A. B.[x].
-		end
+	extend Fun begin
+		lemma fun_app: for A if sA: s ∈ A then (fun x. F.[x]) s = F.[s];
+			apply fun_elim[of (y. (fun x. F.[x]) s = y) F, OF sA].
 	end
 
-	theory Lambda:-- Dynamically typed
-		fix (λ).
-		assume fun_app: for A if F.[x] ∈ A.[x] then (λy. F.[y]) x = F.[x].
-	begin
+	extend FunIn begin
+		lemma funIn_app#simp if sA: s ∈ A then (fun x ∈ A. F.[x]) s = F.[s];
+			apply funIn_elim[of (y. (fun x ∈ A. F.[x]) s = y) F, OF sA].
 	end
 
 end
@@ -233,7 +241,7 @@ extend TypeSafeMinimal begin
 	interpret iff_eq: iff.MetaCommutative (=);
 		by iff_intro[OF eq.sym eq.sym].
 
-	lemma eq_imp_iff#fallback if eq: P = Q then P ⟺ Q;
+	lemma eq_imp_iff#cong? if eq: P = Q then P ⟺ Q;
 		unfold[on (=)] eq.
 
 	lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];

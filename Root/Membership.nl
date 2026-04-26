@@ -23,9 +23,9 @@ theory Unary:
 	assume closed: if x ∈ A then f x ∈ B.
 end
 
-theory Fun:
+theory To:
 	fix (→).
-	assume fun_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
+	assume to_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
 end
 
 theory Binary:

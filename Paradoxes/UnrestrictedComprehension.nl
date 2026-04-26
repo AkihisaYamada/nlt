@@ -15,4 +15,3 @@ theorem inconsistent: false;-- Any term is provable
 		by nRR.
 	by nRR[OF RR].
 
-thy.

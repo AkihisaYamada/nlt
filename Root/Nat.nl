@@ -1,5 +1,7 @@
-import Abbreviation.
-import Collection.
+import Eq.
+import Membership.
+import AllIn.
+import Fun.
 
 fix ℕ (0) suc rec.
 
@@ -17,26 +19,25 @@ begin
 note! zero.closed.
 note! suc.closed.
 
-print.
 interpret Equivalence ℕ (=);
-	-; .
-	-; by eq.sym(intro 1).
-	-; by eq.trans(intro 2).
+	- .
+	- by #intro[after 1] eq.sym.
+	- by #intro[after 2] eq.trans.
 	.
 
 lemma induction_rule:
 	if x: x ∈ ℕ, 0: P.[0], suc: ∀x. P.[x] ⟹ x ∈ ℕ ⟹ P.[suc x] then P.[x];
-	apply induction[THEN allIn_elim1];
-	-; by 0.
-	-; by allIn_intro suc.
-	-; by x.
+	apply induction[THEN in.all_elim1];
+	- by 0.
+	- by in.all_intro suc.
+	- by x.
 	.
 
 obtain (+) where
 	zero_add: if x ∈ ℕ then 0 + x = x,
 	suc_add: if x ∈ ℕ, y ∈ ℕ then suc x + y = suc (x + y);
 	- for thesis if assm;
-		apply abbrev2[of (p. rec (snd p) (const suc) (fst p))];
+		apply assm[of (fun x y. rec y (const suc) x)];
 		- for f if (simp);
 			apply assm[of f];
 			by #unfold rec_zero rec_suc.

@@ -170,7 +170,7 @@ lemma nnand_iff: ¬ ¬ (P ∧ Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
 	apply iff_intro;
 	- if nnand;
 		apply+ and_intro nnand[THEN not_imp_imp_not];
-		by #weak nand_intro1 nand_intro2.
+		by #intro? nand_intro1 nand_intro2.
 	fold nnot_nand_iff;
 	by #simp imp_and_iff1.
 
@@ -300,7 +300,7 @@ end
 extend Membership begin
 
 	extend AllIn begin
-		interpret in: _.AllRel (∈) (∀∈).
+		interpret in: ..AllRel (∈) (∀∈).
 		note#intro in.all_intro.
 		note#elim in.all_elim.
 		note#rule in.all_def in.all_imp.

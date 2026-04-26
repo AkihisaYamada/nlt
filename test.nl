@@ -5,7 +5,7 @@ thm nnProp.excluded_middle.
 
 thm nnProp.in.ex_def.
 
-import Classes.
+import Sets.
 
 end
 

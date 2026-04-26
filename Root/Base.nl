@@ -9,6 +9,7 @@ begin -- Base doesn't have any axiom
 ---
 
 set symbol
+	¬,
 	Γ-Δ, Θ, Λ, Ξ, Π, Σ, Φ, Ψ-Ω, α-ξ, π-ω,-- Greek
 	ℂ, ℋ, ℍ, ℐ-ℓ, ℕ, ℘-ℝ, ℤ, ℬ-ℭ, ℰ-ℱ, ℵ-ℸ, ℼ-⅀, ⅅ-ⅉ, -- Letterlike Symbols
 	𝒜, 𝒞-𝒟, 𝒢, 𝒥-𝒦, 𝒩-𝒬, 𝒮-𝒵, 𝔸-𝔹, 𝔻-𝔾, 𝕀-𝕄, 𝕆, 𝕊-𝕐,𝕒-𝕫, 𝟘-𝟡, -- Mathematical Alphanumeric Symbols
@@ -17,8 +18,6 @@ set symbol
 	←-⇿, -- Arrows
 	⟰-⟿, -- Supplemental Arrows-A
 	⨀-⫿. -- Supplemental Mathematical Operators
-
-set symbol ¬.
 
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
@@ -29,19 +28,19 @@ infix ∧ 20 21 20.
 prefix ¬ 30 30.
 binder ∃ 0 0.
 binder ∃! 0 0.
-binder λ 0 0.
+binder fun 51 0.
+binder FUN 51 0.
 binder THE 0 0.
 binder SOME 0 0.
-binder Π 51 0.
 
 infix ∈ 51 51 50.
 syntax ∀ _ ∈ _. _ := ∀∈.
 syntax ∃ _ ∈ _. _ := ∃∈.
-syntax λ _ ∈ _. _ := λ∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
+syntax fun _ ∈ _. _ := funIn.
+syntax FUN _ ∈ _. _ := FunIn.
 syntax THE _ ∈ _. _ := TheIn.
 syntax SOME _ ∈ _. _ := SomeIn.
-syntax Π _ ∈ _. _ := Π∈.
 
 infix ⊆ 51 51 50.
 syntax ∀ _ ⊆ _. _ := ∀⊆.
@@ -79,6 +78,8 @@ infix ⊑ 51 51 50.
 infix ⊒ 51 51 50.
 infix ⊏ 51 51 50.
 infix ⊐ 51 51 50.
+
+infix |> 60 61 60.-- reverse application
 
 infix → 61 60 60.
 

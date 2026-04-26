@@ -186,6 +186,7 @@ begin
 			interpret in: AllRel (∈) (∀∈).
 			note#cong in.all_cong.
 			note#rule in.all_def.
+
 			extend ExIn begin
 				interpret in: in.ExRel (∃∈).
 				note#cong in.ex_cong.
@@ -203,7 +204,6 @@ begin
 						assume unique_choice:
 							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
 					begin
-ctxt.
 						interpret Abbrev;
 							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
 								note#cong eq_cong_meta[of F].
@@ -247,16 +247,16 @@ ctxt.
 						fix TheIn.
 						import in: in.TheRel TheIn.
 					begin
-						extend Lambda begin
+						extend Fun begin
 							extend Pair begin
 								interpret UniqueChoiceCond;
 									- for P A Q if P_imp_ex1;
-										apply ex_intro1[of (λx. THE y ∈ A.[x]. Q.[x,y])];
+										apply ex_intro1[of (fun x. THE y ∈ A.[x]. Q.[x,y])];
 										- if Px: P.[x];
 											note ex1: P_imp_ex1[OF Px].
 											note! in.THE_intro0[OF ex1] in.THE_intro1[OF ex1].
 											note#cong eq_cong_meta[of Q].
-											unfold fun_app[of A].
+											thm fun_app[of A].
 										.
 									.
 							end

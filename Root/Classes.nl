@@ -36,8 +36,36 @@ begin
 lemma class_eq_intro: if iff: ∀x. x ∈ X ⟺ x ∈ Y, X: class X, Y: class Y then X = Y;
 	apply class_ext[OF X Y iff].
 
+theory UnionSchema:-- The class of Y cannot be expressed, so the union cannot be represented
+	assume CUP_ex: if ∀X ∈ XX. class X then ∃Y. class Y ∧ ∀x. x ∈ Y ⟺ (∃X ∈ XX. x ∈ X).
+end
+
+theory UnionClass:
+	fix (⋃).
+	assume CUP_class! class (⋃XX).
+	assume CUP_iff: x ∈ ⋃XX ⟺ (∃X ∈ XX. x ∈ X).
+end
+
+theory PowerClass:
+	fix Pow.
+	assume Pow_class! class (Pow A).
+	assume Pow_intro: if class X, ∀x. x ∈ X ⟹ x ∈ A then X ∈ Pow A.
+	assume Pow_elim: if X ∈ Pow A, class X ⟹ (∀x. x ∈ X ⟹ x ∈ A) ⟹ P then P.
+begin
+
+	lemma Pow_iff: X ∈ Pow A ⟺ class X ∧ (∀x. x ∈ X ⟹ x ∈ A);
+		apply iff_intro;
+		- if XA;
+			apply Pow_elim[OF XA].
+		-> if X, sub;
+			apply Pow_intro[OF _ X sub].
+		.
+
+end
+
 theory CollectIn:
 	fix CollectIn.
+	import Pair.
 	assume CollectIn_class! if class A then class {x ∈ A. P.[x]}.
 	assume CollectIn_iff: if class A then x ∈ {x ∈ A. P.[x]} ⟺ x ∈ A ∧ P.[x].
 begin
@@ -52,12 +80,18 @@ begin
 		apply class_eq_intro;
 		by A #simp CollectIn_iff.
 
+	extend PowerClass begin
+		lemma CollectIn_Pow! if ! class A then {x ∈ A. P.[x]} ∈ Pow A;
+			by Pow_intro #simp CollectIn_iff.
+	end
+
 end
 
 theory ComprehensionSchema:
-	assume comprehension_schema: for A P if class A then ∃X. class X ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]).
+	import PowerClass.
+	assume comprehension_schema: ∀X ∈ Pow A. ∃Y ∈ Pow A. ∀x ∈ A. x ∈ Y ⟺ x ∈ X ∧ P.[x].
 begin
-	lemma comprehension_ex1: for A P if A: class A then ∃!X. class X ∧ (∀x. x ∈ X ⟺ x ∈ A ∧ P.[x]);
+	lemma comprehension_ex1: for A P if A: class A then ∃!X ∈ Pow A. ∀x. x ∈ X ⟺ x ∈ A ∧ P.[x];
 		apply comprehension_schema[of A P, OF A, THEN ex_elim];
 		-> for X if Xty!, X;
 			apply ex1_intro1[of X];
@@ -67,6 +101,7 @@ begin
 				simp X Y.
 			.
 		.
+	lemma comprehension_ex1In: for A P if A: class A then ∃!X ∈ Pow A.
 end
 
 extend UniqueChoiceCond begin
@@ -113,12 +148,6 @@ extend UniqueChoiceCond begin
 			.
 	end
 
-end
-
-theory PowerClass:
-	fix Pow.
-	assume Pow_class: if class A then class (Pow A).
-	assume Pow_iff: if class A then X ∈ Pow A ⟺ class X ∧ (∀x. x ∈ X ⟹ x ∈ A).
 end
 
 theory MK:

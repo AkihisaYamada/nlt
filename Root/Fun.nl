@@ -1,8 +1,16 @@
 import Membership.
 
-fix (→).
-assume fun_intro: for f if ∀a. a ∈ A ⟹ f a ∈ B then f ∈ A → B.
-assume fun_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
+fix (fun).
+assume fun_elim: for P F A if s ∈ A, P.[(fun x. F.[x]) s] then P.[F.[s]].
 
 begin
 
+extend FunType:
+	assume fun_in_type: if ∀x ∈ A. F.[x] ∈ B then (fun x. F.[x]) ∈ A → B.
+end
+
+extend DepFunType:
+	assume fun_in_FunIn! if ∀x ∈ A. F.[x] ∈ B.[x] then (fun x. F.[x]) ∈ (FUN x ∈ A. B.[x]).
+begin
+
+end

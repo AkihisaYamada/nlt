@@ -1,4 +1,5 @@
-import Fun.
+import Membership.
+import FunType.
 import FirstOrder.
 
 assume fun_type: if A ∈ QTYPE, B ∈ QTYPE then A → B ∈ QTYPE.

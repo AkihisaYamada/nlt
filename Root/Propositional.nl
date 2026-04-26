@@ -16,19 +16,18 @@ assume false_prop! false ∈ Prop.
 
 begin
 
+note! imp.closed and.closed or.closed not.closed iff.closed.
+
 -- `true` is obtained via `false ⟹ false`.
-note! imp.closed.
 obtain true where true_intro! true, true_prop! true ∈ Prop;
 	- for thesis if assm;
 		apply assm[of (false ⟹ false)].
 	.
 
-note! and.closed or.closed not.closed iff.closed.
-
 interpret iff: MetaRelation (⟺).
 
 theory Minimal:
-	--- Typed minimal logic allows elimination rules only derive propositions. ---
+	--- Typed logic allows elimination rules only derive propositions. ---
 	import TypeSafeMinimal.
 	assume or_elim: if P ∨ Q, R ∈ Prop, P ⟹ R, Q ⟹ R then R.
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q, Q ∈ Prop then Q.
