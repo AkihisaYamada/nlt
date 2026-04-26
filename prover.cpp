@@ -13,8 +13,9 @@
 #define FLAG_LOG (1 << 6)
 #define FLAG_PRF (1 << 7)
 
-#define FLAGS_MIN (FLAG_SYS | FLAG_STA)
-#define FLAGS_DEFAULT (FLAGS_MIN | FLAG_CTXT | FLAG_THY | FLAG_MSG)
+#define FLAGS_MIN ( FLAG_SYS | FLAG_STA )
+#define FLAGS_CTXT ( FLAGS_MIN | FLAG_CTXT )
+#define FLAGS_DEFAULT (FLAGS_CTXT | FLAG_THY | FLAG_MSG)
 
 #define ERR ( _out & FLAG_ERR )
 #define SYS ( _out & FLAG_SYS )
@@ -31,7 +32,13 @@ string const RULIFY = "#rulify";
 string const RULIFY_CONG = "#rcong";
 
 struct ClaimStatus {
-	bool weak = false, intro = false, elim = false, dual = false, cong = false, fallback = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
+	struct Ternary {
+		bool self, weak;
+		operator bool() const { return self; }
+		void operator=( bool b ) { self = b; }
+	};
+	Ternary intro = {false,false}, cong = {false,false};
+	bool elim = false, dual = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
 	unsigned char after = 0;
 	unsigned char prems = 255;
 	bool strip_all = true;
@@ -41,33 +48,42 @@ inline ClaimStatus const ClaimStatus::INFLATED =
 	[](){ ClaimStatus ret; ret.intro = true; ret.inflated = true; return ret; }();
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
-	if( cs.intro ) {
-		os << "(intro";
-		if( cs.after > 0 ) {
-			os << " after " << (int)cs.after;
-		}
+	static auto _print_cs_mod = [&]{
+		char const* post = "";
+		char const* pre = "[";
 		if( cs.prems != 255 ) {
-			os << ' ' << (int)cs.prems;
+			os << pre << "prems " << (int)cs.prems;
+			post = "]";
+			pre = ", ";
 		}
-		os << ')';
-	}
-	if( cs.weak ) {
-		os << "(weak)";
+		if( cs.after > 0 ) {
+			os << pre << "after " << (int)cs.after;
+			post = "]";
+			pre = ", ";
+		}
+		os << post;
+	}; 
+	if( cs.intro ) {
+		os << "#intro";
+		if( cs.intro.weak ) os << '?';
+		_print_cs_mod();
 	}
 	if( cs.elim ) {
-		os << "(elim)";
+		os << "#elim";
 	}
 	if( cs.dual ) {
-		os << "(dual)";
+		os << "#dual";
 	}
 	if( cs.unfold ) {
-		os << "(unfold)";
+		os << "#simp";
+		_print_cs_mod();
 	}
 	if( cs.fold ) {
-		os << "(fold)";
+		os << "#fold";
 	}
 	if( cs.cong ) {
-		os << "(cong)";
+		os << "#cong";
+		if( cs.cong.weak ) os << '?';
 	}
 	return os << ": ";
 }
@@ -392,18 +408,14 @@ public:
 			cs.intro = true;
 			cs.inflated = true;
 		} else if( skips("?") ) {
-			cs.weak = true;
+			cs.intro = {true,true};
 			cs.inflated = true;
 		} else if( skips("#") ) {
 			do {
-				if( skips("weak") ) {
-					cs.weak = true;
-				} else if( skips("intro") ) {
-					cs.intro = true;
+				if( skips("intro") ) {
+					cs.intro = {true,skips("?")};
 				} else if( skips("cong") ) {
-					cs.cong = true;
-				} else if( skips("fallback") ) {
-					cs.fallback = true;
+					cs.cong = {true,skips("?")};
 				} else if( skips("rule" ) ) {
 					cs.rulify = true;
 				} else if( skips("rule_cong") ) {
@@ -446,27 +458,19 @@ public:
 			}
 			if( cs->intro ) {
 				if( cs->after > 0 ) {
-					info = {Elim::rule(thm,cs->after-1,'!')};
+					info = {Elim::rule( thm, cs->after-1, cs->intro.weak ? '?' : '!' )};
 					loc.add_thm(INF,thm,info);
 				} else {
 					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
-					add_intro(loc,thm,*info.ref<Intro>(),true);
-				}
-			}
-			if( cs->weak ) {
-				if( cs->after > 0 ) {
-					info = {Elim::rule(thm,cs->after-1,'?')};
-					loc.add_thm(INF,thm,info);
-				} else {
-					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
-					add_intro(loc,thm,*info.ref<Intro>(),false);
+					add_intro(loc,thm,*info.ref<Intro>(),!cs->intro.weak);
 				}
 			}
 			if( cs->cong ) {
-				loc.modify_rewriter(SIMP).register_cong(thm);
-			}
-			if( cs->fallback ) {
-				loc.modify_rewriter(SIMP).register_fallback(thm);
+				if( cs->cong.weak ) {
+					loc.modify_rewriter(SIMP).register_fallback(thm);
+				} else {
+					loc.modify_rewriter(SIMP).register_cong(thm);
+				}
 			}
 			if( cs->rulify ) {
 				auto [ind,rel,rule] = loc.rewriter(RULIFY).make_rule(thm,false);
@@ -625,12 +629,11 @@ public:
 				if( !MSG ) cout << _indent(' ');
 				cout << "loading " << filename << endl;
 			}
-			thy.add_import("_",thy.self());// file root
 			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
-			thy.erase_import("_");
 			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
-				if( !MSG ) cout << _indent(' ');
-				cout << "loaded " << filename << endl;
+				auto pr = [&](ostream&os)->ostream&{ return os << "loaded " << filename << endl; };
+				if( !MSG ) cout << _indent(' ') << pr;
+				else cout << pr << _indent(' ');
 			}
 		};
 	}
@@ -1616,7 +1619,7 @@ public:
 						thesis.auto_discharge();
 					}
 				}
-				if MSG print_goals(thesis,"next goals ");
+				if MSG print_goals(thesis,"next goals\n\t");
 			} else if( auto infer = gets_concluder() ) {
 				return infer->discharge_all(thesis);
 			} else if( skips("use") ) {
@@ -1940,6 +1943,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	} catch( Term const& e ) {
 		exit(-1);
 	}
+	cout << thy.pretty() << endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -1954,7 +1958,7 @@ int main(int argc, char* argv[]) {
 		auto locdir = file.parent_path();
 		if( locdir.empty() ) locdir = ".";
 		auto fin = fstream(file);
-		run(fin,file.stem(),true,FLAGS_DEFAULT,cmddir,locdir);
+		run(fin,file.stem(),true,FLAGS_MIN,cmddir,locdir);
 	}
 	cout << "bye!" << endl;
 	return 0;
