@@ -40,6 +40,7 @@ begin
 			by iff_intro #elim or_elim #simp PQ RS.
 		.
 	note#cong or.cong.
+thm or.left_mono.
 
 	interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
 		by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
@@ -139,25 +140,24 @@ begin
 	---
 	## Theories
 	---
-
-	extend AllRel begin
+	extend MetaRelation begin
 
 		extend ExRel begin
-			lemma ex_elim: if ex: ∃x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ Q then Q;
+			lemma ex_elim: if ex: ∃x ⊏ a. P.[x], imp: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q then Q;
 				apply ex[unfold ex_def, THEN ex_elim];
 				- for x;
 					by imp[of x].
 				.
 			lemma ex_cong_strong:
-				if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
-				then (∃x < a. P.[x]) ⟺ (∃x < a'. P'.[x]);
-				unfold+ ex_def a P.
+				if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+				then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
+				unfold+ ex_def; unfold a; unfold P.
 			lemma ex_cong_weak:
-				if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∃x < a. P.[x]) ⟺ (∃x < a. P'.[x]);
+				if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
 				unfold+ ex_def P.
-			lemma ex_imp_iff: ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x. x < a ⟹ P.[x] ⟹ Q);
+			lemma ex_imp_iff: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
 				apply iff_intro;
-				- if imp, x: x < a, Px: P.[x];
+				- if imp, x: x ⊏ a, Px: P.[x];
 					apply imp ex_intro1[OF x Px].
 				- if all, ex;
 					apply ex_elim[OF ex];
@@ -165,30 +165,28 @@ begin
 						apply all[OF x Px].
 					.
 				.
-			lemma ex_or_distrib: (∃x < a. P.[x] ∨ Q.[x]) ⟺ (∃x < a. P.[x]) ∨ (∃x < a. Q.[x]);
+			lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
 				simp ex_def and_or_distrib .ex_or_distrib.
-			lemma ex_iff: (∃x < a. P.[x]) ⟺ (∀Q. (∀x < a. P.[x] ⟹ Q) ⟹ Q);
-				unfold ex_def ex_iff all_def.
-			lemma nex_iff_all_not: ¬ (∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
+			lemma ex_iff: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q);
+				unfold ex_def ex_iff.
+
+		end
+
+		theory AllExRel:
+			import AllRel.
+			import ExRel.
+		begin
+			lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
+				simp ex_def all_def ex_imp_iff.
+			lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
 				unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
 		end
 	end
 
 	extend Membership begin
-
-		extend AllIn begin
-			interpret in: ..AllRel (∈) (∀∈).
-			extend ExIn begin
-				interpret in: in.ExRel (∃∈).
-				note#rule in.ex_imp_iff.
-			end
-		end
-
-	end
-
-	theory ChoiceOperator:
-		fix (SOME).
-		assume ex_imp_SOME: (∃x. P.[x]) ⟹ P.[SOME x. P.[y]].
+		interpret in: Minimal.MetaRelation (∈).
+		interpret in: in.AllExRel (∀∈) (∃∈).
+		note#rule in.ex_imp_iff.
 	end
 
 	---
@@ -284,6 +282,11 @@ begin
 
 	end
 
+	theory ChoiceOp:
+		fix (such).
+		assume such_intro: (∃x. P.[x]) ⟹ P.[such x. P.[y]].
+	end
+
 end
 
 ---
@@ -303,7 +306,7 @@ end
 
 context Minimal begin
 	context Explosion begin
-		interpret: Intuitionistic;
+		interpret? Intuitionistic;
 			retain false := false.
 			.
 	end
@@ -328,6 +331,6 @@ end
 
 context Minimal begin
 	context DoubleNegationElimination begin
-		interpret: Classical.
+		interpret? Classical.
 	end
 end

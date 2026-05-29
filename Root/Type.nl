@@ -1,10 +1,13 @@
-fix (→).
-assume fun_type_elim1: (σ → τ) f ⟹ ∀a. σ a ⟹ τ (f a).
-assume fun_type_intro! (∀a. σ a ⟹ τ (f a)) ⟹ (σ → τ) f.
+import Membership.
+fix TYPE.
 
 begin
 
-note fun_type_elim: make_elim[of (f. (σ → τ) f) (f. ∀a. σ a ⟹ τ (f a)), OF fun_type_elim1].
+theory FunInType:
+	fix (FunIn).
+	assume FunIn_TYPE: if A ∈ U, ∀x ∈ A. B.[x] ∈ U then (FUN x ∈ A. B.[x]) ∈ TYPE U.
+end
+
 
 
 

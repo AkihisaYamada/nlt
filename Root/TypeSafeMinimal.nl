@@ -234,89 +234,90 @@ lemma nnall_not_iff: ¬ ¬ (∀x. ¬ P.[x]) ⟺ (∀x. ¬ P.[x]);
 
 ---
 ## Theories
-
-The logical operators allow us to define some properties.
 ---
+extend MetaRelation: end
+
+interpret iff: MetaRelation (⟺).
+
+context MetaRelation begin
+
+	extend AllRel begin
+
+		lemma all_and_distrib: (∀x ⊏ a. P.[x] ∧ Q.[x]) ⟺ (∀x ⊏ a. P.[x]) ∧ (∀x ⊏ a. Q.[x]);
+			simp all_def all_and_distrib imp_and_distrib.
+		lemma not_imp_not_all: if nP: ¬ P.[x], x: x ⊏ a then ¬ (∀y ⊏ a. P.[y]);
+			-> if all;
+				use nP all_elim1[OF all x].
+			.
+		lemma nnall_imp: if nnall: ¬ ¬ (∀x ⊏ a. P.[x]) then ∀x ⊏ a. ¬ ¬ P.[x];
+			apply all_intro;
+			-> if x: x ⊏ a, nPx: ¬ P.[x];
+				by not_imp_false[OF nnall] not_imp_not_all[OF nPx] x.
+			.
+		lemma nnall_not_iff: ¬ ¬ (∀x ⊏ a. ¬ P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
+			apply iff_intro;
+			- if 1;
+				by #cong all_cong_weak #intro 1[THEN nnall_imp, unfold nnnot_iff].
+			by nnot_intro.
+		lemma all_true_iff: (∀x ⊏ a. true) ⟺ true;
+			simp all_def.
+
+	end
+
+	theory ExRel:
+		fix (∃⊏).
+		assume ex_def: (∃x ⊏ a. P.[x]) ⟺ (∃x. x ⊏ a ∧ P.[x]).
+	begin
+		lemma ex_intro1: if x: x ⊏ a, Px: P.[x] then ∃x ⊏ a. P.[x];
+			unfold ex_def;
+			by ex_intro1[of x] x Px.
+		lemma ex_intro: if assm: ∀Q. (∀x. x ⊏ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ⊏ A. P.[x];
+			apply assm;
+			- for x;
+				by ex_intro1[of x].
+			.
+	end
+
+end
+
 theory MetaIrreflexive:
-	fix (<).
-	assume irrefl: ¬ x < x.
+	import MetaRelation.
+	assume irrefl: ¬ x ⊏ x.
 end
 
 theory MetaAsymmetric:
-	fix (<).
-	assume asym: x < y ⟹ ¬ y < x.
+	import MetaRelation.
+	assume asym: x ⊏ y ⟹ ¬ y ⊏ x.
 end
 ---
 Note that antisymmetry is not yet definable, because it requires equality.
 ---
 theory MetaOrder:
 	import MetaIrreflexive.
-	import MetaTransitive (<).
+	import MetaTransitive (⊏).
 begin
 	interpret MetaAsymmetric;
-		-> for x y if xy: x < y, yx: y < x then false;
-			have xx: x < x;
+		-> for x y if xy: x ⊏ y, yx: y ⊏ x then false;
+			have xx: x ⊏ x;
 				by trans[OF xy yx].
 			by not_imp_false[OF irrefl xx].
 		.
 end
 
-extend AllRel begin
+extend Membership:
+	interpret in: TypeSafeMinimal.MetaRelation (∈).
+	fix (∀∈) (∃∈).
+	import in: in.AllRel (∀∈).
+	import in: in.ExRel (∃∈).
+begin
 
-	lemma all_and_distrib: (∀x < a. P.[x] ∧ Q.[x]) ⟺ (∀x < a. P.[x]) ∧ (∀x < a. Q.[x]);
-		simp all_def all_and_distrib imp_and_distrib.
-	lemma not_imp_not_all: if nP: ¬ P.[x], x: x < a then ¬ (∀y < a. P.[y]);
-		-> if all;
-			use nP all_elim1[OF all x].
-		.
-	lemma nnall_imp: if nnall: ¬ ¬ (∀x < a. P.[x]) then ∀x < a. ¬ ¬ P.[x];
-		apply all_intro;
-		-> if x: x < a, nPx: ¬ P.[x];
-			by not_imp_false[OF nnall] not_imp_not_all[OF nPx] x.
-		.
-	lemma nnall_not_iff: ¬ ¬ (∀x < a. ¬ P.[x]) ⟺ (∀x < a. ¬ P.[x]);
-		apply iff_intro;
-		- if 1;
-			by #cong all_cong_weak #intro 1[THEN nnall_imp, unfold nnnot_iff].
-		by nnot_intro.
-	lemma all_true_iff: (∀x < a. true) ⟺ true;
-		simp all_def.
-
-	theory ExRel:
-		fix (∃<).
-		assume ex_def: (∃x < a. P.[x]) ⟺ (∃x. x < a ∧ P.[x]).
-	begin
-		lemma ex_intro1: if x: x < a, Px: P.[x] then ∃x < a. P.[x];
-			unfold ex_def;
-			by ex_intro1[of x] x Px.
-		lemma ex_intro: if assm: ∀Q. (∀x. x < A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x < A. P.[x];
-			apply assm;
-			- for x;
-				by ex_intro1[of x].
-			.
-	end
-end
-
-extend Membership begin
-
-	extend AllIn begin
-		interpret in: ..AllRel (∈) (∀∈).
-		note#intro in.all_intro.
-		note#elim in.all_elim.
-		note#rule in.all_def in.all_imp.
-		theory ExIn:
-			fix (∃∈).
-			import in: in.ExRel (∃∈).
-		end
-	end
+	note#intro in.all_intro.
+	note#elim in.all_elim.
+	note#rule in.all_def in.all_imp.
 
 	extend CollectRel begin
-		lemma Collect_iff: x ∈ {x < a. P.[x]} ⟺ x < a ∧ P.[x];
+		lemma Collect_iff: x ∈ {x ⊏ a. P.[x]} ⟺ x ⊏ a ∧ P.[x];
 			by iff_intro Collect_intro #elim Collect_elim.
-	end
-
-	extend CollectIn begin
-		interpret in: .CollectRel (∈) CollectIn.
 	end
 
 end

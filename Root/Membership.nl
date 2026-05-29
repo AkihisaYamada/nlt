@@ -1,7 +1,7 @@
 -----
 ## Notions for Sets or Types
 -----
-import Base.
+interpret Base.
 fix (∈).
 
 begin
@@ -45,39 +45,37 @@ theory SubsetEq:
 	assume subseteq_elim1: if A ⊆ B, x ∈ A then x ∈ B.
 	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
-	interpret MetaPreorder (⊆);
+	interpret subseteq: MetaPreorder (⊆);
 		- by subseteq_intro.
 		- if AB: A ⊆ B, BC: B ⊆ C;
 			by subseteq_intro BC[THEN subseteq_elim1] AB[THEN subseteq_elim1].
 		.
 end
 
-theory Reflexive:
-	fix A (≤).
-	assume refl: if x ∈ A then x ≤ x.
+theory Relation:
+	fix A (⊏).
 begin
-	interpret MetaRelation (≤).
+	interpret MetaRelation (⊏).
+end
+
+theory Reflexive:
+	import Relation.
+	assume refl: if x ∈ A then x ⊏ x.
 end
 
 theory Symmetric:
-	fix A (=).
-	assume sym: if x = y, x ∈ A, y ∈ A then y = x.
-begin
-	interpret MetaRelation (=).
+	import Relation.
+	assume sym: if x ⊏ y, x ∈ A, y ∈ A then y ⊏ x.
 end
 
 theory SemiAttractive:
-	fix A (≤).
-	assume attract: if x ≤ y, y ≤ x, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
-begin
-	interpret MetaRelation (≤).
+	import Relation.
+	assume attract: if x ⊏ y, y ⊏ x, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 end
 
 theory DualAttractive:
-	fix A (≤).
-	assume dual_attract: if x ≤ y, y ≤ x, x ≤ z, x ∈ A, y ∈ A, z ∈ A then y ≤ z.
-begin
-	interpret MetaRelation (≤).
+	import Relation.
+	assume dual_attract: if x ⊏ y, y ⊏ x, x ⊏ z, x ∈ A, y ∈ A, z ∈ A then y ⊏ z.
 end
 
 theory Attractive:
@@ -86,60 +84,47 @@ theory Attractive:
 end
 
 theory Transitive:
-	fix A (≤).
-	assume trans: if x ≤ y, y ≤ z, x ∈ A, y ∈ A, z ∈ A then x ≤ z.
+	import Relation.
+	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
-	interpret MetaRelation (≤).
 	interpret Attractive;
-		- if xy: x ≤ y, yx: y ≤ x, yz: y ≤ z, !, !, !;
+		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z, !, !, !;
 			by trans[OF xy yz].
-		- if xy: x ≤ y, yx: y ≤ x, xz: x ≤ z, !, !, !;
+		- if xy: x ⊏ y, yx: y ⊏ x, xz: x ⊏ z, !, !, !;
 			by trans[OF yx xz].
 		.
 end
 
 theory Preorder:
-	fix A (≤).
-	import Reflexive A (≤).
-	import Transitive A (≤).
+	import Reflexive.
+	import Transitive.
 end
 
 theory Tolerance:
-	fix A (=).
-	import Reflexive A (=).
-	import Symmetric A (=).
+	import Reflexive.
+	import Symmetric.
 end
 
 theory PartialEquivalence:
-	fix A (=).
-	import Symmetric A (=).
-	import Transitive A (=).
+	import Symmetric.
+	import Transitive.
 end
 
 theory Equivalence:
-	fix A (=).
-	import Reflexive A (=).
-	import Symmetric A (=).
-	import Transitive A (=).
+	import Reflexive.
+	import Symmetric.
+	import Transitive.
 begin
 	interpret Tolerance.
 	interpret PartialEquivalence.
 end
 
 theory CollectRel:
-	fix (<) CollectLt.
-	assume Collect_intro: if x < a, P.[x] then x ∈ {x < a. P.[x]}.
-	assume Collect_elim0: if x ∈ {x < a. P.[x]} then x < a.
-	assume Collect_elim1: if x ∈ {x < a. P.[x]} then P.[x].
+	fix (⊏) Collect.⊏.
+	assume Collect_intro: if x ⊏ a, P.[x] then x ∈ {x ⊏ a. P.[x]}.
+	assume Collect_elim0: if x ∈ {x ⊏ a. P.[x]} then x ⊏ a.
+	assume Collect_elim1: if x ∈ {x ⊏ a. P.[x]} then P.[x].
 begin
-	lemma Collect_elim: if x: x ∈ {x < a. P.[x]}, assm: x < a ⟹ P.[x] ⟹ Q then Q;
+	lemma Collect_elim: if x: x ∈ {x ⊏ a. P.[x]}, assm: x ⊏ a ⟹ P.[x] ⟹ Q then Q;
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
-end
-
-theory AllIn:
-	import in: AllRel (∈) (∀∈).
-end
-
-theory CollectIn:
-	import in: CollectRel (∈) CollectIn.
 end

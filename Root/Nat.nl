@@ -1,7 +1,5 @@
-import Eq.
-import Membership.
-import AllIn.
 import Fun.
+import AllIn.
 
 fix ℕ (0) suc rec.
 
@@ -37,8 +35,8 @@ obtain (+) where
 	zero_add: if x ∈ ℕ then 0 + x = x,
 	suc_add: if x ∈ ℕ, y ∈ ℕ then suc x + y = suc (x + y);
 	- for thesis if assm;
-		apply assm[of (fun x y. rec y (const suc) x)];
-		- for f if (simp);
+		apply assm[of (fun x y. rec y (fun z. suc) x)];
+		- for f if !;
 			apply assm[of f];
 			by #unfold rec_zero rec_suc.
 		.

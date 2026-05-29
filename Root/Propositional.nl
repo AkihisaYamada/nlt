@@ -12,34 +12,113 @@ import and: Magma Prop (∧).
 import or: Magma Prop (∨).
 import not: Unary (¬) Prop Prop.
 import iff: Magma Prop (⟺).
-assume false_prop! false ∈ Prop.
+assume false_type! false ∈ Prop.
+
 
 begin
+
+interpret? TypeFree.
 
 note! imp.closed and.closed or.closed not.closed iff.closed.
 
 -- `true` is obtained via `false ⟹ false`.
-obtain true where true_intro! true, true_prop! true ∈ Prop;
+obtain true where true_intro! true, true_type! true ∈ Prop;
 	- for thesis if assm;
 		apply assm[of (false ⟹ false)].
 	.
 
-interpret iff: MetaRelation (⟺).
+interpret iff: Magmas.MetaRelation (⟺).
 
-theory Minimal:
-	--- Typed logic allows elimination rules only derive propositions. ---
-	import TypeSafeMinimal.
-	assume or_elim: if P ∨ Q, R ∈ Prop, P ⟹ R, Q ⟹ R then R.
-	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q, Q ∈ Prop then Q.
-begin
+extend TypeSafeMinimal begin
 
 	interpret iff_Prop: Equivalence Prop (⟺);
 		-.
 		- if xy: x ⟺ y; by iff.sym[OF xy].
 		- if xy: x ⟺ y, yz: y ⟺ z; by iff.trans[OF xy yz].
 		.
-	interpret and: iff_Prop.CommMonoid (∧) true;
+	interpret and_Prop: iff_Prop.CommMonoid (∧) true;
 		by and.commute and.left_assoc.
+
+end
+
+extend Minimal begin
+
+	interpret Propositional.TypeSafeMinimal.
+
+	interpret or_Prop: Symmetric Prop (∨);
+		by #elim or_elim.
+print.
+	interpret or_Prop: iff_Prop.CommMonoMagma (∨);
+		by or.left_mono.
+
+	interpret or_Prop: iff_Prop.CommSemigroupAbsorb (∨) true;
+		by or.commute or.left_assoc.
+
+	interpret or_Prop: iff.Idempotent Prop (∨).
+
+	interpret and_or_Prop: iff_Prop.CommSemiring (∧) (∨);
+		-.
+		- by and.commute.
+		-.
+		- by or.left_mono.
+		- by or.right_mono.
+		- if !P ∈ Prop, !Q ∈ Prop, !R ∈ Prop then P ∧ (Q ∨ R) ⟺ P ∧ Q ∨ P ∧ R;
+			apply iff_intro;
+			simp or_imp_iff imp_and_iff1.
+		- by and.left_assoc.
+		- by or.commute.
+		- by or.left_assoc.
+		.
+
+	lemma nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
+		unfold not_iff_imp_false;
+		by or_imp_iff.
+
+	lemma nnot_excluded_middle: if !P ∈ Prop then ¬ ¬(P ∨ ¬P);
+		unfold nor_iff;
+		by non_contradiction.
+
+	lemma nnot_nor_iff: if !P ∈ Prop, !Q ∈ Prop then ¬ (¬ ¬ P ∨ Q) ⟺ ¬(P ∨ Q);
+		unfold nor_iff nnnot_iff.
+
+	lemma nor_nnot_iff: if !P ∈ Prop, !Q ∈ Prop then ¬(P ∨ ¬ ¬ Q) ⟺ ¬(P ∨ Q);
+		unfold nor_iff nnnot_iff.
+
+	lemma or_imp_nand: if !P ∈ Prop, !Q ∈ Prop then P ∨ Q ⟹ ¬(¬P ∧ ¬Q);
+		by not_intro #elim or_elim.
+	---
+	## Existence
+	---
+	lemma ex_imp_all_imp:
+		if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x], !Q ∈ Prop then Q;
+		apply ex_elim[OF ex];
+		- for x if imp: P.[x] ⟹ Q;
+			by imp all.
+		.
+	lemma ex_imp_iff_all#simp
+		if ! Q ∈ Prop then ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+		apply iff_intro;
+		- if imp, Px: P.[x];
+			by imp ex_intro1[OF Px].
+		- if imp, ex;
+			apply ex_elim[OF ex];
+			- for x;
+				by imp[of x].
+			.
+		.
+	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
+		simp not_iff_imp_false.
+
+end
+
+
+
+theory WeakMinimal:
+	--- Typed logic allows elimination rules only derive propositions. ---
+	import TypeSafeMinimal.
+	assume or_elim: if P ∨ Q, R ∈ Prop, P ⟹ R, Q ⟹ R then R.
+	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q, Q ∈ Prop then Q.
+begin
 
 	interpret or: Symmetric Prop (∨);
 		by #elim or_elim.
@@ -125,17 +204,6 @@ begin
 	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
 		simp not_iff_imp_false.
 
-	theory AllExRel:
-		import AllRel.
-		import ExRel.
-	begin
-		lemma ex_imp_iff_all#simp
-			if ! Q ∈ Prop then ((∃x < a. P.[x]) ⟹ Q) ⟺ (∀x < a. P.[x] ⟹ Q);
-			simp ex_def all_def.
-		lemma nex_iff_all_not: ¬(∃x < a. P.[x]) ⟺ (∀x < a. ¬ P.[x]);
-			simp ex_def all_def nex_iff_all_not nand_iff_imp_not.
-	end
-
 end
 
 theory Intuitionistic:
@@ -171,7 +239,6 @@ begin
 
 	lemma prop_cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, pP! P ∈ Prop, ! Q ∈ Prop then Q;
 		apply or_elim[OF excluded_middle[OF pP]];
-		-.
 		- by PQ.
 		- by nPQ.
 		.

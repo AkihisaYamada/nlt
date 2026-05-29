@@ -1,7 +1,9 @@
 import Membership.
+import Eq.
 
 fix (fun).
-assume fun_elim: for P F A if s ∈ A, P.[(fun x. F.[x]) s] then P.[F.[s]].
+
+assume fun_app: for A if s ∈ A then (fun x. F.[x]) s = F.[s].
 
 begin
 

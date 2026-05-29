@@ -7,12 +7,12 @@ extend MetaRelation begin -- Every binary symbol defines magma properties.
 
 	theory LeftMonotone:
 		fix A B (*).
-		assume left_mono: if y ≤ y', x ∈ A, y ∈ B, y' ∈ B then x * y ≤ x * y'.
+		assume left_mono: if y ⊏ y', x ∈ A, y ∈ B, y' ∈ B then x * y ⊏ x * y'.
 	end
 
 	theory RightMonotone:
 		fix A B (*).
-		assume right_mono: if x ≤ x', x ∈ A, x' ∈ A, y ∈ B then x * y ≤ x' * y.
+		assume right_mono: if x ⊏ x', x ∈ A, x' ∈ A, y ∈ B then x * y ⊏ x' * y.
 	end
 
 	theory Monotone:
@@ -23,51 +23,51 @@ extend MetaRelation begin -- Every binary symbol defines magma properties.
 
 	theory Compatible:
 		fix A (*).
-		assume comp: if x ≤ x', y ≤ y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y ≤ x' * y'.
+		assume comp: if x ⊏ x', y ⊏ y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y ⊏ x' * y'.
 	begin
 		lemma cong:
-			if !x ∈ A, !y ∈ A, ! x ≤ x', ! y ≤ y', !x' ∈ A, !y' ∈ A then x * y ≤ x' * y';
+			if !x ∈ A, !y ∈ A, ! x ⊏ x', ! y ⊏ y', !x' ∈ A, !y' ∈ A then x * y ⊏ x' * y';
 			apply comp.
 	end
 
 	theory Commutative:
 		fix A (*).
-		assume commute: if x ∈ A, y ∈ A then x * y ≤ y * x.
+		assume commute: if x ∈ A, y ∈ A then x * y ⊏ y * x.
 	end
 
 	theory Idempotent:
 		fix A (*).
-		assume idem: if x ∈ A then x * x ≤ x.
+		assume idem: if x ∈ A then x * x ⊏ x.
 	end
 
 	theory LeftCancellative:
 		fix A B (*).
-		assume left_cancels: if x * y ≤ x * y', x ∈ A, y ∈ B, y' ∈ B then y ≤ y'.
+		assume left_cancels: if x * y ⊏ x * y', x ∈ A, y ∈ B, y' ∈ B then y ⊏ y'.
 	end
 
 	theory RightCancellative:
 		fix A B (*).
-		assume right_cancels: if x * y ≤ x' * y, x ∈ A, x' ∈ A, y ∈ B then x ≤ x'.
+		assume right_cancels: if x * y ⊏ x' * y, x ∈ A, x' ∈ A, y ∈ B then x ⊏ x'.
 	end
 
 	theory LeftAssociative:
 		fix A B (*) (⋅).
-		assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z ≤ x ⋅ y ⋅ z.
+		assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z ⊏ x ⋅ y ⋅ z.
 	end
 
 	theory RightAssociative:
 		fix A B (^) (*).
-		assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ≤ x ^ y ^ z.
+		assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ⊏ x ^ y ^ z.
 	end
 
 	theory LeftDistributive:
 		fix A B (*) (+).
-		assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) ≤ x * y + x * z.
+		assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) ⊏ x * y + x * z.
 	end
 
 	theory RightDistributive:
 		fix A B (+) (*).
-		assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z ≤ x * z + y * z.
+		assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z ⊏ x * z + y * z.
 	end
 
 	theory Distributive:
@@ -78,42 +78,42 @@ extend MetaRelation begin -- Every binary symbol defines magma properties.
 
 	theory LeftAbsorb:
 		fix A (*) (0).
-		assume left_absorb: if x ∈ A then 0 * x ≤ 0.
+		assume left_absorb: if x ∈ A then 0 * x ⊏ 0.
 	end
 
 	theory RightAbsorb:
 		fix A (*) (0).
-		assume right_absorb: if x ∈ A then x * 0 ≤ 0.
+		assume right_absorb: if x ∈ A then x * 0 ⊏ 0.
 	end
 
 	theory LeftNeutral:
 		fix A (*) (1).
-		assume left_neutral: if x ∈ A then 1 * x ≤ x.
+		assume left_neutral: if x ∈ A then 1 * x ⊏ x.
 	end
 
 	theory RightNeutral:
 		fix A (*) (1).
-		assume right_neutral: if x ∈ A then x * 1 ≤ x.
+		assume right_neutral: if x ∈ A then x * 1 ⊏ x.
 	end
 
 	theory LeftCancel:
 		fix A B (*) (\).
-		assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) ≤ y.
+		assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) ⊏ y.
 	end
 
 	theory RightCancel:
 		fix A B (*) (/).
-		assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ≤ x.
+		assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ⊏ x.
 	end
 
 	theory LeftInverse:
 		fix A (*) (1) inverse.
-		assume left_inverse: if x ∈ A then inverse x * x ≤ 1.
+		assume left_inverse: if x ∈ A then inverse x * x ⊏ 1.
 	end
 
 	theory RightInverse:
 		fix A (*) (1) inv.
-		assume right_inverse: if x ∈ A then x * inverse x ≤ 1.
+		assume right_inverse: if x ∈ A then x * inverse x ⊏ 1.
 	end
 
 	theory CommMagma:
@@ -156,9 +156,9 @@ extend Reflexive begin
 
 	extend Compatible begin
 		interpret Monotone A (*);
-			- if 1: y ≤ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ≤ x * y';
+			- if 1: y ⊏ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ⊏ x * y';
 				apply comp[OF refl[OF x] 1].
-			- if 1: x ≤ x', ! x ∈ A, ! x' ∈ A, y! y ∈ A then x * y ≤ x' * y;
+			- if 1: x ⊏ x', ! x ∈ A, ! x' ∈ A, y! y ∈ A then x * y ⊏ x' * y;
 				apply comp[OF 1 refl[OF y]].
 			.
 	end
@@ -173,18 +173,34 @@ extend Transitive begin
 		import Monotone.
 	begin
 		interpret Compatible;
-			- if x: x ≤ x', y: y ≤ y', ! x ∈ A, ! y ∈ A, ! x' ∈ A, ! y' ∈ A then x * y ≤ x' * y';
-				have 1: x * y ≤ x' * y;
+			- if x: x ⊏ x', y: y ⊏ y', ! x ∈ A, ! y ∈ A, ! x' ∈ A, ! y' ∈ A then x * y ⊏ x' * y';
+				have 1: x * y ⊏ x' * y;
 					apply right_mono[OF x].
 				apply trans[OF 1];
 				apply left_mono[OF y].
 			.
 	end
 
+	theory CommMonoMagma:
+		import CommMagma.
+		import LeftMonotone A A.
+	begin
+		interpret MonoMagma;
+			- if xx': x ⊏ x', ! x ∈ A, ! x' ∈ A, ! y ∈ A then x * y ⊏ x' * y;
+				have 1: x * y ⊏ y * x;
+					apply commute.
+				apply trans[OF 1];
+				have 2: y * x ⊏ y * x';
+					apply left_mono[OF xx'].
+				apply trans[OF 2];
+				apply commute.
+			.
+	end
+
 end
 
 extend PartialEquivalence begin
-	interpret .Transitive A (=).
+	interpret .Transitive.
 
 	theory MagmaLeftNeutral:
 		fix (*) (1).
@@ -194,11 +210,11 @@ extend PartialEquivalence begin
 	begin
 		note! neutral.closed.
 		lemma right_neutral_is_neutral:
-			if all: ∀x. x ∈ A ⟹ x * e = x, !e ∈ A then e = 1;
-		-	have 1: e = 1 * e;
+			if all: ∀x. x ∈ A ⟹ x * e ⊏ x, !e ∈ A then e ⊏ 1;
+		-	have 1: e ⊏ 1 * e;
 				apply sym;
 				by left_neutral.
-			have 2: 1 * e = 1;
+			have 2: 1 * e ⊏ 1;
 				by all.
 			by trans[OF 1 2].
 		.
@@ -212,11 +228,11 @@ extend PartialEquivalence begin
 	begin
 		note! neutral.closed.
 		lemma left_neutral_is_neutral:
-			if all: ∀x. x ∈ A ⟹ e * x = x, !e ∈ A then e = 1;
-		-	have 1: e = e * 1;
+			if all: ∀x. x ∈ A ⟹ e * x ⊏ x, !e ∈ A then e ⊏ 1;
+		-	have 1: e ⊏ e * 1;
 				apply sym;
 				by right_neutral.
-			have 2: e * 1 = 1;
+			have 2: e * 1 ⊏ 1;
 				by all.
 			by trans[OF 1 2].
 		.
@@ -232,8 +248,8 @@ extend PartialEquivalence begin
 		import CommMagma.
 	begin
 		interpret MagmaNeutral;
-			- for x if ! x ∈ A then x * 1 = x;
-				have 1: x * 1 = 1 * x;
+			- for x if ! x ∈ A then x * 1 ⊏ x;
+				have 1: x * 1 ⊏ 1 * x;
 					apply commute.
 				apply trans[OF 1];
 				apply left_neutral.
@@ -276,8 +292,8 @@ extend PartialEquivalence begin
 		import LeftAbsorb.
 	begin
 		note! absorb.closed.
-		lemma right_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ x * z = z, !z ∈ A then z = 0;
-			have 1: z = 0 * z;
+		lemma right_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ x * z ⊏ z, !z ∈ A then z ⊏ 0;
+			have 1: z ⊏ 0 * z;
 				apply sym;
 				by eq.
 			apply trans[OF 1];
@@ -291,8 +307,8 @@ extend PartialEquivalence begin
 		import RightAbsorb.
 	begin
 		note! absorb.closed.
-		lemma left_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ z * x = z, !z ∈ A then z = 0;
-			have 1: z = z * 0;
+		lemma left_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ z * x ⊏ z, !z ∈ A then z ⊏ 0;
+			have 1: z ⊏ z * 0;
 				apply sym;
 				by eq.
 			apply trans[OF 1];
@@ -310,8 +326,8 @@ extend PartialEquivalence begin
 		import MagmaLeftAbsorb.
 	begin
 		interpret MagmaAbsorb;
-			- for x if !x ∈ A then x * 0 = 0;
-				have 1: x * 0 = 0 * x;
+			- for x if !x ∈ A then x * 0 ⊏ 0;
+				have 1: x * 0 ⊏ 0 * x;
 					by commute.
 				apply trans[OF 1];
 				by left_absorb.
@@ -352,14 +368,14 @@ extend PartialEquivalence begin
 	begin
 		note! mul.closed add.closed.
 		interpret Ringoid;
-			- if ! x ∈ A, ! y ∈ A, ! z ∈ A then (x + y) * z = x * z + y * z;
-				have 1: (x + y) * z = z * (x + y);
+			- if ! x ∈ A, ! y ∈ A, ! z ∈ A then (x + y) * z ⊏ x * z + y * z;
+				have 1: (x + y) * z ⊏ z * (x + y);
 					apply mul.commute.
 				apply trans[OF 1];
-				have 2: z * (x + y) = z * x + z * y;
+				have 2: z * (x + y) ⊏ z * x + z * y;
 					apply left_distrib.
 				apply trans[OF 2];
-				have 3: z * x + z * y = x * z + y * z;
+				have 3: z * x + z * y ⊏ x * z + y * z;
 					apply add.comp;
 					- apply mul.commute.
 					- apply mul.commute.
@@ -391,13 +407,13 @@ extend PartialEquivalence begin
 	begin
 		note! lcancel.closed.
 		interpret LeftCancellative A A;
-			- for x y y' if eq: x * y = x * y', !x ∈ A, !y ∈ A, !y' ∈ A then y = y';
-				have 1: y = x \ (x * y);
+			- for x y y' if eq: x * y ⊏ x * y', !x ∈ A, !y ∈ A, !y' ∈ A then y ⊏ y';
+				have 1: y ⊏ x \ (x * y);
 					apply sym;
 					apply left_cancel;
 					by closed lcancel.closed.
 				apply trans[OF 1];
-				have 2: x \ (x * y) = x \ (x * y');
+				have 2: x \ (x * y) ⊏ x \ (x * y');
 					by lcancel.left_mono eq.
 				apply trans[OF 2];
 				by left_cancel.
@@ -413,12 +429,12 @@ extend PartialEquivalence begin
 	begin
 		note! rcancel.closed.
 		interpret RightCancellative A A;
-			- for x y x' if eq: x * y = x' * y, !, !, ! then x = x';
-				have 1: x = x * y / y;
+			- for x y x' if eq: x * y ⊏ x' * y, !, !, ! then x ⊏ x';
+				have 1: x ⊏ x * y / y;
 					apply sym;
 					by right_cancel.
 				apply trans[OF 1];
-				have 2: x * y / y = x' * y / y;
+				have 2: x * y / y ⊏ x' * y / y;
 					by rcancel.right_mono eq.
 				apply trans[OF 2];
 				by right_cancel.
@@ -428,21 +444,17 @@ extend PartialEquivalence begin
 end
 
 extend Equivalence begin
-	interpret .PartialEquivalence A (=).
-	interpret .Reflexive A (=).
+	interpret .PartialEquivalence.
+	interpret .Reflexive.
 
 	theory LeftQuasiGroup:
 		import MagmaLeftCancel.
 		import lcancel: LeftCancel A A (\) (*).
-	begin
---		interpret lcancel: MagmaLeftCancel (\) (*);
 	end
 
 	theory RightQuasiGroup:
 		import MagmaRightCancel.
 		import rcancel: RightCancel A A (/) (*).
-	begin
---		interpret rcancel: MagmaRightCancel (/) (*).
 	end
 
 	theory QuasiGroup:

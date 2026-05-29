@@ -24,7 +24,6 @@ interpret iff: MetaEquivalence (⟺);
 		- by iff_elim2[OF PQ] iff_elim2[OF QR].
 		.
 	.
-
 note! iff.refl.
 
 set simp iff_elim1 iff_elim2 iff.refl iff.trans.
@@ -68,13 +67,15 @@ interpret imp: iff.MetaCompatible (⟹);
 		simp PQ RS.
 	.
 
-lemma all_cong#cong#rule_cong if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
+lemma all_cong#cong if PQ: ∀x. P.[x] ⟺ Q.[x] then (∀x. P.[x]) ⟺ (∀x. Q.[x]);
 	apply iff_intro;
 	- if ! ∀x. P.[x] then ∀x. Q.[x];
 		by iff_elim1[OF PQ].
 	- if ! ∀x. Q.[x] then ∀x. P.[x];
 		by iff_elim2[OF PQ].
 	.
+
+note#rule_cong all_cong.
 
 lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
 	by iff_intro.
@@ -107,44 +108,42 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ## Deriving Restricted Quantifiers via `(⟺)`
 ---
 
-extend AllRel begin
+extend MetaRelation begin
 
-	lemma all_def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]);
-		apply iff_intro;
-		- by #elim all_elim.
-		by all_intro.
+	extend AllRel begin
 
-	lemma all_cong_strong:
-		if a: ∀x. x < a ⟺ x < a', P: ∀x. x < a' ⟹ (P.[x] ⟺ P'.[x])
-		then (∀x < a. P.[x]) ⟺ (∀x < a'. P'.[x]);
-		unfold+ all_def a P.
+		lemma all_def: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
+			apply iff_intro;
+			- by #elim all_elim.
+			by all_intro.
 
-	lemma all_cong_weak:
-		if P: ∀x. x < a ⟹ (P.[x] ⟺ P'.[x]) then (∀x < a. P.[x]) ⟺ (∀x < a. P'.[x]);
-		unfold+ all_def P.
+		lemma all_cong_strong:
+			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+			then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
+			unfold+ all_def a P.
 
-	lemma imp_all_iff: (P ⟹ ∀x < a. Q.[x]) ⟺ (∀x < a. P ⟹ Q.[x]);
-		by iff_intro #simp all_def.
+		lemma all_cong_weak:
+			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. P'.[x]);
+			unfold+ all_def P.
 
-	lemma all_imp: ((∀x < a. P.[x]) ⟹ Q) ⟺ ((∀x. x < a ⟹ P.[x]) ⟹ Q);
-		simp all_def.
+		lemma imp_all_iff: (P ⟹ ∀x ⊏ a. Q.[x]) ⟺ (∀x ⊏ a. P ⟹ Q.[x]);
+			by iff_intro #simp all_def.
 
-end
+		lemma all_imp: ((∀x ⊏ a. P.[x]) ⟹ Q) ⟺ ((∀x. x ⊏ a ⟹ P.[x]) ⟹ Q);
+			simp all_def.
 
-theory AllRelViaIff:
-	fix (<) (∀<).
-	assume all_def: (∀x < a. P.[x]) ⟺ (∀x. x < a ⟹ P.[x]).
-begin
-	interpret AllRel;
-		- if all: ∀x. x < a ⟹ P.[x] then ∀x < a. P.[x];
-			by all[fold all_def].
-		- for x if allIn: ∀y < a. P.[y], x: x < a then P.[x];
-			by allIn[unfold all_def, OF x].
-		.
-end
-
-extend Membership begin
-	extend AllIn begin
-		interpret in: ..AllRel (∈) (∀∈).
 	end
+
+	theory AllRelViaIff:
+		fix (∀⊏).
+		assume all_def: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
+	begin
+		interpret AllRel;
+			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
+				by all[fold all_def].
+			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
+				by allIn[unfold all_def, OF x].
+			.
+	end
+
 end

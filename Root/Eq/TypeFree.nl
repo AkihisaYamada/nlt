@@ -4,9 +4,8 @@ interpret base? Root.TypeFree.
 
 theory Minimal:
 	import base? base.Minimal.-- Root.TypeFree.Minimal
+	import Eq.TypeSafeMinimal.-- Eq/TypeSafeMinimal
 begin
-
-	interpret Eq.TypeSafeMinimal.-- Eq/TypeSafeMinimal
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		note#cong eq_cong_meta[of P].
@@ -20,47 +19,45 @@ begin
 		unfold iff_eq.commute;
 		by ex_eq_and_iff.
 
-	extend Ex1 begin
-		lemma ex1_cong#cong
-			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
-			unfold ex1_def iff.
-		lemma ex1_elim: if ex1: ∃!x. P.[x], all: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
-			apply ex1[unfold ex1_def, THEN ex_elim];
-			- for x;
-				by all[of x].
-			.
-		lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
-			apply ex1_elim[OF ex1];
-			- for x;
-				by ex_intro1[of x].
-			.
-		lemma ex1_imp_eq: if ex1: ∃!x. P.[x], Py: P.[y], Pz: P.[z] then y = z;
-			apply ex1_elim[OF ex1];
-			- for x if Px, eq;
-				unfold eq[OF Py] eq[OF Pz].
-			.
-		lemma ex1_imp_iff_eq: if ex1: ∃!x. P.[x], Px: P.[x] then P.[y] ⟺ x = y;
-			apply iff_intro;
-			- by ex1_imp_eq[OF ex1 Px].
-			- if eq;
-				note#cong eq_cong_meta[of P].
-				by Px[unfold eq].
-			.
+	lemma ex1_cong#cong
+		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
+		unfold ex1_def iff.
+	lemma ex1_elim: if ex1: ∃!x. P.[x], all: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
+		apply ex1[unfold ex1_def, THEN ex_elim];
+		- for x;
+			by all[of x].
+		.
+	lemma ex1_imp_ex: if ex1: ∃!x. P.[x] then ∃x. P.[x];
+		apply ex1_elim[OF ex1];
+		- for x;
+			by ex_intro1[of x].
+		.
+	lemma ex1_imp_eq: if ex1: ∃!x. P.[x], Py: P.[y], Pz: P.[z] then y = z;
+		apply ex1_elim[OF ex1];
+		- for x if Px, eq;
+			unfold eq[OF Py] eq[OF Pz].
+		.
+	lemma ex1_imp_iff_eq: if ex1: ∃!x. P.[x], Px: P.[x] then P.[y] ⟺ x = y;
+		apply iff_intro;
+		- by ex1_imp_eq[OF ex1 Px].
+		- if eq;
+			note#cong eq_cong_meta[of P].
+			by Px[unfold eq].
+		.
 
-		lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
-			simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
+	lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
+		simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 
-		extend The begin
-			lemma THE_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (THE y. P.[y]) = x;
-				apply ex1_elim[OF ex1];
-				- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
-					have zT: (THE x. P.[x]) = z;
-						by 1[OF THE_intro[OF ex1]].
-					unfold zT;
-					unfold 1[OF Px].
-				.
-			note eq_THE_intro: THE_eq_intro[THEN eq.sym].
-		end
+	extend UniqueChoiceOp begin
+		lemma such_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (such y. P.[y]) = x;
+			apply ex1_elim[OF ex1];
+			- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
+				have zT: (such x. P.[x]) = z;
+					by 1[OF such_intro_ex1[OF ex1]].
+				unfold zT;
+				unfold 1[OF Px].
+			.
+		note eq_such_intro: such_eq_intro[THEN eq.sym].
 
 	end
 
@@ -179,6 +176,11 @@ begin
 		import base? base.Membership.
 	begin
 		interpret Eq.Membership.
+ctxt. fo
+
+		theory Abbrev:-- Restricted Unary Abbreviation
+			assume abbrev: ∀F. ∃f. ∀A x. x ∈ A ⟹ f x = F.[x].
+		end
 
 		theory AllIn:
 			import base.AllIn.
@@ -186,6 +188,24 @@ begin
 			interpret in: AllRel (∈) (∀∈).
 			note#cong in.all_cong.
 			note#rule in.all_def.
+
+			theory UniqueChoice:
+				import Pair.
+				assume unique_choice:
+					if ∀x ∈ A. ∃!y. P.[x,y] then ∃f. ∀x ∈ A. P.[x, f x].
+			begin
+				interpret Abbrev;
+					- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+						note#cong eq_cong_meta[of F].
+						apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+						- for f if f;
+							apply assm[of f];
+							- for x;
+								use f[of x].
+							.
+						.
+					.
+			end
 
 			extend ExIn begin
 				interpret in: in.ExRel (∃∈).
@@ -198,24 +218,6 @@ begin
 					import in: in.Ex1Rel (∃!∈).
 				begin
 					note#cong in.ex1_cong.
-
-					theory UniqueChoice:
-						import Pair.
-						assume unique_choice:
-							if ∀x. ∃!y ∈ A.[x]. P.[x,y] then ∃f. ∀x. f x ∈ A.[x] ∧ P.[x, f x].
-					begin
-						interpret Abbrev;
-							- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
-								note#cong eq_cong_meta[of F].
-								apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
-								- for f if f;
-									apply assm[of f];
-									- for x;
-										use f[of x].
-									.
-								.
-							.
-					end
 
 					theory UniqueChoiceCond:
 						import Pair.
@@ -247,6 +249,7 @@ begin
 						fix TheIn.
 						import in: in.TheRel TheIn.
 					begin
+print.
 						extend Fun begin
 							extend Pair begin
 								interpret UniqueChoiceCond;
