@@ -405,7 +405,7 @@ public:
 	Opt<ClaimStatus> gets_claim_status() {
 		ClaimStatus cs;
 		if( skips("!") ) {
-			cs.intro = true;
+			cs.intro = {true,false};
 			cs.inflated = true;
 		} else if( skips("?") ) {
 			cs.intro = {true,true};
@@ -657,6 +657,7 @@ public:
 			}
 		}
 	}
+/*
 	void _emulate_import( Opt<string const&> thm_prefix, Import& intp, Subst const& org ){
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
@@ -687,34 +688,38 @@ public:
 			}
 		}
 	}
+*/
 	void import( bool change ) {
 		string name;
-		Opt<string> forced_prefix = {};
 		Opt<string> optional_prefix = {};
-		bool canonical_prefix = false;
-		enum { NONE, PRIOR, POST, NONREC } unqualified;
-		if( skips(":") ) {// non-recursive unqualified import
+		Opt<string> forced_prefix = {};
+		bool canonical_prefix;
+		bool unnamed;
+		bool rec;
+		if( skips("!") ) {// recursive unnamed import
 			name = get_thm_name();
-			canonical_prefix = true;
-			unqualified = NONREC;
-		} else if( skips("?") ) {// posterior unqualified import
-			name = get_thm_name();
-			canonical_prefix = true;
-			unqualified = POST;
+			canonical_prefix = false;
+			unnamed = true;
+			rec = true;
 		} else {
 			string str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
 				name = get();
 				forced_prefix = {str1};
-				unqualified = NONE;
+				canonical_prefix = false;
+				unnamed = false;
+				rec = false;
 			} else if( skips("?") ) {// optionally qualified
 				name = get();
 				optional_prefix = {str1};
-				unqualified = POST;
+				canonical_prefix = false;
+				unnamed = true;
+				rec = false;
 			} else {// unqualified
 				name = str1;
 				canonical_prefix = true;
-				unqualified = PRIOR;
+				unnamed = true;
+				rec = false;
 			}
 		}
 		auto intp = _thy.thy(name,reader());
@@ -741,10 +746,11 @@ public:
 			if MSG {
 				cout << (change ? "importing " : "interpreting ");
 				if( forced_prefix ) {
-					cout << *forced_prefix << ": ";
-				}
-				if( optional_prefix ) {
+					cout << *forced_prefix << ( rec ? "! " : ": " );
+				} else if( optional_prefix ) {
 					cout << *optional_prefix << "? ";
+				} else if( rec ) {
+					cout << "? ";
 				}
 				cout << path << endl;
 			}
@@ -761,25 +767,21 @@ public:
 		}
 		if( success ) {
 			_update_parent(src);// in case of interpreting a child.
-			if( unqualified != NONE ) {
-				switch( unqualified ) {
-					case PRIOR: _thy.add_prior_import(intp); break;
-					case POST: _thy.add_post_import(intp); break;
-					case NONREC: _thy.add_import(NONREC_IMPORT,intp); break;
-				}
-			}
-			if( forced_prefix ) {// qualified import
-				_thy.add_import(*forced_prefix,intp);
+			if( forced_prefix ) {
+				_thy.add_import(*forced_prefix,intp,rec);
 			}
 			if( optional_prefix ) {
-				_thy.add_import(*optional_prefix,intp);
+				_thy.add_import(*optional_prefix,intp,rec);
 			}
 			if( canonical_prefix ) {
-				_thy.add_import(src.name(),intp);
+				_thy.add_import(src.name(),intp,rec);
+			}
+			if( unnamed ) {
+				_thy.add_import("",intp,rec);
 			}
 			if THY {
 				if( !MSG ) cout << _indent(' ');
-				cout << ( change ? "imported " : "interpreted ");
+				cout << ( change ? "imported " : "interpreted " );
 				if( forced_prefix ) cout << *forced_prefix << ": ";
 				if( optional_prefix ) cout << *optional_prefix << "? ";
 				cout << path << endl;
@@ -1442,7 +1444,7 @@ public:
 		} else if( skips("context") ) {
 			string path = get(Lexer::Word);
 			skip("begin");
-			auto oloc = _thy.find_thy_local(path,reader());
+			auto oloc = _thy.find_thy(path,reader());
 			if( !oloc ) throw Error("bad context")(path);
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -1466,7 +1468,7 @@ public:
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
 				_auto_import({},{},src2loc,true);
-				loc.add_post_import(src2loc);
+				loc.add_import("",src2loc,true);
 /* not sure this should be automated
 				// updating original imports
 				auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
@@ -1935,8 +1937,8 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	init_syntax(root.modify_syntax());
 	Thy thy = filesystem::equivalent(rootdir,locdir) ?
 		root.branch(name,"") : root.branch("_dir",string(locdir)).branch(name,"");
-	root.add_import("Root",root.self());// root
-	thy.add_import(name,thy.self());// file root
+	root.add_import("Root",root.self(),false);// root
+	thy.add_import(name,thy.self(),true);// file root
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	try {
 		prover.loop();
@@ -1949,18 +1951,36 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 int main(int argc, char* argv[]) {
 	bool exit_on_error = false;
 	auto cmd = filesystem::path(argv[0]);
-
 	auto cmddir = cmd.parent_path();
-	if( argc == 1 ) {
-		run(cin,"_stdin",false,FLAGS_DEFAULT,cmddir,filesystem::current_path());
-	} else {
-		auto file = filesystem::path(argv[1]);
+	auto verb = FLAGS_MIN;
+	int i = 1;
+	for(;;) {
+		if( i == argc ) {
+			run( cin, "_stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path() );
+			cout << "bye!" << endl;
+			return 0;
+		}
+		string arg = argv[i];
+		if( arg.starts_with('-') ) {
+			auto opt = arg.substr(1);
+			if( opt == "i" ) {
+				verb = FLAGS_DEFAULT;
+			} else if( opt == "e" ) {
+				exit_on_error = true;
+			} else {
+				cerr << "unexpected option " << arg << endl;
+				return -1;
+			}
+			i++;
+			continue;
+		}
+		auto file = filesystem::path(arg);
 		auto locdir = file.parent_path();
 		if( locdir.empty() ) locdir = ".";
 		auto fin = fstream(file);
-		run(fin,file.stem(),true,FLAGS_MIN,cmddir,locdir);
+		run(fin,file.stem(),true,verb,cmddir,locdir);
+		break;
 	}
-	cout << "bye!" << endl;
 	return 0;
 }
 

@@ -23,33 +23,55 @@ class Thy : public Ctxt {
 	Ref<_Body> _ref;
 	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
 	static std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const _triv_test;
+	/** Finds theorem by path */
 	Opt<Thm> _find_thm(
 		std::string_view const& path,
 		Import const& import,
 		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
-		bool allow_ancestor
+		bool allow_ancestor,
+		bool allow_rec
 	) const;
-	/** @brief Finds a named theorem with prefix from the theory or an ancestor. */
+	/** @brief Finds theorem with prefix */
 	Opt<Thm> _find_thm(
 		std::string_view const& pre,
 		std::string_view const& rest,
 		Import const& import,
-		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test
+		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
+		bool allow_ancestor,
+		bool allow_rec
 	) const;
+	/** Finds theorem by unprefixed name */
+	Opt<Thm> _find_thm_name(
+		std::string_view const& name,
+		Import const& import,
+		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
+		bool allow_ancestor,
+		bool allow_rec
+	) const;
+	/** Finds theory by path */
 	Opt<Import> _find_thy(
 		std::string_view const& path,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		std::function<bool(Thy const&)> const& test,
 		bool allow_ancestor,
-		bool import_source,
-		std::function<bool(Thy const&)> const& test
+		bool allow_nonrec
 	);
+	/** Finds theory with prefix */
 	Opt<Import> _find_thy(
 		std::string_view const& pre,
 		std::string_view const& rest,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
-		bool import_source,
-		std::function<bool(Thy const&)> const& test
+		std::function<bool(Thy const&)> const& test,
+		bool allow_ancestor,
+		bool allow_nonrec
 	) &;
+	Opt<Import> _find_thy_name(
+		std::string_view const& name,
+		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
+		std::function<bool(Thy const&)> const& test,
+		bool allow_ancestor,
+		bool allow_nonrec
+	);
 	void _check_loop_import( Thy const& origin ) const;
 	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
 	Import& _add_import( Import const& im, bool prior ) &;
@@ -103,16 +125,12 @@ public:
 	Thm weaken( Thm const& thm ) const;
 	/** Weaken closed term from an ancestor. */
 	CTerm weaken( CTerm const& t ) const;
-	/** Adds a qualified import. */
-	Import& add_import( std::string_view const& prefix, Import const& im ) &;
-	Import& add_prior_import( Import const& im ) &;
-	Import& add_post_import( Import const& im ) &;
+	/** Adds an import. */
+	Import& add_import( std::string_view const& prefix, Import const& im, bool rec ) &;
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */
 	StrMMap<Import> const& imports() const;
-	std::vector<Import> const& prior_imports() const;
-	std::vector<Import> const& post_imports() const;
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
@@ -121,25 +139,9 @@ public:
 		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
 		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
-	Opt<Import> find_thy_local(
-		std::string_view const& name,
-		std::function<void(Thy&,std::istream&,std::string_view const&)> const& reader,
-		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
-	);
 	Import thy(
 		std::string_view const& name,
 		std::function<void(Thy&,std::istream&,std::string_view const&)> reader,
-		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
-	);
-	/** @brief Finds an unqualified import.
-	 */
-	Opt<Import> find_import(
-		std::function<bool(Thy const&)> const& test
-	);
-	/** @brief Finds an import.
-	 */
-	Opt<Import> find_import(
-		std::string_view const& path,
 		std::function<bool(Thy const&)> const& test = []( Thy const& ){ return true; }
 	);
 	Syntax& modify_syntax() &;
@@ -335,20 +337,6 @@ inline Import Thy::thy(
 	if( !ret ) throw Error("\"theory not found\"")(name);
 	return *ret;
 }
-inline Opt<Import> Thy::find_import(
-	std::string_view const& path,
-	std::function<bool(Thy const&)> const& test
-) {
-	return _find_thy(path,[](auto&,auto&,auto){assert(false);},true,true,test);
-}
-
-inline Import& Thy::add_prior_import( Import const& im ) & {
-	return _add_import(im,true);
-}
-inline Import& Thy::add_post_import( Import const& im ) & {
-	return _add_import(im,false);
-}
-
 
 auto operator<<(std::ostream& os, Thy && loc) = delete;
 inline std::ostream& operator<<( std::ostream& os, Thy const& loc ) {
