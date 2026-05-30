@@ -235,11 +235,8 @@ lemma nnall_not_iff: ¬ ¬ (∀x. ¬ P.[x]) ⟺ (∀x. ¬ P.[x]);
 ---
 ## Theories
 ---
-extend MetaRelation: end
 
-interpret iff: MetaRelation (⟺).
-
-context MetaRelation begin
+extend MetaRelation begin
 
 	extend AllRel begin
 
@@ -280,6 +277,8 @@ context MetaRelation begin
 
 end
 
+interpret iff: MetaRelation (⟺).
+
 theory MetaIrreflexive:
 	import MetaRelation.
 	assume irrefl: ¬ x ⊏ x.
@@ -305,6 +304,7 @@ begin
 end
 
 extend Membership:
+ctxt.
 	interpret in: TypeSafeMinimal.MetaRelation (∈).
 	fix (∀∈) (∃∈).
 	import in: in.AllRel (∀∈).

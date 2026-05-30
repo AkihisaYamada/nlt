@@ -130,7 +130,7 @@ public:
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */
-	StrMMap<Import> const& imports() const;
+	StrMMap<std::pair<Import,bool>> const& imports() const;
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */

@@ -691,34 +691,37 @@ public:
 */
 	void import( bool change ) {
 		string name;
+		Opt<string> default_prefix = {};
 		Opt<string> optional_prefix = {};
 		Opt<string> forced_prefix = {};
-		bool canonical_prefix;
-		bool unnamed;
-		bool rec;
-		if( skips("!") ) {// recursive unnamed import
+		bool canonical_prefix = false;
+		bool rec = false;
+		if( skips("?") ) {// weak unnamed import
 			name = get_thm_name();
-			canonical_prefix = false;
-			unnamed = true;
+			default_prefix = {NONREC_IMPORT};
+			canonical_prefix = true;
+		} else if( skips("!") ) {// expansive unnamed import
+			name = get_thm_name();
+			default_prefix = {""};
+			canonical_prefix = true;
 			rec = true;
 		} else {
 			string str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
 				name = get();
 				forced_prefix = {str1};
-				canonical_prefix = false;
-				unnamed = false;
-				rec = false;
+			} else if( skips("!") ) {// qualified recursive
+				name = get();
+				forced_prefix = {str1};
+				rec = true;
 			} else if( skips("?") ) {// optionally qualified
 				name = get();
+				default_prefix = {""};
 				optional_prefix = {str1};
-				canonical_prefix = false;
-				unnamed = true;
-				rec = false;
 			} else {// unqualified
 				name = str1;
+				default_prefix = {""};
 				canonical_prefix = true;
-				unnamed = true;
 				rec = false;
 			}
 		}
@@ -747,8 +750,8 @@ public:
 				cout << (change ? "importing " : "interpreting ");
 				if( forced_prefix ) {
 					cout << *forced_prefix << ( rec ? "! " : ": " );
-				} else if( optional_prefix ) {
-					cout << *optional_prefix << "? ";
+				} else if( default_prefix ) {
+					cout << *default_prefix << "? ";
 				} else if( rec ) {
 					cout << "? ";
 				}
@@ -770,14 +773,14 @@ public:
 			if( forced_prefix ) {
 				_thy.add_import(*forced_prefix,intp,rec);
 			}
+			if( default_prefix ) {
+				_thy.add_import(*default_prefix,intp,rec);
+			}
 			if( optional_prefix ) {
 				_thy.add_import(*optional_prefix,intp,rec);
 			}
 			if( canonical_prefix ) {
 				_thy.add_import(src.name(),intp,rec);
-			}
-			if( unnamed ) {
-				_thy.add_import("",intp,rec);
 			}
 			if THY {
 				if( !MSG ) cout << _indent(' ');

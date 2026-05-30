@@ -175,9 +175,10 @@ begin
 end
 
 theory MetaReflexive:
-	import MetaRelation.
+	fix (⊏).
 	assume refl: x ⊏ x.
 begin
+	interpret? MetaRelation.
 	extend MetaCompatible begin
 		interpret MetaMonotone;
 			by cong refl.
@@ -185,10 +186,10 @@ begin
 end
 
 theory MetaTransitive:
-	import MetaRelation.
+	fix (⊏).
 	assume trans: if x ⊏ y, y ⊏ z then x ⊏ z.
 begin
-
+	interpret? MetaRelation.
 	extend MetaMonotone begin
 		interpret MetaCompatible;
 			- if xx': x ⊏ x', yy': y ⊏ y' then x * y ⊏ x' * y';
@@ -202,27 +203,26 @@ begin
 end
 
 theory MetaPreorder:
-	import MetaRelation.
 	import MetaReflexive.
 	import MetaTransitive.
 end
 
 theory MetaSymmetric:
-	import MetaRelation.
+	fix (⊏).
 	assume sym: if x ⊏ y then y ⊏ x.
 end
 
 theory MetaTolerance:
-	import MetaRelation.
 	import MetaReflexive.
 	import MetaSymmetric.
 end
 
 theory MetaPartialEquivalence:
-	import MetaRelation.
 	import MetaSymmetric.
 	import MetaTransitive.
 begin
+
+	interpret? MetaRelation.
 
 	theory MetaSemigroup:
 		fix (*).
@@ -362,7 +362,6 @@ begin
 end
 
 theory MetaEquivalence:
-	import MetaRelation.
 	import MetaReflexive.
 	import MetaSymmetric.
 	import MetaTransitive.
@@ -370,6 +369,7 @@ begin
 	interpret MetaTolerance.
 	interpret MetaPreorder.
 	interpret MetaPartialEquivalence.
+ctxt.
 end
 
 ---

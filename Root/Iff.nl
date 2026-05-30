@@ -31,6 +31,9 @@ set rule iff_elim1 iff_elim2 iff.refl iff.trans.
 
 note#dual iff.sym.
 
+ctxt MetaEquivalence.
+ctxt iff.MetaCompatible.
+
 interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
 		apply iff_intro;
@@ -46,6 +49,8 @@ interpret iff: iff.MetaCompatible (⟺);
 	.
 
 note#cong iff.cong.
+
+thm iff.left_mono.
 
 lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
