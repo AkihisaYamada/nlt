@@ -277,15 +277,13 @@ extend MetaRelation begin
 
 end
 
-interpret iff: MetaRelation (⟺).
-
 theory MetaIrreflexive:
-	import MetaRelation.
+	fix (⊏).
 	assume irrefl: ¬ x ⊏ x.
 end
 
 theory MetaAsymmetric:
-	import MetaRelation.
+	fix (⊏).
 	assume asym: x ⊏ y ⟹ ¬ y ⊏ x.
 end
 ---
@@ -293,7 +291,7 @@ Note that antisymmetry is not yet definable, because it requires equality.
 ---
 theory MetaOrder:
 	import MetaIrreflexive.
-	import MetaTransitive (⊏).
+	import MetaTransitive.
 begin
 	interpret MetaAsymmetric;
 		-> for x y if xy: x ⊏ y, yx: y ⊏ x then false;
@@ -304,7 +302,6 @@ begin
 end
 
 extend Membership:
-ctxt.
 	interpret in: TypeSafeMinimal.MetaRelation (∈).
 	fix (∀∈) (∃∈).
 	import in: in.AllRel (∀∈).
@@ -320,4 +317,9 @@ begin
 			by iff_intro Collect_intro #elim Collect_elim.
 	end
 
+end
+
+theory ChoiceOp:
+	fix (such).
+	assume such_intro: (∃x. P.[x]) ⟹ P.[such x. P.[x]].
 end

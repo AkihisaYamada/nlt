@@ -265,18 +265,22 @@ Opt<Thm> Thy::_find_thm_name(
 }
 Opt<Thm> Thy::_find_thm(
 	string_view const& pre,
-	string_view const& post,
+	string_view const& rest,
 	Import const& import,
 	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
 	bool allow_ancestor,
 	bool allow_rec
 ) const {
+	if( pre == _ref->name )// explict self
+	if( auto ret = _find_thm(rest,import,test,false,true) ) {
+		return ret;
+	}
 	// find from local imports
 	for( auto [fst,it] = _ref->imports.equal_range(pre); it != fst; ) {
 		it--;
 		auto const& [p,rec] = it->second;
 		if( p.ready() )
-		if( auto ret = p._src._find_thm(post,p.compose(import),test,false,rec) ) {
+		if( auto ret = p._src._find_thm(rest,p.compose(import),test,false,rec) ) {
 			return ret;
 		}
 	}
@@ -285,7 +289,7 @@ Opt<Thm> Thy::_find_thm(
 			it--;
 			auto const& [p,rec] = it->second;
 			if( p.ready() )
-			if( auto ret = p._src._find_thm(pre,post,p.compose(import),test,false,rec) ) {
+			if( auto ret = p._src._find_thm(pre,rest,p.compose(import),test,false,rec) ) {
 				return ret;
 			}
 		}
@@ -301,7 +305,7 @@ Opt<Thm> Thy::_find_thm(
 	}
 	if( allow_ancestor )// find from ancestors
 	if( auto p = parent() )
-	if( auto ret = p->source()._find_thm(pre,post,p->compose(import),test,true,true) ) {
+	if( auto ret = p->source()._find_thm(pre,rest,p->compose(import),test,true,true) ) {
 		return ret;
 	}
 	return {};

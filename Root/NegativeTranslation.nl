@@ -10,7 +10,6 @@ disjunction and existential quantifier are instantiated by certain forms.
 import TypeFree.
 import Minimal.
 import Membership.
-import AllIn.
 
 fix nnProp nnor nnex nnexIn.
 assume in_nnProp_iff: P ∈ nnProp ⟺ (¬ ¬P ⟹ P).

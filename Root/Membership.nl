@@ -6,8 +6,6 @@ fix (∈).
 
 begin
 
-interpret in: MetaRelation (∈).
-
 theory Member:
 	fix x A.
 	assume closed! x ∈ A.
@@ -52,29 +50,23 @@ begin
 		.
 end
 
-theory Relation:
-	fix A (⊏).
-begin
-	interpret MetaRelation (⊏).
-end
-
 theory Reflexive:
-	import Relation.
+	fix A (⊏).
 	assume refl: if x ∈ A then x ⊏ x.
 end
 
 theory Symmetric:
-	import Relation.
+	fix A (⊏).
 	assume sym: if x ⊏ y, x ∈ A, y ∈ A then y ⊏ x.
 end
 
 theory SemiAttractive:
-	import Relation.
+	fix A (⊏).
 	assume attract: if x ⊏ y, y ⊏ x, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 end
 
 theory DualAttractive:
-	import Relation.
+	fix A (⊏).
 	assume dual_attract: if x ⊏ y, y ⊏ x, x ⊏ z, x ∈ A, y ∈ A, z ∈ A then y ⊏ z.
 end
 
@@ -84,7 +76,7 @@ theory Attractive:
 end
 
 theory Transitive:
-	import Relation.
+	fix A (⊏).
 	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
 	interpret Attractive;

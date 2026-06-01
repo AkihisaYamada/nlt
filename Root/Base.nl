@@ -369,7 +369,6 @@ begin
 	interpret MetaTolerance.
 	interpret MetaPreorder.
 	interpret MetaPartialEquivalence.
-ctxt.
 end
 
 ---

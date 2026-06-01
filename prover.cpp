@@ -1932,7 +1932,7 @@ private:
 */	}
 };
 
-void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path const& locdir ) {
+void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path const& locdir, bool print_on_end ) {
 	auto rootdir = cmddir+"/Root";
 	auto root = Thy("Root",rootdir);// the empty root theory, linked to the "Root" directory
 	auto lex = Lex();
@@ -1948,7 +1948,9 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	} catch( Term const& e ) {
 		exit(-1);
 	}
-	cout << thy.pretty() << endl;
+	if( print_on_end ) {
+		cout << thy.pretty() << endl;
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -1959,7 +1961,7 @@ int main(int argc, char* argv[]) {
 	int i = 1;
 	for(;;) {
 		if( i == argc ) {
-			run( cin, "_stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path() );
+			run( cin, "_stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
 			cout << "bye!" << endl;
 			return 0;
 		}
@@ -1981,7 +1983,7 @@ int main(int argc, char* argv[]) {
 		auto locdir = file.parent_path();
 		if( locdir.empty() ) locdir = ".";
 		auto fin = fstream(file);
-		run(fin,file.stem(),true,verb,cmddir,locdir);
+		run(fin,file.stem(),true,verb,cmddir,locdir,true);
 		break;
 	}
 	return 0;

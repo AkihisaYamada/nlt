@@ -1,6 +1,8 @@
 ----
 # Properties for Magmas
 ----
+import Membership.
+
 begin
 
 extend MetaRelation begin -- Every binary symbol defines magma properties.
@@ -152,7 +154,7 @@ extend MetaRelation begin -- Every binary symbol defines magma properties.
 end
 
 extend Reflexive begin
-	interpret .MetaRelation.
+	interpret? .MetaRelation.
 
 	extend Compatible begin
 		interpret Monotone A (*);
@@ -166,7 +168,7 @@ extend Reflexive begin
 end
 
 extend Transitive begin
-	interpret .MetaRelation.
+	interpret? .MetaRelation.
 
 	theory MonoMagma:
 		import Magma.
@@ -200,6 +202,7 @@ extend Transitive begin
 end
 
 extend PartialEquivalence begin
+	interpret? .MetaRelation.
 	interpret .Transitive.
 
 	theory MagmaLeftNeutral:
@@ -444,6 +447,7 @@ extend PartialEquivalence begin
 end
 
 extend Equivalence begin
+	interpret? .MetaRelation.
 	interpret .PartialEquivalence.
 	interpret .Reflexive.
 

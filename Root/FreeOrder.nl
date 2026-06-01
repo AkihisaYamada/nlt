@@ -1,4 +1,4 @@
-import Membership.
+import Magmas.
 
 fix Prop (∧) (∨) (¬) (⟺) (∀∈) (∃∈).
 
@@ -12,28 +12,36 @@ assume exIn_type!  if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) 
 
 begin
 
-interpret? Propositional;
-	obtain false where false_prop! false ∈ Prop;-- One can obtain false.
-		- for thesis if assm;
-			apply assm[of (∀P ∈ Prop. P)].
-		.
-	.
-
 theory Minimal:
-	import? Propositional.Minimal.
-	import in: AllExRel (∈) (∀∈) (∃∈).
+	interpret Propositional;
+		obtain false where false_type! false ∈ Prop;-- One can obtain false.
+			- for thesis if assm;
+				apply assm[of (∀P ∈ Prop. P)].
+			.
+		.
+	import Propositional.Minimal.
 begin
 
 end
 
 theory Intuitionistic:
-	import Minimal.
-	import? Propositional.Intuitionistic.
+	interpret Propositional;
+		obtain false where -- One can obtain false.
+			false_type! false ∈ Prop,
+			false_elim: false ⟹ ∀P. P ∈ Prop ⟹ P;
+			- for thesis if assm;
+				apply assm[of (∀P ∈ Prop. P)].
+			.
+		.
+	import Propositional.Intuitionistic.
 begin
+	interpret FreeOrder.Minimal.
 end
 
 theory Classical:
 	import Intuitionistic.
-	import? Propositional.Classical.
+	import ExcludedMiddle.
 begin
+	interpret FreeOrder.Intuitionistic.
 end
+ctxt.

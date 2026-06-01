@@ -19,7 +19,6 @@ theory Minimal:
 	assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 begin
-
 	---
 	## Disjunction
 	---
@@ -40,7 +39,6 @@ begin
 			by iff_intro #elim or_elim #simp PQ RS.
 		.
 	note#cong or.cong.
-thm or.left_mono.
 
 	interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
 		by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
@@ -73,7 +71,7 @@ thm or.left_mono.
 		unfold not_iff_imp_false;
 		by or_imp_iff.
 
-	lemma nnot_excluded_middle: ¬ ¬ (P ∨ ¬P);
+	lemma nnot_or_not: ¬ ¬ (P ∨ ¬P);
 		unfold nor_iff;
 		by non_contradiction.
 
@@ -172,119 +170,50 @@ thm or.left_mono.
 
 		end
 
-		theory AllExRel:
-			import AllRel.
-			import ExRel.
-		begin
-			lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
-				simp ex_def all_def ex_imp_iff.
-			lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
-				unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+		extend AllRel begin -- TODO: automate?
+			extend ExRel begin
+				lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
+					simp ex_def all_def ex_imp_iff.
+				lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
+					unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+			end
 		end
 	end
 
 	extend Membership begin
 		interpret in: Minimal.MetaRelation (∈).
-		interpret in: in.AllExRel (∀∈) (∃∈).
+		interpret in: in.AllRel (∀∈).
+		interpret in: in.ExRel (∃∈).
 		note#rule in.ex_imp_iff.
 	end
 
-	---
-	### Law of Explosion
-	---
-	theory Explosion:
-		assume false_elim#elim -- (Latin: *ex falso quodlibet*)
-			if false then P.
-	begin -- It yields intuitionistic logic.
-
-		lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
-			by iff_intro not_imp_false[OF nP].
-
-		lemma not_elim: if nP: ¬P, P: P then Q;
-			use not_imp_false[OF nP P].
-
-		lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
-			by iff_true.
-
-		interpret and: iff.MetaCommAbsorb (∧) false;
-			by iff_intro.
-
-		note#simp and.left_absorb and.right_absorb.
-
-		interpret or: iff.MetaCommNeutral (∨) false;
-			by iff_intro or_intro #elim or_elim false_elim.
-
-		note#simp or.left_neutral or.right_neutral.
-
-	end
-
-	---
-	### Excluded Middle
-	---
 	theory ExcludedMiddle:
-		assume excluded_middle: P ∨ ¬P. -- (Latin: *tertium non datur*)
+		assume or_not:
+			-- @English excluded middle
+			-- @Latin tertium non datur
+			P ∨ ¬P.
 	begin -- This is incomparable with Explosion, but their combination leads to classical logic.
 
 		lemma cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-			apply or_elim[OF excluded_middle[of P]];
+			apply or_elim[OF or_not[of P]];
 			- by PQ.
 			- by nPQ.
 			.
 
 	end
 
-	---
-	### Double Negation Elimination
-	---
-	theory DoubleNegationElimination:
-		assume nnot_imp: if ¬ ¬ P then P.
-		-- This alone yields classical logic.
-	begin
-
-		lemma nnot_iff#simp ¬ ¬ P ⟺ P;
-			apply iff_intro[OF nnot_imp nnot_intro].
-
-		lemma contradiction: (¬P ⟹ false) ⟹ P;-- (Latin: *reductio ad absurdum* (RAA))
-			simp not_iff_imp_false[dual].
-
-		interpret Explosion;
-			- if 0: false then P;
-				apply contradiction;
-				by 0.
-			.
+	-- Pierce Law implies Excluded Middle.
+	extend PierceLaw begin
 		interpret ExcludedMiddle;
-			- show: P ∨ ¬P;
-				apply or_intro;
-				- for Q if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-					apply contradiction;
-					- if nQ: ¬Q then false;
-						have nP: ¬P;
-							by not_intro not_imp_false[OF nQ] PQ.
-						have P: P;
-							apply contradiction;
-							by not_imp_false[OF nQ] nPQ.
-						by not_imp_false[OF nP P].
+			- for P then P ∨ ¬ P;
+				apply pierce_law[of _ false];
+				- if imp: P ∨ ¬ P ⟹ false;
+					apply or_intro2;
+					-> if ! P;
+						by imp.
 					.
 				.
 			.
-		interpret PierceLaw;
-			- if PQP: (P ⟹ Q) ⟹ P then P;
-				apply cases[of P];
-				- if nP: ¬P then P;
-					apply PQP;
-					- if P: P then Q;
-						by not_elim[OF nP P].
-					.
-				.
-			.
-		lemma or_iff_nand: P ∨ Q ⟺ ¬ (¬P ∧ ¬Q);
-			fold nor_iff.
-
-	end
-
-	theory ChoiceOp:
-		fix (such).
-		assume such_intro: (∃x. P.[x]) ⟹ P.[such x. P.[y]].
 	end
 
 end
@@ -295,42 +224,89 @@ end
 We can obtain `false` via `∀P. P` to satisfy the law of explosion.
 ---
 theory Intuitionistic:
-	obtain false where false_elim#elim if false then P;
+	obtain false where
+		false_elim#elim
+			-- @English Law of Explosion
+			-- @Latin ex falso quodlibet
+			if false then P;
 		- for thesis if assm: ∀false. (false ⟹ ∀P. P) ⟹ thesis then thesis;
 			apply assm[of (∀P. P)].
 		.
 	import Minimal.
 begin
-	interpret Explosion.
-end
 
-context Minimal begin
-	context Explosion begin
-		interpret? Intuitionistic;
-			retain false := false.
-			.
-	end
+	lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
+		by iff_intro not_imp_false[OF nP].
+
+	lemma not_elim: if nP: ¬P, P: P then Q;
+		use not_imp_false[OF nP P].
+
+	lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
+		by iff_true.
+
+	interpret and: iff.MetaCommAbsorb (∧) false;
+		by iff_intro.
+
+	note#simp and.left_absorb and.right_absorb.
+
+	interpret or: iff.MetaCommNeutral (∨) false;
+		by iff_intro or_intro #elim or_elim false_elim.
+
+	note#simp or.left_neutral or.right_neutral.
+
 end
 
 ---
-We define classical logic as intuitionistic logic plus excluded middle.
+## Classical Logic 
 ---
 theory Classical:
-	import Intuitionistic.
-	import ExcludedMiddle.
+	import Minimal.
+	assume nnot_imp:
+		-- @English double negation elimination
+		if ¬ ¬ P then P.
 begin
-	interpret DoubleNegationElimination;
-		- if nnP: ¬ ¬ P then P;
-			apply cases[of P];
-			- if nP: ¬P;
-				by not_elim[OF nnP nP].
+
+	lemma nnot_iff#simp ¬ ¬ P ⟺ P;
+		apply iff_intro[OF nnot_imp nnot_intro].
+
+	lemma or_iff_nand: P ∨ Q ⟺ ¬ (¬P ∧ ¬Q);
+		fold nor_iff.
+
+	lemma contradiction:
+		-- @Latin reductio ad absurdum
+		(¬P ⟹ false) ⟹ P;
+		simp not_iff_imp_false[dual].
+
+	interpret Intuitionistic;
+		retain false;
+			- if 0: false then P;
+				apply contradiction;
+				by 0.
 			.
 		.
-
+	interpret PierceLaw;
+		- if PQP: (P ⟹ Q) ⟹ P then P;
+			apply nnot_imp;
+			-> if nP: ¬P then false;
+				apply not_imp_false[OF nP];
+				apply PQP;
+				- if P: P then Q;
+					by not_elim[OF nP P].
+				.
+			.
+		.
 end
 
-context Minimal begin
-	context DoubleNegationElimination begin
-		interpret? Classical.
+context Intuitionistic begin
+
+	extend ExcludedMiddle begin
+		interpret Classical;
+			- if nnP: ¬ ¬ P then P;
+				apply cases[of P];
+				- if nP: ¬P;
+					by not_elim[OF nnP nP].
+				.
+			.
 	end
+
 end

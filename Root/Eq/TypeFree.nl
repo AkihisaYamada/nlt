@@ -61,16 +61,18 @@ begin
 
 	end
 
-	extend AllRel begin -- extending Eq/TypeSafeMinimal/AllRel
+	extend MetaRelation begin -- Eq/TypeSafeMinimal/MetaRelation
 
-		interpret base? base.AllRel.-- Root/Minimal/AllRel
+		interpret base? base.MetaRelation. -- TypeFree/Minimal/MetaRelation
 
-		extend ExRel begin
-			interpret base? base.ExRel.-- Root/Minimal/AllRel/ExRel
+		extend AllRel begin -- Eq/TypeSafeMinimal/AllRel
+			interpret base? base.AllRel.-- TypeFree/Minimal/MetaRelation/AllRel
+		end
 
+		extend ExRel begin -- TypeFree/Minimal/MetaRelation/ExRel
 			lemma ex_cong:
-				if ab: a = b, PQ: ∀x. x < b ⟹ P.[x] ⟺ Q.[x]
-				then (∃x < a. P.[x]) ⟺ (∃x < b. Q.[x]);
+				if ab: a = b, PQ: ∀x. x ⊏ b ⟹ P.[x] ⟺ Q.[x]
+				then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ b. Q.[x]);
 				-	apply iff_intro;
 					- if Pa;
 						apply ex_elim[OF Pa];
@@ -84,99 +86,110 @@ begin
 						.
 					.
 				.
-			lemma ex_eq_iff: (∃x < a. x = b) ⟺ b < a;
+			lemma ex_eq_iff: (∃x ⊏ a. x = b) ⟺ b ⊏ a;
 				apply iff_intro;
 				- if ex;
 					apply ex_elim[OF ex];
-					- if xa: x < a, xb: x = b;
+					- if xa: x ⊏ a, xb: x = b;
 						by xa[unfold xb].
 					.
-				- if ba: b < a;
+				- if ba: b ⊏ a;
 					apply ex_intro1[OF ba].
 				.
-			lemma ex_eq_and_iff: (∃x < a. x = b ∧ P.[x]) ⟺ (b < a ∧ P.[b]);
-				have 1: (∃x < a. x = b ∧ P.[x]) ⟺ (∃x. x = b ∧ x < a ∧ P.[x]);
+			lemma ex_eq_and_iff: (∃x ⊏ a. x = b ∧ P.[x]) ⟺ (b ⊏ a ∧ P.[b]);
+				have 1: (∃x ⊏ a. x = b ∧ P.[x]) ⟺ (∃x. x = b ∧ x ⊏ a ∧ P.[x]);
 					unfold ex_def;
-					apply ...ex_cong;-- TODO
+					apply Minimal.ex_cong;
 					by iff_intro.
 				unfold 1;
 				unfold and.left_assoc ex_eq_and_iff.
+		end
 
-			theory Ex1Rel:
-				fix (∃!<).
-				import Ex1.
-				assume ex1_def: (∃!x < a. P.[x]) ⟺ (∃!x. x < a ∧ P.[x]).
+		extend Ex1Rel begin
+			lemma ex1_cong#cong
+				if eq: a = b, iff: ∀x. x ⊏ b ⟹ P.[x] ⟺ P'.[x]
+				then (∃!x ⊏ a. P.[x]) ⟺ (∃!x ⊏ b. P'.[x]);
+				simp ex1_def eq iff.
+			lemma ex1_intro1: for x a P
+				if Px: P.[x], x: x ⊏ a, uniq: ∀y. y ⊏ a ⟹ P.[y] ⟹ y = x
+				then ∃!x ⊏ a. P.[x];
+				unfold ex1_def;
+				by Minimal.ex1_intro1[of x] Px x uniq.
+
+			lemma ex1_intro: for a P
+				if assm: ∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ (∀y. y ⊏ a ⟹ P.[y] ⟹ y = x) ⟹ Q) ⟹ Q
+				then ∃!x ⊏ a. P.[x];
+				unfold ex1_def;
+				apply Minimal.ex1_intro;
+				simp;
+				apply assm>0=.
+
+			lemma ex1_elim:
+				if ex1: ∃!x ⊏ a. P.[x],
+					imp: ∀x. x ⊏ a ⟹ P.[x] ⟹ (∀y. y ⊏ a ⟹ P.[y] ⟹ y = x) ⟹ Q
+				then Q;
+				apply ex1[unfold ex1_def, THEN .ex1_elim];
+				unfold and_imp_iff_imp_imp;
+				- for x;
+					by imp[of x].
+				.
+			lemma ex1_imp_eq:
+				if ex1: ∃!x ⊏ a. P.[x], ! y ⊏ a, ! P.[y], ! z ⊏ a, ! P.[z]
+				then y = z;
+				apply Minimal.ex1_imp_eq[OF ex1[unfold ex1_def]].
+			lemma ex1_imp_iff_eq:
+				if ex1: ∃!x ⊏ a. P.[x], x: x ⊏ a, Px: P.[x], y: y ⊏ a
+				then P.[y] ⟺ x = y;
+				fold Minimal.ex1_imp_iff_eq[OF ex1[unfold ex1_def], rule, OF x Px, of y];
+				by y.
+			lemma ex1_eq_and_iff: for P then (∃!x ⊏ a. x = b ∧ P.[x]) ⟺ b ⊏ a ∧ P.[b];
+				have 1: (∃!x ⊏ a. x = b ∧ P.[x]) ⟺ (∃!x. x = b ∧ x ⊏ a ∧ P.[x]);
+					unfold ex1_def;
+					apply Minimal.ex1_cong;
+					by iff_intro.
+				apply iff.trans[OF 1];
+				simp and.left_assoc ex1_eq_and_iff.
+			lemma ex1_eq_iff: (∃!x ⊏ a. x = b) ⟺ b ⊏ a;
+				by ex1_eq_and_iff[of (x. true), simp].
+
+			theory SuchRel:
+				fix such.⊏ (such).
+				assume such_def: (such x ⊏ a. P.[x]) = (such x. x ⊏ a ∧ P.[x]).
+			end
+
+			theory UniqueChoiceOpRel:
+				import UniqueChoiceOp.
+				import SuchRel.
 			begin
-				lemma ex1_cong#cong
-					if eq: a = b, iff: ∀x. x < b ⟹ P.[x] ⟺ P'.[x] then (∃!x < a. P.[x]) ⟺ (∃!x < b. P'.[x]);
-					simp ex1_def eq iff;.
-				lemma ex1_intro1: for x a P
-					if Px: P.[x], x: x < a, uniq: ∀y. y < a ⟹ P.[y] ⟹ y = x then ∃!x < a. P.[x];
-					unfold ex1_def;
-					by .ex1_intro1[of x] Px x uniq.
-
-				lemma ex1_intro: for a P
-					if assm: ∀Q. (∀x. x < a ⟹ P.[x] ⟹ (∀y. y < a ⟹ P.[y] ⟹ y = x) ⟹ Q) ⟹ Q
-					then ∃!x < a. P.[x];
-					unfold ex1_def;
-					apply .ex1_intro;
-					simp;
-					apply assm>0=.
-
-				lemma ex1_elim:
-					if ex1: ∃!x < a. P.[x], imp: ∀x. x < a ⟹ P.[x] ⟹ (∀y. y < a ⟹ P.[y] ⟹ y = x) ⟹ Q then Q;
-					apply ex1[unfold ex1_def, THEN .ex1_elim];
-					unfold and_imp_iff_imp_imp;
-					- for x;
-						by imp[of x].
-					.
-				lemma ex1_imp_ex: (∃!x < a. P.[x]) ⟹ (∃x < a. P.[x]);
+				lemma such_intro1_ex1: (∃!x ⊏ a. P.[x]) ⟹ P.[such x ⊏ a. P.[x]];
+					note#cong eq_cong_meta[of P].
+					unfold ex1_def such_def;
+					by #elim such_intro_ex1.
+				lemma such_intro0_ex1: (∃!x ⊏ a. P.[x]) ⟹ (such x ⊏ a. P.[x]) ⊏ a;
+					note#cong eq_cong_meta[of P].
+					unfold ex1_def such_def;
+					by #elim such_intro_ex1.
+				lemma such_eq_intro: if ex1: ∃!y ⊏ a. P.[y], Px: P.[x], xa: x ⊏ a then (such y ⊏ a. P.[y]) = x;
+					unfold such_def;
+					apply such_eq_intro;
+					- use ex1; simp ex1_def.
+					by Px xa.
+				note eq_such_intro: such_eq_intro[THEN eq.sym].
+			end
+		end
+		context ExRel begin -- TODO: automate?
+			extend Ex1Rel begin
+				lemma ex1_imp_ex: (∃!x ⊏ a. P.[x]) ⟹ (∃x ⊏ a. P.[x]);
 					unfold ex1_def ex_def;
-					apply Ex1.ex1_imp_ex>0.
-				lemma ex1_imp_eq: if ex1: ∃!x < a. P.[x], ! y < a, ! P.[y], ! z < a, ! P.[z] then y = z;
-					apply Ex1.ex1_imp_eq[OF ex1[unfold ex1_def]].
-				lemma ex1_imp_iff_eq: if ex1: ∃!x < a. P.[x], x: x < a, Px: P.[x], y: y < a then P.[y] ⟺ x = y;
-					fold Ex1.ex1_imp_iff_eq[OF ex1[unfold ex1_def], rule, OF x Px, of y];
-					by y.
-				lemma ex1_eq_and_iff: for P then (∃!x < a. x = b ∧ P.[x]) ⟺ b < a ∧ P.[b];
-					have 1: (∃!x < a. x = b ∧ P.[x]) ⟺ (∃!x. x = b ∧ x < a ∧ P.[x]);
-						unfold ex1_def;
-						apply Ex1.ex1_cong;
-						by iff_intro.
-					apply iff.trans[OF 1];
-					simp and.left_assoc ex1_eq_and_iff.
-				lemma ex1_eq_iff: (∃!x < a. x = b) ⟺ b < a;
-					by ex1_eq_and_iff[of (x. true), simp].
-
-				theory TheRel:
-					fix TheLt.
-					import The.
-					assume THE_def: (THE x < a. P.[x]) = (THE x. x < a ∧ P.[x]).
-				begin
-					lemma THE_intro1: (∃!x < a. P.[x]) ⟹ P.[THE x < a. P.[x]];
-						note#cong eq_cong_meta[of P].
-						unfold ex1_def THE_def;
-						by #elim The.THE_intro.
-					lemma THE_intro0: (∃!x < a. P.[x]) ⟹ (THE x < a. P.[x]) < a;
-						note#cong eq_cong_meta[of P].
-						unfold ex1_def THE_def;
-						by #elim The.THE_intro.
-					lemma THE_eq_intro: if ex1: ∃!y < a. P.[y], Px: P.[x], xa: x < a then (THE y < a. P.[y]) = x;
-						unfold THE_def;
-						apply THE_eq_intro;
-						- use ex1; simp ex1_def.
-						by Px xa.
-					note eq_THE_intro: THE_eq_intro[THEN eq.sym].
-				end
+					apply Minimal.ex1_imp_ex>0.
 			end
 		end
 	end
 
-	theory Membership:
-		import base? base.Membership.
-	begin
-		interpret Eq.Membership.
-ctxt. fo
+	extend Membership begin -- Eq/TypeSafeMinimal/Membership
+ctxt.
+		interpret Minimal.Membership.
+		interpret in: MetaRelation (∈).
 
 		theory Abbrev:-- Restricted Unary Abbreviation
 			assume abbrev: ∀F. ∃f. ∀A x. x ∈ A ⟹ f x = F.[x].
