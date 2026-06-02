@@ -994,7 +994,7 @@ public:
 	Opt<Opt<Thm>> rulify_goal_matches( GoalPat const& pat,CTerm const& assm ) {
 		auto thesis = Thesis::claim_exact(_thy,assm); 
 		auto rulify = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
-		if( rulify.rewrites(thesis,{RULIFY},0,255,true,{},{}) )
+		if( rulify.rewrites(thesis,{RULIFY},0,255,true,false,{},{}) )
 		if( auto opt = goal_matches(pat,thesis.goal()) ) {
 			if( *opt ) {
 				thesis.discharge(**opt);
@@ -1472,6 +1472,7 @@ public:
 				auto src2loc = src2parent.compose(parent2loc);
 				_auto_import({},{},src2loc,true);
 				loc.add_import("",src2loc,true);
+				loc.add_import("_base",src2loc,true);
 /* not sure this should be automated
 				// updating original imports
 				auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
@@ -1594,14 +1595,14 @@ public:
 					rew.add_rewrite_rule(resolver.rules,*thm,false);
 				}
 				bool more = _proof_follows();
-				resolver.rewrites(thesis,{rew_name},1,255,true,{},{});
+				resolver.rewrites(thesis,{rew_name},1,255,true,true,{},{});
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, ex + " goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_resolver);
 				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
 				bool more = _proof_follows();
-				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
+				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
 			} else if( int mode = skips("-") ? 1 : skips("->") ? 2 : 0 ) {
@@ -1609,7 +1610,7 @@ public:
 				for(;;) {
 					if( mode == 2 ) {
 						auto resolver = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
-						resolver.rewrites(thesis,{RULIFY},0,255,true,{},{});
+						resolver.rewrites(thesis,{RULIFY},0,255,true,false,{},{});
 					}
 					auto goal = thesis.has_goal();
 					if( !goal ) throw Error("\"unexpected subgoal\"");

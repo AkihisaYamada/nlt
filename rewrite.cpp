@@ -488,7 +488,7 @@ Opt<Thm> Resolver::_steps(
 		t = t2;
 	}
 }
-bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
@@ -508,8 +508,8 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 		}// t ⟹ s
 		thesis.apply(Intro::imp(imp,1,false),false);// t ⟹ rest
 	}
-	if( thesis.push() ) {
-		if( rewrites(thesis,simp,0,max,normalize,pos,rel) ) {
+	if( wide && thesis.push() ) {
+		if( rewrites(thesis,simp,0,max,normalize,wide,pos,rel) ) {
 			ret = true;
 		}
 		thesis.pop();

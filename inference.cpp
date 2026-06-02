@@ -305,7 +305,7 @@ bool Resolver::_discharge(
 				elim_res_ind++;
 				continue;
 			}// no elimination result matched
-			if( simp && rewrites(subthesis,simp,0,255,true,{},{}) ) {// try rewriting
+			if( simp && rewrites(subthesis,simp,0,255,true,false,{},{}) ) {// try rewriting
 				if( log > 3 ) _log() << "} rewritten: " << subthy.pretty(subthesis.goal()) << endl;
 				break;
 			}

@@ -430,7 +430,7 @@ Opt<Import> Thy::_find_thy(
 	}
 	if( allow_ancestor )
 	if(	auto p = parent() )
-	if( auto o = p->_src._find_thy(pre,rest,reader,test,allow_ancestor,true) ) {
+	if( auto o = p->_src._find_thy(pre,rest,reader,test,true,true) ) {
 		return {o->compose(*p)};
 	}
 	return {};

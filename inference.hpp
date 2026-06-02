@@ -207,7 +207,7 @@ public:
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
 	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
+	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
 	/** @brief Rewrites a theorem */
 	Thm rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
 	/**
