@@ -164,7 +164,7 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 				auto cond_conc = cond_ctxt.closed(body);
 				if( !cond_conc ) throw Error("\"open guard\"")(body)(thm);
 				auto cond = rule_ctxt.assume(cond_conc->intro());
-				conds.emplace_back(Opt<size_t>{},false,body.sym(),cond);
+				conds.emplace_back(Opt<size_t>{},false,(bool)body.sym(),cond);
 				cond_thms.emplace_back(std::move(cond));
 				break;
 			}
@@ -498,7 +498,7 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	if( !o ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
 	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
-	bool ret = steps;
+	auto ret = (bool)steps;
 	if( ret ) {
 		auto imp = thy.weaken(o->second.thm);// x = y ⟹ φ ⟹... y ⟹ x
 		imp = imp << *steps; // φθ ⟹... t ⟹ s

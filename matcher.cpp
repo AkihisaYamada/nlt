@@ -9,7 +9,7 @@ Renamer avoider(Ctxt const& ctxt) {
 	return [&](string_view const& v)->Opt<string>{
 		return avoid(
 			v[0] == '?' ? string("_")+v.substr(1) : v,
-			[&]( string_view const& x ){ return ctxt.constant(x); }
+			[&]( string_view const& x ){ return (bool)ctxt.constant(x); }
 		);
 	};
 }
@@ -109,8 +109,8 @@ struct Matcher {
 			if( auto const& rabs = r.bind() ) {
 				auto const& [x,pat2] = *labs;
 				auto const& [y,val2] = *rabs;
-				auto const& lind_info = linds.insert({x,depth});
-				auto const& rind_info = rinds.insert({y,depth});
+				auto const& lind_info = linds.emplace(x,depth);
+				auto const& rind_info = rinds.emplace(y,depth);
 				rbvars.emplace_back(y);
 				unsigned int lpre;
 				unsigned int rpre;

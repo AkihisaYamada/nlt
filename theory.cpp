@@ -1,7 +1,6 @@
 #include<fstream>
 #include<ranges>
 #include"theory.hpp"
-#include"parser.hpp"
 
 using namespace std;
 
@@ -11,19 +10,26 @@ string const NONREC_IMPORT = "#nonrec";
 struct Thy::_Body {
 	string name;
 	string dir;
-	StrMMap<pair<Thm,ThmInfo>> thms;
+	StrMMap<Pair<Thm,ThmInfo>> thms;
 	/** local theories */
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
 	Opt<Import> parent;
-	StrMMap<pair<Import,bool>> imports;
+	StrMMap<Pair<Import,bool>> imports;
 	Ref<Syntax> syntax;
-	StrMap<pair<Ref<Rewrite>,bool>> rewriter;
+	StrMap<Pair<Ref<Rewrite>,bool>> rewriter;
 	bool is_scope;
 	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax) {
 	}
 	~_Body() {}
+	/** Theory bodies are considered unequal */
+	friend bool operator==( _Body const& x, _Body const& y ) {
+		return false;
+	}
 };
+bool operator==( Thy const& x, Thy const& y ) {
+	return x._ref == y._ref;
+}
 
 Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
 
@@ -31,7 +37,7 @@ Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope
 	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
 	for( auto [rew_name,p] : _ref->rewriter ) {
-		child._ref->rewriter.emplace(rew_name,pair(p.first,false));
+		child._ref->rewriter.emplace(rew_name,{p.first,false});
 	}
 	return child;
 }
@@ -76,7 +82,7 @@ Opt<Rewrite const&> Thy::find_rewriter( string_view const& rew_name ) const& {
 Rewrite& Thy::modify_rewriter( string_view const& rew_name ) & {
 	auto x = _ref->rewriter.finds(rew_name);
 	if( !x ) {
-		auto [it,b] = _ref->rewriter.emplace(rew_name,pair{Ref<Rewrite>::make(Rewrite()),true});
+		auto [it,b] = _ref->rewriter.emplace(rew_name,{Ref<Rewrite>::make(Rewrite()),true});
 		return *it->second.first;
 	}
 	if( !x->second.second ) {
@@ -112,7 +118,7 @@ Opt<string> Thy::find_assm_name( size_t rev ) const {
 	}
 	return {};
 }
-StrMMap<pair<Import,bool>> const& Thy::imports() const {
+StrMMap<Pair<Import,bool>> const& Thy::imports() const {
 	return _ref->imports;
 }
 bool Thy::has_ancestor( Ctxt const& ctxt ) const & {
@@ -163,7 +169,7 @@ Import& Thy::add_import( string_view const& prefix, Import const& import, bool r
 		}
 		import_rewrite(import);
 	}
-	return _ref->imports.emplace(prefix,pair{import,rec})->second.first;
+	return _ref->imports.emplace(prefix,{import,rec})->second.first;
 }
 void Thy::erase_import( string_view const& prefix ) & {
 	auto const& [it,end] = _ref->imports.equal_range(prefix);
@@ -188,10 +194,10 @@ void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info 
 	if( thm.ctxt() != *this ) {
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
-	_ref->thms.emplace(name,pair(thm,info));
+	_ref->thms.emplace(name,Pair(thm,info));
 }
 
-pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name, bool declare ) {
+Pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name, bool declare ) {
 	size_t rev = revision();
 	auto const& ret = Ctxt::obtain(sym,ex);
 	_ref->assm_names.emplace(rev,spec_name);

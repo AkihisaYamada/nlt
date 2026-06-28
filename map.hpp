@@ -2,66 +2,106 @@
 #define _MAP_HPP
 
 #include<map>
+#include<type_traits>
 #include"opt.hpp"
+#include"pair.hpp"
 
-template<typename K, typename T>
-class Map : std::map<K,T,std::less<>> {
-	using M = std::map<K,T,std::less<>>;
+template<typename K, typename T, bool multi = false>
+struct Map {
+private:
+	using _Body = typename std::conditional_t<multi,std::multimap<K,T,std::less<>>,std::map<K,T,std::less<>>>;
+	_Body _body;
 public:
-	using typename M::value_type, M::iterator, M::const_iterator;
-	using M::map, M::find, M::insert, M::begin, M::end, M::size, M::empty, M::insert_or_assign, M::lower_bound, M::upper_bound;
+	using iterator = _Body::iterator;
+	using const_iterator = _Body::const_iterator;
+	template<typename... Args>
+		requires std::is_constructible_v<_Body,Args...>
+	Map( Args&&... args ) : _body( std::forward<Args>(args)... ) {}
+	/* allows brace initialization */
+	Map( std::initializer_list<std::pair<K const, T>> il ) : _body(il) {}
 	/**
 	 * @brief emplaces a key-value pair.
 	 * @return the pair of the iterator to the key-value pair and bool if insertion took place
 	 */
-	template<typename... Ts>
-	std::pair<iterator, bool> emplace( Ts&&... args ) {
-		return M::emplace(std::forward<Ts>(args)...);
+	template<typename Ka, typename Va>
+	Pair<iterator,bool> emplace( Ka&& k, Va&& v ) requires (!multi) {
+		auto [it,fl] = _body.emplace(
+			 std::piecewise_construct,
+			 std::forward_as_tuple(std::forward<Ka>(k)),
+			 std::forward_as_tuple(std::forward<Va>(v))
+		);
+		return {it,fl};
+	}
+	template<typename Ka>
+	Pair<iterator,bool> emplace( Ka&& k, T&& v ) requires (!multi) {
+		auto [it,fl] = _body.emplace(std::forward<Ka>(k),std::move(v));
+		return {it,fl};
+	}
+	template<typename Ka>
+	iterator emplace( Ka&& k, T&& v ) requires multi {
+		return _body.emplace(std::forward<Ka>(k),std::move(v));
+	}
+	iterator begin() & {
+		return _body.begin();
+	}
+	const_iterator begin() const & {
+		return _body.begin();
+	}
+	const_iterator end() const& {
+		return _body.end();
 	}
 	template<typename L>
-	Opt<std::pair<K const,T>&> finds( L const& k ) & {
-		auto it = M::find(k);
+	Opt<Pair<K const&,T&>> finds( L&& k ) & {
+		auto it = _body.find(std::forward<L>(k));
+		if( it == _body.end() ) {
+			return {};
+		}
+		return {{it->first,it->second}};
+	}
+	template<typename L>
+	Opt<Pair<K const&,T const&>> finds( L&& k ) const & {
+		auto it = _body.find(std::forward<L>(k));
 		if( it == end() ) {
 			return {};
 		}
-		return *it;
-	}
-	Opt<std::pair<K const,T>&> finds( K const& k ) & {
-		return finds<K>(k);
+		return {{it->first,it->second}};
 	}
 	template<typename L>
-	Opt<std::pair<K const,T> const&> finds( L const& k ) const & {
-		auto it = M::find(k);
+	Opt<Pair<K const&,T const&>> finds_bound( L&& k ) const & {
+		auto it = _body.lower_bound(std::forward<L>(k));
 		if( it == end() ) {
 			return {};
 		}
-		return *it;
-	}
-	Opt<std::pair<K const,T> const&> finds( K const& k ) const & {
-		return finds<K>(k);
+		return {{it->first,it->second}};
 	}
 	template<typename L>
-	Opt<std::pair<K const,T> const&> finds_bound( L const& k ) const & {
-		auto it = M::lower_bound(k);
-		if( it == end() ) {
-			return {};
-		}
-		return *it;
+	Pair<iterator,const_iterator> equal_range( L&& k ) & requires multi {
+		auto [it,end] = _body.equal_range( std::forward<L>(k) );
+		return {it,end};
 	}
 	template<typename L>
-	void erase( L const& k ) {
-		auto it = M::find(k);
+		requires (!std::same_as<std::remove_cvref_t<L>, iterator> &&// avoid iterators to match
+			!std::same_as<std::remove_cvref_t<L>, const_iterator>)
+	bool erase( L&& k ) {
+		auto it = _body.find(std::forward<L>(k));
 		if( it != end() ) {
-			M::erase(it);
+			_body.erase(it);
+			return true;
 		}
+		return false;
 	}
 	iterator erase( iterator const& it ) {
-		return M::erase(it);
+		return _body.erase(it);
+	}
+	iterator erase( iterator const& it, const_iterator const& end ) {
+		return _body.erase(it,end);
 	}
 	template<typename L>
 	bool contains( L const& k ) const & {
-		return M::contains(k);
+		return _body.contains(k);
 	}
 };
+template<typename K, typename T>
+using MMap = Map<K,T,true>;
 
 #endif

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-pair<string,Thm> Thy::define( Term const& eq/* f x... = r */, Opt<string const&> name ) & {
+Pair<string,Thm> Thy::define( Term const& eq/* f x... = r */, Opt<string const&> name ) & {
 	auto app1 = eq.app();
 	if( !app1 ) throw Error("\"unexpected definition\"")(eq);
 	auto [eq1,r] = *app1;
@@ -33,7 +33,7 @@ pair<string,Thm> Thy::define( Term const& eq/* f x... = r */, Opt<string const&>
 		r_cabs_app = r_cabs_app(lthy.fix(*x));
 	}
 	// proving the existence
-	string thesis = avoid("thesis",[&](string_view const& x){ return constant(x); });
+	string thesis = avoid("thesis",[&](string_view const& x){ return (bool)constant(x); });
 	auto const& thesis_intp = fork();
 	Ctxt thesis_ctxt = thesis_intp.ctxt();
 	thesis_ctxt.fix(thesis);

@@ -88,7 +88,7 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	return os << ": ";
 }
 
-pair<fstream,string> file_of_thy( string_view const& dir, string_view const& name ) {
+Pair<fstream,string> file_of_thy( string_view const& dir, string_view const& name ) {
 	auto path = string(dir);
 	path+=name;
 	path+=".nl";
@@ -290,7 +290,7 @@ public:
 						} else if( auto t = prem.ref<Thm>() ) {
 							tmp = tmp << *t;
 						} else if( auto i = prem.ref<int>() ) {
-							tmp = tmp << reorder_thm.find(i)->second;
+							tmp = tmp << reorder_thm.find(*i)->second;
 						} else assert(false);
 					}
 					tmp = tmp.intro();
@@ -368,7 +368,7 @@ public:
 		while( auto const& name = gets_thm_name() ) {
 			skip(":");
 			Thm const& thm = get_thm();
-			ret.insert({*name,thm});
+			ret.emplace(*name,thm);
 		}
 		return ret;
 	}
@@ -558,7 +558,7 @@ public:
 			return {};
 		};
 	}
-	void _auto_discharge( Thy& org_thy, Opt<string const&> prefix, Import& intp, pair<CTerm,string> const& assume, bool change, Resolver& infer ) {
+	void _auto_discharge( Thy& org_thy, Opt<string const&> prefix, Import& intp, Pair<CTerm,string> const& assume, bool change, Resolver& infer ) {
 		auto const& assm = assume.first;
 		auto assm_name = assume.second;
 		auto disp = [&]( ostream& os )->ostream& {
@@ -844,8 +844,8 @@ public:
 	};
 	GoalPat _get_subgoal() {
 		auto ret = GoalPat();
-		bool show;
-		if( show = skips("show") ) {
+		bool show = skips("show");
+		if( show ) {
 			ret.name = gets( Tokenizer::Word | Tokenizer::Number );
 			ret.cs = gets_claim_status();
 			if( !ret.cs ) skip(":");
@@ -890,7 +890,7 @@ public:
 		auto loc = _thy.branch();
 		auto to_loc = *loc.parent();
 		auto loc_goal = goal.subst(to_loc);
-		auto css = vector<pair<Opt<string>,Opt<ClaimStatus>>>();
+		auto css = vector<Pair<Opt<string>,Opt<ClaimStatus>>>();
 		for( auto const& decl : pat.decls ) {
 			if( auto const& var = decl.ref<Fix>() ) {
 				auto all = loc_goal.cunary(ALL);
@@ -1048,7 +1048,7 @@ public:
 			} else if( skips("interpret") ) {
 				import(false);
 			} else if( skips("instantiate") ) {
-				vector<pair<string,Term>> map;
+				vector<Pair<string,Term>> map;
 				for(;;) {
 					auto x = get_sym();// the symbol to be instantiated
 					map.emplace_back( x, skips(":=") ? get_term() : x );
@@ -1128,7 +1128,7 @@ public:
 					Thy thesis_loc = _thy.branch();
 					auto term = org_thy.cterm( skips(":=") ? get_term() : sym );
 					CTerm var = thesis_loc.fix(avoid("thesis",[&](auto x){
-						return _thy.constant(x);
+						return (bool)_thy.constant(x);
 					}));
 					CTerm t = ex.capp()->second;
 					// var'. (∀sym. props... ⟹ var') ⟹ var'
@@ -1285,8 +1285,8 @@ public:
 		_thy = prev_thy;
 		return ret;
 	}
-	pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
-		auto ret = pair<Opt<string>,Opt<ClaimStatus>>();
+	Pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
+		auto ret = Pair(Opt<string>{},Opt<ClaimStatus>{});
 		ret.first = gets( Tokenizer::Word | Tokenizer::Number );
 		ret.second = gets_claim_status();
 		if( !ret.second ) {
@@ -1373,7 +1373,7 @@ public:
 				add_claim(_thy,name,cs,thm);
 				return {{name,cs,thm}};
 			} else {
-				if ERR cerr << "failed to prove " << cs << thesis.goal();
+				if ERR cerr << "failed to prove " << _print_name_status(name,cs) << thesis.goal();
 				return {};
 			}
 		}
@@ -1588,7 +1588,7 @@ public:
 				if MSG print_goals(thesis,"applied goals:\n\t");
 			} else if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
 				auto const& [rew_name,ex] = mode == 1 ?
-					pair{SIMP,string("simplified")} : pair{RULIFY,string("rulified")};
+					Pair{SIMP,string("simplified")} : Pair{RULIFY,string("rulified")};
 				auto& rew = _thy.rewriter(rew_name);
 				auto resolver = Resolver({rew}, _out_resolver);
 				while( auto thm = gets_thm() ) {
@@ -1711,9 +1711,11 @@ public:
 					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
 				} else if( int mode = skips("letter") ? 1 : skips("symbol") ? 2 : skips("solo") ? 3 : 0 ) {
-					auto [msg,type] =
-						mode == 1 ? pair{"letters", Lex::Letter} :
-						mode == 2 ? pair{"symbols", Lex::MultiOp} : pair{"solo symbols", Lex::SingleOp};
+					auto [msg,type] = [&]()->Pair<char const*,Lex::CharType>{
+						if( mode == 1 ) return {"letters",Lex::Letter};
+						if( mode == 2 ) return {"symbols",Lex::MultiOp};
+						return {"solo symbols",Lex::SingleOp};
+					}();
 					if MSG cout << "registering " << msg << ": ";
 					for(;;) {
 						string const& lsym = get(Special);

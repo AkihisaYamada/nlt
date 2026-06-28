@@ -1,7 +1,6 @@
 #ifndef _THEORY_HPP
 #define _THEORY_HPP
-#include<map>
-#include<deque>
+#include"map.hpp"
 #include"rewrite.hpp"
 
 class AThm;
@@ -9,7 +8,7 @@ class Import;
 using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule>;
 
 template<typename T>
-using StrMMap = std::multimap<std::string,T,std::less<>>;
+using StrMMap = MMap<std::string,T>;
 
 inline std::string make_spec_name( std::string base ) {
 	return std::move(base)+"#spec";
@@ -18,7 +17,7 @@ inline std::string make_spec_name( std::string base ) {
 extern std::string const NONREC_IMPORT;
 
 class Thy : public Ctxt {
-	using Thms = std::multimap<std::string,std::pair<Thm,ThmInfo>,std::less<>>;
+	using Thms = std::multimap<std::string,Pair<Thm,ThmInfo>,std::less<>>;
 	struct _Body;
 	Ref<_Body> _ref;
 	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
@@ -117,7 +116,7 @@ public:
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
 	Thm add_assm(std::string_view const& name, CTerm const& assm);
-	std::pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name, bool declare );
+	Pair<CTerm,Thm> obtain( std::string_view const& sym, Thm const& ex, std::string_view const& spec_name, bool declare );
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
 	bool has_ancestor( Ctxt const& ctxt ) const &;
@@ -130,7 +129,7 @@ public:
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */
-	StrMMap<std::pair<Import,bool>> const& imports() const;
+	StrMMap<Pair<Import,bool>> const& imports() const;
 	/** @brief Finds a theory.
 	 * @return initial import of the theory into this theory.
 	 */
@@ -183,7 +182,7 @@ public:
 	void import_rewrite( Import const& import ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
-	std::pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
+	Pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
 	/** Pretty printer for the theory */
 	std::ostream& pretty(
 		std::ostream& os,
@@ -225,9 +224,7 @@ public:
 
 	std::function<std::ostream&(std::ostream&)> print_path( bool path = true ) const&;
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
-	friend bool operator==( Thy const& x, Thy const& y ) {
-		return x._ref == y._ref;
-	}
+	friend bool operator==( Thy const& x, Thy const& y );
 };
 
 class Import : public Intp {
@@ -259,7 +256,7 @@ public:
 	Import compose( Import const& other ) const & {
 		return Import(Intp::compose(other),_src);
 	}
-	Opt<std::pair<CTerm,std::string>> assuming() const & {
+	Opt<Pair<CTerm,std::string>> assuming() const & {
 		if( auto assm = Intp::assuming() ) {
 			auto const& name = _src.find_assm_name(revision());
 			assert(name);
@@ -286,7 +283,7 @@ public:
 		Term ex;
 		Term spec;
 	};
-	Sum<Fix,Assume,Obtain,nullptr_t> modification( size_t i ) const& {
+	Sum<Fix,Assume,Obtain,std::nullptr_t> modification( size_t i ) const& {
 		auto mod = Intp::modification(i);
 		if( auto const& fix = mod.ref<Ctxt::Fix>() ) {
 			return Fix(*fix);

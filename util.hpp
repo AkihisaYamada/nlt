@@ -1,7 +1,7 @@
 #ifndef _UTIL_HPP_
 #define _UTIL_HPP_
 
-#include<ostream>
+#include<list>
 #include"syntax.hpp"
 
 class AThm;

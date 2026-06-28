@@ -184,8 +184,8 @@ private:
 				auto const& [y,rch,rbody] = *rbind;
 				bvars[0].push_back(x);
 				bvars[1].push_back(y);
-				auto const& xinfo = inds[0].insert({x,index});
-				auto const& yinfo = inds[1].insert({y,index});
+				auto const& xinfo = inds[0].emplace(x,index);
+				auto const& yinfo = inds[1].emplace(y,index);
 				index++;
 				unify(lbody,rbody);
 				index--;

@@ -150,11 +150,8 @@ Term Term::subst(string_view const& var, CTerm const& val) const {
 	if( val == var ) return *this;
 	return map(
 		unit_map(var,val),
-		[&](auto sym)->Opt<Term>{
-			if( auto t = val.ctxt().constant(sym) ) {
-				return *t;
-			}
-			return {};
+		[&](std::string_view const& sym)->bool{
+			return (bool)val.ctxt().constant(sym);
 		}
 	);
 }
@@ -273,7 +270,7 @@ CTerm Ctxt::fix(string_view const& s) {
 	return CTerm(*this,s);
 }
 
-pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
+Pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
 	if( has_constant(sym) ) throw Error("#ctxt")("\"obtaining fixed\"")(sym);
 	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
 	try {
@@ -371,19 +368,19 @@ CTerm CTerm::lift( CTerm const& quantifier ) const {
 
 CTerm Term::csubst(Subst const& subst) const {
 	auto const& ctxt = subst.ctxt();
-	auto fixed = [&](string_view const& sym)->Opt<Term> {
+	auto fixed = [&](string_view const& sym)->bool {
 		if( auto t = subst.ctxt().constant(sym) ) {
-			return *t;
+			return (bool)t;
 		}
-		return {};
+		return false;
 	};
 	if( subst.identity() ) {
 		// only check that the term is closed.
 		return ctxt.cterm(*this);
 	}
 	auto f = [&](string_view const& sym)->Opt<Term> {
-		if( auto it = subst._map.find(sym); it != subst._map.end() ) {
-			return it->second;
+		if( auto o = subst._map.finds(sym) ) {
+			return o->second;
 		} else if( ctxt.has_constant(sym) ) {
 			return {};
 		} else {

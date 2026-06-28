@@ -5,7 +5,7 @@
 	"version": "0.2.0",
 	"configurations": [
 {
-"name": "C/C++: g++ build and debug active file",
+"name": "debug",
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/test.exe",
@@ -29,6 +29,32 @@
 },
 ],
 "preLaunchTask": "make test"
+},
+{
+"name": "sanitize",
+"type": "cppdbg",
+"request": "launch",
+"program": "${workspaceFolder}/sanitize",
+"args": ["test.nl"],
+"stopAtEntry": true,
+"cwd": "${workspaceFolder}",
+"environment": [{"name": "ASAN_OPTIONS", "value": "abort_on_error=1"}],
+"externalConsole": false,
+"MIMode": "gdb",
+"miDebuggerPath": "/usr/bin/gdb",
+"setupCommands": [
+{
+  "description": "Enable pretty-printing for gdb",
+  "text": "-enable-pretty-printing",
+  "ignoreFailures": true
+},
+{
+"description": "Enable break on all exceptions",
+"text": "catch throw std::exception",
+"ignoreFailures": true
+},
+],
+"preLaunchTask": "make sanitize"
 }
 ]
 }

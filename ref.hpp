@@ -2,29 +2,49 @@
 #define _REF_HPP
 
 #include<memory>
+#include <type_traits>
+#include"opt.hpp"
+
 /**
  * @brief Non-null shared pointer.
  * 
  * @tparam T the type of the content.
  */
-template<typename T, bool nullable = false>
+template<typename T, bool _nullable = false>
 class Ref {
 	std::shared_ptr<T> _ptr;
 	T& operator*() && = delete;
 	T* operator->() && = delete;
-	Ref( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
+	Ref( std::shared_ptr<T>const& ptr ) : _ptr(ptr) {}
+	Ref( std::shared_ptr<T>&& ptr ) : _ptr(std::move(ptr)) {}
 	template<typename S, bool n>
 	friend class Ref;
-	template<typename S, bool n>
-	friend class Mem;
 public:
-	Ref() requires nullable {}
-	Ref( Ref const& org ) = default;
-	~Ref() = default;
-	operator bool() const requires nullable {
+	/**
+	 * @brief Null reference
+	 */
+	Ref() requires _nullable = default;
+	/**
+	 * @brief Non-null reference can be considered nullable
+	 */
+	Ref( Ref<T,false> const& org ) requires _nullable : _ptr(org._ptr) {}
+	template<typename S>
+		requires (std::convertible_to<S*,T*>)
+	Ref( Ref<S,_nullable>&& org ) : _ptr(std::move(org._ptr)) {}
+	template<typename S>
+		requires (std::convertible_to<S*,T*>)
+	Ref( Ref<S,_nullable>const& org ) : _ptr(org._ptr) {}
+	/** @brief Do not turn a constructed object into reference.
+	 * It would need a copy / move. Use Ref<T>::make( Args... ) instead.
+	 */
+	Ref(T const&) = delete;
+	operator bool() const requires _nullable {
 		return (bool)_ptr;
 	}
-	Ref& operator=( Ref const& other ) = default;
+	Ref<T,false> nonnull() const requires _nullable {
+		return _ptr;
+	}
+	Ref& operator=( Ref const& other ) & = default;
 	T& operator*() const & {
 		return *_ptr;
 	}
@@ -49,46 +69,76 @@ public:
 	 * @return a non-null pointer to the constructed object
 	 */
 	template<typename... Ts>
-	static Ref make(Ts... args...) {
-		return Ref(std::make_shared<T>(args...));
+	static Ref make(Ts&&... args) {
+		return Ref(std::make_shared<T>(std::forward<Ts>(args)...));
 	}
-	template<typename S, bool n1, bool n2>
-	friend bool operator==(Ref<S,n1> const& l, Ref<S,n2> const& r);
+	/**
+	 * @brief Tests if referencing the same object.
+	 */
+	template<bool n>
+	bool eq_ref( Ref<T,n> const& other ) const {
+		return _ptr == other._ptr;
+	}
+};
+
+template<typename T, bool n1, bool n2>
+bool operator==(Ref<T,n1> const& l, Ref<T,n2> const& r) {
+	return l.eq_ref(r) || *l == *r;
 };
 
 template<typename T>
 using OptRef = Ref<T,true>;
-
-template<typename T, bool n1, bool n2>
-bool operator==(Ref<T,n1> const& l, Ref<T,n2> const& r) {
-	return l._ptr == r._ptr;
-};
 
 /**
  * @brief Memoized object. Modification to the object will not affect other references.
  * 
  * @tparam T 
  */
-template<class T, bool nullable = false>
+template<class T, bool _nullable = false>
 class Mem {
-	std::shared_ptr<T> _ptr;
+	mutable std::shared_ptr<T> _ptr;
 	T operator*() && = delete;
 	T* operator->() && = delete;
-	Mem( std::shared_ptr<T> const& ptr ) : _ptr(ptr) {}
-	void _fork() {
+	void _fork() const {
 		if( !_ptr.unique() ) {
 			_ptr = std::make_shared<T>(*_ptr);
 		}
 	}
+	template<typename S, bool n>
+	friend class Mem;
 public:
-	Mem() requires nullable {}
+	/**
+	 * @brief Null object
+	 */
+	Mem() requires _nullable = default;
+	/**
+	 * @brief Non-null object can be considered nullable
+	 */
+	Mem( Mem<T,false> const& org ) requires _nullable : _ptr(org._ptr) {}
 	Mem( Mem const& other ) : _ptr(other._ptr) {}
-	Mem( Ref<T const> const& other ) : _ptr(other._ptr) {}
-	operator bool() const requires nullable {
-		return (bool)_ptr;
+	Mem( Mem && other ) : _ptr(std::move(other._ptr)) {}
+	Mem& operator=( Mem const& other ) & {
+		_ptr = other._ptr;
+		return *this;
 	}
-	bool unique() const & {
-		return _ptr.unique();
+	Mem& operator=( Mem && other ) & {
+		_ptr = std::move(other._ptr);
+		return *this;
+	}
+	template<typename... Ts>
+	explicit Mem(Ts&&... args) : _ptr(std::make_shared<T>(std::forward<Ts>(args)...)) {}
+	/**
+	 * @brief Optional non-null object can be seen as a nullable object
+	 */
+	template<typename S> requires _nullable && std::is_convertible_v<S,Mem<T>>
+	explicit Mem( Opt<S> const& org ) : _ptr( org ? ((Mem<T>)*org)._ptr : nullptr ) {}
+	/**
+	 * @brief Optional non-null object can be seen as a nullable object
+	 */
+	template<typename S> requires _nullable && std::is_convertible_v<S,Mem<T>>
+	explicit Mem( Opt<S const&> const& org ) : _ptr( org ? ((Mem<T>)*org)._ptr : nullptr ) {}
+	operator bool() const requires _nullable {
+		return (bool)_ptr;
 	}
 	/**
 	 * @brief Const reference.
@@ -99,35 +149,24 @@ public:
 	T const* operator->() const & {
 		return _ptr.get();
 	}
-	operator Ref<T const>() const & {
-		return Ref<T const>(_ptr);
-	}
 	/**
 	 * @brief Modifiable reference. This will be the unique owner of the object.
 	 */
-	T& modify() & {
+	T& operator*() & {
 		_fork();
 		return *_ptr;
 	}
-	/**
-	 * @brief Constructing a shared object.
-	 * 
-	 * @param args arguments to the object constructor
-	 * @return a non-null pointer to the constructed object
-	 */
-	template<typename... Ts>
-	static Mem make(Ts... args...) {
-		return Mem(std::make_shared<T>(args...));
+	T* operator->() & {
+		_fork();
+		return _ptr.get();
 	}
-	template<class S>
-	friend bool operator==(Mem<S> const& l, Mem<S> const& r);
+	template<bool n>
+	bool operator==( Mem<T,n> const& r ) const {
+		return _ptr == r._ptr || *_ptr == *r;
+	}
 };
 
-template<class T>
-bool operator==(Mem<T> const& l, Mem<T> const& r) {
-	return l._ptr == r._ptr || *l == *r;
-}
-template<class T>
+template<typename T>
 using OptMem = Mem<T,true>;
 
 #endif

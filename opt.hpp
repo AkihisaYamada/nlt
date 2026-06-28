@@ -2,6 +2,9 @@
 #define _OPT_HPP
 
 #include<optional>
+#include<functional>
+#include<cassert>
+#include <type_traits>
 
 /**
  * @brief A wrapper for std::optional.
@@ -13,24 +16,29 @@ class Opt {
 	friend class Opt;
 public:
 	Opt() {}
-	Opt( Opt&& other ) : _opt(std::move(other._opt)) {}
-	Opt( Opt const& other ) : _opt(other._opt) {}
+	Opt( Opt&& other ) = default;
+	Opt( Opt const& other ) = default;
 	Opt( T&& org ) : _opt(std::move(org)) {}
-	template<typename S> requires std::is_convertible_v<S,T>
-	Opt( S const& org ) : _opt(org) {}
+	Opt( T const& org ) : _opt(org) {}
+	template<typename S>
+		requires (!std::is_same_v<std::remove_cvref_t<S>, Opt>)
+	Opt( S&& org ) : _opt(std::forward<S>(org)) {}
 	/**
 	 * @brief Constructs optional object in-place.
 	 */
 	template<typename... Ts>
-	Opt( std::in_place_t const& t, Ts&&... xs... ) : _opt(t,std::forward<Ts>(xs)...) {}
-	operator bool() const {
+	Opt( std::in_place_t, Ts&&... xs ) : _opt(std::in_place,std::forward<Ts>(xs)...) {}
+	explicit operator bool() const {
 		return (bool)_opt;
 	}
-	Opt& operator=( Opt && other ) {
+	bool operator!() const {
+		return !_opt;
+	}
+	Opt& operator=( Opt && other ) & {
 		_opt = std::move(other._opt);
 		return *this;
 	}
-	Opt& operator=( Opt const& other ) {
+	Opt& operator=( Opt const& other ) & {
 		_opt = other._opt;
 		return *this;
 	}
@@ -47,14 +55,24 @@ public:
 		return *std::move(_opt);
 	}
 	/** @brief Returns a copy of the value or given default. */
-	T value_or( T&& def ) {
-		if(_opt) return *_opt;
-		return def;
+	T value_or( T&& def ) && {
+		if(_opt) return std::move(*_opt);
+		return std::move(def);
 	}
 	/** @brief Refers to the value or the default. */
 	T const& value_or( T const& def ) const & {
 		if(_opt) return *_opt;
 		return def;
+	}
+	template<typename E>
+	T value_or_throw( E const& err ) {
+		if(_opt) return *_opt;
+		throw err;
+	}
+	template<typename E>
+	T const& value_or_throw( E const& err ) const& {
+		if(_opt) return *_opt;
+		throw err;
 	}
 	T const* operator->() const & {
 		assert(_opt);
@@ -68,8 +86,15 @@ public:
 		if(_opt) return *_opt;
 		return other;
 	}
-	bool operator&&( std::function<bool(T const&)> f ) const& {
-		return *this && f(*_opt);
+	template<typename F>
+	auto operator>>=( F const& f ) && {
+		using O = std::invoke_result_t<F,T>;
+		return *this ? f(std::move(*_opt)) : O{};
+	}
+	template<typename F>
+	auto operator>>=( F const& f ) const& {
+		using O = std::invoke_result_t<F, T const&>;
+		return *this ? f(*_opt) : O{};
 	}
 	template<typename U>
 	bool contains( U const& other ) const {
@@ -86,10 +111,21 @@ public:
 		return Opt<U&>( _opt ? &*_opt : nullptr );
 	}
 	template<class... Args>
+		requires std::is_constructible_v<T,Args...>
+	static Opt make( Args&&... args ) {
+		return Opt(std::in_place,std::forward<Args>(args)...);
+	}
+	template<class... Args>
+		requires std::is_constructible_v<T,Args...>
 	T& emplace( Args&&... args ) & {
 		return _opt.emplace(std::forward<Args>(args)...);
 	}
 };
+
+template<typename T, typename U>
+bool operator==( Opt<T> const& x, Opt<U> const& y ) {
+	return x ? y && *x == *y : !y;
+}
 
 /**
  * @brief Optional reference.
@@ -115,7 +151,8 @@ public:
 	Opt() : _ptr(nullptr) {}
 	Opt( T& l ) : _ptr(&l) {}
 	operator Opt<T const&>() { return _ptr; }
-	operator bool() const { return _ptr; }
+	explicit operator bool() const { return _ptr; }
+	bool operator==( Opt const& other ) const & = default;
 	T& operator*() const {
 		assert(*this);
 		return *_ptr;
@@ -123,6 +160,43 @@ public:
 	T* operator->() const {
 		assert(*this);
 		return _ptr;
+	}
+	bool operator&&( std::function<bool(T const&)> f ) const& {
+		return *this && f(*_ptr);
+	}
+	template<typename U>
+	bool contains( U const& other ) const {
+		return *this && **this == other;
+	}
+	/** @brief Returns a copy of the value or moves the given default. */
+	T value_or( T&& def ) {
+		if(_ptr) return *_ptr;
+		return std::move(def);
+	}
+	/** @brief Returns a reference to the value or given default. */
+	T const& value_or( T const& def ) {
+		if(_ptr) return *_ptr;
+		return def;
+	}
+	template<typename E>
+	T& value_or_throw( E const& err )& {
+		if(_ptr) return *_ptr;
+		throw err;
+	}
+	template<typename E>
+	T const& value_or_throw( E const& err ) const& {
+		if(_ptr) return *_ptr;
+		throw err;
+	}
+	template<typename F>
+	auto operator>>=( F const& f ) & {
+		using O = std::invoke_result_t<F,T&>;
+		return *this ? f(*_ptr) : O{};
+	}
+	template<typename F>
+	auto operator>>=( F const& f ) const& {
+		using O = std::invoke_result_t<F, T const&>;
+		return *this ? f(*_ptr) : O{};
 	}
 };
 

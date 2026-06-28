@@ -4,7 +4,6 @@
 #include<string>
 #include<cstdlib>
 #include<cassert>
-#include<exception>
 #include<map>
 #include<functional>
 #include"core.hpp"

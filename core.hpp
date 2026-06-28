@@ -7,7 +7,6 @@
 #include<set>
 #include<exception>
 #include<functional>
-#include<list>
 #include<iostream>
 #include"ref.hpp"
 #include"sum.hpp"
@@ -54,10 +53,10 @@ typedef std::set<std::string,std::less<>> StrSet;
 typedef std::multiset<std::string,std::less<>> StrMSet;
 
 class Term {
-	typedef std::pair<Term,Term> Pair;
-	typedef std::pair<std::string,Term> StrTerm;
-	struct App : Ref<Pair const> {
-		App(Term const& fun, Term const& arg) : Ref(Ref<Pair const>::make(fun,arg)) {}
+	typedef Pair<Term,Term> TermPair;
+	typedef Pair<std::string,Term> StrTerm;
+	struct App : Ref<TermPair const> {
+		App(Term const& fun, Term const& arg) : Ref(Ref<TermPair const>::make(fun,arg)) {}
 	};
 	struct Abs : Ref<StrTerm const> {
 		Abs(std::string_view const& var, Term const& body) : Ref(Ref<StrTerm const>::make(var,body)) {}
@@ -75,7 +74,7 @@ class Term {
 		}
 		Opt<Term> map_var( std::string const& sym ) {
 			if( auto opt = bsyms.finds(sym) ) {
-				return opt->second;
+				return {opt->second};
 			}
 			return f(sym);
 		}
@@ -120,14 +119,14 @@ public:
 		return _un.ref<std::string>();
 	}
 	/** @brief Move the function and argument if the term is an application. */
-	Opt<Pair> app() && {
+	Opt<TermPair> app() && {
 		if( auto const& opt = std::move(_un).ref<App>() ) {
 			return {**opt};
 		}
 		return {};
 	}
 	/** @brief Reference to the function and argument if the term is an application. */
-	Opt<Pair const&> app() const & {
+	Opt<TermPair const&> app() const & {
 		if( auto opt = _un.ref<App>() ) {
 			return {**opt};
 		}
@@ -208,7 +207,7 @@ public:
 	 * @param f expected function symbol
 	 * @return the pair of arguments, in case of match
 	 */
-	Opt<std::pair<Term const&,Term const&>> binary( std::string_view const& f ) const & {
+	Opt<Pair<Term const&,Term const&>> binary( std::string_view const& f ) const & {
 		if( auto x = app() )
 		if( auto a = x->first.unary(f) ) {
 			return {{*a,x->second}};
@@ -220,7 +219,7 @@ public:
 	 * @param f expected function symbol
 	 * @return the pair of arguments, in case of match
 	 */
-	Opt<Pair> binary( std::string_view const& f ) && {
+	Opt<TermPair> binary( std::string_view const& f ) && {
 		if( auto x = binary(f) ) {
 			return {{std::move(x->first),std::move(x->second)}};
 		}
@@ -338,11 +337,11 @@ public:
 	/** @brief Optionally returns the parent information.
 	 * @return the pair of the parent context and the revision when this context was forked.
 	 */
-	Opt<std::pair<Ctxt,size_t> const&> find_parent() const &;
+	Opt<Pair<Ctxt,size_t> const&> find_parent() const &;
 	/** @brief Obtains the parent information.
 	 * @exception is thrown if no such context is found.
 	 */
-	std::pair<Ctxt,size_t> const& parent() const & {
+	Pair<Ctxt,size_t> const& parent() const & {
 		auto opt = find_parent();
 		if( !opt ) throw Error(__func__)("\"parent of root\"");
 		return *opt;
@@ -394,7 +393,7 @@ public:
 	 * @param thm of form ∀thesis. (∀sym. props... ⟹ thesis) ⟹ thesis
 	 * @return the fixed sym and theorem stating ∀thesis. (props... ⟹ thesis) ⟹ thesis
 	 */
-	std::pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm);
+	Pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm);
 	/** @brief Returns the self interpretation. */
 	Intp self() const;
 	/** @brief Creates a child context.
@@ -413,7 +412,7 @@ public:
 struct Ctxt::Body {
 	using _Modifier = Sum<Fix,Assume,Obtain>;
 	/** Parent context and its revision. */
-	Opt<std::pair<Ctxt,size_t>> parent;
+	Opt<Pair<Ctxt,size_t>> parent;
 	/** Vector of modifiers */
 	std::vector<_Modifier> modifiers;
 	/** The set of locally fixed variables (excluding ancestors). */
@@ -423,14 +422,14 @@ struct Ctxt::Body {
 	/** @brief dummy: Contexts are equal only if they have the same reference to the body.
 	 * Therefore, two context bodies are always considered unequal.
 	 */
-	inline bool operator==(Body const& r) {
+	inline bool operator==(Body const& r) const {
 		return false;
 	};
 };
 inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
 }
-inline Opt<std::pair<Ctxt,size_t> const&> Ctxt::find_parent() const & {
+inline Opt<Pair<Ctxt,size_t> const&> Ctxt::find_parent() const & {
 	return _ref->parent;
 }
 inline size_t Ctxt::revision() const {
@@ -461,8 +460,8 @@ private:
 	/** @brief Trusted construction of a closed term. */
 	CTerm(Ctxt const& ctxt, Term const& t) : _ctxt(ctxt), Term(t) {}
 	CTerm() = delete;
-	typedef std::pair<CTerm const, CTerm const> Pair;
-	typedef std::pair<std::string const, CTerm const> StrTerm;
+	typedef Pair<CTerm const, CTerm const> CTermPair;
+	typedef Pair<std::string const, CTerm const> StrTerm;
 public:
 	CTerm(CTerm const& other) : _ctxt(other._ctxt), Term(other) {}
 	CTerm(CTerm&& other) : _ctxt(other._ctxt), Term(other) {}
@@ -479,9 +478,9 @@ public:
 	 * 
 	 * @return a pair of closed terms if this is an application.
 	 */
-	Opt<Pair> capp() const {
+	Opt<CTermPair> capp() const {
 		if( auto tapp = Term::app() ) {
-			return Pair(CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second));
+			return {{CTerm(_ctxt,tapp->first),CTerm(_ctxt,tapp->second)}};
 		}
 		return {};
 	}
@@ -522,10 +521,10 @@ public:
 	 * @param f the binary function
 	 * @return If this is application of f, then the pair of arguments.
 	 */
-	Opt<Pair> cbinary( std::string_view const& f ) const {
+	Opt<CTermPair> cbinary( std::string_view const& f ) const {
 		if( auto bin = binary(f) ) {
 			auto [s,t] = *bin;
-			return Pair(CTerm(_ctxt,s),CTerm(_ctxt,t));
+			return {{CTerm(_ctxt,s),CTerm(_ctxt,t)}};
 		}
 		return {};
 	}
@@ -646,8 +645,8 @@ public:
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
 	Opt<CTerm> get(std::string_view const& var) const {
-		if( auto it = _map.find(var); it != _map.end() ) {
-			return CTerm( _ctxt, it->second ? *it->second : var );
+		if( auto o = _map.finds(var) ) {
+			return {CTerm( _ctxt, o->second.value_or(var) )};
 		}
 		return {};
 	}
@@ -761,7 +760,7 @@ public:
 		return _subst.identity();
 	}
 	/** unprocessed modification */
-	Sum<Ctxt::Fix,Ctxt::Assume,Ctxt::Obtain,nullptr_t> modification( size_t i ) const& {
+	Sum<Ctxt::Fix,Ctxt::Assume,Ctxt::Obtain,std::nullptr_t> modification( size_t i ) const& {
 		if( _rev < 0 ) {
 			return nullptr;
 		}

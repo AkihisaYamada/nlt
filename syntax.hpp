@@ -3,7 +3,6 @@
 
 #include<iostream>
 #include"core.hpp"
-#include"lexer.hpp"
 
 std::function<std::ostream&(std::ostream&)> const ENDL =
 	[]( std::ostream& os )->std::ostream&{ return os << std::endl; };
@@ -94,21 +93,21 @@ public:
 		_print_ctxt = b;
 	}
 	void prefix(std::string const& sym, int level, int rlevel) {
-		_prefixes.insert({sym,{level,rlevel}});
+		_prefixes.emplace(sym,Prefix{level,rlevel});
 	}
-	Opt<std::pair<std::string const,Prefix> const&> finds_prefix(std::string_view const& sym) const {
+	Opt<Pair<std::string const&,Prefix const&>> finds_prefix(std::string_view const& sym) const {
 		return _prefixes.finds(sym);
 	}
 	void infix( std::string const& sym, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
-		_infixes.insert({sym,{level,llevel,rlevel,cons}});
+		_infixes.emplace(sym,Infix{level,llevel,rlevel,cons});
 	}
-	Opt<std::pair<std::string const,Infix> const&> finds_infix(std::string_view const& sym) const {
+	Opt<Pair<std::string const&,Infix const&>> finds_infix(std::string_view const& sym) const {
 		return _infixes.finds(sym);
 	}
 	bool has_closer(std::string_view const& sym) const {
 		return _closers.contains(sym);
 	}
-	Opt<std::pair<std::string const, Opener> const&> finds_opener( std::string_view const& sym ) const {
+	Opt<Pair<std::string const&, Opener const&>> finds_opener( std::string_view const& sym ) const {
 		return _openers.finds(sym);
 	}
 	void binder( std::string_view const& binder, int llevel, int rlevel ) {
