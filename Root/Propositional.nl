@@ -37,9 +37,15 @@ extend Iff begin
 
 end
 
-extend TypeSafeMinimal begin
+extend TypeSafeMinimal:
+	import Membership.
+begin
 
 	interpret .Iff.
+
+	extend _base.MetaRelation begin
+		interpret? Iff.MetaRelation.
+	end
 
 	interpret Prop_and: Prop_iff.CommMonoid (∧) true;
 		by and.commute and.left_assoc.
@@ -51,10 +57,11 @@ theory PierceLaw:
 end
 
 theory Minimal:
-	--- Allows elimination rules only derive propositions. ---
+	--- Only allows elimination rules derive *propositions*. ---
 	import TypeSafeMinimal.
 	assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R, R ∈ Prop then R.
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q, Q ∈ Prop then Q.
+	import Membership.
 begin
 
 	interpret Prop_or: Symmetric Prop (∨);
@@ -116,26 +123,54 @@ begin
 	---
 	## Existence
 	---
-	lemma ex_imp_all_imp:
-		if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x], !Q ∈ Prop then Q;
-		apply ex_elim[OF ex];
-		- for x if imp: P.[x] ⟹ Q;
-			by imp all.
-		.
-	lemma ex_imp_iff_all#simp
-		if ! Q ∈ Prop then ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+	lemma ex_imp_iff_all#simp#rule
+		if Q! Q ∈ Prop then ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		apply iff_intro;
-		- if imp, Px: P.[x];
+		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
 			by imp ex_intro1[OF Px].
-		- if imp, ex;
-			apply ex_elim[OF ex];
-			- for x;
-				by imp[of x].
-			.
+		- if imp: ∀x. P.[x] ⟹ Q;
+			by #elim imp ex_elim.
 		.
-	lemma nex_iff_all_not: ¬(∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
+
+print.
+	lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q ∈ Prop. (∀x. P.[x] ⟹ Q) ⟹ Q);
+		apply iff_intro;
+		-> if ex, Q! Q ∈ Prop, imp;
+			apply ex_elim[OF ex]; apply imp=.
+		- if all;
+			apply ex_intro;.
+		.
+
+	lemma ex_cong#cong#rule_cong if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
+		unfold ex_iff eq.
+
+	lemma ex_indep#simp (∃x. P) ⟺ P;
+		by iff_intro ex_intro1 #elim ex_elim.
+
+	lemma ex_and1#rule (∃x. P.[x]) ∧ Q ⟺ (∃x. P.[x] ∧ Q);
+		simp iff_iff_and imp_and_distrib;
+		- for x;
+			by ex_intro1[of x].
+		.
+
+	lemma ex_and2#rule P ∧ (∃x. Q.[x]) ⟺ (∃x. P ∧ Q.[x]);
+		simp iff_iff_and imp_and_distrib;
+		- for x;
+			by ex_intro1[of x].
+		.
+
+	lemma ex_or_distrib: (∃x. P.[x] ∨ Q.[x]) ⟺ (∃x. P.[x]) ∨ (∃x. Q.[x]);
+		simp iff_iff_and or_imp_iff all_and_distrib[dual];
+		- for x;
+			by ex_intro1[of x].
+		.
+
+	lemma nex_iff_all_not: ¬ (∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
 		simp not_iff_imp_false.
 
+	---
+	## Theories
+	---
 	theory ExcludedMiddle:
 		assume or_not:
 			-- @English excluded middle
@@ -162,6 +197,55 @@ begin
 					.
 				.
 			.
+	end
+
+	extend MetaRelation begin
+		extend ExRel begin
+			lemma ex_elim: if ex: ∃x ⊏ a. P.[x], imp: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q, ! Q ∈ Prop then Q;
+				apply ex[unfold ex_def, THEN ex_elim];
+				- for x;
+					by imp[of x].
+				.
+print.
+			lemma ex_cong_strong:
+				if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+				then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
+				unfold+ ex_def; unfold a; unfold P.
+			lemma ex_cong_weak:
+				if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
+				unfold+ ex_def P.
+			lemma ex_imp_iff: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
+				apply iff_intro;
+				- if imp, x: x ⊏ a, Px: P.[x];
+					apply imp ex_intro1[OF x Px].
+				- if all, ex;
+					apply ex_elim[OF ex];
+					- for x if x, Px;
+						apply all[OF x Px].
+					.
+				.
+			lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
+				simp ex_def and_or_distrib .ex_or_distrib.
+			lemma ex_iff: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q);
+				unfold ex_def ex_iff.
+
+		end
+
+		extend AllRel begin -- TODO: automate?
+			extend ExRel begin
+				lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
+					simp ex_def all_def ex_imp_iff.
+				lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
+					unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+			end
+		end
+	end
+
+	extend Membership begin
+		interpret in: Minimal.MetaRelation (∈).
+		interpret in: in.AllRel (∀∈).
+		interpret in: in.ExRel (∃∈).
+		note#rule in.ex_imp_iff.
 	end
 
 end

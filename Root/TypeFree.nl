@@ -88,10 +88,12 @@ begin
 	## Existence
 	---
 
-	lemma ex_imp_all_imp: if ex: ∃x. P.[x] ⟹ Q, all: ∀x. P.[x] then Q;
-		apply ex_elim[OF ex];
-		- for x if imp: P.[x] ⟹ Q;
-			by imp all.
+	lemma ex_imp_iff_all#simp#rule ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
+		apply iff_intro;
+		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
+			by imp ex_intro1[OF Px].
+		- if imp: ∀x. P.[x] ⟹ Q;
+			by #elim imp ex_elim.
 		.
 
 	lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
@@ -105,14 +107,6 @@ begin
 
 	lemma ex_indep#simp (∃x. P) ⟺ P;
 		by iff_intro ex_intro1 #elim ex_elim.
-
-	lemma ex_imp_iff_all#simp#rule ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
-		apply iff_intro;
-		- if imp: (∃x. P.[x]) ⟹ Q, Px: P.[x];
-			by imp ex_intro1[OF Px].
-		- if imp: ∀x. P.[x] ⟹ Q;
-			by #elim imp ex_elim.
-		.
 
 	lemma ex_and1#rule (∃x. P.[x]) ∧ Q ⟺ (∃x. P.[x] ∧ Q);
 		simp iff_iff_and imp_and_distrib;

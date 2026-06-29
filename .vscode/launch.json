@@ -9,10 +9,9 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/test.exe",
-"args": ["test.nl"],
+"args": ["Root/Iff.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
-"environment": [],
 "externalConsole": false,
 "MIMode": "gdb",
 "miDebuggerPath": "/usr/bin/gdb",
@@ -27,6 +26,11 @@
 "text": "catch throw std::exception",
 "ignoreFailures": true
 },
+{
+	"description": "Clear debuginfod URLs to stop hangs",
+	"text": "set debuginfod urls ",
+	"ignoreFailures": true
+},
 ],
 "preLaunchTask": "make test"
 },
@@ -34,8 +38,8 @@
 "name": "sanitize",
 "type": "cppdbg",
 "request": "launch",
-"program": "${workspaceFolder}/sanitize",
-"args": ["test.nl"],
+"program": "${workspaceFolder}/sanitize.exe",
+"args": ["Root/Iff.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [{"name": "ASAN_OPTIONS", "value": "abort_on_error=1"}],

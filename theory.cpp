@@ -162,8 +162,7 @@ Import& Thy::add_import( string_view const& prefix, Import const& import, bool r
 	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
 }
 void Thy::erase_import( string_view const& prefix ) & {
-	auto const& [it,end] = _ref->imports.equal_range(prefix);
-	_ref->imports.erase(it,end);
+	_ref->imports.erase_front(prefix);
 }
 function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =
 	[]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm> {
@@ -229,15 +228,13 @@ Opt<Thm> Thy::_find_thm_name(
 	bool allow_rec
 ) const {
 	// find from local theorems
-	for( auto [fst,it] = _ref->thms.equal_range(name); it != fst; ) {
-		it--;
+	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
 		if( auto ret = test(import,it->second.first,it->second.second) ) {// found in the current theory
 			return ret;
 		}
 	}
-	auto f = [&]( auto const& fst_it )->Opt<Thm> {
-		for( auto [fst,it] = fst_it; it != fst; ) {
-			it--;
+	auto f = [&]( auto const& fst_end )->Opt<Thm> {
+		for( auto [it,end] = fst_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
 			if( p.ready() )
 			if( auto ret = p._src._find_thm_name(name,p.compose(import),test,false,rec) ) {
@@ -272,17 +269,15 @@ Opt<Thm> Thy::_find_thm(
 		return ret;
 	}
 	// find from local imports
-	for( auto [fst,it] = _ref->imports.equal_range(pre); it != fst; ) {
-		it--;
+	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
 		auto const& [p,rec] = it->second;
 		if( p.ready() )
 		if( auto ret = p._src._find_thm(rest,p.compose(import),test,false,rec) ) {
 			return ret;
 		}
 	}
-	auto g = [&]( auto const& fst_it )->Opt<Thm> {
-		for( auto [fst,it] = fst_it; it != fst; ) {
-			it--;
+	auto g = [&]( auto const& it_end )->Opt<Thm> {
+		for( auto [it,end] = it_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
 			if( p.ready() )
 			if( auto ret = p._src._find_thm(pre,rest,p.compose(import),test,false,rec) ) {
@@ -358,9 +353,8 @@ Opt<Import> Thy::_find_thy_name(
 			if( test(thy) ) return {Import::make(thy,*this)};
 		}
 	}
-	auto f = [&]( auto const& fst_it )->Opt<Import> {
-		for( auto [fst,it] = fst_it; it != fst; ) {
-			it--;
+	auto f = [&]( auto const& it_end )->Opt<Import> {
+		for( auto [it,end] = it_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
 			if( p.ready() )
 			if( auto o = p._src._find_thy_name(name,reader,test,false,rec) ) {
@@ -397,17 +391,15 @@ Opt<Import> Thy::_find_thy(
 		return ret;
 	}
 	// find from local imports
-	for( auto [fst,it] = _ref->imports.equal_range(pre); it != fst; ) {
-		it--;
+	for( auto [it,end] = _ref->imports.equal_range(pre); it != end; it++ ) {
 		auto const& [p,rec] = it->second;
 		if( p.ready() )
 		if( auto o = p._src._find_thy(rest,reader,test,false,rec) ) {
 			return {o->compose(p)};
 		}
 	}
-	auto g = [&]( auto const& fst_it )->Opt<Import> {
-		for( auto [fst,it] = fst_it; it != fst; ) {// find from unqualified imports
-			it--;
+	auto g = [&]( auto const& it_end )->Opt<Import> {
+		for( auto [it,end] = it_end; it != end; it++ ) {// find from unqualified imports
 			auto const& [p,rec] = it->second;
 			if( p.ready() )
 			if( auto o = p._src._find_thy(pre,rest,reader,test,false,rec) ) {

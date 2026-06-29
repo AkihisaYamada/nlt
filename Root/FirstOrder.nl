@@ -9,9 +9,8 @@ assume exIn_type! if A ∈ QTYPE, ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x �
 
 begin
 
-extend Minimal:
-	import in: AllExRel (∈) (∀∈) (∃∈).
-begin
+extend Minimal begin
+
 	note#simp in.ex_imp_iff_all.
 	lemma exIn_cong:
 		if eq: ∀x. x ∈ A ⟹ P.[x] ⟺ P'.[x],

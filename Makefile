@@ -8,34 +8,40 @@ THEORY_SRCS=$(UTIL_SRCS) order.cpp theory.cpp
 PROVER_SRC=inference.cpp rewrite.cpp definer.cpp parser.cpp prover.cpp
 PROVER_SRCS=$(THEORY_SRCS) $(PROVER_SRC)
 SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(THEORY_TEST_SRC)
-CPP=g++ -O3 -std=c++20 -Wfatal-errors
+CPP=g++ -std=c++20 -Wfatal-errors
 DEPEND=_depend
 BUILD=_build
 DEBUG=_debug
+SANITIZE=_sanitize
 DEPS=$(SRCS:%.cpp=$(DEPEND)/%.d)
 OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DOBJS=$(SRCS:%.cpp=$(DEBUG)/%.o)
-DCPP=g++ -O0 -ggdb3 -std=c++20 -Wfatal-errors
+BUILD_CPP=$(CPP) -O3
+DEBUG_CPP=$(CPP) -O0 -ggdb3
+SANITIZE_CPP=$(CPP) -O1 -ggdb3 -fsanitize=address,alignment,undefined -fno-omit-frame-pointer
 
 .PHONY: core_test util_test
 
 nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
-	${CPP} $^ -o $@
+	${BUILD_CPP} $^ -o $@
+
+sanitize: $(PROVER_SRCS:%.cpp=$(SANITIZE)/%.o)
+	${SANITIZE_CPP} $^ -o $@
 
 test_core.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
-	${DCPP} $^ -o $@
+	${DEBUG_CPP} $^ -o $@
 
 test_core: test_core.exe
 	./$^
 
 test_util.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
-	${DCPP} $^ -o $@
+	${DEBUG_CPP} $^ -o $@
 
 test_util: test_util.exe
 	./$^
 
 test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
-	${DCPP} $^ -o $@
+	${DEBUG_CPP} $^ -o $@
 
 test: test.exe test.nl
 	./test.exe test.nl
@@ -56,15 +62,19 @@ $(DEPEND)/%.d: %.cpp
 
 $(BUILD)/%.o: %.cpp
 	@mkdir -p $(@D)
-	${CPP} -c $< -o $@
+	${BUILD_CPP} -c $< -o $@
 
 $(DEBUG)/%.o: %.cpp
 	@mkdir -p $(@D)
-	${DCPP} -c $< -o $@
+	${DEBUG_CPP} -c $< -o $@
+
+$(SANITIZE)/%.o: %.cpp
+	@mkdir -p $(@D)
+	${SANITIZE_CPP} -c $< -o $@
 
 .PHONY: clean test test_core test_util test_locale
 
 clean:
-	rm -rf $(DEPEND) $(BUILD) $(DEBUG)
+	rm -rf $(DEPEND) $(BUILD) $(DEBUG) $(SANITIZE)
 
 -include ${DEPS}

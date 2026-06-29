@@ -143,6 +143,7 @@ extend MetaRelation begin
 	begin
 		interpret AllRel;
 			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
+print prover 20.
 				by all[fold all_def].
 			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
 				by allIn[unfold all_def, OF x].

@@ -131,15 +131,17 @@ public:
 	}
 	template<typename Ka>
 	Opt<Pair<K const&,T&>> finds_pair_front( Ka const& k ) & {
-		auto it = _body.lower_bound(k);
-		if( it == _body.end() || comp(k,it->first) ) return {};
-		return {{it->first,it->second}};
+		if( auto it = _body.lower_bound(k); it != _body.end() && k == it->first ) {
+			return {{it->first,it->second}};
+		}
+		return {};
 	}
 	template<typename Ka>
 	Opt<Pair<K const&,T const&>> finds_pair_front( Ka const& k ) const & {
-		auto it = _body.lower_bound(k);
-		if( it == _body.end() || comp(k,it->first) ) return {};
-		return {{it->first,it->second}};
+		if( auto it = _body.lower_bound(k); it != _body.end() && k == it->first ) {
+			return {{it->first,it->second}};
+		}
+		return {};
 	}
 	template<typename Ka>
 	Opt<T const&> finds_value_front( Ka&& k ) const& {
@@ -156,10 +158,11 @@ public:
 	}
 	template<typename Ka>
 	bool erase_front( Ka const& k ) {
-		auto it = _body.lower_bound(k);
-		if( it == end() || comp(k,it->first) ) return false;
-		_body.erase(it);
-		return true;
+		if( auto it = _body.lower_bound(k); it != _body.end() && k == it->first ) {
+			_body.erase(it);
+			return true;
+		}
+		return false;
 	}
 	iterator erase( iterator const& it ) {
 		return _body.erase(it);
