@@ -300,10 +300,10 @@ Opt<size_t> Tokenizer::gets_nat() {
 }
 Opt<int> Tokenizer::gets_int() {
 	if( skips("-") ) {
-		return {-get_nat()};
+		return {-(int)get_nat()};
 	}
 	if( auto n = gets_nat() ) {
-		return {*n};
+		return {(int)*n};
 	}
 	return {};
 }

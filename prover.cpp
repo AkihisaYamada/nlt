@@ -1286,7 +1286,7 @@ public:
 		return ret;
 	}
 	Pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
-		auto ret = Pair(Opt<string>{},Opt<ClaimStatus>{});
+		Pair<Opt<string>,Opt<ClaimStatus>> ret;
 		ret.first = gets( Tokenizer::Word | Tokenizer::Number );
 		ret.second = gets_claim_status();
 		if( !ret.second ) {
@@ -1587,8 +1587,10 @@ public:
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals(thesis,"applied goals:\n\t");
 			} else if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
-				auto const& [rew_name,ex] = mode == 1 ?
-					Pair{SIMP,string("simplified")} : Pair{RULIFY,string("rulified")};
+				auto const& [rew_name,ex] = [&]()->Pair<string,string>{
+					if( mode == 1 ) return {SIMP,"simplified"};
+					return {RULIFY,"rulified"};
+				}();
 				auto& rew = _thy.rewriter(rew_name);
 				auto resolver = Resolver({rew}, _out_resolver);
 				while( auto thm = gets_thm() ) {

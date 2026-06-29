@@ -7,11 +7,11 @@ struct Comparator {
 	StrMap<unsigned int> rinds;
 	Comparator() : depth(0), linds(), rinds() {}
 	int compare_var(string const& x, string const& y ) {
-		auto lopt = linds.finds(x);
-		auto ropt = rinds.finds(y);
+		auto lopt = linds.finds_value(x);
+		auto ropt = rinds.finds_value(y);
 		if( lopt ) {
 			if( ropt ) {
-				return lopt->second - ropt->second;// later bound variable is bigger
+				return *lopt - *ropt;// later bound variable is bigger
 			}
 			return 1; // bound > free
 		}

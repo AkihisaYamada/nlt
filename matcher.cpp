@@ -145,9 +145,9 @@ struct Matcher {
 	}
 	bool match( Term const& pat, Term const& val, Opt<Subst const&> subst ) {
 		if( auto sym = pat.sym() ) {// pat is a symbol
-			if( auto lind = linds.finds(*sym) ) {// pat is a bound variable
+			if( auto lind = linds.finds_value(*sym) ) {// pat is a bound variable
 				if( auto rsym = val.sym() ) {// val must be a bound variable of the same index
-					return rinds.finds(*rsym) == lind;
+					return rinds.finds_value(*rsym) == lind;
 				}
 				return false;
 			}
@@ -202,8 +202,9 @@ struct Matcher {
 					return false;
 				}
 				if( fvar(x) ) {// applied pattern variable
-					if( auto var = pat2.sym() ) if( auto ind = linds.finds(*var) ) {// higher order pattern
-						if( auto abs = matcher.ctxt().closed(rbvars[ind->second]/=val) ) {
+					if( auto var = pat2.sym() )
+					if( auto ind = linds.finds_value(*var) ) {// higher order pattern
+						if( auto abs = matcher.ctxt().closed(rbvars[*ind]/=val) ) {
 							matcher.assign(x,*abs);
 							return true;
 						}
@@ -231,10 +232,10 @@ struct Matcher {
 				return false;
 			}
 			auto [y,val2] = *vfix;
-			if( auto lind = linds.finds(x) ) {// x is a bound variable
-				if( rinds.finds(y) != lind ) return false;
+			if( auto lind = linds.finds_value(x) ) {// x is a bound variable
+				if( rinds.finds_value(y) != lind ) return false;
 			} else {// x is a constant
-				if( rinds.finds(y) ) return false;
+				if( rinds.finds_value(y) ) return false;
 				if( x != y ) return false;
 			}
 			return match(pat2,val2,subst);

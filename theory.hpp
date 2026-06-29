@@ -226,6 +226,9 @@ public:
 	std::function<std::ostream&(std::ostream&)> print_thms( std::string_view const& name, std::string_view const& prefix = "\t" ) const&;
 	friend bool operator==( Thy const& x, Thy const& y );
 };
+inline bool operator==( Thy const& x, Thy const& y ) {
+	return x._ref.eq_ref(y._ref);// theories are equal if they refer to the same body
+}
 
 class Import : public Intp {
 	friend Thy;

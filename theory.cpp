@@ -22,14 +22,7 @@ struct Thy::_Body {
 	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax) {
 	}
 	~_Body() {}
-	/** Theory bodies are considered unequal */
-	friend bool operator==( _Body const& x, _Body const& y ) {
-		return false;
-	}
 };
-bool operator==( Thy const& x, Thy const& y ) {
-	return x._ref == y._ref;
-}
 
 Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
 
@@ -74,29 +67,29 @@ Syntax& Thy::modify_syntax() & {
 	return *_ref->syntax;
 }
 Opt<Rewrite const&> Thy::find_rewriter( string_view const& rew_name ) const& {
-	if( auto x = _ref->rewriter.finds(rew_name) ) {
-		return {*x->second.first};
+	if( auto x = _ref->rewriter.finds_value(rew_name) ) {
+		return {*x->first};
 	}
 	return {};
 }
 Rewrite& Thy::modify_rewriter( string_view const& rew_name ) & {
-	auto x = _ref->rewriter.finds(rew_name);
+	auto x = _ref->rewriter.finds_value(rew_name);
 	if( !x ) {
 		auto [it,b] = _ref->rewriter.emplace(rew_name,{Ref<Rewrite>::make(Rewrite()),true});
 		return *it->second.first;
 	}
-	if( !x->second.second ) {
-		x->second.first = Ref<Rewrite>::make(*x->second.first);
-		x->second.second = true;
+	if( !x->second ) {
+		x->first = Ref<Rewrite>::make(*x->first);// copy rewriter
+		x->second = true;
 	}
-	return *x->second.first;
+	return *x->first;
 }
 void Thy::reset_rewrite() & {
 	for( auto& [rew_name,val] : _ref->rewriter ) {
 		auto& [rew,own] = val;
 		if( !own )
 		if( auto const& p = parent() ) {
-			rew = p->source()._ref->rewriter.finds(rew_name)->second.first;
+			rew = p->source()._ref->rewriter.finds_value(rew_name)->first;
 		}
 	}
 }
@@ -113,10 +106,7 @@ Thm Thy::thm(string_view const& name) const {
 	return *opt;
 }
 Opt<string> Thy::find_assm_name( size_t rev ) const {
-	if( auto x = _ref->assm_names.finds(rev) ) {
-		return {x->second};
-	}
-	return {};
+	return _ref->assm_names.finds_value(rev);
 }
 StrMMap<Pair<Import,bool>> const& Thy::imports() const {
 	return _ref->imports;
@@ -169,7 +159,7 @@ Import& Thy::add_import( string_view const& prefix, Import const& import, bool r
 		}
 		import_rewrite(import);
 	}
-	return _ref->imports.emplace(prefix,{import,rec})->second.first;
+	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
 }
 void Thy::erase_import( string_view const& prefix ) & {
 	auto const& [it,end] = _ref->imports.equal_range(prefix);
@@ -194,7 +184,7 @@ void Thy::add_thm( string_view const& name, Thm const& thm, ThmInfo const& info 
 	if( thm.ctxt() != *this ) {
 		throw Error("\"wrong context for add_thm\"")(thm);
 	}
-	_ref->thms.emplace(name,Pair(thm,info));
+	_ref->thms.emplace_front(name,{thm,info});
 }
 
 Pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view const& spec_name, bool declare ) {
@@ -356,9 +346,8 @@ Opt<Import> Thy::_find_thy_name(
 	bool allow_ancestor,
 	bool allow_rec
 ) {
-	if( auto ret = _ref->thys.finds(name) ) {// find from local theories
-		auto const& thy = ret->second;
-		if( test(thy) ) return {Import::make(thy,*this)};
+	if( auto ret = _ref->thys.finds_value(name) ) {// find from local theories
+		if( test(*ret) ) return {Import::make(*ret,*this)};
 	}
 	if( !_ref->dir.empty() ) {// load from theory directory
 		auto filepath = _ref->dir+"/"+name;
@@ -553,11 +542,11 @@ ostream& Thy::pretty_rewrite(
 		auto const& rel = rels[i];
 		os << mk_indent(n) << prefix << '[' << i << "] for (" << rel << ") " << endl
 			<< mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
-		if( auto trans = rew._trans.finds(i) ) {
-			os << mk_indent(n1) << "trans: " << pretty(trans->second) << endl;
+		if( auto trans = rew._trans.finds_value(i) ) {
+			os << mk_indent(n1) << "trans: " << pretty(*trans) << endl;
 		}
-		if( auto fallback = rew._fallbacks.finds(i) ) {
-			os << mk_indent(n1) << "fallback: " << pretty(fallback->second) << endl;
+		if( auto fallback = rew._fallbacks.finds_value(i) ) {
+			os << mk_indent(n1) << "fallback: " << pretty(*fallback) << endl;
 		}
 	}
 	return os;

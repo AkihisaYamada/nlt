@@ -15,6 +15,7 @@
 
 #define DEB(expr) do { std::cerr << __FILE__ << ":" << __LINE__ << ": " << expr << std::endl; } while(0)
 #define DEBval(expr) [&]{ auto ret = (expr); DEB(ret); return ret; }()
+#define ASSERTED(p) ([&](auto&& x)->decltype(auto){ assert(x); return static_cast<decltype(x)>(x); }(p))
 
 class Term;
 class Error;
@@ -73,8 +74,8 @@ class Term {
 			return avoid(var,[&](std::string_view const& x){ return bsyms.contains(x) || avoided(x); });
 		}
 		Opt<Term> map_var( std::string const& sym ) {
-			if( auto opt = bsyms.finds(sym) ) {
-				return {opt->second};
+			if( auto const& opt = bsyms.finds_value(sym) ) {
+				return opt;
 			}
 			return f(sym);
 		}
@@ -402,12 +403,17 @@ public:
 	Intp fork() const;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
-	friend bool operator==(Ctxt const& l, Ctxt const& r) {
-		return l._ref == r._ref;
-	};
+	friend bool operator==( Ctxt const& l, Ctxt const& r );
 	friend CTerm;
 	friend Intp;
 };
+
+inline bool operator==( Ctxt const& l, Ctxt const& r ) {
+	return l._ref.eq_ref(r._ref);// Contexts are equal if they refer to the same body.
+};
+inline bool operator!=( Ctxt const& l, Ctxt const& r ) {
+	return !(l == r);
+}
 
 struct Ctxt::Body {
 	using _Modifier = Sum<Fix,Assume,Obtain>;
@@ -419,12 +425,6 @@ struct Ctxt::Body {
 	StrSet fvars;
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
-	/** @brief dummy: Contexts are equal only if they have the same reference to the body.
-	 * Therefore, two context bodies are always considered unequal.
-	 */
-	inline bool operator==(Body const& r) const {
-		return false;
-	};
 };
 inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
@@ -447,9 +447,6 @@ inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
 inline bool Ctxt::fixes( std::string_view const& v ) const {
 	return _ref->fvars.contains(v);
 };
-inline bool operator!=(Ctxt const& l, Ctxt const& r) {
-	return !(l == r);
-}
 
 /** @brief closed terms with respect to a context
  * 
@@ -495,7 +492,7 @@ public:
 	Opt<std::tuple<std::string const, CTerm const, CTerm const>> cunbind() const {
 		if( auto tfix = Term::unbind() ) {
 			auto [v,b] = *tfix;
-			return std::tuple(v,CTerm(_ctxt,v),CTerm(_ctxt,b));
+			return {{v,CTerm(_ctxt,v),CTerm(_ctxt,b)}};
 		}
 		return {};
 	}
@@ -645,8 +642,8 @@ public:
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
 	Opt<CTerm> get(std::string_view const& var) const {
-		if( auto o = _map.finds(var) ) {
-			return {CTerm( _ctxt, o->second.value_or(var) )};
+		if( auto o = _map.finds_value(var) ) {
+			return {CTerm( _ctxt, o->value_or(var) )};
 		}
 		return {};
 	}

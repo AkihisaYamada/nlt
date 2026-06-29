@@ -79,10 +79,7 @@ public:
 		return Rules(_rels.size());
 	}
 	Opt<size_t> gets_rel_ind( std::string_view const& rel ) const {
-		if( auto const& ind = _rel2ind.finds(rel) ) {
-			return ind->second;
-		}
-		return {};
+		return _rel2ind.finds_value(rel);
 	}
 	Thm get_refl( size_t ind ) const {
 		assert( ind < _refls.size() );

@@ -50,9 +50,9 @@ private:
 
 	// lhs is a symbol
 	void unify_lsym(string const& x, CTerm const& r) {
-		if( auto const& xesc = inds[0].finds(x) ) {// bound variable must have the same index.
+		if( auto const& xesc = inds[0].finds_value(x) ) {// bound variable must have the same index.
 			if( auto rsym = r.sym() )
-			if( xesc == inds[1].finds(*rsym) ) {
+			if( xesc == inds[1].finds_value(*rsym) ) {
 				return;
 			}
 			throw Mismatch();
@@ -113,12 +113,12 @@ private:
 	}
 	// when lhs is not but rhs is a symbol
 	void unify_rsym(CTerm const& l, string const& y) {
-		if( auto rind = inds[1].finds(y) ) { // bound variable y can only be unified with X.[y]
+		if( auto rind = inds[1].finds_value(y) ) { // bound variable y can only be unified with X.[y]
 			if( auto lunbind = l.unbind() )
 			if( fvar(lunbind->first) )
 			if( auto argsym = lunbind->second.sym() )
-			if( auto const& lind = inds[0].finds(*argsym) )
-			if( rind->second == lind->second ) {// X.[y] matches y by X := _. _
+			if( auto const& lind = inds[0].finds_value(*argsym) )
+			if( *rind == *lind ) {// X.[y] matches y by X := _. _
 				subst.assign(lunbind->first,"_"/=Term("_"));
 				return;
 			}
@@ -160,10 +160,9 @@ private:
 		}
 		if( fvar(y) )
 		if( auto argsym = rarg.sym() )
-		if( auto const& opt = inds[1].finds(*argsym) ) {// higher-order pattern
-			auto const& [z,i] = *opt;
+		if( auto const& i = inds[1].finds_value(*argsym) ) {// higher-order pattern
 			StrSet bounds;
-			subst.assign(y,sanitize(bvars[0][i]/=l,bounds,avoids[0],inds[0]));
+			subst.assign(y,sanitize(bvars[0][*i]/=l,bounds,avoids[0],inds[0]));
 			return;
 		}
 		throw Mismatch();
@@ -206,8 +205,8 @@ private:
 		}
 	}
 	bool eq_syms( string const& x, string const& y ) {
-		if( auto const& xesc = inds[0].finds(x) ) {// bound variable must have the same index.
-			return xesc == inds[1].finds(y);
+		if( auto const& xesc = inds[0].finds_value(x) ) {// bound variable must have the same index.
+			return xesc == inds[1].finds_value(y);
 		}
 		return x == y;
 	}
@@ -235,10 +234,9 @@ private:
 		// if lhs is a higher-order pattern, then assign the rhs
 		if( fvar(x) )
 		if( auto argsym = larg.sym() )
-		if( auto const& opt = inds[0].finds(*argsym) ) {
-			auto const& [z,i] = *opt;
+		if( auto const& i = inds[0].finds_value(*argsym) ) {
 			StrSet bounds;
-			subst.assign(x,sanitize(bvars[1][i]/=r,bounds,avoids[1],inds[1]));
+			subst.assign(x,sanitize(bvars[1][*i]/=r,bounds,avoids[1],inds[1]));
 			return;
 		}
 		return unify_lunbind2(x,larg,r);
@@ -269,10 +267,9 @@ private:
 		}
 		if( fvar(y) )
 		if( auto argsym = rarg.sym() )
-		if( auto const& opt = inds[1].finds(*argsym) ) {// rhs is a higher-order pattern
-			auto const& [z,i] = *opt;
+		if( auto const& i = inds[1].finds_value(*argsym) ) {// rhs is a higher-order pattern
 			StrSet bounds;
-			subst.assign(y,sanitize(bvars[0][i]/=x/larg,bounds,avoids[0],inds[0]));
+			subst.assign(y,sanitize(bvars[0][*i]/=x/larg,bounds,avoids[0],inds[0]));
 			return;
 		}
 		unify_syms(x,y);

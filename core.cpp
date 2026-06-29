@@ -23,12 +23,9 @@ void rename_var( string& ret ) {
 }
 
 static bool _eq_var(string const& x, string const& y, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap ) {
-	auto lopt = lmap.finds(x);
-	auto ropt = rmap.finds(y);
-	if( lopt ) {
-		return ropt && lopt->second == ropt->second;
-	}
-	return !ropt && x == y;
+	auto lopt = lmap.finds_value(x);
+	auto ropt = rmap.finds_value(y);
+	return lopt == ropt && ( lopt || x == y );
 }
 bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<unsigned int>& rmap, unsigned int depth) {
 	if( auto lsym = l.sym() ) {
@@ -43,32 +40,32 @@ bool Term::_eq(Term const& l, Term const& r, StrMap<unsigned int>& lmap, StrMap<
 	} else if( auto lbind = l.bind() ) {
 		if( auto rbind = r.bind() ) {
 			depth++;
-			auto const& linfo = lmap.emplace(lbind->first,depth);
+			auto const& [lit,lfl] = lmap.emplace(lbind->first,depth);
 			unsigned int lprev;
-			if( linfo.second ) {
+			if( lfl ) {
 				lprev = 0;
 			} else {
-				lprev = linfo.first->second;
-				linfo.first->second = depth;
+				lprev = lit->second;
+				lit->second = depth;
 			}
-			auto const& rinfo = rmap.emplace(rbind->first,depth);
+			auto const& [rit,rfl] = rmap.emplace(rbind->first,depth);
 			unsigned int rprev;
-			if( rinfo.second ) {
+			if( rfl ) {
 				rprev = 0;
 			} else {
-				rprev = rinfo.first->second;
-				rinfo.first->second = depth;
+				rprev = rit->second;
+				rit->second = depth;
 			}
 			if( _eq(lbind->second,rbind->second,lmap,rmap,depth) ) {
 				if( lprev == 0 ) {
-					lmap.erase(linfo.first);
+					lmap.erase(lit);
 				} else {
-					linfo.first->second = lprev;
+					lit->second = lprev;
 				}
 				if( rprev == 0 ) {
-					rmap.erase(rinfo.first);
+					rmap.erase(rit);
 				} else {
-					rinfo.first->second = rprev;
+					rit->second = rprev;
 				}
 				return true;
 			}
@@ -379,13 +376,13 @@ CTerm Term::csubst(Subst const& subst) const {
 		return ctxt.cterm(*this);
 	}
 	auto f = [&](string_view const& sym)->Opt<Term> {
-		if( auto o = subst._map.finds(sym) ) {
-			return o->second;
-		} else if( ctxt.has_constant(sym) ) {
-			return {};
-		} else {
-			throw UnboundVariable(sym);
+		if( auto o = subst._map.finds_value(sym) ) {
+			return *o;
 		}
+		if( ctxt.has_constant(sym) ) {
+			return {};
+		}
+		throw UnboundVariable(sym);
 	};
 	return CTerm(ctxt,map(f,fixed));
 }
@@ -405,8 +402,8 @@ Intp Intp::compose(Intp const& other) const {
 			subst.assign(x,v->subst(other));
 			continue;
 		}
-		if( auto const& o = other._subst.map().finds(x) )
-		if( auto o2 = o->second ) {
+		if( auto const& o = other._subst.map().finds_value(x) )
+		if( auto o2 = *o ) {
 			subst._assign(x,*o2);
 			continue;
 		}

@@ -1,11 +1,15 @@
 #ifndef PAIR_HPP
 #define PAIR_HPP
 #include<utility>
-
+/* 
+ * Why not std::pair? Because it silently casts std::pair<T1&,T2&> into std::pair<T1,T2> without copying.
+ * Here, if one obtains Pair<T1,T2>, then values are owned by the pair.
+ */
 template<typename T1, typename T2>
 struct Pair {
 	T1 first;
 	T2 second;
+	Pair() : first(),second() {}
 	template<typename U1, typename U2>
 	Pair( U1&& f, U2&& s ) : first(std::forward<U1>(f)), second(std::forward<U2>(s)) {}
 	template<typename U1, typename U2>
@@ -39,18 +43,6 @@ struct Pair<T1&,T2&> {
     Pair( T1&&, auto ) = delete;
     Pair( auto, T2&& ) = delete;
 };
-
-template<typename T1, typename T2>
-Pair(T1&, T2&) -> Pair<T1&, T2&>;
-
-template<typename T1, typename T2>
-Pair(T1&, T2&&) -> Pair<T1&, T2>;
-
-template<typename T1, typename T2>
-Pair(T1&&, T2&) -> Pair<T1, T2&>;
-
-template<typename T1, typename T2>
-Pair(T1&&, T2&&) -> Pair<T1, T2>;
 
 template<typename T1, typename T2, typename U1, typename U2>
 bool operator==( Pair<T1,T2> const& x, Pair<U1,U2> const& y ) {

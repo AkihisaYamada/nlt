@@ -96,25 +96,25 @@ public:
 		_prefixes.emplace(sym,Prefix{level,rlevel});
 	}
 	Opt<Pair<std::string const&,Prefix const&>> finds_prefix(std::string_view const& sym) const {
-		return _prefixes.finds(sym);
+		return _prefixes.finds_pair(sym);
 	}
 	void infix( std::string const& sym, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
 		_infixes.emplace(sym,Infix{level,llevel,rlevel,cons});
 	}
 	Opt<Pair<std::string const&,Infix const&>> finds_infix(std::string_view const& sym) const {
-		return _infixes.finds(sym);
+		return _infixes.finds_pair(sym);
 	}
 	bool has_closer(std::string_view const& sym) const {
 		return _closers.contains(sym);
 	}
 	Opt<Pair<std::string const&, Opener const&>> finds_opener( std::string_view const& sym ) const {
-		return _openers.finds(sym);
+		return _openers.finds_pair(sym);
 	}
 	void binder( std::string_view const& binder, int llevel, int rlevel ) {
 		_binders.emplace(binder,Binder{llevel,rlevel,{}});
 	}
 	auto finds_binder( std::string_view const& binder ) const& {
-		return _binders.finds(binder);
+		return _binders.finds_pair(binder);
 	}
 	void binder_mid(
 		std::string_view const& prefix,
@@ -122,7 +122,7 @@ public:
 		std::string_view const& actual,
 		Opt<std::string> const& cons 
 	) & {
-		auto x = _binders.finds(prefix);
+		auto x = _binders.finds_pair(prefix);
 		if( !x ) throw Error("\"binder not registered\"")(prefix)(mid);
 		auto& [sym,binder] = *x;
 		binder.bbinds.emplace(mid,std::pair{std::string(actual),cons});

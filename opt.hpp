@@ -12,7 +12,7 @@
 template<typename T>
 class Opt {
 	std::optional<T> _opt;
-	template<typename U>
+	template<typename S>
 	friend class Opt;
 public:
 	Opt() {}
@@ -21,8 +21,10 @@ public:
 	Opt( T&& org ) : _opt(std::move(org)) {}
 	Opt( T const& org ) : _opt(org) {}
 	template<typename S>
-		requires (!std::is_same_v<std::remove_cvref_t<S>, Opt>)
-	Opt( S&& org ) : _opt(std::forward<S>(org)) {}
+		requires std::is_constructible_v<T,S>
+	Opt( Opt<S> const& other ) {
+		if( other ) _opt = {*other};
+	}
 	/**
 	 * @brief Constructs optional object in-place.
 	 */
@@ -122,11 +124,6 @@ public:
 	}
 };
 
-template<typename T, typename U>
-bool operator==( Opt<T> const& x, Opt<U> const& y ) {
-	return x ? y && *x == *y : !y;
-}
-
 /**
  * @brief Optional reference.
  * An object can only refer to an lvalue, and only accessible in the same scope.
@@ -152,7 +149,6 @@ public:
 	Opt( T& l ) : _ptr(&l) {}
 	operator Opt<T const&>() { return _ptr; }
 	explicit operator bool() const { return _ptr; }
-	bool operator==( Opt const& other ) const & = default;
 	T& operator*() const {
 		assert(*this);
 		return *_ptr;
@@ -199,5 +195,10 @@ public:
 		return *this ? f(*_ptr) : O{};
 	}
 };
+
+template<typename T, typename U>
+bool operator==( Opt<T> const& x, Opt<U> const& y ) {
+	return x ? y && *x == *y : !y;
+}
 
 #endif

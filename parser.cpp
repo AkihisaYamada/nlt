@@ -50,10 +50,7 @@ static function<Term(Term const&)> _bind( Term const& pat, string& fv ) {
 	}
 	return [tp,map]( Term const& body ){
 		auto mapper = [&]( string_view const& v )->Opt<Term>{
-			if( auto a = map.finds(v) ) {
-				return {a->second};
-			}
-			return {};
+			return map.finds_value(v);
 		};
 		return tp /= body.map(mapper);// tp. body[x := fst tp, y := fst (snd tp), z := snd (snd tp)]
 	};
@@ -89,7 +86,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 				skip(op.closer);
 				if( !op.compr ) throw Error("\"comprehension not registered\"")(string("\"")+opener+"\"");
 				init = Term(*op.compr)(_bind(*fst,fv)(body));
-			} else if( auto y = op.bcompr.finds(follow) ) {// {_ < _. _}
+			} else if( auto y = op.bcompr.finds_pair(follow) ) {// {_ < _. _}
 				ignore_token();
 				auto [actual,cons] = y->second;
 				auto range = _get_term(0,fv);
@@ -130,7 +127,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		if( auto fst = gets_term(INT_MAX) ) {
 			auto f = _bind(*fst,fv);
 			auto follow = peek_token();
-			if( auto y = op.bbinds.finds(follow) ) {// ∀x ∈ X. _
+			if( auto y = op.bbinds.finds_pair(follow) ) {// ∀x ∈ X. _
 				ignore_token();
 				auto [actual,cons] = y->second;
 				auto range = _get_term(0,fv);

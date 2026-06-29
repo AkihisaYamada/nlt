@@ -415,14 +415,13 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 			if( log > 15 ) _log() << "! cong rule didn't match: " << thy.pretty(rule) << endl;
 		}
 	}
-	if( auto const& o = rew->_fallbacks.finds(ind) ) {
-		auto const& rule = o->second;
-		if( auto const& m = match(rule.pat,source,is_patvar) ) {
-			if( auto const& ret = apply(rule,*m,thy.interpret_ancestor(rule.thm.ctxt())) ) {
+	if( auto const& rule = rew->_fallbacks.finds_value(ind) ) {
+		if( auto const& m = match(rule->pat,source,is_patvar) ) {
+			if( auto const& ret = apply(*rule,*m,thy.interpret_ancestor(rule->thm.ctxt())) ) {
 				return {{*ret,ret->capp()->second}};
 			}
 		} else {
-			if( log > 15 ) _log() << "- testing fall-back rule: " << thy.pretty(rule) << endl;
+			if( log > 15 ) _log() << "- testing fall-back rule: " << thy.pretty(*rule) << endl;
 		}
 	}
 	indent--;
@@ -462,10 +461,10 @@ Opt<Thm> Resolver::_steps(
 	if( max <= 1 && !normalize ) {
 		return eq;
 	}
-	auto const& tranp = rew->_trans.finds(ind);
-	if( !tranp ) throw Error("\"transitivity rule unregistered\"");
+	auto const& trans = rew->_trans.finds_value(ind);
+	if( !trans ) throw Error("\"transitivity rule unregistered\"");
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
-	Thm ltrans = thy.weaken(tranp->second).allE(s);
+	Thm ltrans = thy.weaken(*trans).allE(s);
 	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(thy,t,simp,ind,begin,end);
@@ -494,15 +493,15 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
 	size_t ind = rew->get_ind(rel);
-	auto const& o = rew->_revimps.finds(ind);// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
-	if( !o ) throw Error("\"unregistered backward rewriting\"");
+	auto const& revimp = rew->_revimps.finds_value(ind);// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
+	if( !revimp ) throw Error("\"unregistered backward rewriting\"");
 	auto const& thy = thesis.thy();
 	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
 	auto ret = (bool)steps;
 	if( ret ) {
-		auto imp = thy.weaken(o->second.thm);// x = y ⟹ φ ⟹... y ⟹ x
+		auto imp = thy.weaken(revimp->thm);// x = y ⟹ φ ⟹... y ⟹ x
 		imp = imp << *steps; // φθ ⟹... t ⟹ s
-		auto conds = o->second.conds;
+		auto conds = revimp->conds;
 		for( size_t i = 0; i < conds; i++ ) {
 			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,{}));
 		}// t ⟹ s
@@ -519,15 +518,15 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 }
 Thm Resolver::rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
 	size_t ind = rew->_default_ind;
-	auto const& o = rew->_imps.finds(ind);
-	if( !o ) throw Error("\"unregistered forward rewriting\"");
+	auto const& imp = rew->_imps.finds_value(ind);
+	if( !imp ) throw Error("\"unregistered forward rewriting\"");
 	auto steps = _steps(thy,source,simp,min,max,normalize,pos,ind);
 	if( !steps ) {
 		return source;
 	}
-	auto tmp = thy.weaken(o->second.thm);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
+	auto tmp = thy.weaken(imp->thm);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
 	tmp = tmp << *steps;// conds... ⟹ s ⟹ t
-	for( int i = 0; i < o->second.conds; i++ ) {
+	for( int i = 0; i < imp->conds; i++ ) {
 		tmp = discharge(thy,tmp,{});
 	}// s ⟹ t
 	return tmp << source;
