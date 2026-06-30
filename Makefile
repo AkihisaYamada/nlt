@@ -5,9 +5,9 @@ UTIL_SRCS=$(CORE_SRCS) matcher.cpp unifier.cpp
 UTIL_TEST_SRC=test_util.cpp
 UTIL_TEST_SRCS=$(UTIL_SRCS) $(UTIL_TEST_SRC)
 THEORY_SRCS=$(UTIL_SRCS) order.cpp theory.cpp
-PROVER_SRC=inference.cpp rewrite.cpp definer.cpp parser.cpp prover.cpp
-PROVER_SRCS=$(THEORY_SRCS) $(PROVER_SRC)
-SRCS=$(PROVER_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(THEORY_TEST_SRC)
+MAIN_SRC=inference.cpp rewrite.cpp definer.cpp parser.cpp main.cpp
+MAIN_SRCS=$(THEORY_SRCS) $(MAIN_SRC)
+SRCS=$(MAIN_SRCS) $(CORE_TEST_SRC) $(UTIL_TEST_SRC) $(THEORY_TEST_SRC)
 CPP=g++ -std=c++20 -Wfatal-errors
 DEPEND=_depend
 BUILD=_build
@@ -17,15 +17,16 @@ DEPS=$(SRCS:%.cpp=$(DEPEND)/%.d)
 OBJS=$(SRCS:%.cpp=$(BUILD)/%.o)
 DOBJS=$(SRCS:%.cpp=$(DEBUG)/%.o)
 BUILD_CPP=$(CPP) -O3
-DEBUG_CPP=$(CPP) -O0 -ggdb3
+DEBUG_CPP=$(CPP) -O0 -ggdb3 -fsanitize=address,alignment,undefined -fno-omit-frame-pointer
 SANITIZE_CPP=$(CPP) -O1 -ggdb3 -fsanitize=address,alignment,undefined -fno-omit-frame-pointer
+TGT=nlt
 
 .PHONY: core_test util_test
 
-nlt.exe: $(PROVER_SRCS:%.cpp=$(BUILD)/%.o)
+$(TGT): $(MAIN_SRCS:%.cpp=$(BUILD)/%.o)
 	${BUILD_CPP} $^ -o $@
 
-sanitize: $(PROVER_SRCS:%.cpp=$(SANITIZE)/%.o)
+$(SANITIZE)/$(TGT): $(MAIN_SRCS:%.cpp=$(SANITIZE)/%.o)
 	${SANITIZE_CPP} $^ -o $@
 
 test_core.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
@@ -40,14 +41,14 @@ test_util.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 test_util: test_util.exe
 	./$^
 
-test.exe: $(PROVER_SRCS:%.cpp=$(DEBUG)/%.o)
+$(DEBUG)/$(TGT): $(MAIN_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DEBUG_CPP} $^ -o $@
 
-test: test.exe test.nl
-	./test.exe test.nl
+test: $(DEBUG)/$(TGT) test.nl
+	$(DEBUG)/$(TGT) test.nl
 
-run: nlt.exe test.nl
-	./nlt.exe test.nl
+run: $(TGT) test.nl
+	$(BUILD)/$(TGT) test.nl
 
 .PHONY: vscode
 
