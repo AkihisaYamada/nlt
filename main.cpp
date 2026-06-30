@@ -1947,7 +1947,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	for(;;) {
 		auto parent_nl = filesystem::path( locdir + ".nl" );
 		if( !filesystem::exists(parent_nl) ) break;
-		parents.emplace_back(std::move(parent_nl),locdir);
+		parents.emplace_back(std::move(parent_nl),locdir.filename());
 		locdir = locdir.parent_path();
 	}
 	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir,(string)locdir);
