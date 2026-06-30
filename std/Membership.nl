@@ -1,7 +1,6 @@
 -----
 ## Notions for Sets or Types
 -----
-interpret Base.
 fix (∈).
 
 begin

@@ -1,7 +1,6 @@
 ---
 # Minimal Not
 ---
-interpret Base.
 fix false (¬).
 assume not_intro: if P ⟹ false then ¬P.
 assume not_imp_false#intro?[after 1] if ¬P, P then false.

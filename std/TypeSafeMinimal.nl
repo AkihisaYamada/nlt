@@ -1,5 +1,3 @@
-interpret Base.
-
 fix false (∧) (∨) (¬) (⟺) (∃).
 
 import And.

@@ -1203,7 +1203,7 @@ public:
 			return {};
 		}
 	}
-	char get_print_level() {
+	unsigned char get_print_level() {
 		if( skips("none") ) return 0;
 		if( skips("stat") ) return FLAG_STA;
 		if( skips("system") ) return FLAG_STA | FLAG_SYS;
@@ -1937,17 +1937,27 @@ private:
 */	}
 };
 
-void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path const& locdir, bool print_on_end ) {
-	auto rootdir = cmddir+"/Root";
-	auto root = Thy("Root",rootdir);// the empty root theory, linked to the "Root" directory
+void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) {
+	auto rootdir = string(cmddir);
+	auto root = Thy("_root",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
-	Thy thy = filesystem::equivalent(rootdir,locdir) ?
-		root.branch(name,"") : root.branch("_dir",string(locdir)).branch(name,"");
-	root.add_import("Root",root.self(),false);// root
-	thy.add_import(name,thy.self(),true);// file root
+	vector<Pair<fstream,string>> parents;
+	for(;;) {
+		auto parent_nl = filesystem::path( locdir + ".nl" );
+		if( !filesystem::exists(parent_nl) ) break;
+		parents.emplace_back(std::move(parent_nl),locdir);
+		locdir = locdir.parent_path();
+	}
+	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir,(string)locdir);
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
+	for( auto& [pfin,pname] : views::reverse(parents) ) {
+		thy = thy.branch(pname,pname);
+		prover.reader()(thy,pfin,pname);
+	}
+	thy = thy.branch(name,name);
+	prover.thy() = thy;
 	try {
 		prover.loop();
 	} catch( Term const& e ) {
@@ -1985,8 +1995,11 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 		auto file = filesystem::path(arg);
-		auto locdir = file.parent_path();
-		if( locdir.empty() ) locdir = ".";
+		if( file.extension() != ".nl" ) {
+			cerr << "unsupported file type: " << arg << endl;
+			exit(-1);
+		}
+		auto locdir = filesystem::absolute(file.parent_path());
 		auto fin = fstream(file);
 		run(fin,file.stem(),true,verb,cmddir,locdir,true);
 		break;

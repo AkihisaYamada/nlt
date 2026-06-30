@@ -1,8 +1,6 @@
 ---
 # If-and-only-if
 ---
-interpret Base.
-
 fix (⟺).
 
 assume iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q.
@@ -47,8 +45,6 @@ interpret iff: iff.MetaCompatible (⟺);
 	.
 
 note#cong iff.cong.
-
-thm iff.left_mono.
 
 lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
@@ -143,7 +139,6 @@ extend MetaRelation begin
 	begin
 		interpret AllRel;
 			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
-print prover 20.
 				by all[fold all_def].
 			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
 				by allIn[unfold all_def, OF x].

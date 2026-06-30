@@ -12,13 +12,13 @@
         {
             "label": "make test",
             "type": "shell",
-            "command": "make test.exe",
+            "command": "make _debug/nlt",
             "problemMatcher": []
         },
         {
             "label": "make sanitize",
             "type": "shell",
-            "command": "make sanitize",
+            "command": "make _sanitize/nlt",
             "problemMatcher": []
         },
     ],

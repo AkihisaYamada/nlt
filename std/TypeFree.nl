@@ -3,8 +3,6 @@
 -------
 begin
 
-interpret Base.
-
 theory PierceLaw:
 	assume pierce_law: if (P ⟹ Q) ⟹ P then P.
 begin

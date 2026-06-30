@@ -1,3 +1,4 @@
+import std.
 import NegativeTranslation.
 
 thm nnProp.pierce_law.

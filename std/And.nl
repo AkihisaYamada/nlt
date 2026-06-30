@@ -1,4 +1,3 @@
-import Base.
 fix (∧).
 assume and_intro! for P Q if P, Q then P ∧ Q.
 assume and_elim1: if P ∧ Q then P.
