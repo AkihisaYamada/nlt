@@ -1,6 +1,7 @@
 ---
 # Russel's Paradox
 ---
+import Std.
 import Eq.
 import TypeFree.
 import Minimal.
