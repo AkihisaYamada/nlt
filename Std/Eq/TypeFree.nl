@@ -1,12 +1,10 @@
 begin
 
 interpret base? Std.TypeFree.
-print proof.
-ctxt Eq.
 
 theory Minimal:
 	import base? base.Minimal.-- Std/TypeFree/Minimal
-	import Eq.TypeSafeMinimal.-- Eq/TypeSafeMinimal
+	import Eq.TypeSafeMinimal.-- Std/Eq/TypeSafeMinimal
 begin
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
@@ -63,7 +61,7 @@ begin
 
 	end
 
-	extend MetaRelation begin -- Eq/TypeSafeMinimal/MetaRelation
+	extend MetaRelation begin -- Std/Eq/TypeSafeMinimal/MetaRelation
 
 		interpret base? base.MetaRelation. -- TypeFree/Minimal/MetaRelation
 
@@ -188,16 +186,14 @@ begin
 		end
 	end
 
-	extend Membership begin -- Eq/TypeSafeMinimal/Membership
-ctxt.
-ctxt Minimal.Membership.
-		interpret Minimal.Membership.
+	extend Membership begin -- Std/Eq/TypeSafeMinimal/Membership
+		interpret base? base.Membership.-- Std/TypeFree/Minimal/Membership
 		interpret in: MetaRelation (∈).
 
 		theory Abbrev:-- Restricted Unary Abbreviation
 			assume abbrev: ∀F. ∃f. ∀A x. x ∈ A ⟹ f x = F.[x].
 		end
-
+ctxt.
 		theory AllIn:
 			import base.AllIn.
 		begin

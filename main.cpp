@@ -1942,7 +1942,7 @@ struct ParentInfo {
 	filesystem::path filepath;
 	filesystem::path dirpath;
 };
-void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) {
+void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
 	auto rootdir = string(cmddir);
 	auto root = Thy("_",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
@@ -1965,14 +1965,12 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 	}
 	thy = thy.branch(name,name);
 	prover.thy() = thy;
-	try {
-		prover.loop();
-	} catch( Term const& e ) {
-		exit(-1);
-	}
+	prover.loop();
 	if( print_on_end ) {
 		cout << thy.pretty() << endl;
 	}
+} catch( Term const& e ) {
+	exit(-1);
 }
 
 int main(int argc, char* argv[]) {
