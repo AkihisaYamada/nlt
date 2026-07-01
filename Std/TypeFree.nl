@@ -13,10 +13,17 @@ end
 ## Type-Free Minimal Logic
 ---
 theory Minimal:
-	import TypeSafeMinimal.
+	fix false (∧) (∨) (¬) (⟺) (∃).
+	import And.
+	import Not.
+	import Iff.
+	assume or_intro1: for P Q if P then P ∨ Q.
+	assume or_intro2: for P Q if Q then P ∨ Q.
 	assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
+	assume ex_intro1: for x if P.[x] then ∃x. P.[x].
 	assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 begin
+	interpret TypeSafeMinimal.
 	---
 	## Disjunction
 	---
