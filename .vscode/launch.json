@@ -8,8 +8,8 @@
 "name": "debug",
 "type": "cppdbg",
 "request": "launch",
-"program": "${workspaceFolder}/_debug/nlt",
-"args": ["std/Iff.nl"],
+"program": "${workspaceFolder}/debug",
+"args": ["Std/Eq/TypeFree.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "externalConsole": false,
@@ -32,13 +32,13 @@
 	"ignoreFailures": true
 },
 ],
-"preLaunchTask": "make test"
+"preLaunchTask": "make debug"
 },
 {
 "name": "sanitize",
 "type": "cppdbg",
 "request": "launch",
-"program": "${workspaceFolder}/sanitize.exe",
+"program": "${workspaceFolder}/sanitize",
 "args": ["Root/Iff.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",

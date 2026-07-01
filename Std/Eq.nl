@@ -1,9 +1,6 @@
 ---
 # Equality
 ---
-
-interpret Base.
-
 fix (=).
 
 import eq: MetaReflexive (=).
@@ -199,16 +196,6 @@ extend Membership begin
 	begin
 		interpret PseudoOrder.
 	end
-
-end
-
-theory Typed:
-	import Propositional.
-	fix Eq.
-	import eq: Binary (=) Eq Eq Prop.
-begin
-
-	note! eq.closed.
 
 end
 

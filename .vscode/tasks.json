@@ -10,15 +10,15 @@
             }
         },
         {
-            "label": "make test",
+            "label": "make debug",
             "type": "shell",
-            "command": "make _debug/nlt",
+            "command": "make debug",
             "problemMatcher": []
         },
         {
             "label": "make sanitize",
             "type": "shell",
-            "command": "make _sanitize/nlt",
+            "command": "make sanitize",
             "problemMatcher": []
         },
     ],

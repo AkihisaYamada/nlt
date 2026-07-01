@@ -1,5 +1,6 @@
 #ifndef _THEORY_HPP
 #define _THEORY_HPP
+#include<filesystem>
 #include"map.hpp"
 #include"rewrite.hpp"
 
@@ -71,8 +72,8 @@ class Thy : public Ctxt {
 		bool allow_ancestor,
 		bool allow_nonrec
 	);
-	void _check_loop_import( Thy const& origin ) const;
-	Thy _branch( std::string_view const& name, std::string_view const& dir, bool is_scope, Intp const& intp ) const&;
+	void _check_loop_import( Thy const& origin, bool rec ) const;
+	Thy _branch( std::string_view const& name, std::filesystem::path const& dir, bool is_scope, Intp const& intp ) const&;
 	Import& _add_import( Import const& im, bool prior ) &;
 	friend Import;
 public:
@@ -81,12 +82,12 @@ public:
 		Error(Term const& term) : ::Error(RT(term)) {}
 	};
 	/** construct a root theory */
-	Thy( std::string_view const& name, std::string_view const& dirname );
+	Thy( std::string_view const& name, std::filesystem::path const& dirname );
 	/** @brief Creates an anonymous branch theory.
 	 */
 	Thy branch() const&;
 	/** Creates a named branch. */
-	Thy branch( std::string_view const& name, std::string_view const& dir );
+	Thy branch( std::string_view const& name, std::filesystem::path const& dir );
 	/** Creates a namespace. */
 	Thy scope( std::string_view const& name );
 	Thy scope_temp( std::string_view const& name ) const;
@@ -98,7 +99,7 @@ public:
 	Opt<Import&> parent() &;
 	Opt<Import const&> parent() const &;
 	/** The directory name for the theory. */
-	std::string const& dir() const&;
+	std::filesystem::path const& dir() const&;
 	auto dir() && = delete;
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<Thm> find_thm(

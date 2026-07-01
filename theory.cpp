@@ -9,7 +9,7 @@ string const NONREC_IMPORT = "#nonrec";
 
 struct Thy::_Body {
 	string name;
-	string dir;
+	std::filesystem::path dir;
 	StrMMap<Pair<Thm,ThmInfo>> thms;
 	/** local theories */
 	StrMap<Thy> thys;
@@ -19,14 +19,14 @@ struct Thy::_Body {
 	Ref<Syntax> syntax;
 	StrMap<Pair<Ref<Rewrite>,bool>> rewriter;
 	bool is_scope;
-	_Body( string_view const& name, string_view const& dir, bool is_scope, Ref<Syntax> const& syntax ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax) {
+	_Body( string_view const& name, std::filesystem::path const& dir, bool is_scope, Ref<Syntax> const& syntax ) : name(name), dir(dir), is_scope(is_scope), syntax(syntax) {
 	}
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, string_view const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
+Thy::Thy( string_view const& name, std::filesystem::path const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
 
-Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope, Intp const& intp ) const& {
+Thy Thy::_branch( string_view const& name, std::filesystem::path const& dir, bool is_scope, Intp const& intp ) const& {
 	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax), intp.ctxt() );
 	child._ref->parent.emplace(Import(intp,*this));
 	for( auto [rew_name,p] : _ref->rewriter ) {
@@ -37,7 +37,7 @@ Thy Thy::_branch( string_view const& name, string_view const& dir, bool is_scope
 Thy Thy::branch() const& {
 	return _branch("","",false,Ctxt::fork());
 }
-Thy Thy::branch( string_view const& name, string_view const& dir ) {
+Thy Thy::branch( string_view const& name, filesystem::path const& dir ) {
 	return _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork())).first->second;
 }
 Thy Thy::scope_temp( string_view const& name ) const {
@@ -57,7 +57,7 @@ Opt<Import&> Thy::parent() & {
 Opt<Import const&> Thy::parent() const & {
 	return _ref->parent;
 }
-string const& Thy::dir() const & {
+std::filesystem::path const& Thy::dir() const & {
 	return _ref->dir;
 }
 Syntax const& Thy::syntax() const& {
@@ -142,21 +142,19 @@ Thm Thy::weaken( Thm const& thm ) const {
 CTerm Thy::weaken( CTerm const& t ) const {
 	return t.subst(interpret_ancestor(t.ctxt()));
 }
-void Thy::_check_loop_import( Thy const& origin ) const {
+void Thy::_check_loop_import( Thy const& origin, bool rec ) const {
 	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
-		auto const& [im,rec] = it->second;
+		auto const& [im,rec2] = it->second;
 		if( rec ) {
-			im.source()._check_loop_import(origin);
+			im.source()._check_loop_import(origin,rec2);
 		}
 	}
 }
 Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	if( prefix.empty() ) {
-		if( rec ) {
-			import.source()._check_loop_import(*this);// check looping import
-		}
+		import.source()._check_loop_import(*this,rec);// check looping import
 		import_rewrite(import);
 	}
 	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
@@ -356,6 +354,7 @@ Opt<Import> Thy::_find_thy_name(
 	auto f = [&]( auto const& it_end )->Opt<Import> {
 		for( auto [it,end] = it_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
+if(p.source()==*this) { DEB(*this); throw Error("??"); }
 			if( p.ready() )
 			if( auto o = p._src._find_thy_name(name,reader,test,false,rec) ) {
 				return o->compose(p);

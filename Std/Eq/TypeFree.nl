@@ -1,9 +1,11 @@
 begin
 
-interpret base? Root.TypeFree.
+interpret base? Std.TypeFree.
+print proof.
+ctxt Eq.
 
 theory Minimal:
-	import base? base.Minimal.-- Root.TypeFree.Minimal
+	import base? base.Minimal.-- Std/TypeFree/Minimal
 	import Eq.TypeSafeMinimal.-- Eq/TypeSafeMinimal
 begin
 
@@ -188,6 +190,7 @@ begin
 
 	extend Membership begin -- Eq/TypeSafeMinimal/Membership
 ctxt.
+ctxt Minimal.Membership.
 		interpret Minimal.Membership.
 		interpret in: MetaRelation (∈).
 

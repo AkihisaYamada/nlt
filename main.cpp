@@ -143,11 +143,11 @@ public:
 		}
 	};
 	static inline Error const THROUGH = Error("\"from here\"");
-	Prover( Thy const& thy, istream& is, string_view const& filename, Lex& lex, bool through_error, char out, char out_load, unsigned char depth ) :
+	Prover( Thy const& thy, istream& is, std::filesystem::path const& filename, Lex& lex, bool through_error, char out, char out_load, unsigned char depth ) :
 		_depth(depth),
 		_thy(thy),
 		lex(lex),
-		Parser(is,filename,lex),
+		Parser(is,(string)filename,lex),
 		_through_error(through_error),
 		_out(out),
 		_out_load(out_load) {
@@ -624,14 +624,14 @@ public:
 		}
 	}
 	auto reader() const& {
-		return [&]( Thy& thy, istream& fis, string_view const& filename ){
+		return [&]( Thy& thy, istream& fis, std::filesystem::path const& filepath ){
 			if SYS {
 				if( !MSG ) cout << _indent(' ');
-				cout << "loading " << filename << endl;
+				cout << "loading " << filepath << endl;
 			}
-			Prover(thy,fis,filename,lex,true,_out_load,_out_load,_depth+1).loop();
+			Prover(thy,fis,filepath,lex,true,_out_load,_out_load,_depth+1).loop();
 			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
-				auto pr = [&](ostream&os)->ostream&{ return os << "loaded " << filename << endl; };
+				auto pr = [&](ostream&os)->ostream&{ return os << "loaded " << filepath << endl; };
 				if( !MSG ) cout << _indent(' ') << pr;
 				else cout << pr << _indent(' ');
 			}
@@ -1937,24 +1937,31 @@ private:
 */	}
 };
 
+struct ParentInfo {
+	string name;
+	filesystem::path filepath;
+	filesystem::path dirpath;
+};
 void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) {
 	auto rootdir = string(cmddir);
-	auto root = Thy("_root",rootdir);// the empty root theory, linked to the root directory of NLT
+	auto root = Thy("_",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
-	vector<Pair<fstream,string>> parents;
+	vector<ParentInfo> parents;
 	for(;;) {
 		auto parent_nl = filesystem::path( locdir + ".nl" );
 		if( !filesystem::exists(parent_nl) ) break;
-		parents.emplace_back(std::move(parent_nl),locdir.filename());
+		parents.emplace_back(locdir.filename(),parent_nl,locdir);
 		locdir = locdir.parent_path();
 	}
-	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir,(string)locdir);
+	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir,locdir);
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
-	for( auto& [pfin,pname] : views::reverse(parents) ) {
-		thy = thy.branch(pname,pname);
-		prover.reader()(thy,pfin,pname);
+	for( auto& parent : views::reverse(parents) ) {
+		thy = thy.branch((string)parent.name,parent.dirpath);
+		thy.add_import(parent.name,thy.self(),true);
+		auto fis = ifstream(parent.filepath);
+		prover.reader()(thy,fis,parent.dirpath);
 	}
 	thy = thy.branch(name,name);
 	prover.thy() = thy;

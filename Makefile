@@ -20,14 +20,22 @@ BUILD_CPP=$(CPP) -O3
 DEBUG_CPP=$(CPP) -O0 -ggdb3 -fsanitize=address,alignment,undefined -fno-omit-frame-pointer
 SANITIZE_CPP=$(CPP) -O1 -ggdb3 -fsanitize=address,alignment,undefined -fno-omit-frame-pointer
 TGT=nlt
+DEBUG_TGT=debug
+SANITIZE_TGT=sanitize
 
 .PHONY: core_test util_test
 
 $(TGT): $(MAIN_SRCS:%.cpp=$(BUILD)/%.o)
 	${BUILD_CPP} $^ -o $@
 
-$(SANITIZE)/$(TGT): $(MAIN_SRCS:%.cpp=$(SANITIZE)/%.o)
+$(SANITIZE_TGT): $(MAIN_SRCS:%.cpp=$(SANITIZE)/%.o)
 	${SANITIZE_CPP} $^ -o $@
+
+$(DEBUG_TGT): $(MAIN_SRCS:%.cpp=$(DEBUG)/%.o)
+	${DEBUG_CPP} $^ -o $@
+
+run: $(TGT) test.nl
+	$(TGT) test.nl
 
 test_core.exe: $(CORE_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 	${DEBUG_CPP} $^ -o $@
@@ -40,15 +48,6 @@ test_util.exe: $(UTIL_TEST_SRCS:%.cpp=$(DEBUG)/%.o)
 
 test_util: test_util.exe
 	./$^
-
-$(DEBUG)/$(TGT): $(MAIN_SRCS:%.cpp=$(DEBUG)/%.o)
-	${DEBUG_CPP} $^ -o $@
-
-test: $(DEBUG)/$(TGT) test.nl
-	$(DEBUG)/$(TGT) test.nl
-
-run: $(TGT) test.nl
-	$(BUILD)/$(TGT) test.nl
 
 .PHONY: vscode
 
@@ -76,6 +75,6 @@ $(SANITIZE)/%.o: %.cpp
 .PHONY: clean test test_core test_util test_locale
 
 clean:
-	rm -rf $(DEPEND) $(BUILD) $(DEBUG) $(SANITIZE)
+	rm -rf $(DEPEND) $(BUILD) $(DEBUG) $(SANITIZE) $(TGT) $(DEBUG_TGT) $(SANITIZE_TGT)
 
 -include ${DEPS}
