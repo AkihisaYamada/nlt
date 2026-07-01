@@ -17,17 +17,19 @@ inline std::string make_spec_name( std::string base ) {
 
 extern std::string const NONREC_IMPORT;
 
-class Thy : public Ctxt {
-	using Thms = std::multimap<std::string,Pair<Thm,ThmInfo>,std::less<>>;
+struct Thy : public Ctxt {
+	using Thms = StrMMap<Pair<Thm,ThmInfo>>;
+	using ThmTest = std::function<Opt<Thm>( Import const&, std::string_view const& name, Thm const&, ThmInfo const& )>;
+private:
 	struct _Body;
 	Ref<_Body> _ref;
 	Thy( Ref<_Body> const& ref, Ctxt const& ctxt ) : _ref(ref), Ctxt(ctxt) {}
-	static std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const _triv_test;
+	static ThmTest const _triv_test;
 	/** Finds theorem by path */
 	Opt<Thm> _find_thm(
 		std::string_view const& path,
 		Import const& import,
-		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
+		ThmTest const& test,
 		bool allow_ancestor,
 		bool allow_rec
 	) const;
@@ -36,7 +38,7 @@ class Thy : public Ctxt {
 		std::string_view const& pre,
 		std::string_view const& rest,
 		Import const& import,
-		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
+		ThmTest const& test,
 		bool allow_ancestor,
 		bool allow_rec
 	) const;
@@ -44,7 +46,7 @@ class Thy : public Ctxt {
 	Opt<Thm> _find_thm_name(
 		std::string_view const& name,
 		Import const& import,
-		std::function<Opt<Thm>( Import const&, Thm const&, ThmInfo const& )> const& test,
+		ThmTest const& test,
 		bool allow_ancestor,
 		bool allow_rec
 	) const;
@@ -104,7 +106,7 @@ public:
 	/** @brief Finds a named theorem from the theory or an ancestor. */
 	Opt<Thm> find_thm(
 		std::string_view const& path,
-		std::function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test = _triv_test
+		ThmTest const& test = _triv_test
 	) const;
 	/** @brief Obtains a named theorem from the theory.
 	 */

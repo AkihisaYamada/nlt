@@ -162,8 +162,8 @@ Import& Thy::add_import( string_view const& prefix, Import const& import, bool r
 void Thy::erase_import( string_view const& prefix ) & {
 	_ref->imports.erase_front(prefix);
 }
-function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const Thy::_triv_test =
-	[]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm> {
+Thy::ThmTest const Thy::_triv_test =
+	[]( Import const& import, std::string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm> {
 		return {thm.subst(import)};
 	};
 
@@ -195,14 +195,14 @@ Pair<CTerm,Thm> Thy::obtain( string_view const& sym, Thm const& ex, string_view 
 }
 Opt<Thm> Thy::find_thm(
 	string_view const& name,
-	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test
+	ThmTest const& test
 ) const {
 	return _find_thm(name,self(),test,true,true);
 }
 Opt<Thm> Thy::_find_thm(
 	string_view const& path,
 	Import const& import,
-	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
+	ThmTest const& test,
 	bool allow_ancestor,
 	bool allow_rec
 ) const {
@@ -221,14 +221,22 @@ Opt<Thm> Thy::_find_thm(
 Opt<Thm> Thy::_find_thm_name(
 	string_view const& name,
 	Import const& import,
-	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
+	ThmTest const& test,
 	bool allow_ancestor,
 	bool allow_rec
 ) const {
 	// find from local theorems
-	for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
-		if( auto ret = test(import,it->second.first,it->second.second) ) {// found in the current theory
-			return ret;
+	if( name == "*" ) {
+		for( auto const& [name,athm] : _ref->thms ) {
+			if( auto ret = test(import,name,athm.first,athm.second) ) {
+				return ret;
+			}
+		}
+	} else {
+		for( auto [it,end] = _ref->thms.equal_range(name); it != end; it++ ) {
+			if( auto ret = test(import,name,it->second.first,it->second.second) ) {
+				return ret;
+			}
 		}
 	}
 	auto f = [&]( auto const& fst_end )->Opt<Thm> {
@@ -258,7 +266,7 @@ Opt<Thm> Thy::_find_thm(
 	string_view const& pre,
 	string_view const& rest,
 	Import const& import,
-	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> const& test,
+	ThmTest const& test,
 	bool allow_ancestor,
 	bool allow_rec
 ) const {
@@ -545,8 +553,8 @@ ostream& Thy::pretty_rewrite(
 
 function<ostream&(ostream&)> Thy::print_thms( string_view const& name, string_view const& prefix ) const& {
 	return [&]( ostream& os )->ostream& {
-		auto fun = [&]( Import const& import, Thm const& thm, ThmInfo const& )->Opt<Thm>{
-			os << prefix << pretty(thm.subst(import)) << endl;
+		auto fun = [&]( Import const& import, string_view const& rname, Thm const& thm, ThmInfo const& )->Opt<Thm>{
+			os << prefix << rname << ": " << pretty(thm.subst(import)) << endl;
 			return {};
 		};
 		find_thm(name,fun);

@@ -3,9 +3,35 @@ begin
 interpret base? Std.TypeFree.
 
 theory Minimal:
-	import base? base.Minimal.-- Std/TypeFree/Minimal
-	import Eq.TypeSafeMinimal.-- Std/Eq/TypeSafeMinimal
+	fix false (∧) (∨) (¬) (⟺) (∃) (∃!).
+	define true = (∀P. P ⟹ P).
+	assume and_def: (P ∧ Q) = (∀R. (P ⟹ Q ⟹ R) ⟹ R).
+	assume or_def: (P ∨ Q) = (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R).
+	assume not_def: (¬ P) = (P ⟹ false).
+	assume iff_def: (P ⟺ Q) = ((P ⟹ Q) ∧ (Q ⟹ P)).
+	assume ex_def: (∃x. P.[x]) = (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q).
+	assume ex1_def: (∃!x. P.[x]) = (∃x. P.[x] ∧ (∀y. P.[y] ⟹ x = y)).
 begin
+print proof.
+
+	interpret And;
+		by #simp and_def.
+
+	interpret? Iff;
+		- if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
+			by #simp iff_def #intro and_intro #elim PQ QP.
+		by #simp iff_def.
+
+	interpret base? base.Minimal;-- Std/TypeFree/Minimal
+		note #simp not_def not_def or_def ex_def.
+		- for x P if Px: P.[x] then ∃x. P.[x];
+			unfold ex_def;
+			- if all: ∀x. P.[x] ⟹ Q then Q;
+				apply all[OF Px].
+			.
+		.
+
+	import Eq.TypeSafeMinimal.-- Std/Eq/TypeSafeMinimal
 
 	lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 		note#cong eq_cong_meta[of P].
@@ -186,44 +212,41 @@ begin
 		end
 	end
 
+ctxt Membership.
 	extend Membership begin -- Std/Eq/TypeSafeMinimal/Membership
 		interpret base? base.Membership.-- Std/TypeFree/Minimal/Membership
-		interpret in: MetaRelation (∈).
 
 		theory Abbrev:-- Restricted Unary Abbreviation
 			assume abbrev: ∀F. ∃f. ∀A x. x ∈ A ⟹ f x = F.[x].
 		end
 ctxt.
-		theory AllIn:
-			import base.AllIn.
-		begin
-			interpret in: AllRel (∈) (∀∈).
-			note#cong in.all_cong.
-			note#rule in.all_def.
+thms in.*.
+print proof.
+		note#cong in.all_cong.
+		note#rule in.all_def.
 
-			theory UniqueChoice:
-				import Pair.
-				assume unique_choice:
-					if ∀x ∈ A. ∃!y. P.[x,y] then ∃f. ∀x ∈ A. P.[x, f x].
-			begin
-				interpret Abbrev;
-					- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
-						note#cong eq_cong_meta[of F].
-						apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
-						- for f if f;
-							apply assm[of f];
-							- for x;
-								use f[of x].
-							.
+		note#cong in.ex_cong.
+		note#elim in.ex_elim.
+		note#simp in.ex_imp_iff.
+
+		theory UniqueChoice:
+			import Pair.
+			assume unique_choice:
+				if ∀x ∈ A. ∃!y. P.[x,y] then ∃f. ∀x ∈ A. P.[x, f x].
+		begin
+			interpret Abbrev;
+				- for A if F: ∀x. F.[x] ∈ A.[x], assm: ∀f. (∀x. f x = F.[x]) ⟹ P then P;
+					note#cong eq_cong_meta[of F].
+					apply unique_choice[of A ((x,y). y = F.[x]), simp in.ex1_eq_iff, OF F, THEN ex_elim];
+					- for f if f;
+						apply assm[of f];
+						- for x;
+							use f[of x].
 						.
 					.
-			end
+				.
+		end
 
-			extend ExIn begin
-				interpret in: in.ExRel (∃∈).
-				note#cong in.ex_cong.
-				note#elim in.ex_elim.
-				note#simp in.ex_imp_iff.
 
 				theory Ex1In:
 					import Ex1.

@@ -239,7 +239,7 @@ extend MetaRelation begin
 	extend AllRel begin
 
 		lemma all_and_distrib: (∀x ⊏ a. P.[x] ∧ Q.[x]) ⟺ (∀x ⊏ a. P.[x]) ∧ (∀x ⊏ a. Q.[x]);
-			simp all_def all_and_distrib imp_and_distrib.
+			simp all_iff all_and_distrib imp_and_distrib.
 		lemma not_imp_not_all: if nP: ¬ P.[x], x: x ⊏ a then ¬ (∀y ⊏ a. P.[y]);
 			-> if all;
 				use nP all_elim1[OF all x].
@@ -255,7 +255,7 @@ extend MetaRelation begin
 				by #cong all_cong_weak #intro 1[THEN nnall_imp, unfold nnnot_iff].
 			by nnot_intro.
 		lemma all_true_iff: (∀x ⊏ a. true) ⟺ true;
-			simp all_def.
+			simp all_iff.
 
 	end
 
@@ -308,7 +308,7 @@ begin
 
 	note#intro in.all_intro.
 	note#elim in.all_elim.
-	note#rule in.all_def in.all_imp.
+	note#rule in.all_iff in.all_imp.
 
 	extend CollectRel begin
 		lemma Collect_iff: x ∈ {x ⊏ a. P.[x]} ⟺ x ⊏ a ∧ P.[x];

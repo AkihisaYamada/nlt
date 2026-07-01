@@ -393,7 +393,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 			}
 		}
 		if( simp )
-		if( auto const& ret = thy.find_thm( *simp + rew->_rels[ind], [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		if( auto const& ret = thy.find_thm( *simp + rew->_rels[ind], [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Rewrite::Rule>();
 			assert(rule);
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {

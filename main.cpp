@@ -549,8 +549,8 @@ public:
 			}
 		} else throw Error("\"auto instantiate failed\"")(sym);
 	}
-	function<Opt<Thm>(Import const&, Thm const&, ThmInfo const&)> exact( Term const& assm ) {
-		return [assm,this]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+	Thy::ThmTest exact( Term const& assm ) {
+		return [assm,this]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto thm2 = thm.subst(import);
 			if( thm2 == assm ) {
 				return {thm2};
@@ -1249,16 +1249,16 @@ public:
 			if( skips("ctxt_id") ) {
 				auto b = gets_bool().value_or(true);
 				_thy.modify_syntax().print_ctxt(b);
-				if MSG cout << "print ctxt_id" << endl;
+				if MSG cout << "set print ctxt_id" << endl;
 			} else if( skips("load") ) {
 				_out_load = get_print_level();
-				if MSG cout << "print load level " << _out_load << endl;
+				if MSG cout << "set print load level " << _out_load << endl;
 			} else if( skips("prover") ) {
 				_out_resolver = gets_int().value_or(5);
-				if MSG cout << "print prover level " << endl;
+				if MSG cout << "set print prover level " << endl;
 			} else {
 				_out = get_print_level();
-				if MSG cout << "print level " << _out << endl;
+				if MSG cout << "set print level " << endl;
 			}
 			skip(".");
 			return true;

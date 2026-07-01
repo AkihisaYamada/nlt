@@ -165,9 +165,9 @@ begin
 		extend AllRel begin -- TODO: automate?
 			extend ExRel begin
 				lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
-					simp ex_def all_def ex_imp_iff.
+					simp ex_def all_iff ex_imp_iff.
 				lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
-					unfold ex_def all_def .nex_iff_all_not nand_iff_imp_not.
+					unfold ex_def all_iff .nex_iff_all_not nand_iff_imp_not.
 			end
 		end
 	end

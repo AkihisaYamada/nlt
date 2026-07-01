@@ -185,7 +185,7 @@ bool Resolver::_apply_and_discharge(
 void Resolver::inflate( Thy& thy, Thm const& assm ) & {
 	// one cannot update the list while reading the list.
 	auto infs = vector<pair<string,AThm>>();
-	thy.find_thm( INF, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
+	thy.find_thm( INF, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
 		auto elim = info.ref<Elim>();
 		assert(elim);
 		if( auto m = elim->matches(assm,{import}) ) {
@@ -216,7 +216,7 @@ bool Resolver::_discharge(
 	indent++;
 	size_t n_elim_res = 0;
 	auto elim_test = [&]( Thm const& assm ) {
-		return [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		return [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
@@ -246,7 +246,7 @@ bool Resolver::_discharge(
 	}
 	// try exact conclusions
 	if( log > 5 ) _log() << "- trying to conclude: " << subthy.pretty(goal) << endl;
-	if( !subthy.find_thm( EXACT, [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+	if( !subthy.find_thm( EXACT, [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 		auto thm2 = thm.subst(import);
 		if( thm2 == goal ) {
 			thesis.discharge(thm2.intro());
@@ -259,7 +259,7 @@ bool Resolver::_discharge(
 		auto const& subgoal_child = subthy.branch();
 		auto const& sub2subsub = *subgoal_child.parent();
 		auto const& g = subgoal_child.weaken(subthesis._claim);
-		auto intro_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		auto intro_tester = [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
 			auto const& m = rule->matches(g,{import});
@@ -271,7 +271,7 @@ bool Resolver::_discharge(
 			if( log > 3 ) _log() << "- applied: " << subthy.pretty(thm) << endl;
 			return {thm};
 		};
-		auto weak_tester = [&]( Import const& import, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+		auto weak_tester = [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
 			auto const& rule = info.ref<Intro>();
 			assert(rule);
 			auto const& m = rule->matches(goal,{import});

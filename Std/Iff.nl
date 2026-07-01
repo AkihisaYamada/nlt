@@ -111,7 +111,7 @@ extend MetaRelation begin
 
 	extend AllRel begin
 
-		lemma all_def: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
+		lemma all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
 			apply iff_intro;
 			- by #elim all_elim.
 			by all_intro.
@@ -119,29 +119,29 @@ extend MetaRelation begin
 		lemma all_cong_strong:
 			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
 			then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
-			unfold+ all_def a P.
+			unfold+ all_iff a P.
 
 		lemma all_cong_weak:
 			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. P'.[x]);
-			unfold+ all_def P.
+			unfold+ all_iff P.
 
 		lemma imp_all_iff: (P ⟹ ∀x ⊏ a. Q.[x]) ⟺ (∀x ⊏ a. P ⟹ Q.[x]);
-			by iff_intro #simp all_def.
+			by iff_intro #simp all_iff.
 
 		lemma all_imp: ((∀x ⊏ a. P.[x]) ⟹ Q) ⟺ ((∀x. x ⊏ a ⟹ P.[x]) ⟹ Q);
-			simp all_def.
+			simp all_iff.
 
 	end
 
 	theory AllRelViaIff:
 		fix (∀⊏).
-		assume all_def: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
+		assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
 	begin
 		interpret AllRel;
 			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
-				by all[fold all_def].
+				by all[fold all_iff].
 			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
-				by allIn[unfold all_def, OF x].
+				by allIn[unfold all_iff, OF x].
 			.
 	end
 
