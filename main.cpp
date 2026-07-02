@@ -689,52 +689,83 @@ public:
 		}
 	}
 */
-	void import( bool change ) {
+	struct ImportPrefix {
 		string name;
 		Opt<string> default_prefix = {};
 		Opt<string> optional_prefix = {};
 		Opt<string> forced_prefix = {};
 		bool canonical_prefix = false;
 		bool rec = false;
+	};
+	friend ostream& operator<<( ostream& os, ImportPrefix const& pref ) {
+		if( pref.forced_prefix ) {
+			os << *pref.forced_prefix << ( pref.rec ? "! " : ": " );
+		} else if( pref.default_prefix ) {
+			os << *pref.default_prefix << "? ";
+		} else if( pref.rec ) {
+			os << "? ";
+		}
+		return os;
+	}
+	ImportPrefix get_import_prefix() {
+		ImportPrefix ret;
 		if( skips("?") ) {// weak unnamed import
-			name = get_thm_name();
-			default_prefix = {NONREC_IMPORT};
-			canonical_prefix = true;
+			ret.name = get_thm_name();
+			ret.default_prefix = {NONREC_IMPORT};
+			ret.canonical_prefix = true;
 		} else if( skips("!") ) {// expansive unnamed import
-			name = get_thm_name();
-			default_prefix = {""};
-			canonical_prefix = true;
-			rec = true;
+			ret.name = get_thm_name();
+			ret.default_prefix = {""};
+			ret.canonical_prefix = true;
+			ret.rec = true;
 		} else {
 			string str1 = get_thm_name();
 			if( skips(":") ) {// qualified import
-				name = get();
-				forced_prefix = {str1};
+				ret.name = get();
+				ret.forced_prefix = {str1};
 			} else if( skips("!") ) {// qualified recursive
-				name = get();
-				forced_prefix = {str1};
-				rec = true;
+				ret.name = get();
+				ret.forced_prefix = {str1};
+				ret.rec = true;
 			} else if( skips("?") ) {// optionally qualified
-				name = get();
-				default_prefix = {""};
-				optional_prefix = {str1};
+				ret.name = get();
+				ret.default_prefix = {""};
+				ret.optional_prefix = {str1};
 			} else {// unqualified
-				name = str1;
-				default_prefix = {""};
-				canonical_prefix = true;
-				rec = false;
+				ret.name = str1;
+				ret.default_prefix = {""};
+				ret.canonical_prefix = true;
+				ret.rec = false;
 			}
 		}
-		auto intp = _thy.thy(name,reader());
+		return std::move(ret);
+	};
+	void add_import( ImportPrefix const& pref, Import const& import ) {
+		if( pref.forced_prefix ) {
+			_thy.add_import(*pref.forced_prefix,import,pref.rec);
+		}
+		if( pref.default_prefix ) {
+			_thy.add_import(*pref.default_prefix,import,pref.rec);
+		}
+		if( pref.optional_prefix ) {
+			_thy.add_import(*pref.optional_prefix,import,pref.rec);
+		}
+		if( pref.canonical_prefix ) {
+			_thy.add_import(import.source().name(),import,pref.rec);
+		}
+	};
+	void import( bool change ) {
+		ImportPrefix pref = get_import_prefix();
+		auto intp = _thy.thy(pref.name,reader());
 		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(_thy,forced_prefix,intp,*assume,change,infer);
+					_auto_discharge(_thy,pref.forced_prefix,intp,*assume,change,infer);
 				} else if( auto const& obtain = intp.obtaining() ) {
 					auto infer = _thy.resolver(_out_resolver);
-					_auto_retain(_thy,forced_prefix,forced_prefix,intp,*obtain,infer);
+					_auto_retain(_thy,pref.forced_prefix,pref.forced_prefix,intp,*obtain,infer);
 				} else {
 					break;
 				}
@@ -746,23 +777,13 @@ public:
 		auto path = src.print_path();
 		bool success = true;
 		if( skips(";") ) {
-			if MSG {
-				cout << (change ? "importing " : "interpreting ");
-				if( forced_prefix ) {
-					cout << *forced_prefix << ( rec ? "! " : ": " );
-				} else if( default_prefix ) {
-					cout << *default_prefix << "? ";
-				} else if( rec ) {
-					cout << "? ";
-				}
-				cout << path << endl;
-			}
+			if MSG cout << (change ? "importing " : "interpreting ") << pref << path << endl;
 			_depth++;
-			success = _import_loop(forced_prefix,forced_prefix,intp,change);
+			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change);
 			_depth--;
 		} else {
 			skip(".");
-			_auto_import(forced_prefix,forced_prefix,intp,change);
+			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change);
 			if( _no_syntax ) {
 				_no_syntax = false;
 				_thy.modify_syntax() = src.syntax();
@@ -770,24 +791,10 @@ public:
 		}
 		if( success ) {
 			_update_parent(src);// in case of interpreting a child.
-			if( forced_prefix ) {
-				_thy.add_import(*forced_prefix,intp,rec);
-			}
-			if( default_prefix ) {
-				_thy.add_import(*default_prefix,intp,rec);
-			}
-			if( optional_prefix ) {
-				_thy.add_import(*optional_prefix,intp,rec);
-			}
-			if( canonical_prefix ) {
-				_thy.add_import(src.name(),intp,rec);
-			}
+			add_import(pref,intp);
 			if THY {
 				if( !MSG ) cout << _indent(' ');
-				cout << ( change ? "imported " : "interpreted " );
-				if( forced_prefix ) cout << *forced_prefix << ": ";
-				if( optional_prefix ) cout << *optional_prefix << "? ";
-				cout << path << endl;
+				cout << ( change ? "imported " : "interpreted " ) << pref << path << endl;
 			}
 		}
 	}
@@ -1437,7 +1444,7 @@ public:
 			while( auto sym = gets_sym() ) {
 				loc.fix(*sym);
 			}
-			skip(":");
+			skip(":=");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << "creating theory " << name << endl;
@@ -1456,23 +1463,22 @@ public:
 			local_thy( oloc->source(), true, [this]{ loop(); } );
 			if MSG cout << "left " << path << endl;
 		} else if( skips("extend") ) {
-			string path = get(Lexer::Word);
-			bool locked = skips("begin") || (skip(":"), false);
+			auto pref = get_import_prefix();
+			skip("begin");
 			Thy parent = _thy;
-			auto src2parent = parent.thy(path,reader());
+			auto src2parent = parent.thy(pref.name,reader());
 			auto src = src2parent.source();
 			auto loc = parent.branch(src.name(),"");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
-				cout << "extending theory " << src.print_path(true)
+				cout << "extending theory " << src.print_path()
 					<< " into " << loc.print_path() << endl;
 			}
-			local_thy(loc,locked,[&]{
+			local_thy(loc,true,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
 				_auto_import({},{},src2loc,true);
-				loc.add_import("",src2loc,true);
-				loc.add_import("_base",src2loc,true);
+				add_import(pref,src2loc);
 /* not sure this should be automated
 				// updating original imports
 				auto f = [&]( Opt<string const&> prefix, Import const& sub2org )->Opt<Import>{
@@ -1518,7 +1524,7 @@ public:
 */
 				loop();
 			});
-			if MSG cout << "left " << path << endl;
+			if MSG cout << "left " << loc.print_path() << endl;
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::Word);
 			skip(":");
@@ -1961,7 +1967,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 		thy = thy.branch((string)parent.name,parent.dirpath);
 		thy.add_import(parent.name,thy.self(),true);
 		auto fis = ifstream(parent.filepath);
-		prover.reader()(thy,fis,parent.dirpath);
+		prover.reader()(thy,fis,parent.filepath);
 	}
 	thy = thy.branch(name,name);
 	prover.thy() = thy;

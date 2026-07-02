@@ -100,7 +100,7 @@ void Thy::import_rewrite( Import const& import ) & {
 		rew.import(*val.first,src,import);
 	}
 }
-Thm Thy::thm(string_view const& name) const {
+Thm Thy::thm( string_view const& name ) const {
 	auto opt = find_thm(name);
 	if( !opt ) throw Error("\"theorem not found\"")(name);
 	return *opt;
@@ -249,11 +249,11 @@ Opt<Thm> Thy::_find_thm_name(
 		}
 		return {};
 	};
-	if( allow_rec )// find from unnamed imports
-	if( auto ret = f(_ref->imports.equal_range(NONREC_IMPORT)) ) {
+	if( auto ret = f(_ref->imports.equal_range("")) ) {
 		return ret;
 	}
-	if( auto ret = f(_ref->imports.equal_range("")) ) {
+	if( allow_rec )// find from unnamed imports
+	if( auto ret = f(_ref->imports.equal_range(NONREC_IMPORT)) ) {
 		return ret;
 	}
 	if( allow_ancestor )// find from ancestors
@@ -292,12 +292,12 @@ Opt<Thm> Thy::_find_thm(
 		}
 		return {};
 	};
-	if( allow_rec )// find from unqualified imports
-	if( auto ret = g(_ref->imports.equal_range(NONREC_IMPORT)) ) {
-		return ret;
-	}
 	// find from recursive unqualified imports
 	if( auto ret = g(_ref->imports.equal_range("")) ) {
+		return ret;
+	}
+	if( allow_rec )// find from unqualified imports
+	if( auto ret = g(_ref->imports.equal_range(NONREC_IMPORT)) ) {
 		return ret;
 	}
 	if( allow_ancestor )// find from ancestors
@@ -351,10 +351,10 @@ Opt<Import> Thy::_find_thy_name(
 		if( test(*ret) ) return {Import::make(*ret,*this)};
 	}
 	if( !_ref->dir.empty() ) {// load from theory directory
-		auto filepath = _ref->dir+"/"+name;
-		auto fullpath = filepath + ".nl";
+		auto dirpath = _ref->dir+"/"+name;
+		auto fullpath = dirpath + ".nl";
 		if( auto fis = fstream(fullpath) ) {
-			Thy thy = branch(name,filepath);
+			Thy thy = branch(name,dirpath);
 			reader(thy,fis,fullpath);
 			if( test(thy) ) return {Import::make(thy,*this)};
 		}
@@ -362,7 +362,6 @@ Opt<Import> Thy::_find_thy_name(
 	auto f = [&]( auto const& it_end )->Opt<Import> {
 		for( auto [it,end] = it_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
-if(p.source()==*this) { DEB(*this); throw Error("??"); }
 			if( p.ready() )
 			if( auto o = p._src._find_thy_name(name,reader,test,false,rec) ) {
 				return o->compose(p);
@@ -370,12 +369,12 @@ if(p.source()==*this) { DEB(*this); throw Error("??"); }
 		}
 		return {};
 	};
-	if( allow_rec )// find from unnamed imports
-	if( auto ret = f(_ref->imports.equal_range(NONREC_IMPORT)) ) {
-		return ret;
-	}
 	// find from recursive unnamed imports
 	if( auto ret = f(_ref->imports.equal_range("")) ) {
+		return ret;
+	}
+	if( allow_rec )// find from unnamed imports
+	if( auto ret = f(_ref->imports.equal_range(NONREC_IMPORT)) ) {
 		return ret;
 	}
 	if( allow_ancestor )// find from parent
@@ -415,11 +414,11 @@ Opt<Import> Thy::_find_thy(
 		}
 		return {};
 	};
-	if( allow_rec )
-	if( auto ret = g(_ref->imports.equal_range(NONREC_IMPORT)) ) {
+	if( auto ret = g(_ref->imports.equal_range("")) ) {
 		return ret;
 	}
-	if( auto ret = g(_ref->imports.equal_range("")) ) {
+	if( allow_rec )
+	if( auto ret = g(_ref->imports.equal_range(NONREC_IMPORT)) ) {
 		return ret;
 	}
 	if( allow_ancestor )
