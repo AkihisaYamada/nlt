@@ -1950,7 +1950,7 @@ struct ParentInfo {
 };
 void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
 	auto rootdir = string(cmddir);
-	auto root = Thy("_",rootdir);// the empty root theory, linked to the root directory of NLT
+	auto root = Thy("",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
 	init_lex(lex);
 	init_syntax(root.modify_syntax());
@@ -1961,7 +1961,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 		parents.emplace_back(locdir.filename(),parent_nl,locdir);
 		locdir = locdir.parent_path();
 	}
-	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir,locdir);
+	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir.stem(),locdir);
 	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
 	for( auto& parent : views::reverse(parents) ) {
 		thy = thy.branch((string)parent.name,parent.dirpath);

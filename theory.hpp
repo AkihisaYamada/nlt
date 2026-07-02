@@ -16,6 +16,7 @@ inline std::string make_spec_name( std::string base ) {
 }
 
 extern std::string const NONREC_IMPORT;
+extern std::string const ANONYM_THY;
 
 struct Thy : public Ctxt {
 	using Thms = StrMMap<Pair<Thm,ThmInfo>>;

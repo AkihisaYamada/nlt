@@ -5,7 +5,7 @@
 using namespace std;
 
 string const NONREC_IMPORT = "#nonrec";
-
+string const ANONYM_THY = "#anonym";
 
 struct Thy::_Body {
 	string name;
@@ -35,7 +35,7 @@ Thy Thy::_branch( string_view const& name, std::filesystem::path const& dir, boo
 	return child;
 }
 Thy Thy::branch() const& {
-	return _branch("","",false,Ctxt::fork());
+	return _branch(ANONYM_THY,"",false,Ctxt::fork());
 }
 Thy Thy::branch( string_view const& name, filesystem::path const& dir ) {
 	return _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork())).first->second;
@@ -448,15 +448,10 @@ function<ostream&(ostream&)> Thy::print_path( bool ancestors ) const& {
 				p = thy.parent();
 			}
 			for( auto& pre : path ) {
-				if( pre->name() == "" ) {
-					os << '@' << pre->id();
-				} else {
-					os << pre->name();
-				}
-				os << '/';
+				os << pre->name() << '/';
 			}
 			os << _ref->name;
-			if( syntax().prints_ctxt() || _ref->name == "" ) {
+			if( syntax().prints_ctxt() || _ref->name == ANONYM_THY ) {
 				os << '@' << id();
 			}
 			return os;
