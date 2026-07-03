@@ -7,7 +7,7 @@ This is exemplified by Curry's paradox.
 Under equality, the same inconsistency arises for unrestricted abbreviation.
 ---
 
-import Iff.
+import Std, Iff.
 assume abbrev: for P if ∀p. (∀x. p x ⟺ P.[x]) ⟹ Q then Q.
 
 begin

@@ -31,7 +31,7 @@ lemma imp_not_sym: if PnQ: P ⟹ ¬Q then Q ⟹ ¬P;
 lemma nnot_intro: P ⟹ ¬ ¬P;
 	by not_intro.
 
-lemma nnot_imp: if imp: ¬ ¬P ⟹ Q then P ⟹ Q;
+lemma nnot_imp_imp: if imp: ¬ ¬P ⟹ Q then P ⟹ Q;
 	by imp nnot_intro.
 
 lemma not_imp_not_all: ¬ P.[x] ⟹ ¬(∀y. P.[y]);
@@ -60,3 +60,18 @@ lemma nnimp_imp_nnot: if nnPQ: ¬ ¬(P ⟹ Q), P: P then ¬ ¬Q;
 			.
 		use nnPQ nPQ.
 	.
+
+theory DoubleNegation :=
+	assume nnot_imp:
+		-- @English double negation elimination
+		if ¬ ¬ P then P.
+begin
+
+	lemma contradiction:
+		-- @Latin reductio ad absurdum
+		if assm: ¬P ⟹ false then P;
+		apply nnot_imp;
+		apply not_intro;
+		by assm.
+
+end

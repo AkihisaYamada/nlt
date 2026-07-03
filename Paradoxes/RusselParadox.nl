@@ -1,10 +1,7 @@
 ---
 # Russel's Paradox
 ---
-import Std.
-import Eq.
-import TypeFree.
-import Minimal.
+import Std, Eq, TypeFree, Minimal.
 fix (∈) Collect.
 syntax {_. _} := Collect.
 assume in_Collect_iff: x ∈ {x. P.[x]} ⟺ P.[x].

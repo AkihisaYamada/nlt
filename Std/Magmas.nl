@@ -7,23 +7,23 @@ begin
 
 extend MetaRelation begin -- Every binary symbol defines magma properties.
 
-	theory LeftMonotone:
+	theory LeftMonotone :=
 		fix A B (*).
 		assume left_mono: if y ⊏ y', x ∈ A, y ∈ B, y' ∈ B then x * y ⊏ x * y'.
 	end
 
-	theory RightMonotone:
+	theory RightMonotone :=
 		fix A B (*).
 		assume right_mono: if x ⊏ x', x ∈ A, x' ∈ A, y ∈ B then x * y ⊏ x' * y.
 	end
 
-	theory Monotone:
+	theory Monotone :=
 		fix A (*).
 		import LeftMonotone A A.
 		import RightMonotone A A.
 	end
 
-	theory Compatible:
+	theory Compatible :=
 		fix A (*).
 		assume comp: if x ⊏ x', y ⊏ y', x ∈ A, y ∈ A, x' ∈ A, y' ∈ A then x * y ⊏ x' * y'.
 	begin
@@ -32,116 +32,116 @@ extend MetaRelation begin -- Every binary symbol defines magma properties.
 			apply comp.
 	end
 
-	theory Commutative:
+	theory Commutative :=
 		fix A (*).
 		assume commute: if x ∈ A, y ∈ A then x * y ⊏ y * x.
 	end
 
-	theory Idempotent:
+	theory Idempotent :=
 		fix A (*).
 		assume idem: if x ∈ A then x * x ⊏ x.
 	end
 
-	theory LeftCancellative:
+	theory LeftCancellative :=
 		fix A B (*).
 		assume left_cancels: if x * y ⊏ x * y', x ∈ A, y ∈ B, y' ∈ B then y ⊏ y'.
 	end
 
-	theory RightCancellative:
+	theory RightCancellative :=
 		fix A B (*).
 		assume right_cancels: if x * y ⊏ x' * y, x ∈ A, x' ∈ A, y ∈ B then x ⊏ x'.
 	end
 
-	theory LeftAssociative:
+	theory LeftAssociative :=
 		fix A B (*) (⋅).
 		assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z ⊏ x ⋅ y ⋅ z.
 	end
 
-	theory RightAssociative:
+	theory RightAssociative :=
 		fix A B (^) (*).
 		assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ⊏ x ^ y ^ z.
 	end
 
-	theory LeftDistributive:
+	theory LeftDistributive :=
 		fix A B (*) (+).
 		assume left_distrib: if x ∈ A, y ∈ B, z ∈ B then x * (y + z) ⊏ x * y + x * z.
 	end
 
-	theory RightDistributive:
+	theory RightDistributive :=
 		fix A B (+) (*).
 		assume right_distrib: if x ∈ A, y ∈ A, z ∈ B then (x + y) * z ⊏ x * z + y * z.
 	end
 
-	theory Distributive:
+	theory Distributive :=
 		fix A (*) (+).
 		import LeftDistributive A A (*) (+).
 		import RightDistributive A A (+) (*).
 	end
 
-	theory LeftAbsorb:
+	theory LeftAbsorb :=
 		fix A (*) (0).
 		assume left_absorb: if x ∈ A then 0 * x ⊏ 0.
 	end
 
-	theory RightAbsorb:
+	theory RightAbsorb :=
 		fix A (*) (0).
 		assume right_absorb: if x ∈ A then x * 0 ⊏ 0.
 	end
 
-	theory LeftNeutral:
+	theory LeftNeutral :=
 		fix A (*) (1).
 		assume left_neutral: if x ∈ A then 1 * x ⊏ x.
 	end
 
-	theory RightNeutral:
+	theory RightNeutral :=
 		fix A (*) (1).
 		assume right_neutral: if x ∈ A then x * 1 ⊏ x.
 	end
 
-	theory LeftCancel:
+	theory LeftCancel :=
 		fix A B (*) (\).
 		assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) ⊏ y.
 	end
 
-	theory RightCancel:
+	theory RightCancel :=
 		fix A B (*) (/).
 		assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ⊏ x.
 	end
 
-	theory LeftInverse:
+	theory LeftInverse :=
 		fix A (*) (1) inverse.
 		assume left_inverse: if x ∈ A then inverse x * x ⊏ 1.
 	end
 
-	theory RightInverse:
+	theory RightInverse :=
 		fix A (*) (1) inv.
 		assume right_inverse: if x ∈ A then x * inverse x ⊏ 1.
 	end
 
-	theory CommMagma:
+	theory CommMagma :=
 		import Magma.
 		import Commutative.
 	end
 
-	theory Action:
+	theory Action :=
 		import LeftAssociative A B (∘) (⋅).
 		import comp: Magma A (∘).
 		import app: Binary (⋅) A B B.
 	end
 
-	theory LeftModuloid:
+	theory LeftModuloid :=
 		import LeftDistributive.
 		import mul: Binary (*) A B B.
 		import add: Magma B (+).
 	end
 
-	theory RightModuloid:
+	theory RightModuloid :=
 		import RightDistributive.
 		import add: Magma A (+).
 		import mul: Binary (*) B A B.
 	end
 
-	theory Ringoid:
+	theory Ringoid :=
 		fix A (*) (+).
 		import mul: Magma A (*).
 		import add: Magma A (+).
@@ -170,7 +170,7 @@ end
 extend Transitive begin
 	interpret? .MetaRelation.
 
-	theory MonoMagma:
+	theory MonoMagma :=
 		import Magma.
 		import Monotone.
 	begin
@@ -183,7 +183,7 @@ extend Transitive begin
 			.
 	end
 
-	theory CommMonoMagma:
+	theory CommMonoMagma :=
 		import CommMagma.
 		import LeftMonotone A A.
 	begin
@@ -205,7 +205,7 @@ extend PartialEquivalence begin
 	interpret? .MetaRelation.
 	interpret .Transitive.
 
-	theory MagmaLeftNeutral:
+	theory MagmaLeftNeutral :=
 		fix (*) (1).
 		import Magma.
 		import neutral: Member (1) A.
@@ -223,7 +223,7 @@ extend PartialEquivalence begin
 		.
 	end
 
-	theory MagmaRightNeutral:
+	theory MagmaRightNeutral :=
 		fix (*) (1).
 		import Magma.
 		import neutral: Member (1) A.
@@ -241,12 +241,12 @@ extend PartialEquivalence begin
 		.
 	end
 
-	theory MagmaNeutral:
+	theory MagmaNeutral :=
 		import MagmaLeftNeutral.
 		import MagmaRightNeutral.
 	end
 
-	theory CommMagmaNeutral:
+	theory CommMagmaNeutral :=
 		import MagmaLeftNeutral.
 		import CommMagma.
 	begin
@@ -259,7 +259,7 @@ extend PartialEquivalence begin
 			.
 	end
 
-	theory Semigroup:
+	theory Semigroup :=
 		import Magma.
 		import LeftAssociative A A (*) (*).
 	begin
@@ -271,24 +271,24 @@ extend PartialEquivalence begin
 
 	end
 
-	theory CommSemigroup:
+	theory CommSemigroup :=
 		import CommMagma.
 		import Semigroup.
 	end
 
-	theory Monoid:
+	theory Monoid :=
 		import MagmaNeutral.
 		import Semigroup.
 	end
 
-	theory CommMonoid:
+	theory CommMonoid :=
 		import CommMagmaNeutral.
 		import CommSemigroup.
 	begin
 		interpret Monoid.
 	end
 
-	theory MagmaLeftAbsorb:
+	theory MagmaLeftAbsorb :=
 		fix (*) (0).
 		import Magma.
 		import absorb: Member (0) A.
@@ -303,7 +303,7 @@ extend PartialEquivalence begin
 			by left_absorb.
 	end
 
-	theory MagmaRightAbsorb:
+	theory MagmaRightAbsorb :=
 		fix (*) (0).
 		import Magma.
 		import absorb: Member (0) A.
@@ -318,12 +318,12 @@ extend PartialEquivalence begin
 			by right_absorb.
 	end
 
-	theory MagmaAbsorb:
+	theory MagmaAbsorb :=
 		import MagmaLeftAbsorb.
 		import MagmaRightAbsorb.
 	end
 
-	theory CommMagmaAbsorb:
+	theory CommMagmaAbsorb :=
 		fix (*) (0).
 		import CommMagma.
 		import MagmaLeftAbsorb.
@@ -337,25 +337,25 @@ extend PartialEquivalence begin
 			.
 	end
 
-	theory SemigroupAbsorb:
+	theory SemigroupAbsorb :=
 		import MagmaAbsorb.
 		import Semigroup.
 	end
 
-	theory CommSemigroupAbsorb:
+	theory CommSemigroupAbsorb :=
 		import CommMagmaAbsorb.
 		import CommSemigroup.
 	begin
 		interpret SemigroupAbsorb.
 	end
 
-	theory MonoidAbsorb:
+	theory MonoidAbsorb :=
 		fix (*) (0) (1).
 		import SemigroupAbsorb.
 		import Monoid.
 	end
 
-	theory CommMonoidAbsorb:
+	theory CommMonoidAbsorb :=
 		fix (*) (0) (1).
 		import CommMonoid.
 		import CommMagmaAbsorb.
@@ -363,7 +363,7 @@ extend PartialEquivalence begin
 		interpret MonoidAbsorb.
 	end
 
-	theory CommRingoid:
+	theory CommRingoid :=
 		fix (*) (+).
 		import mul: CommMagma A (*).
 		import add: MonoMagma (+).
@@ -387,13 +387,13 @@ extend PartialEquivalence begin
 			.
 	end
 
-	theory Semiring:
+	theory Semiring :=
 		import Ringoid.
 		import mul: Semigroup (*).
 		import add: CommSemigroup (+).
 	end
 
-	theory CommSemiring:
+	theory CommSemiring :=
 		import CommRingoid.
 		import mul: CommSemigroup (*).
 		import add: CommSemigroup (+).
@@ -401,7 +401,7 @@ extend PartialEquivalence begin
 		interpret Semiring.
 	end
 
-	theory MagmaLeftCancel:
+	theory MagmaLeftCancel :=
 		fix (*) (\).
 		import Magma.
 		import lcancel: Magma A (\).
@@ -423,7 +423,7 @@ extend PartialEquivalence begin
 			.
 	end
 
-	theory MagmaRightCancel:
+	theory MagmaRightCancel :=
 		fix (*) (/).
 		import Magma.
 		import rcancel: Magma A (/).
@@ -451,22 +451,22 @@ extend Equivalence begin
 	interpret .PartialEquivalence.
 	interpret .Reflexive.
 
-	theory LeftQuasiGroup:
+	theory LeftQuasiGroup :=
 		import MagmaLeftCancel.
 		import lcancel: LeftCancel A A (\) (*).
 	end
 
-	theory RightQuasiGroup:
+	theory RightQuasiGroup :=
 		import MagmaRightCancel.
 		import rcancel: RightCancel A A (/) (*).
 	end
 
-	theory QuasiGroup:
+	theory QuasiGroup :=
 		import LeftQuasiGroup.
 		import RightQuasiGroup.
 	end
 
-	theory LeftLoop:
+	theory LeftLoop :=
 		fix (*) 1 (\).
 		import MagmaNeutral.
 		import LeftQuasiGroup.

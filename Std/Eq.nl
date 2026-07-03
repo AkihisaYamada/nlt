@@ -26,12 +26,6 @@ interpret eq: MetaEquivalence (=);
 
 note#dual eq.sym.
 
-lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
-	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
-
-lemma unbind_cong: if XY: X = Y then X.[z] = Y.[z];
-	by eq_cong_meta[of (X. X.[z]), OF XY].
-
 lemma eq_imp: if PQ: P = Q, P: P then Q;
 	by eq_elim[of (x. x), OF PQ P].
 
@@ -39,6 +33,12 @@ lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
 set simp eq_imp eq_imp_rev eq.refl eq.trans.
+
+lemma eq_cong_meta#cong for X if yz: y = z then X.[y] = X.[z];
+	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
+
+lemma unbind_cong: if XY: X = Y then X.[z] = Y.[z];
+	by eq_cong_meta[of (X. X.[z]), OF XY].
 
 lemma arg_cong: if xy: x = y then f x = f y;
 	by eq_cong_meta[of (z. f z), OF xy].
@@ -56,7 +56,7 @@ lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
 ## Theories
 ---
 
-theory TwoValued:
+theory TwoValued :=
 	assume imp_imp_eq: if P, Q then P = Q.
 	assume imp_eq: if P then (P ⟹ Q) = Q.
 begin
@@ -78,12 +78,12 @@ begin
 		by imp_eq[OF true_intro].
 end
 
-theory MetaInjective:
+theory MetaInjective :=
 	fix f.
 	assume inj: if f x = f x' then x = x'.
 end
 
-theory MetaInverse:
+theory MetaInverse :=
 	fix f g.
 	assume inverse: g (f x) = x.
 begin
@@ -95,29 +95,29 @@ begin
 		.
 end
 
-theory Id:
+theory Id :=
 	fix id.
 	assume id#simp id x = x.
 begin
 	
 end
 
-theory Const:-- aka K
+theory Const :=-- aka K
 	fix const.
 	assume const#simp const x y = x.
 end
 
-theory FunComp:-- aka B
+theory FunComp :=-- aka B
 	fix (∘).
 	assume comp_app#simp (f ∘ g) x = f (g x).
 end
 
-theory RevApp:
+theory RevApp :=
 	fix (|>).
 	assume revapp#simp x |> f = f x.
 end
 
-theory If:
+theory If :=
 	fix If.
 	assume If_then: for P x y if P then If P x y = x.
 	---
@@ -127,7 +127,8 @@ theory If:
 begin
 end
 
-theory Pair: --- Syntactic Pairing ---
+--- Syntactic Pairing ---
+theory Pair :=
 	fix (,) fst snd.
 	assume fst#simp fst (x,y) = x.
 	assume snd#simp snd (x,y) = y.
@@ -171,7 +172,7 @@ extend Membership begin
 
 	interpret Magmas.
 
-	theory Antisymmetric:
+	theory Antisymmetric :=
 		fix A (⊏).
 		assume antisym: if x ⊏ y, y ⊏ x, x ∈ A, y ∈ A then x = y.
 	begin
@@ -185,12 +186,12 @@ extend Membership begin
 			.
 	end
 
-	theory PseudoOrder:
+	theory PseudoOrder :=
 		import Reflexive.
 		import Antisymmetric.
 	end
 
-	theory Order:
+	theory Order :=
 		import Preorder.
 		import Antisymmetric.
 	begin

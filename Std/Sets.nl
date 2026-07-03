@@ -1,16 +1,9 @@
 ---
 # Basis for Set Theories 
 ---
-fix Set.
-import Eq.
-import TypeFree.
-import Minimal.
-import Membership.
-import AllIn.
-import ExIn.
-import Ex1In.
-import Pair.
+import Eq, TypeFree, Minimal, Membership, Pair.
 
+fix Set.
 syntax {} := empty.
 syntax {_} := singleton.
 infix ∪(,) 71 70 71.

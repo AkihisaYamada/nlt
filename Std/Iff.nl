@@ -133,7 +133,7 @@ extend MetaRelation begin
 
 	end
 
-	theory AllRelViaIff:
+	theory AllRelViaIff :=
 		fix (∀⊏).
 		assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
 	begin

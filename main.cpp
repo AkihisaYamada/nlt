@@ -741,11 +741,17 @@ public:
 		return std::move(ret);
 	};
 	void add_import( ImportPrefix const& pref, Import const& import ) {
+		auto src = import.source();
+		_update_parent(src);// in case of interpreting a child.
 		if( pref.forced_prefix ) {
 			_thy.add_import(*pref.forced_prefix,import,pref.rec);
 		}
 		if( pref.default_prefix ) {
 			_thy.add_import(*pref.default_prefix,import,pref.rec);
+			if( *pref.default_prefix == "" && _no_syntax ) {// TODO: make elegant
+				_no_syntax = false;
+				_thy.modify_syntax() = import.source().syntax();
+			}
 		}
 		if( pref.optional_prefix ) {
 			_thy.add_import(*pref.optional_prefix,import,pref.rec);
@@ -757,7 +763,6 @@ public:
 	void import( bool change ) {
 		ImportPrefix pref = get_import_prefix();
 		auto intp = _thy.thy(pref.name,reader());
-		auto src = intp.source();
 		while( auto const& t = gets_term(1000) ) {
 			for(;;) {
 				if( auto const& assume = intp.assuming() ) {
@@ -774,28 +779,30 @@ public:
 			if( !fix ) throw Error("\"unexpected instantiation\"")(*t);
 			intp.instantiate(_thy.enclose(*t));
 		}
-		auto path = src.print_path();
 		bool success = true;
 		if( skips(";") ) {
+			auto const& path = intp.source().print_path();
 			if MSG cout << (change ? "importing " : "interpreting ") << pref << path << endl;
 			_depth++;
 			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change);
 			_depth--;
+			if( success ) {
+				add_import(pref,intp);
+				if THY {
+					if( !MSG ) cout << _indent(' ');
+					cout << ( change ? "imported " : "interpreted " ) << pref << path << endl;
+				}
+			}
+		} else if( skips(",") ) {
+			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change);
+			add_import(pref,intp);
+			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
+			return import(change);
 		} else {
 			skip(".");
 			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change);
-			if( _no_syntax ) {
-				_no_syntax = false;
-				_thy.modify_syntax() = src.syntax();
-			}
-		}
-		if( success ) {
-			_update_parent(src);// in case of interpreting a child.
+			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			add_import(pref,intp);
-			if THY {
-				if( !MSG ) cout << _indent(' ');
-				cout << ( change ? "imported " : "interpreted " ) << pref << path << endl;
-			}
 		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {

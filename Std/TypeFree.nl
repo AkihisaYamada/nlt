@@ -3,7 +3,7 @@
 -------
 begin
 
-theory PierceLaw:
+theory PierceLaw :=
 	assume pierce_law: if (P ⟹ Q) ⟹ P then P.
 begin
 
@@ -12,7 +12,7 @@ end
 ---
 ## Type-Free Minimal Logic
 ---
-theory Minimal:
+theory Minimal :=
 	fix false (∧) (∨) (¬) (⟺) (∃).
 	import And.
 	import Not.
@@ -183,10 +183,15 @@ begin
 		interpret in: Minimal.MetaRelation (∈).
 		interpret in: in.AllRel (∀∈).
 		interpret in: in.ExRel (∃∈).
+
+		note#rule in.all_iff.
 		note#rule in.ex_imp_iff.
+		note#simp in.ex_imp_iff_all.
+		note#elim in.ex_elim.
+
 	end
 
-	theory ExcludedMiddle:
+	theory ExcludedMiddle :=
 		assume or_not:
 			-- @English excluded middle
 			-- @Latin tertium non datur
@@ -222,7 +227,7 @@ end
 
 We can obtain `false` via `∀P. P` to satisfy the law of explosion.
 ---
-theory Intuitionistic:
+theory Intuitionistic :=
 	obtain false where
 		false_elim#elim
 			-- @English Law of Explosion
@@ -258,11 +263,9 @@ end
 ---
 ## Classical Logic 
 ---
-theory Classical:
+theory Classical :=
 	import Minimal.
-	assume nnot_imp:
-		-- @English double negation elimination
-		if ¬ ¬ P then P.
+	import DoubleNegation.
 begin
 
 	lemma nnot_iff#simp ¬ ¬ P ⟺ P;
@@ -270,11 +273,6 @@ begin
 
 	lemma or_iff_nand: P ∨ Q ⟺ ¬ (¬P ∧ ¬Q);
 		fold nor_iff.
-
-	lemma contradiction:
-		-- @Latin reductio ad absurdum
-		(¬P ⟹ false) ⟹ P;
-		simp not_iff_imp_false[dual].
 
 	interpret Intuitionistic;
 		retain false;

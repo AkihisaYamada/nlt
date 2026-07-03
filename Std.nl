@@ -22,6 +22,7 @@ set symbol
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
 
+infix ⟸ 0 1 0.
 infix ⟺ 1 1 0.
 infix ∨ 10 11 10.
 infix ∧ 20 21 20.
@@ -89,11 +90,11 @@ infix ^ 300 301 300.
 ---
 ## Type-Free Binary Relations
 ---
-theory MetaRelation:
+theory MetaRelation :=
 	fix (⊏).
 begin
 
-	theory AllRel:
+	theory AllRel :=
 		fix (∀⊏).
 		assume all_intro! if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
 		assume all_elim1: for x if ∀y ⊏ a. P.[y], x ⊏ a then P.[x].
@@ -102,80 +103,68 @@ begin
 			by imp all_elim1[OF all].
 	end
 
-	theory MetaCompatible:
-		fix (*).
+	theory MetaCompatible (*) :=
 		assume cong: if x ⊏ x', y ⊏ y' then x * y ⊏ x' * y'.
 	end
 
-	theory MetaLeftMonotone:
-		fix (*).
+	theory MetaLeftMonotone (*) :=
 		assume left_mono: if y ⊏ y' then x * y ⊏ x * y'.
 	end
 
-	theory MetaRightMonotone:
-		fix (*).
+	theory MetaRightMonotone (*) :=
 		assume right_mono: if x ⊏ x' then x * y ⊏ x' * y.
 	end
 
-	theory MetaMonotone:
+	theory MetaMonotone :=
 		import MetaLeftMonotone.
 		import MetaRightMonotone.
 	end
 
-	theory MetaCommutative:
-		fix (*).
+	theory MetaCommutative (*) :=
 		assume commute: x * y ⊏ y * x.
 	end
 
-	theory MetaLeftAssociative:
-		fix (*) (⋅).
+	theory MetaLeftAssociative (*) (⋅) :=
 		assume left_assoc: x * y ⋅ z ⊏ x ⋅ y ⋅ z.
 	end
 
-	theory MetaRightAssociative:
-		fix (^) (*).
+	theory MetaRightAssociative (^) (*) :=
 		assume right_assoc: x ^ (y * z) ⊏ x ^ y ^ z.
 	end
 
-	theory MetaIdempotent:
-		fix (*).
+	theory MetaIdempotent (*) :=
 		assume idem: x * x ⊏ x.
 	end
 
-	theory MetaLeftNeutral:
-		fix (*) (1).
+	theory MetaLeftNeutral (*) (1) :=
 		assume left_neutral: 1 * x ⊏ x.
 	end
 
-	theory MetaRightNeutral:
-		fix (*) (1).
+	theory MetaRightNeutral (*) (1) :=
 		assume right_neutral: x * 1 ⊏ x.
 	end
 
-	theory MetaNeutral:
+	theory MetaNeutral :=
 		import MetaLeftNeutral.
 		import MetaRightNeutral.
 	end
 
-	theory MetaLeftAbsorb:
-		fix (*) (0).
+	theory MetaLeftAbsorb (*) (0) :=
 		assume left_absorb: 0 * x ⊏ 0.
 	end
 
-	theory MetaRightAbsorb:
-		fix (*) (0).
+	theory MetaRightAbsorb (*) (0) :=
 		assume right_absorb: x * 0 ⊏ 0.
 	end
 
-	theory MetaAbsorb:
+	theory MetaAbsorb :=
 		import MetaLeftAbsorb.
 		import MetaRightAbsorb.
 	end
 
 end
 
-theory MetaReflexive:
-	fix (⊏).
+theory MetaReflexive (⊏) :=
 	assume refl: x ⊏ x.
 begin
 	interpret? MetaRelation.
@@ -185,8 +174,7 @@ begin
 	end
 end
 
-theory MetaTransitive:
-	fix (⊏).
+theory MetaTransitive (⊏) :=
 	assume trans: if x ⊏ y, y ⊏ z then x ⊏ z.
 begin
 	interpret? MetaRelation.
@@ -202,30 +190,28 @@ begin
 
 end
 
-theory MetaPreorder:
+theory MetaPreorder :=
 	import MetaReflexive.
 	import MetaTransitive.
 end
 
-theory MetaSymmetric:
-	fix (⊏).
+theory MetaSymmetric (⊏) :=
 	assume sym: if x ⊏ y then y ⊏ x.
 end
 
-theory MetaTolerance:
+theory MetaTolerance :=
 	import MetaReflexive.
 	import MetaSymmetric.
 end
 
-theory MetaPartialEquivalence:
+theory MetaPartialEquivalence :=
 	import MetaSymmetric.
 	import MetaTransitive.
 begin
 
 	interpret? MetaRelation.
 
-	theory MetaSemigroup:
-		fix (*).
+	theory MetaSemigroup (*) :=
 		import MetaLeftAssociative (*) (*).
 	begin
 		interpret MetaRightAssociative (*) (*);
@@ -235,7 +221,7 @@ begin
 			.
 	end
 
-	theory MetaCommSemigroup:
+	theory MetaCommSemigroup :=
 		import MetaSemigroup.
 		import MetaCommutative.
 	end
@@ -279,7 +265,7 @@ begin
 		interpret MetaRightNeutral.
 	end
 
-	theory MetaCommNeutral:
+	theory MetaCommNeutral :=
 		import MetaLeftNeutral.
 		import MetaCommutative.
 	begin
@@ -287,12 +273,12 @@ begin
 			by trans[OF commute left_neutral].
 	end
 
-	theory MetaMonoid:
+	theory MetaMonoid :=
 		import MetaNeutral.
 		import MetaSemigroup.
 	end
 
-	theory MetaCommMonoid:
+	theory MetaCommMonoid :=
 		import MetaCommNeutral.
 		import MetaCommSemigroup.
 	begin
@@ -322,7 +308,7 @@ begin
 		interpret MetaRightAbsorb.
 	end
 
-	theory MetaCommAbsorb:
+	theory MetaCommAbsorb :=
 		import MetaLeftAbsorb.
 		import MetaCommutative.
 	begin
@@ -330,28 +316,26 @@ begin
 			by trans[OF commute left_absorb].
 	end
 
-	theory MetaSemigroupAbsorb:
+	theory MetaSemigroupAbsorb :=
 		import MetaAbsorb.
 		import MetaSemigroup.
 	end
 
-	theory MetaCommSemigroupAbsorb:
+	theory MetaCommSemigroupAbsorb :=
 		import MetaCommAbsorb.
 		import MetaCommSemigroup.
 	begin
 		interpret MetaSemigroupAbsorb.
 	end
 
-	theory MetaMonoidAbsorb:
-		fix (*) 0 1.
+	theory MetaMonoidAbsorb (*) 0 1 :=
 		import MetaAbsorb.
 		import MetaMonoid.
 	begin
 		interpret MetaSemigroupAbsorb.
 	end
 
-	theory MetaCommMonoidAbsorb:
-		fix (*) 0 1.
+	theory MetaCommMonoidAbsorb (*) 0 1 :=
 		import MetaCommAbsorb.
 		import MetaCommMonoid.
 	begin
@@ -361,7 +345,7 @@ begin
 
 end
 
-theory MetaEquivalence:
+theory MetaEquivalence :=
 	import MetaReflexive.
 	import MetaSymmetric.
 	import MetaTransitive.

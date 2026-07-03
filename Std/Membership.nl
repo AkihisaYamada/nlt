@@ -5,39 +5,39 @@ fix (∈).
 
 begin
 
-theory Member:
+theory Member :=
 	fix x A.
 	assume closed! x ∈ A.
 end
 
-theory Binder:
+theory Binder :=
 	fix ξ A B.
 	assume closed: if ∀x. x ∈ A ⟹ F.[x] ∈ B then ξ A (x. F.[x]) ∈ B.
 end
 
-theory Unary:
+theory Unary :=
 	fix f A B.
 	assume closed: if x ∈ A then f x ∈ B.
 end
 
-theory To:
+theory To :=
 	fix (→).
 	assume to_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
 end
 
-theory Binary:
+theory Binary :=
 	fix f A B C.
 	assume closed: if x ∈ A, y ∈ B then f x y ∈ C.
 end
 
-theory Magma:
+theory Magma :=
 	fix A (*).
 	import Binary (*) A A A.
 begin
 	note! closed.
 end
 
-theory SubsetEq:
+theory SubsetEq :=
 	fix (⊆).
 	assume subseteq_elim1: if A ⊆ B, x ∈ A then x ∈ B.
 	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
@@ -49,32 +49,32 @@ begin
 		.
 end
 
-theory Reflexive:
+theory Reflexive :=
 	fix A (⊏).
 	assume refl: if x ∈ A then x ⊏ x.
 end
 
-theory Symmetric:
+theory Symmetric :=
 	fix A (⊏).
 	assume sym: if x ⊏ y, x ∈ A, y ∈ A then y ⊏ x.
 end
 
-theory SemiAttractive:
+theory SemiAttractive :=
 	fix A (⊏).
 	assume attract: if x ⊏ y, y ⊏ x, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 end
 
-theory DualAttractive:
+theory DualAttractive :=
 	fix A (⊏).
 	assume dual_attract: if x ⊏ y, y ⊏ x, x ⊏ z, x ∈ A, y ∈ A, z ∈ A then y ⊏ z.
 end
 
-theory Attractive:
+theory Attractive :=
 	import SemiAttractive.
 	import DualAttractive.
 end
 
-theory Transitive:
+theory Transitive :=
 	fix A (⊏).
 	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
@@ -86,22 +86,22 @@ begin
 		.
 end
 
-theory Preorder:
+theory Preorder :=
 	import Reflexive.
 	import Transitive.
 end
 
-theory Tolerance:
+theory Tolerance :=
 	import Reflexive.
 	import Symmetric.
 end
 
-theory PartialEquivalence:
+theory PartialEquivalence :=
 	import Symmetric.
 	import Transitive.
 end
 
-theory Equivalence:
+theory Equivalence :=
 	import Reflexive.
 	import Symmetric.
 	import Transitive.
@@ -110,7 +110,7 @@ begin
 	interpret PartialEquivalence.
 end
 
-theory CollectRel:
+theory CollectRel :=
 	fix (⊏) Collect.⊏.
 	assume Collect_intro: if x ⊏ a, P.[x] then x ∈ {x ⊏ a. P.[x]}.
 	assume Collect_elim0: if x ∈ {x ⊏ a. P.[x]} then x ⊏ a.

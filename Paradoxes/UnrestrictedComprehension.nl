@@ -1,7 +1,7 @@
 ---
 # Unrestricted Comprehension is Inconsistent
 ---
-import Iff.
+import Std, Iff.
 fix (∈) Collect.
 syntax {_. _} := Collect.
 assume in_Collect_iff: x ∈ {x. P.[x]} ⟺ P.[x].

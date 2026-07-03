@@ -1,8 +1,7 @@
 ---
 # Russel's Paradox in Predicate Form
 ---
-import TypeFree.
-import Minimal.
+import Std, TypeFree, Minimal.
 assume abbrev: ∀P. ∃p. ∀x. p x ⟺ P.[x].
 
 begin

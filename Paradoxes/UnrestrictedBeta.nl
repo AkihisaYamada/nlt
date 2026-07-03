@@ -1,4 +1,4 @@
-import Eq.
+import Std, Eq.
 fix (fun).
 assume beta: (fun x. F.[x]) x = F.[x].
 

@@ -1,8 +1,8 @@
 ---
 # Unrestricted Abbreviation is Inconsistent
 ---
-import Eq.
-assume abbrev: for F if ∀f. (∀x. f x = F.[x]) ⟹ R then R.
+import Std, Eq.
+assume abbrev: for F if ∀f. (∀x. f x = F.[x]) ⟹ P then P.
 begin
 
 theorem inconsistent: false;-- Any term is provable

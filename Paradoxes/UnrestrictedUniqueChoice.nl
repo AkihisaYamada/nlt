@@ -1,8 +1,4 @@
-import Eq.
-import TypeFree.
-import Minimal.
-import Ex1.
-import Pair.
+import Std, Eq, TypeFree, Minimal, Pair.
 assume unique_choice: if ∀x. ∃!y. P.[x,y] then ∃f. ∀x. P.[x, f x].
 
 begin
@@ -10,7 +6,7 @@ begin
 theorem inconsistent: false;
 	obtain R where R_def: R x = (x x ⟹ false);
 		- for thesis if assm;
-			apply unique_choice[of ((x,y). y = (x x ⟹ false)), THEN ex_elim, simp, OF ex1_eq1];
+			apply unique_choice[of ((x,y). y = (x x ⟹ false)), THEN ex_elim, simp];
 			apply assm>0=.
 		.
 	have nRR: if RR: R R then false;

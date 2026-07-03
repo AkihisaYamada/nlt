@@ -1,5 +1,4 @@
-import Membership.
-import Eq.
+import Eq, Membership.
 
 fix (fun).
 

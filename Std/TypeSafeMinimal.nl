@@ -240,6 +240,7 @@ extend MetaRelation begin
 
 		lemma all_and_distrib: (∀x ⊏ a. P.[x] ∧ Q.[x]) ⟺ (∀x ⊏ a. P.[x]) ∧ (∀x ⊏ a. Q.[x]);
 			simp all_iff all_and_distrib imp_and_distrib.
+
 		lemma not_imp_not_all: if nP: ¬ P.[x], x: x ⊏ a then ¬ (∀y ⊏ a. P.[y]);
 			-> if all;
 				use nP all_elim1[OF all x].
@@ -254,12 +255,13 @@ extend MetaRelation begin
 			- if 1;
 				by #cong all_cong_weak #intro 1[THEN nnall_imp, unfold nnnot_iff].
 			by nnot_intro.
-		lemma all_true_iff: (∀x ⊏ a. true) ⟺ true;
+
+		lemma all_true: ∀x ⊏ a. true;
 			simp all_iff.
 
 	end
 
-	theory ExRel:
+	theory ExRel :=
 		fix (∃⊏).
 		assume ex_def: (∃x ⊏ a. P.[x]) ⟺ (∃x. x ⊏ a ∧ P.[x]).
 	begin
@@ -275,19 +277,17 @@ extend MetaRelation begin
 
 end
 
-theory MetaIrreflexive:
-	fix (⊏).
+theory MetaIrreflexive (⊏) :=
 	assume irrefl: ¬ x ⊏ x.
 end
 
-theory MetaAsymmetric:
-	fix (⊏).
+theory MetaAsymmetric (⊏) :=
 	assume asym: x ⊏ y ⟹ ¬ y ⊏ x.
 end
 ---
 Note that antisymmetry is not yet definable, because it requires equality.
 ---
-theory MetaOrder:
+theory MetaOrder :=
 	import MetaIrreflexive.
 	import MetaTransitive.
 begin
@@ -299,7 +299,8 @@ begin
 		.
 end
 
-extend Membership:
+theory Membership :=
+	import Std.Membership.
 	interpret in: TypeSafeMinimal.MetaRelation (∈).
 	fix (∀∈) (∃∈).
 	import in: in.AllRel (∀∈).
@@ -309,6 +310,7 @@ begin
 	note#intro in.all_intro.
 	note#elim in.all_elim.
 	note#rule in.all_iff in.all_imp.
+	note#simp in.all_true[THEN iff_true].
 
 	extend CollectRel begin
 		lemma Collect_iff: x ∈ {x ⊏ a. P.[x]} ⟺ x ⊏ a ∧ P.[x];
@@ -317,7 +319,7 @@ begin
 
 end
 
-theory ChoiceOp:
+theory ChoiceOp :=
 	fix (such).
 	assume such_intro: (∃x. P.[x]) ⟹ P.[such x. P.[x]].
 end
