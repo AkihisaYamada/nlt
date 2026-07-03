@@ -86,6 +86,8 @@ infix * 200 201 200.
 infix / 200 201 200.
 infix \ 201 200 200.
 infix ^ 300 301 300.
+infix ++ 100 101 100.
+infix ** 200 201 200.
 
 ---
 ## Type-Free Binary Relations

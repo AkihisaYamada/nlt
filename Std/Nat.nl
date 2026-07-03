@@ -1,5 +1,4 @@
 import Fun.
-import AllIn.
 
 fix ℕ (0) suc rec.
 

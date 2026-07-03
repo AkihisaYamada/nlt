@@ -1955,7 +1955,7 @@ struct ParentInfo {
 	filesystem::path filepath;
 	filesystem::path dirpath;
 };
-void run( istream& is, string const& name, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
+void run( istream& is, string const& name, string const& filepath, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
 	auto rootdir = string(cmddir);
 	auto root = Thy("",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
@@ -1969,7 +1969,7 @@ void run( istream& is, string const& name, bool exit_on_error, char out, filesys
 		locdir = locdir.parent_path();
 	}
 	Thy thy = filesystem::equivalent(rootdir,locdir) ? root : root.branch((string)locdir.stem(),locdir);
-	auto prover = Prover(thy,is,name,lex,exit_on_error,out,FLAG_SYS,0);
+	auto prover = Prover(thy,is,filepath,lex,exit_on_error,out,FLAG_SYS,0);
 	for( auto& parent : views::reverse(parents) ) {
 		thy = thy.branch((string)parent.name,parent.dirpath);
 		thy.add_import(parent.name,thy.self(),true);
@@ -1994,7 +1994,7 @@ int main(int argc, char* argv[]) {
 	int i = 1;
 	for(;;) {
 		if( i == argc ) {
-			run( cin, "_stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
+			run( cin, "#stdin", "#stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
 			cout << "bye!" << endl;
 			return 0;
 		}
@@ -2019,7 +2019,7 @@ int main(int argc, char* argv[]) {
 		}
 		auto locdir = filesystem::absolute(file.parent_path());
 		auto fin = fstream(file);
-		run(fin,file.stem(),true,verb,cmddir,locdir,true);
+		run(fin,file.stem(),file,true,verb,cmddir,locdir,true);
 		break;
 	}
 	return 0;

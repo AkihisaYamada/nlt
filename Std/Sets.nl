@@ -23,7 +23,7 @@ assume in_set_imp_set: if A ∈ Set, x ∈ A then x ∈ Set.
 ### Extensionality
 
 Extensionality asserts that sets `A` and `B` are equal if `x ∈ A ⟺ x ∈ B` for any `x`.
-Strictly speaking, ZF variables range over sets, so this axiom would be formalized to
+Strictly speaking, ZF variables range over sets, so this axiom is formalized as
 `∀A ∈ Set. ∀B ∈ Set. (∀x ∈ Set. x ∈ A ⟺ x ∈ B) ⟹ A = B`
 but restricting `x` to `Set` here is useless.
 ---
@@ -56,11 +56,11 @@ lemma ex_in_set_iff: if A: A ∈ Set then (∃x ∈ Set. x ∈ A ∧ P.[x]) ⟺ 
 
 ### Empty Set
 ---
-theory EmptySetAxiom:
+theory EmptySetAxiom :=
 	assume ex_empty: ∃x ∈ Set. ¬(∃y ∈ Set. y ∈ x).
 end
 
-theory EmptySet:
+theory EmptySet :=
 	fix empty.
 	assume empty_Set! {} ∈ Set.
 	assume not_in_empty: ¬ x ∈ {}.
@@ -69,7 +69,7 @@ begin
 	lemma in_empty_imp_false: if x0: x ∈ {} then false;
 		by not_imp_false[OF not_in_empty x0].
 
-	interpret: EmptySetAxiom;
+	interpret EmptySetAxiom;
 		- by in.ex_intro1[of {}] not_intro #elim in_empty_imp_false.
 		.
 
@@ -91,7 +91,7 @@ end
 ---
 ### Singleton Set
 ---
-theory SingletonSet:
+theory SingletonSet :=
 	fix singleton.
 	assume singleton_Set! if x ∈ Set then {x} ∈ Set.
 	assume singleton_iff: if x ∈ Set then y ∈ {x} ⟺ x = y.
@@ -101,7 +101,7 @@ end
 ### Unordered pairs
 ---
 
-theory UnorderedPairAxiom:
+theory UnorderedPairAxiom :=
 	assume upair_axiom: ∀x ∈ Set. ∀y ∈ Set. ∃z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y.
 begin
 	lemma ex1_upair: if x! x ∈ Set, y! y ∈ Set then ∃!z ∈ Set. ∀w ∈ Set. w ∈ z ⟺ w = x ∨ w = y;
@@ -120,7 +120,7 @@ Usual formulations of ZF then introduces a binary operator which,
 given `x` and `y` as arguments, denotes the (unique) such `z`.
 In Naive Logic, the assumption that one can do this must be explicitly formalized.
 ---
-theory UnorderedPair:
+theory UnorderedPair :=
 	fix upair.
 	assume upair_Set! if x ∈ Set, y ∈ Set then upair(x,y) ∈ Set.
 	assume upair_iff: if x ∈ Set, y ∈ Set then z ∈ upair(x,y) ⟺ z = x ∨ z = y.
@@ -157,14 +157,14 @@ begin
 		.
 end
 ---
-Abbreviation allows obtaining singleton `{x}` as the pair `{x,x}`.
+Abbreviation allows obtaining singleton `{x}` as the pair `{x,x}`, if `x ∈ Set`.
 ---
-extend AbbrevCond begin
+extend Abbrev begin
 
 	extend UnorderedPair begin
 		interpret SingletonSet;
 			obtain singleton where singleton_def: if x ∈ Set then {x} = upair(x,x);
-				apply abbrev_cond[of (x. x ∈ Set) (x. Set)]>1=.
+				apply abbrev[of (x. upair(x,x)) Set, unfold in.all_def, THEN ex_elim]=.
 			- show! if ! x ∈ Set then {x} ∈ Set;
 				unfold singleton_def.
 			- if ! x ∈ Set then y ∈ {x} ⟺ x = y;

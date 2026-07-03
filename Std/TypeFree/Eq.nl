@@ -1,5 +1,5 @@
 ---
-# Equality
+# Type-Free Equality
 ---
 fix (=).
 
