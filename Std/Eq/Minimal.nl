@@ -9,7 +9,7 @@ assume ex1_def: (∃!x. P.[x]) = (∃x. P.[x] ∧ (∀y. P.[y] ⟹ y = x)).
 
 begin
 
-interpret base? TypeFree.Minimal;-- Std/TypeFree/Minimal
+interpret base? Std.Minimal;-- Std/Minimal
 	note #simp and_def iff_def not_def not_def or_def ex_def.
 	- if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
 		by #elim PQ QP.
@@ -111,10 +111,11 @@ lemma ex1_imp_iff_eq: if ex1: ∃!x. P.[x], Px: P.[x] then P.[y] ⟺ x = y;
 lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
 	simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
 
-theory UniqueChoiceOp :=
+theory UniqueSuch :=
 	fix (such).
 	assume such_intro_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].
 begin
+
 	lemma such_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (such y. P.[y]) = x;
 		apply ex1_elim[OF ex1];
 		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
@@ -126,6 +127,20 @@ begin
 	note eq_such_intro: such_eq_intro[THEN eq.sym].
 
 end
+
+--- Hilbert's Choice operator ---
+theory AnySuch :=
+	fix (such).
+	assume such_intro_ex: if ∃x. P.[x] then P.[such x. P.[x]].
+begin
+
+	interpret UniqueSuch;
+		- for P if ex1;
+			by such_intro_ex[OF ex1[THEN ex1_imp_ex]].
+		.
+
+end
+
 
 extend Pair begin
 	lemma pair_eq_pair#simp (x,y) = (x',y') ⟺ x = x' ∧ y = y';
@@ -271,29 +286,8 @@ extend base? MetaRelation begin
 		lemma ex1_eq_iff: (∃!x ⊏ a. x = b) ⟺ b ⊏ a;
 			by ex1_eq_and_iff[of (x. true), simp].
 
-		theory SuchRel :=
-			fix such.⊏ (such).
-			assume such_def: (such x ⊏ a. P.[x]) = (such x. x ⊏ a ∧ P.[x]).
-		end
-
-		theory UniqueChoiceOpRel :=
-			import UniqueChoiceOp.
-			import SuchRel.
-		begin
-			lemma such_intro1_ex1: (∃!x ⊏ a. P.[x]) ⟹ P.[such x ⊏ a. P.[x]];
-				unfold ex1_def such_def;
-				by #elim such_intro_ex1.
-			lemma such_intro0_ex1: (∃!x ⊏ a. P.[x]) ⟹ (such x ⊏ a. P.[x]) ⊏ a;
-				unfold ex1_def such_def;
-				by #elim such_intro_ex1.
-			lemma such_eq_intro: if ex1: ∃!y ⊏ a. P.[y], Px: P.[x], xa: x ⊏ a then (such y ⊏ a. P.[y]) = x;
-				unfold such_def;
-				apply such_eq_intro;
-				- use ex1; simp ex1_def.
-				by Px xa.
-			note eq_such_intro: such_eq_intro[THEN eq.sym].
-		end
 	end
+
 	context ExRel begin
 		extend base? Ex1Rel begin
 			lemma ex1_imp_ex: (∃!x ⊏ a. P.[x]) ⟹ (∃x ⊏ a. P.[x]);
@@ -301,52 +295,70 @@ extend base? MetaRelation begin
 				apply Minimal.ex1_imp_ex>0.
 		end
 	end
+
+	theory SuchRel :=
+		fix such.⊏ (such).
+		assume such_def: (such x ⊏ a. P.[x]) = (such x. x ⊏ a ∧ P.[x]).
+	end
+
 end
 
+---
+## Membership with Restricted Quantifiers
+
+In this theory, we "define" restricted quantifier via equality.
+This has an advantage that 
+---
 theory Membership :=
 	fix (∀∈) (∃∈) (∃!∈).
-	interpret in: MetaRelation (∈).
+	import in: MetaRelation (∈).
 	import in: in.AllRel (∀∈).
 	import in: in.ExRel (∃∈).
 	import in: in.Ex1Rel (∃!∈).
 begin
 
-	interpret base.Membership.-- /Std/TypeFree/Membership
-
 	note#cong in.all_cong.
 	note#cong in.ex_cong.
 	note#cong in.ex1_cong.
 
-	theory Abbrev :=
-		assume abbrev: ∀F A. ∃f. ∀x ∈ A. f x = F.[x].
+	interpret Eq.Membership.-- /Std/Eq/Membership
+
+	interpret base? base.Membership;-- Std/Minimal/Membership.
+		goals.
+		by #simp in.all_def in.ex_def.
+
+
+	theory AbbrevWeak :=
+		assume abbrev_weak: ∀F A. ∃f. ∀x ∈ A. f x = F.[x].
 	end
 
-	theory AbbrevPoly :=-- Polymorphic Unary Abbreviation
-		assume abbrev_poly: ∀F. ∃f. ∀A. ∀x ∈ A. f x = F.[x].
+	theory Abbrev :=-- Polymorphic Unary Abbreviation
+		assume abbrev: ∀F. ∃f. ∀A. ∀x ∈ A. f x = F.[x].
+	end
+
+	theory UniqueChoiceWeak :=
+		import Pair.
+		assume unique_choice_weak: if ∀x ∈ A. ∃!y. P.[x,y] then ∃f. ∀x ∈ A. P.[x, f x].
+	begin
+
+		interpret AbbrevWeak;
+			- for F A;
+				apply unique_choice_weak[of A ((x,y). y = F.[x]), simp, THEN ex_elim];
+				- for f if f;
+					apply ex_intro1[of f];
+					by f.
+				.
+			.
 	end
 
 	theory UniqueChoice :=
 		import Pair.
-		assume unique_choice: if ∀x ∈ A. ∃!y. P.[x,y] then ∃f. ∀x ∈ A. P.[x, f x].
-	begin
-		interpret Abbrev;
-			- for F A;
-				apply unique_choice[of A ((x,y). y = F.[x]), simp, THEN ex_elim];
-				- for f if f;
-					apply ex_intro1[of f];
-					by f.
-				.
-			.
-	end
-
-	theory UniqueChoicePoly :=
-		import Pair.
-		assume unique_choice_poly:
+		assume unique_choice:
 			if ∀x. ∃!y. P.[x,y] then ∃f. ∀A. ∀x ∈ A. P.[x, f x].
 	begin
-		interpret AbbrevPoly;
+		interpret Abbrev;
 			- for F;
-				apply unique_choice_poly[of ((x,y). y = F.[x]), simp, THEN ex_elim];
+				apply unique_choice[of ((x,y). y = F.[x]), simp, THEN ex_elim];
 				- for f if f;
 					apply ex_intro1[of f];
 					by f.
@@ -354,8 +366,7 @@ begin
 			.
 	end
 
-
-	----- maybe not useful
+----- maybe not useful
 	theory Pair:
 		import Pair.
 	begin
@@ -455,8 +466,59 @@ begin
 				by r x y #simp p.
 			.
 	end
-	-----
+-----
+
 end
 
+context UniqueSuch begin
+
+	extend base? MetaRelation begin
+
+		theory SuchRel :=
+			import base.Ex1Rel.
+			import base.SuchRel.
+		begin
+
+			lemma such_intro1_ex1: (∃!x ⊏ a. P.[x]) ⟹ P.[such x ⊏ a. P.[x]];
+				unfold ex1_def such_def;
+				by #elim such_intro_ex1.
+
+			lemma such_intro0_ex1: (∃!x ⊏ a. P.[x]) ⟹ (such x ⊏ a. P.[x]) ⊏ a;
+				unfold ex1_def such_def;
+				by #elim such_intro_ex1.
+
+			lemma such_eq_intro: if ex1: ∃!y ⊏ a. P.[y], Px: P.[x], xa: x ⊏ a then (such y ⊏ a. P.[y]) = x;
+				unfold such_def;
+				apply such_eq_intro;
+				- use ex1; simp ex1_def.
+				by Px xa.
+
+			note eq_such_intro: such_eq_intro[THEN eq.sym].
+
+		end
+
+	end
+
+	theory Membership :=
+		import ..Membership.
+		interpret in: .MetaRelation (∈).
+		import in: in.SuchRel (∃∈) (such.∈).
+	begin
+
+		extend Fun begin
+
+			extend Pair begin
+
+				interpret UniqueChoice;
+					- for P if all_ex1;
+						apply ex_intro1[of (fun x. such y. P.[x,y])];
 
 
+			end
+
+		end
+
+	end
+
+
+end

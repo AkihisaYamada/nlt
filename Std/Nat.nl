@@ -1,15 +1,47 @@
+---
+# Type-Free Natural Numbers
+
+This theory formalizes natural numbers in naive logic.
+
+## Axiomatization
+
+We use `fun` to allow for deriving addition etc.
+---
 import Fun.
 
 fix ℕ (0) suc rec.
 
-import zero: Member ℕ 0.
+-- Zero is a natural number (`0 ∈ ℕ`).
+import zero: Member 0 ℕ.
+
+-- The natural numbers are closed under successors (`x ∈ ℕ ⟹ suc x ∈ ℕ`).
 import suc: Unary suc ℕ ℕ.
 
+-- Successor is injective in ℕ
 assume suc_inj: if suc x = suc y, x ∈ ℕ, y ∈ ℕ then x = y.
 
-assume induction: if P.[0], ∀x ∈ ℕ. P.[x] ⟹ P.[suc x] then ∀x ∈ ℕ. P.[x].
+---
+### Induction Principle
+
+We assume a type-free form of the induction principle.
+Note that a propositional form would require `∀x. x ∈ ℕ ⟹ P.[x] ∈ Prop`,
+and would not allow inductively deriving type judgements.
+---
+assume induction: if P.[0], ∀x. P.[x] ⟹ x ∈ ℕ ⟹ P.[suc x], x ∈ ℕ then P.[x].
+
+---
+### Recursor
+
+The following two recursor equations should look natural:
+---
 assume rec_zero: rec z s 0 = z.
 assume rec_suc: if x ∈ ℕ then rec z s (suc x) = s x (rec z s x).
+---
+However, note that they impose no type on the first two arguments.
+A polymorphic form would demand `z ∈ T` and `∀x. x ∈ T ⟹ s x ∈ T` (or `s ∈ T → T`),
+and a dependently typed form would demand `z ∈ T 0` and `∀n. n ∈ ℕ ⟹ ∀x. x ∈ T n ⟹ s x ∈ T (suc n)`
+(or `s ∈ Πn ∈ ℕ. T n → T(suc n)`).
+---
 
 begin
 
@@ -20,14 +52,6 @@ interpret Equivalence ℕ (=);
 	- .
 	- by #intro[after 1] eq.sym.
 	- by #intro[after 2] eq.trans.
-	.
-
-lemma induction_rule:
-	if x: x ∈ ℕ, 0: P.[0], suc: ∀x. P.[x] ⟹ x ∈ ℕ ⟹ P.[suc x] then P.[x];
-	apply induction[THEN in.all_elim1];
-	- by 0.
-	- by in.all_intro suc.
-	- by x.
 	.
 
 obtain (+) where

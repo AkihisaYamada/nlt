@@ -131,17 +131,19 @@ extend MetaRelation begin
 
 	extend ExRel begin
 		lemma ex_elim: if ex: ∃x ⊏ a. P.[x], imp: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q then Q;
-			apply ex[unfold ex_def, THEN ex_elim];
+			apply ex[unfold ex_iff, THEN ex_elim];
 			- for x;
 				by imp[of x].
 			.
 		lemma ex_cong_strong:
 			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
 			then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
-			unfold+ ex_def; unfold a; unfold P.
+			unfold+ ex_iff; unfold a; unfold P.
+
 		lemma ex_cong_weak:
 			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
-			unfold+ ex_def P.
+			unfold+ ex_iff P.
+
 		lemma ex_imp_iff: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
 			apply iff_intro;
 			- if imp, x: x ⊏ a, Px: P.[x];
@@ -153,18 +155,19 @@ extend MetaRelation begin
 				.
 			.
 		lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
-			simp ex_def and_or_distrib .ex_or_distrib.
-		lemma ex_iff: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q);
-			unfold ex_def ex_iff.
+			simp ex_iff and_or_distrib .ex_or_distrib.
+
+		lemma ex_iff_all: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q);
+			unfold ex_iff Minimal.ex_iff.
 
 	end
 
 	extend AllRel begin -- TODO: automate?
 		extend ExRel begin
 			lemma ex_imp_iff_all: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x ⊏ a. P.[x] ⟹ Q);
-				simp ex_def all_iff ex_imp_iff.
+				simp ex_iff all_iff ex_imp_iff.
 			lemma nex_iff_all_not: ¬ (∃x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
-				unfold ex_def all_iff .nex_iff_all_not nand_iff_imp_not.
+				unfold ex_iff all_iff .nex_iff_all_not nand_iff_imp_not.
 		end
 	end
 end

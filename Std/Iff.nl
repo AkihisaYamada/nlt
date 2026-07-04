@@ -107,15 +107,19 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ## Deriving Restricted Quantifiers via `(⟺)`
 ---
 
-extend MetaRelation begin
+extend base: MetaRelation begin
 
-	extend AllRel begin
+	theory AllRel :=
+		fix (∀⊏).
+		assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
+	begin
 
-		lemma all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
-			apply iff_intro;
-			- by #elim all_elim.
-			by all_intro.
-
+		interpret base.AllRel;
+			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
+				by all[fold all_iff].
+			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
+				by allIn[unfold all_iff, OF x].
+			.
 		lemma all_cong_strong:
 			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
 			then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
@@ -133,16 +137,29 @@ extend MetaRelation begin
 
 	end
 
-	theory AllRelViaIff :=
-		fix (∀⊏).
-		assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
-	begin
-		interpret AllRel;
-			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
-				by all[fold all_iff].
-			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
-				by allIn[unfold all_iff, OF x].
-			.
+end
+
+---
+We can show the intro/elim formulation of `AllRel` is equivalent to the iff one.
+---
+
+context Std.MetaRelation begin--TODO: how elegantly could this be done?
+
+	context AllRel begin
+
+		extend Iff begin
+
+			interpret MetaRelation.
+
+			interpret? AllRel;
+				- show all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
+					apply iff_intro;
+					- by #elim all_elim.
+					by all_intro.
+				.
+		end
+
 	end
 
 end
+

@@ -1,5 +1,5 @@
 -----
-## Notions for Sets or Types
+# Notions for Sets or Types
 -----
 fix (∈).
 
@@ -49,41 +49,22 @@ begin
 		.
 end
 
-theory Reflexive :=
-	fix A (⊏).
-	assume refl: if x ∈ A then x ⊏ x.
-end
 
-theory Symmetric :=
-	fix A (⊏).
+theory Symmetric A (⊏) :=
 	assume sym: if x ⊏ y, x ∈ A, y ∈ A then y ⊏ x.
 end
 
-theory SemiAttractive :=
-	fix A (⊏).
+theory SemiAttractive A (⊏) :=
 	assume attract: if x ⊏ y, y ⊏ x, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 end
 
-theory DualAttractive :=
-	fix A (⊏).
+theory DualAttractive A (⊏) :=
 	assume dual_attract: if x ⊏ y, y ⊏ x, x ⊏ z, x ∈ A, y ∈ A, z ∈ A then y ⊏ z.
 end
 
 theory Attractive :=
 	import SemiAttractive.
 	import DualAttractive.
-end
-
-theory Transitive :=
-	fix A (⊏).
-	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
-begin
-	interpret Attractive;
-		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z, !, !, !;
-			by trans[OF xy yz].
-		- if xy: x ⊏ y, yx: y ⊏ x, xz: x ⊏ z, !, !, !;
-			by trans[OF yx xz].
-		.
 end
 
 theory Preorder :=
@@ -96,20 +77,6 @@ theory Tolerance :=
 	import Symmetric.
 end
 
-theory PartialEquivalence :=
-	import Symmetric.
-	import Transitive.
-end
-
-theory Equivalence :=
-	import Reflexive.
-	import Symmetric.
-	import Transitive.
-begin
-	interpret Tolerance.
-	interpret PartialEquivalence.
-end
-
 theory CollectRel :=
 	fix (⊏) Collect.⊏.
 	assume Collect_intro: if x ⊏ a, P.[x] then x ∈ {x ⊏ a. P.[x]}.
@@ -118,4 +85,21 @@ theory CollectRel :=
 begin
 	lemma Collect_elim: if x: x ∈ {x ⊏ a. P.[x]}, assm: x ⊏ a ⟹ P.[x] ⟹ Q then Q;
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
+end
+
+theory FunType :=
+	fix (→).
+	assume Fun_elim: if f ∈ A → B, x ∈ A then f x ∈ B.
+end
+
+---
+# Type for Dependent Functions
+---
+theory DepFunType :=
+	fix (FunIn).
+	assume FunIn_elim: if f ∈ FUN x ∈ A. B.[x], x ∈ A then f x ∈ B.[x].
+begin
+
+term FUN x ∈ A. B.
+
 end

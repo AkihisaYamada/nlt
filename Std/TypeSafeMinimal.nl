@@ -263,10 +263,10 @@ extend MetaRelation begin
 
 	theory ExRel :=
 		fix (∃⊏).
-		assume ex_def: (∃x ⊏ a. P.[x]) ⟺ (∃x. x ⊏ a ∧ P.[x]).
+		assume ex_iff: (∃x ⊏ a. P.[x]) ⟺ (∃x. x ⊏ a ∧ P.[x]).
 	begin
 		lemma ex_intro1: if x: x ⊏ a, Px: P.[x] then ∃x ⊏ a. P.[x];
-			unfold ex_def;
+			unfold ex_iff;
 			by ex_intro1[of x] x Px.
 		lemma ex_intro: if assm: ∀Q. (∀x. x ⊏ A ⟹ P.[x] ⟹ Q) ⟹ Q then ∃x ⊏ A. P.[x];
 			apply assm;
