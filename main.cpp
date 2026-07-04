@@ -44,11 +44,15 @@ struct ClaimStatus {
 	bool strip_all = true;
 	static ClaimStatus const INFLATED;
 };
-inline ClaimStatus const ClaimStatus::INFLATED =
-	[](){ ClaimStatus ret; ret.intro = true; ret.inflated = true; return ret; }();
+inline ClaimStatus const ClaimStatus::INFLATED = {
+	.intro = {true,false},
+	.inflated = true,
+};
+
+ostream& operator<<( ostream& os, ClaimStatus && cs ) = delete;
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
-	static auto _print_cs_mod = [&]{
+	auto _print_cs_mod = [&]{
 		char const* post = "";
 		char const* pre = "[";
 		if( cs.prems != 255 ) {
@@ -1287,7 +1291,11 @@ public:
 		if( !name && cs ) {
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
-				if MSG cout << "\t" << *cs << _thy.pretty(*o) << endl;
+				if MSG {
+					cout << "\t";
+					if( cs ) cout << *cs;
+					cout << _thy.pretty(*o) << endl;
+				}
 			}
 		}
 		skip(".");
