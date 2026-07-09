@@ -212,6 +212,9 @@ context True begin
 
 end
 
+---
+## Negation
+---
 extend Not begin
 
 	lemma not_cong#cong if PQ: P ⟺ Q then ¬P ⟺ ¬Q;
@@ -232,6 +235,12 @@ extend Not begin
 		apply iff_intro;
 		- if nnimp: ¬ ¬ (P ⟹ ¬Q), P: P then ¬Q;
 			by nnimp_imp_nnot[OF nnimp P, unfold nnnot_iff].
+		by nnot_intro.
+
+	lemma nnall_not_iff: ¬ ¬ (∀x. ¬ P.[x]) ⟺ (∀x. ¬ P.[x]);
+		apply iff_intro;
+		- if 1: ¬ ¬ (∀x. ¬ P.[x]);
+			by 1[THEN nnall_imp, unfold nnnot_iff].
 		by nnot_intro.
 
 end

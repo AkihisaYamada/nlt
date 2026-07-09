@@ -47,9 +47,6 @@ lemma not_intro:-- @English Explosive Negation Introduction
 		apply expl[OF P].
 	.
 
-theorem not_inconsistent: ¬(∀Q. Q);
-	by not_intro.
-
 theorem nnnot_imp_not:
 	-- @English Triple Negation Elimination
 	if nnnP: ¬ ¬ ¬ P then ¬P;
@@ -63,6 +60,22 @@ lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
 		apply not_imp_nimp[OF P nQ].
 	.
 
+lemma not_imp_not_all: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
+	apply not_imp_imp_not[OF nPx].
+
+theorem not_inconsistent: ¬(∀Q. Q);
+	by not_intro.
+
+---
+The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
+---
+lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
+	by not_imp_imp_not[OF nnall not_imp_not_all].
+
+
+---
+### Theories using Negation
+---
 
 theory MetaIrreflexive (⊏) :=
 	assume irrefl: ¬ x ⊏ x.
@@ -106,11 +119,12 @@ theory ImplosiveNot :=
 	assume nnot_not_imp: if ¬ ¬ P, ¬P then P.
 end
 
-
-theory MinimalNot :=
+---
+The "falseful" minimal logic synchronizes negation via the common `false`.
+The following is a false-free formulation of this nature.
+---
+theory SynchronizedNot :=
 	assume not_elim_not: if ¬P, P then ¬Q.
-begin
-
 end
 
 context ExplosiveNot begin
@@ -119,15 +133,18 @@ context ExplosiveNot begin
 		- if nnP: ¬ ¬ P, nP: ¬P then P;
 			apply not_elim[OF nnP nP].
 		.
+	interpret SynchronizedNot;
+		by #elim not_elim.
 
 end
 
 ---
 A stronger and popular assumption is double-negation elimination (DNE) `¬ ¬ P ⟹ P`.
+In our setting, this is equivalent to `(¬P ⟹ Q) ⟹ (¬Q ⟹ P)`; consider `Q := ¬P`.
 While DNE collapses traditional minimal logic to classical logic, the false-free formulation
 avoids this collapse (Nelson's system N4).
 ---
-theory InvolutiveNot := -- @aka Strong Negation
+theory StrongNot :=
 	assume nnot_imp:
 		-- @English Double Negation Elimination
 		if ¬ ¬ P then P.
@@ -136,12 +153,24 @@ begin
 	interpret ImplosiveNot;
 		by #elim nnot_imp.
 
-	lemma not_imp_not_imp: if nPQ: ¬P ⟹ Q, nQ: ¬Q then P;
+	lemma not_imp_sym: if nPQ: ¬P ⟹ Q, nQ: ¬Q then P;
 		apply nnot_imp;
 		apply not_intro_connect[OF nQ];
 		- if nP: ¬P then ¬ ¬ Q;
 			apply nnot_intro[OF nPQ[OF nP]].
 		.
+
+	lemma contrapos: if nPnQ: ¬P ⟹ ¬Q, Q: Q then P;
+		apply not_imp_sym[OF nPnQ nnot_intro[OF Q]].
+
+	-- If one synchronizes negation, then DNE leads to explosion.
+	extend SynchronizedNot begin
+		interpret ExplosiveNot;
+			- if nP: ¬P, P: P then Q;
+				apply nnot_imp;
+				apply not_elim_not[OF nP P].
+			.
+	end
 
 end
 
@@ -152,9 +181,20 @@ theory ClaviusLaw :=
 		if ¬P ⟹ P then P.
 end
 
+context StrongNot begin
+
+	interpret ClaviusLaw;
+		- if nPP: ¬P ⟹ P then P;
+			apply nnot_imp;
+			apply self_refutation;
+			by nnot_intro nPP.
+		.
+
+end
+
 context ImplosiveNot begin
 	extend ClaviusLaw begin
-		interpret InvolutiveNot;
+		interpret StrongNot;
 			- if nnP: ¬ ¬ P then P;
 				apply not_imp_imp;
 				- if nP: ¬P;
@@ -164,7 +204,7 @@ context ImplosiveNot begin
 	end
 end
 
-theory NotCases :=-- Equivalent to Excluded Middle
+theory ExcludedMiddle :=-- Disjunction-free version
 	assume cases: if P ⟹ Q, ¬P ⟹ Q then Q.
 begin
 
@@ -173,4 +213,53 @@ begin
 			by cases[OF _ nPP].
 		.
 
+end
+
+---
+Pierce's law implies excluded middle also in the false-free form.
+---
+extend PierceLaw begin
+
+	interpret ExcludedMiddle;
+		- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+			apply pierce_law[of (¬P)];
+			- if QnP: Q ⟹ ¬P then Q;
+				apply nPQ;
+				apply self_refutation;
+				by QnP PQ.
+			.
+		.
+
+end
+
+---
+Explosivity and Clavius's law imply Pierce's law, and thus excluded middle.
+---
+context ExplosiveNot begin
+
+	extend ClaviusLaw begin
+
+		interpret PierceLaw;
+			- for Q if PQP: (P ⟹ Q) ⟹ P then P;
+				apply not_imp_imp;
+				- if nP: ¬P;
+					apply PQP;
+					- if P: P then Q;
+						by not_elim[OF nP P].
+					.
+				.
+			.
+	end
+
+end
+
+---
+Since strong not satisfies Clavius's law, and strong synchronized not is explosive,
+we conclude strong synchronized negation is classical: excluded middle is implied.
+---
+context StrongNot begin
+	context SynchronizedNot begin
+		interpret ClaviusLaw.
+		interpret PierceLaw.
+	end
 end

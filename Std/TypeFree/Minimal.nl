@@ -2,6 +2,11 @@
 # Type-Free Minimal Logic
 ---
 import TypeSafeMinimal.
+
+
+assume not_intro: if P ⟹ false then ¬P.
+assume not_imp_false#intro?[after 1] if ¬P, P then false.
+
 assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
 assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 
@@ -206,7 +211,7 @@ end
 extend PierceLaw begin
 	interpret ExcludedMiddle;
 		- for P then P ∨ ¬ P;
-			apply pierce_law[of _ false];
+			apply pierce_law[of false];
 			- if imp: P ∨ ¬ P ⟹ false;
 				apply or_intro2;
 				-> if ! P;
