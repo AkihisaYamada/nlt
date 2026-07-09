@@ -117,9 +117,9 @@ theory RevApp :=
 	assume revapp#simp x |> f = f x.
 end
 
-theory If :=
+theory MetaIf :=
 	fix If.
-	assume If_then: for P x y if P then If P x y = x.
+	assume If_then: if P then If P x y = x.
 	---
 	A minimal specification: P and ¬P will not lead to explosion.
 	---
@@ -128,7 +128,7 @@ begin
 end
 
 --- Syntactic Pairing ---
-theory Pair :=
+theory MetaPair :=
 	fix (,) fst snd.
 	assume fst#simp fst (x,y) = x.
 	assume snd#simp snd (x,y) = y.

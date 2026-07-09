@@ -8,7 +8,8 @@
     {"include": "#structures"},
 	{"include": "#tags"},
     {"include": "#proof-steps"},
-    {"include": "#proof-structures"}
+    {"include": "#proof-structures"},
+	{"include": "#binders"}
   ],
   "repository": {
     "comments": {
@@ -24,13 +25,13 @@
     },
     "commands": {
       "patterns": [{
-        "name": "strage.type.nlt",
-        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|extend|define|instantiate|retain|set|prefix|infix|syntax)\\b"
+        "name": "storage.type.nlt",
+        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|interpret|note|lemmas?|theorem|proposition|have|show|theory|context|namespace|extend|define|instantiate|retain|set|prefix|infix|syntax|term)\\b"
       }]
     },
     "structures": {
       "patterns": [{
-        "name": "keyword.control.nlt",
+        "name": "keyword.control.block.nlt",
         "match": "\\b(begin|end)\\b"
       }]
     },
@@ -51,7 +52,13 @@
         "name": "support.class.nlt",
         "match": ",|->?|\\.(\\s|$)|\\b(for|if|then|else|where)\\b"
       }]
-    }
+    },
+	"binders": {
+		"patterns": [{
+			"name": "entity.name.function.nlt",
+			"match": "\\b(fun|FUN|such)\\b"
+		}]
+	}
   },
   "scopeName": "source.nlt"
 }

@@ -3,11 +3,10 @@
 
 We fix a class `Prop` in which logical operators are closed.
 ---
-import Magmas.
+import Prop.
 
-fix Prop false (∧) (∨) (¬) (⟺).
+fix false (∧) (∨) (¬) (⟺).
 assume false_type! false ∈ Prop.
-import imp: Magma Prop (⟹).
 import and: Magma Prop (∧).
 import or: Magma Prop (∨).
 import not: Unary (¬) Prop Prop.
@@ -23,11 +22,8 @@ obtain true where true_intro! true, true_type! true ∈ Prop;
 		apply assm[of (false ⟹ false)].
 	.
 
-interpret iff: Magmas.MetaRelation (⟺).-- Magma notions wrt (⟺)
+interpret iff: MetaRelation (⟺).-- Magma notions wrt (⟺)
 
-theory PierceLaw :=
-	assume pierce_law: if (P ⟹ Q) ⟹ P, P ∈ Prop, Q ∈ Prop then P.
-end
 
 extend Iff begin
 

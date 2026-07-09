@@ -1,3 +1,7 @@
+---
+# Type-Free Minimal Logic via Equality
+---
+
 fix false (∧) (∨) (¬) (⟺) (∃) (∃!).
 define true = (∀P. P ⟹ P).
 assume and_def: (P ∧ Q) = (∀R. (P ⟹ Q ⟹ R) ⟹ R).
@@ -110,37 +114,6 @@ lemma ex1_imp_iff_eq: if ex1: ∃!x. P.[x], Px: P.[x] then P.[y] ⟺ x = y;
 	.
 lemma ex1_eq_and_iff: (∃!x. x = a ∧ P.[x]) ⟺ P.[a];
 	simp ex1_def and.left_assoc ex_eq_and_iff all_eq_imp_iff.
-
-theory UniqueSuch :=
-	fix (such).
-	assume such_intro_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].
-begin
-
-	lemma such_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (such y. P.[y]) = x;
-		apply ex1_elim[OF ex1];
-		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
-			have zT: (such x. P.[x]) = z;
-				by 1[OF such_intro_ex1[OF ex1]].
-			unfold zT;
-			unfold 1[OF Px].
-		.
-	note eq_such_intro: such_eq_intro[THEN eq.sym].
-
-end
-
---- Hilbert's Choice operator ---
-theory AnySuch :=
-	fix (such).
-	assume such_intro_ex: if ∃x. P.[x] then P.[such x. P.[x]].
-begin
-
-	interpret UniqueSuch;
-		- for P if ex1;
-			by such_intro_ex[OF ex1[THEN ex1_imp_ex]].
-		.
-
-end
-
 
 extend Pair begin
 	lemma pair_eq_pair#simp (x,y) = (x',y') ⟺ x = x' ∧ y = y';
@@ -470,7 +443,20 @@ begin
 
 end
 
-context UniqueSuch begin
+theory UniqueSuch :=
+	fix (such).
+	assume such_intro_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].
+begin
+
+	lemma such_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (such y. P.[y]) = x;
+		apply ex1_elim[OF ex1];
+		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
+			have zT: (such x. P.[x]) = z;
+				by 1[OF such_intro_ex1[OF ex1]].
+			unfold zT;
+			unfold 1[OF Px].
+		.
+	note eq_such_intro: such_eq_intro[THEN eq.sym].
 
 	extend base? MetaRelation begin
 
@@ -503,22 +489,17 @@ context UniqueSuch begin
 		import ..Membership.
 		interpret in: .MetaRelation (∈).
 		import in: in.SuchRel (∃∈) (such.∈).
-	begin
-
-		extend Fun begin
-
-			extend Pair begin
-
-				interpret UniqueChoice;
-					- for P if all_ex1;
-						apply ex_intro1[of (fun x. such y. P.[x,y])];
-
-
-			end
-
-		end
-
 	end
 
+--- Hilbert's Choice operator ---
+theory AnySuch :=
+	fix (such).
+	assume such_intro_ex: if ∃x. P.[x] then P.[such x. P.[x]].
+begin
+
+	interpret UniqueSuch;
+		- for P if ex1;
+			by such_intro_ex[OF ex1[THEN ex1_imp_ex]].
+		.
 
 end

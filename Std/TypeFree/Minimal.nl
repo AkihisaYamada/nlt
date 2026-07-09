@@ -1,19 +1,12 @@
 ---
 # Type-Free Minimal Logic
 ---
-fix false (∧) (∨) (¬) (⟺) (∃).
-import And.
-import Not.
-import Iff.
-assume or_intro1: for P Q if P then P ∨ Q.
-assume or_intro2: for P Q if Q then P ∨ Q.
+import TypeSafeMinimal.
 assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
-assume ex_intro1: for x if P.[x] then ∃x. P.[x].
 assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 
 begin
 
-interpret TypeSafeMinimal.
 ---
 ## Disjunction
 ---
@@ -191,13 +184,23 @@ theory ExcludedMiddle :=
 		P ∨ ¬P.
 begin -- This is incomparable with Explosion, but their combination leads to classical logic.
 
-	lemma cases: if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-		apply or_elim[OF or_not[of P]];
-		- by PQ.
-		- by nPQ.
+	interpret NotCases;
+		- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+			apply or_elim[OF or_not[of P]];
+			- by PQ.
+			- by nPQ.
+			.
 		.
 
 end
+
+extend NotCases begin
+	interpret ExcludedMiddle;
+		- show: P ∨ ¬P;
+			apply cases[of P].
+		.
+end
+
 
 -- Pierce Law implies Excluded Middle.
 extend PierceLaw begin
@@ -211,4 +214,78 @@ extend PierceLaw begin
 				.
 			.
 		.
+end
+
+theory Explosion :=
+	assume false_elim: if false then P.
+begin
+	interpret False;
+		retain false;
+			by false_elim.
+		.
+
+	lemma not_elim: if nP: ¬P, P: P then Q;
+		use not_imp_false[OF nP P].
+
+	lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
+		by iff_intro not_imp_false[OF nP].
+
+	lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
+		by iff_true.
+
+	interpret and: iff.MetaCommAbsorb (∧) false;
+		by iff_intro.
+
+	note#simp and.left_absorb and.right_absorb.
+
+	interpret or: iff.MetaCommNeutral (∨) false;
+		by iff_intro or_intro #elim or_elim false_elim.
+
+	note#simp or.left_neutral or.right_neutral.
+
+	extend ExcludedMiddle begin
+		interpret DoubleNegation;
+			- if nnP: ¬ ¬ P then P;
+				apply cases[of P];
+				- if nP: ¬P;
+					by not_elim[OF nnP nP].
+				.
+			.
+	end
+
+end
+
+extend DoubleNegation begin
+
+	lemma nnot_iff#simp ¬ ¬ P ⟺ P;
+		apply iff_intro[OF nnot_imp nnot_intro].
+
+	lemma contradiction:
+		-- @Latin reductio ad absurdum
+		if assm: ¬P ⟹ false then P;
+		apply nnot_imp;
+		apply not_intro;
+		by assm.
+
+	lemma or_iff_nand: P ∨ Q ⟺ ¬ (¬P ∧ ¬Q);
+		fold nor_iff.
+
+	interpret Explosion;
+		- if 0: false then P;
+			apply contradiction;
+			by 0.
+		.
+
+	interpret PierceLaw;
+		- if PQP: (P ⟹ Q) ⟹ P then P;
+			apply nnot_imp;
+			-> if nP: ¬P then false;
+				apply not_imp_false[OF nP];
+				apply PQP;
+				- if P: P then Q;
+					by not_elim[OF nP P].
+				.
+			.
+		.
+
 end

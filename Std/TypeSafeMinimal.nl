@@ -1,8 +1,13 @@
-fix false (∧) (∨) (¬) (⟺) (∃).
+import Iff.
+interpret True.
+
+fix false (∧) (∨) (¬) (∃).
 
 import And.
-import Not.
-import Iff.
+
+assume not_intro: if P ⟹ false then ¬P.
+assume not_imp_false#intro?[after 1] if ¬P, P then false.
+
 
 assume or_intro1: for P Q if P then P ∨ Q.
 assume or_intro2: for P Q if Q then P ∨ Q.
@@ -12,87 +17,80 @@ assume ex_intro1: for x if P.[x] then ∃x. P.[x].
 begin
 
 ---
-## True
----
-obtain true where true_intro! true;
-	- for thesis if assm: ∀true. true ⟹ thesis then thesis;
-		by assm[of (∀x. x ⟹ x)].
-	.
-
-interpret imp: iff.MetaLeftNeutral (⟹) true;
-	by imp_imp_iff.
-
-interpret imp: iff.MetaRightAbsorb (⟹) true;
-	by iff_intro.
-
-interpret iff: iff.MetaCommNeutral (⟺) true;
-	by iff_intro #elim iff_elim.
-
-note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
-
-lemma iff_true: P ⟹ P ⟺ true.
-
----
-## Conjunction
----	
-interpret and: iff.MetaCompatible (∧);
-	- if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
-		by iff_intro #simp P Q.
-	.
-
-lemma and_cong1#cong if P: P ⟺ P', Q: P' ⟹ Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
-	by iff_intro #simp P Q.
-
-interpret and: iff.MetaIdempotent (∧);
-	by iff_intro.
-
-interpret and: iff.MetaCommMonoid (∧) true;
-	by iff_intro.
-
-note #simp and.left_neutral and.right_neutral.
-
-lemma and_imp_iff_imp_imp#simp#rule (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
-	by iff_intro.
-
-lemma imp_and_iff1#simp if P: P then P ∧ Q ⟺ Q;
-	by iff_intro P.
-
-lemma imp_and_iff2#simp if Q: Q then P ∧ Q ⟺ P;
-	by iff_intro Q.
-
-lemma and_iff: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
-	apply iff_intro;
-	- simp imp_imp_iff.
-	- if assm;
-		apply assm.
-	.
-
-lemma iff_iff_and: (P ⟺ Q) ⟺ (P ⟹ Q) ∧ (Q ⟹ P);
-	by iff_intro #elim iff_elim.
-
-lemma imp_and_distrib: (P ⟹ Q ∧ R) ⟺ (P ⟹ Q) ∧ (P ⟹ R);
-	apply iff_intro;
-	- if imp;
-		apply and_intro;
-		- if P;
-			apply and_elim[OF imp[OF P]].
-		- if P;
-			apply and_elim[OF imp[OF P]].
-		.
-	.
-
-lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x]);
-	apply iff_intro;
-	- if ab: ∀x. P.[x] ∧ Q.[x];
-		apply and_intro;
-		- by and_elim1[OF ab].
-		- by and_elim2[OF ab].
-		.
-	.
-
----
 ## Negation
 ---
+
+lemma not_false: ¬false;
+	by not_intro.
+
+lemma false_imp_not: if 0: false then ¬P;
+	by not_intro 0.
+
+lemma imp_not: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
+	apply not_intro;
+	- if PQ: P ⟹ Q;
+		by nQ PQ[OF P].
+	.
+
+lemma imp_not_imp: if PQ: P ⟹ Q then ¬Q ⟹ ¬P;
+	by not_intro PQ.
+
+lemma not_imp_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
+	by imp_not_imp[OF QP nP].
+
+lemma imp_not_sym: if PnQ: P ⟹ ¬Q then Q ⟹ ¬P;
+	by not_intro #elim PnQ.
+
+-- utilizes shared false
+lemma nimp_imp_not: if nimp: ¬(P ⟹ Q) then ¬Q;
+	apply not_intro;
+	by not_imp_false[OF nimp].
+
+-- utilizes shared false
+lemma nimp_not_imp_not: if nimpn: ¬(P ⟹ ¬Q) then ¬ ¬ P;
+	apply not_intro;
+	- if nP: ¬P then false;
+		apply not_imp_false[OF nimpn];
+		- if P: P then ¬Q;
+			apply not_intro;
+			by not_imp_false[OF nP P].
+		.
+	.
+
+
+lemma nnot_intro: P ⟹ ¬ ¬ P;
+	by not_intro.
+
+lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
+	by imp nnot_intro.
+
+lemma not_imp_not_all: ¬ P.[x] ⟹ ¬(∀y. P.[y]);
+	by not_intro.
+
+lemma nnot_imp_nnot: if nnP: ¬ ¬ P, PQ: P ⟹ Q then ¬ ¬ Q;
+	apply not_intro;
+	- if nQ: ¬Q;
+		use nnP;
+		by imp_not_imp[OF PQ nQ].
+	.
+
+lemma nnot_not_imp_nimp: if nnP: ¬ ¬ P, ! ¬Q then ¬(P ⟹ Q);
+	apply not_intro;
+	- if PQ: P ⟹ Q;
+		by nnot_imp_nnot[OF nnP PQ].
+	.
+
+lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
+	apply not_intro;
+	- if nQ: ¬Q;
+		have nPQ: ¬(P ⟹ Q);
+			apply not_intro;
+			- if PQ: P ⟹ Q;
+				by nQ PQ[OF P].
+			.
+		use nnPQ nPQ.
+	.
+
 lemma not_iff_imp_false#rule ¬ P ⟺ (P ⟹ false);
 	apply iff_intro;
 	- apply not_imp_false>0.
@@ -275,28 +273,6 @@ extend MetaRelation begin
 			.
 	end
 
-end
-
-theory MetaIrreflexive (⊏) :=
-	assume irrefl: ¬ x ⊏ x.
-end
-
-theory MetaAsymmetric (⊏) :=
-	assume asym: x ⊏ y ⟹ ¬ y ⊏ x.
-end
----
-Note that antisymmetry is not yet definable, because it requires equality.
----
-theory MetaOrder :=
-	import MetaIrreflexive.
-	import MetaTransitive.
-begin
-	interpret MetaAsymmetric;
-		-> for x y if xy: x ⊏ y, yx: y ⊏ x then false;
-			have xx: x ⊏ x;
-				by trans[OF xy yx].
-			by not_imp_false[OF irrefl xx].
-		.
 end
 
 theory Membership :=

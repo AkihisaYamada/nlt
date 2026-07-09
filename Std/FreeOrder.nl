@@ -12,7 +12,7 @@ assume exIn_type!  if ∀x. x ∈ A ⟹ P.[x] ∈ Prop then (∃x ∈ A. P.[x]) 
 
 begin
 
-theory Minimal:
+theory Minimal :=
 	interpret Propositional;
 		obtain false where false_type! false ∈ Prop;-- One can obtain false.
 			- for thesis if assm;
@@ -24,7 +24,7 @@ begin
 
 end
 
-theory Intuitionistic:
+theory Intuitionistic :=
 	interpret Propositional;
 		obtain false where -- One can obtain false.
 			false_type! false ∈ Prop,
@@ -38,7 +38,7 @@ begin
 	interpret FreeOrder.Minimal.
 end
 
-theory Classical:
+theory Classical :=
 	import Intuitionistic.
 	import ExcludedMiddle.
 begin

@@ -357,10 +357,6 @@ begin
 	interpret MetaPartialEquivalence.
 end
 
-theory PierceLaw :=
-	assume pierce_law: if (P ⟹ Q) ⟹ P then P.
-end
-
 ---
 ## Theorems in Foundation
 ---
