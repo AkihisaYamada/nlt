@@ -1,210 +1,219 @@
 
 ---
-## Negation
+# Negation
 
 We consider negation as primitive, rather than as a derived notion of `false`.
 This view allows to declare explosive `false` without exploding every contradiction `P ∧ ¬P`.
-The following is a very mild assumption on negation, but retains many important theorems of
-minimal logic.
 ---
+
 fix (¬).
-assume imp_not_sym: if P ⟹ ¬Q then Q ⟹ ¬P.
 
 begin
 
-lemma not_intro_connect: if P: P, QnP: Q ⟹ ¬P then ¬Q;
-	apply imp_not_sym[OF QnP P].
+theory SelfRefutation :=
+	assume self_refutation: if P ⟹ ¬P then ¬P.
+begin
 
-theorem nnot_intro:-- @English Double Negation Introduction
-	if P: P then ¬ ¬ P;
-	apply not_intro_connect[OF P].
+	extend False begin
 
-lemma imp_imp_not_imp_not: if PQ: P ⟹ Q then ¬Q ⟹ ¬P;
-	- if nQ;
-		apply not_intro_connect[OF nQ];
-		by nnot_intro PQ.
-	.
-lemma not_imp_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
-	by imp_imp_not_imp_not[OF QP nP].
+		lemma not_intro: if nP: P ⟹ false then ¬P;
+			apply self_refutation;
+			by #elim nP.
 
-lemma not_imp_nimp: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
-	apply not_intro_connect[OF nQ];
-	- if PQ: P ⟹ Q then ¬ ¬ Q;
-		by nnot_intro PQ P.
-	.
+		lemma not_false: ¬false;
+			by not_intro.
 
-lemma self_refutation: if 1: P ⟹ ¬P then ¬P;
-	apply not_intro_connect[OF 1];
-	by not_imp_nimp nnot_intro.
+	end
 
-lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
-	by imp nnot_intro.
-
-lemma not_intro:-- @English Explosive Negation Introduction
-	if expl: P ⟹ ∀Q. Q then ¬P;
-	apply not_intro_connect[of (∀R. R ⟹ R)];
-	- if P: P;
-		apply expl[OF P].
-	.
-
-theorem nnnot_imp_not:
-	-- @English Triple Negation Elimination
-	if nnnP: ¬ ¬ ¬ P then ¬P;
-	apply not_intro_connect[OF nnnP];
-	by nnot_intro.
-
-lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
-	apply not_intro_connect[OF nnPQ];
-	- if nQ: ¬Q then ¬ ¬ ¬ (P ⟹ Q);
-		apply nnot_intro;
-		apply not_imp_nimp[OF P nQ].
-	.
-
-lemma not_imp_not_all: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
-	apply not_imp_imp_not[OF nPx].
-
-theorem not_inconsistent: ¬(∀Q. Q);
-	by not_intro.
-
----
-The following direction is provable in general, but the opposite direction requires something similar to the axiom of choice.
----
-lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
-	by not_imp_imp_not[OF nnall not_imp_not_all].
-
-
----
-### Theories using Negation
----
+end
 
 theory MetaIrreflexive (⊏) :=
 	assume irrefl: ¬ x ⊏ x.
 end
 
 theory MetaAsymmetric (⊏) :=
-	assume asym: x ⊏ y ⟹ ¬ y ⊏ x.
+	assume asym: if x ⊏ y then ¬ y ⊏ x.
 end
 ---
 Note that antisymmetry is not yet definable, because it requires equality.
 ---
 
-theory MetaOrder :=
-	import MetaIrreflexive.
-	import MetaTransitive.
+
+---
+## Forward Contraposition
+
+Here we consider one direction of contraposition `(P ⟹ Q) ⟹ ¬P ⟹ ¬Q`.
+This assumption captures many of (somewhat surprising) behaviors of minimal logic,
+most notably negative explosion: `¬P ⟹ P ⟹ ¬Q`.
+---
+theory ContraPos :=
+	import not: MetaAntitone (¬) (⟹) (⟹).
 begin
-	interpret MetaAsymmetric;
-		- for x y if xy: x ⊏ y then ¬ y ⊏ x;
-			apply not_intro_connect[of (¬ x ⊏ x)];
-			- by irrefl.
-			- if yx: y ⊏ x then ¬ ¬ x ⊏ x;
-				apply nnot_intro;
-				by trans[OF xy yx].
+
+	lemma not_imp_imp_not: if nP: ¬P, QP: Q ⟹ P then ¬Q;
+		by not.cmono[OF QP nP].
+
+	lemma not_elim_not: if nP: ¬P, P: P then ¬Q;
+		by not_imp_imp_not[OF nP] P.
+
+	lemma nimp_intro: if P: P, nQ: ¬Q then ¬(P ⟹ Q);
+		apply not_imp_imp_not[OF nQ];
+		- if PQ: P ⟹ Q then Q;
+			by PQ P.
+		.
+	lemma nimp_imp_imp: if imp: ¬(P ⟹ Q) ⟹ R then P ⟹ ¬Q ⟹ R;
+		by imp nimp_intro.
+
+	lemma nimp_imp_not: if nimp: ¬(P ⟹ Q) then ¬Q;
+		apply not_imp_imp_not[OF nimp].
+
+	lemma nimp_not_imp_nnot: if nimpn: ¬(P ⟹ ¬Q) then ¬ ¬ P;
+		apply not_imp_imp_not[OF nimpn];
+		- if nP, P;
+			apply not_elim_not[OF nP P].
+		.
+	lemma nimp_not_elim_nnot: if nimp: ¬(P ⟹ ¬Q), imp: ¬ ¬ P ⟹ ¬ ¬ Q ⟹ R then R;
+		apply imp;
+		by nimp_imp_not[OF nimp] nimp_not_imp_nnot[OF nimp].
+
+	lemma not_imp_not_all: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
+		apply not_imp_imp_not[OF nPx].
+
+	lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
+		by not_imp_imp_not[OF nnall not_imp_not_all].
+
+	lemma not_imp_not_true: if nP: ¬P, P: P then ¬true;
+		by not_elim_not[OF nP P].
+
+	lemma not_true_imp_not: if nt: ¬true then ¬P;
+		apply not_elim_not[OF nt].
+
+	theory MetaOrder :=
+		import MetaIrreflexive.
+		import MetaTransitive.
+	begin
+		interpret MetaAsymmetric;
+			- for x y if xy: x ⊏ y then ¬ y ⊏ x;
+				apply not_imp_imp_not[OF irrefl[of x]];
+				- if yx: y ⊏ x then x ⊏ x;
+					by trans[OF xy yx].
+				.
 			.
-		.
-end
+	end
 
----
-Intuitionistic logic makes false explosive; in the false-free formulation, admits
-negation elimination `¬P ⟹ P ⟹ Q`. This corresponds to Nelson's system N3.
----
-theory ExplosiveNot :=
-	assume not_elim: if ¬P, P then Q.
-end
+	---
+	Having explosive false yields `¬false ⟺ true`, but it does not make `¬true` explosive;
+	`¬true` only implies `¬ ¬ false`.
+	---
+	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ false;
+		apply not_imp_imp_not[OF nt].
 
----
-The explosive negation is so strong that having any `P` and `¬P` collapses the
-entire theory. One can consider the following weaker form.
----
-theory ImplosiveNot :=
-	assume nnot_not_imp: if ¬ ¬ P, ¬P then P.
-end
-
----
-The "falseful" minimal logic synchronizes negation via the common `false`.
-The following is a false-free formulation of this nature.
----
-theory SynchronizedNot :=
-	assume not_elim_not: if ¬P, P then ¬Q.
-end
-
-context ExplosiveNot begin
-
-	interpret ImplosiveNot;
-		- if nnP: ¬ ¬ P, nP: ¬P then P;
-			apply not_elim[OF nnP nP].
-		.
-	interpret SynchronizedNot;
-		by #elim not_elim.
 
 end
 
 ---
-A stronger and popular assumption is double-negation elimination (DNE) `¬ ¬ P ⟹ P`.
-In our setting, this is equivalent to `(¬P ⟹ Q) ⟹ (¬Q ⟹ P)`; consider `Q := ¬P`.
-While DNE collapses traditional minimal logic to classical logic, the false-free formulation
-avoids this collapse (Nelson's system N4).
+## "Minimal" Negation
+
+Traditional minimal logic with false "define"s negation by `¬P ⟺ (P ⟹ ⊥)` for free `⊥`.
+We can formulate the equivalent without mentioning `⊥`, which corresponds to `¬true`,
+as follows.
+It is also equivalent to forward contraposition with double-negation introduction.
 ---
-theory StrongNot :=
-	assume nnot_imp:
-		-- @English Double Negation Elimination
-		if ¬ ¬ P then P.
+theory NNotIntro :=
+	assume nnot_intro:-- @English Double Negation Introduction
+		if P then ¬ ¬P.
+end
+
+theory MinimalNot :=
+	assume imp_not_sym: if P ⟹ ¬Q then Q ⟹ ¬P.
 begin
 
-	interpret ImplosiveNot;
-		by #elim nnot_imp.
+	lemma not_intro_connect: if P: P, QnP: Q ⟹ ¬P then ¬Q;
+		apply imp_not_sym[OF QnP P].
 
-	lemma not_imp_sym: if nPQ: ¬P ⟹ Q, nQ: ¬Q then P;
-		apply nnot_imp;
-		apply not_intro_connect[OF nQ];
-		- if nP: ¬P then ¬ ¬ Q;
-			apply nnot_intro[OF nPQ[OF nP]].
+	interpret NNotIntro;
+		- if P: P then ¬ ¬ P;
+			apply not_intro_connect[OF P].
 		.
 
-	lemma contrapos: if nPnQ: ¬P ⟹ ¬Q, Q: Q then P;
-		apply not_imp_sym[OF nPnQ nnot_intro[OF Q]].
+	interpret ContraPos;
+		- if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
+			apply not_intro_connect[OF nQ];
+			by nnot_intro PQ.
+		.
 
-	-- If one synchronizes negation, then DNE leads to explosion.
-	extend SynchronizedNot begin
-		interpret ExplosiveNot;
-			- if nP: ¬P, P: P then Q;
-				apply nnot_imp;
-				apply not_elim_not[OF nP P].
+	theorem nnnot_imp_not: -- @English Triple Negation Elimination
+		¬ ¬ ¬ P ⟹ ¬P;
+		apply not.cmono[OF nnot_intro]>0.
+
+	lemma imp_not_true_imp_not: if imp: P ⟹ ¬true then ¬P;
+		apply not_intro_connect[OF true_intro imp].
+
+	interpret SelfRefutation;
+		- if 1: P ⟹ ¬P then ¬P;
+			apply not_intro_connect[OF 1];
+			by nimp_intro nnot_intro.
+		.
+
+	lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
+		by imp nnot_intro.
+
+	lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
+		apply not_intro_connect[OF nnPQ];
+		- if nQ: ¬Q then ¬ ¬ ¬ (P ⟹ Q);
+			apply nnot_intro;
+			apply nimp_intro[OF P nQ].
+		.
+
+end
+
+-- Minimal negation is equivalent to contraposition plus double negation introduction.
+context ContraPos begin
+
+	extend NNotIntro begin
+		interpret MinimalNot;
+			- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
+				apply not.cmono[OF PnQ];
+				by nnot_intro[OF Q].
 			.
 	end
 
 end
+
+---
+Exploring...
+---
 
 theory ClaviusLaw :=
 	assume not_imp_imp:
 		-- @English Clavius's Law
 		-- @Latin Consequentia Mirabilis
 		if ¬P ⟹ P then P.
-end
-
-context StrongNot begin
-
-	interpret ClaviusLaw;
-		- if nPP: ¬P ⟹ P then P;
-			apply nnot_imp;
-			apply self_refutation;
-			by nnot_intro nPP.
-		.
 
 end
 
-context ImplosiveNot begin
-	extend ClaviusLaw begin
-		interpret StrongNot;
-			- if nnP: ¬ ¬ P then P;
-				apply not_imp_imp;
-				- if nP: ¬P;
-					apply nnot_not_imp[OF nnP nP].
-				.
-			.
-	end
+theory NNotElim :=
+	assume nnot_elim:-- @English Double Negation Elimination
+		if ¬ ¬ P then P.
 end
 
-theory ExcludedMiddle :=-- Disjunction-free version
+---
+Intuitionistic logic makes false explosive; in the false-free formulation, admits
+negation elimination `¬P ⟹ P ⟹ Q`.
+---
+theory ExplosiveNot :=
+	assume not_elim: if ¬P, P then Q.
+begin
+
+	lemma not_true_elim: if 0: ¬true then Q;
+		apply not_elim[OF 0].
+
+end
+
+---
+Excluded middle allows case distinction.
+---
+theory ExcludedMiddle :=
 	assume cases: if P ⟹ Q, ¬P ⟹ Q then Q.
 begin
 
@@ -213,24 +222,51 @@ begin
 			by cases[OF _ nPP].
 		.
 
-end
-
----
-Pierce's law implies excluded middle also in the false-free form.
----
-extend PierceLaw begin
-
-	interpret ExcludedMiddle;
-		- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-			apply pierce_law[of (¬P)];
-			- if QnP: Q ⟹ ¬P then Q;
-				apply nPQ;
-				apply self_refutation;
-				by QnP PQ.
-			.
+	interpret SelfRefutation;
+		- if PnP: P ⟹ ¬P then ¬P;
+			by cases[OF PnP].
 		.
 
 end
+
+---
+Under Pierce's law, self-refutation principle, consequentia mirabilis and excluded middle coincide.
+---
+context SelfRefutation begin
+
+	extend PierceLaw begin
+
+		interpret ExcludedMiddle;
+			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+				apply pierce_law[of (¬P)];
+				- if QnP: Q ⟹ ¬P then Q;
+					apply nPQ;
+					apply self_refutation;
+					by QnP PQ.
+				.
+			.
+
+	end
+
+end
+
+context ClaviusLaw begin
+
+	extend PierceLaw begin
+
+		interpret ExcludedMiddle;
+			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+				apply pierce_law[of P];
+				- if QP: Q ⟹ P then Q;
+					apply PQ;
+					apply not_imp_imp;
+					by nPQ QP.
+				.
+			.
+	end
+
+end
+
 
 ---
 Explosivity and Clavius's law imply Pierce's law, and thus excluded middle.
@@ -253,13 +289,137 @@ context ExplosiveNot begin
 
 end
 
----
-Since strong not satisfies Clavius's law, and strong synchronized not is explosive,
-we conclude strong synchronized negation is classical: excluded middle is implied.
----
-context StrongNot begin
-	context SynchronizedNot begin
-		interpret ClaviusLaw.
-		interpret PierceLaw.
+theory CoMinimalNot :=
+	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
+begin
+
+	lemma not_elim_connect: if nP: ¬P, imp: ¬Q ⟹ P then Q;
+		by not_imp_sym[OF imp nP].
+
+	interpret NNotElim;
+		by not_imp_sym[OF imp.refl].
+
+	interpret ExplosiveNot;
+		- if nP: ¬P, P: P then Q;
+			apply not_elim_connect[OF nP];
+			by P.
+		.
+
+	interpret ContraPos;
+		- if imp: P ⟹ Q, nQ: ¬Q then ¬P;
+			apply not_elim_connect[OF nQ];
+			by imp #elim nnot_elim.
+		.
+
+	lemma nimp_not_elim1: if nimp: ¬(P ⟹ ¬Q) then P;
+		apply nnot_elim;
+		apply nimp_not_imp_nnot[OF nimp].
+
+	lemma nimp_not_elim2: if nimp: ¬(P ⟹ ¬Q) then Q;
+		apply nnot_elim;
+		apply nimp_imp_not[OF nimp].
+
+	lemma nimp_not_elim: if nimp: ¬(P ⟹ ¬Q), PQR: P ⟹ Q ⟹ R then R;
+		apply PQR[OF nimp_not_elim1[OF nimp] nimp_not_elim2[OF nimp]].
+
+	lemma nnnot_intro: if not: ¬P then ¬ ¬ ¬P;
+		apply not.cmono[OF nnot_elim not].
+
+	---
+	Self refutation brings consequentia mirabilis in, with which explosivity brings excluded middle.
+	---
+	extend SelfRefutation begin
+
+		interpret ClaviusLaw;
+			- if imp: ¬P ⟹ P then P;
+				apply nnot_elim;
+				apply self_refutation;
+				- if nP: ¬P;
+					apply not.cmono[OF imp nP].
+				.
+			.
+		thm cases.
 	end
+
+end
+
+-- Co-minimal negation is equivalent to contraposition plus double-negation elimination.
+context ContraPos begin
+
+	extend NNotElim begin
+
+		interpret CoMinimalNot;
+			- if nPQ: ¬P ⟹ Q, nQ: ¬Q then P;
+				apply nnot_elim;
+				apply not.cmono[OF nPQ nQ].
+			.
+
+	end
+
+end
+
+---
+The explosive negation is so strong that having any `P` and `¬P` collapses the
+entire theory. One can consider the following weaker form.
+---
+theory ImplosiveNot :=
+	assume nnot_not_imp: if ¬ ¬ P, ¬P then P.
+begin
+
+	extend ClaviusLaw begin
+		interpret NNotElim;
+			- if nnP: ¬ ¬ P then P;
+				apply not_imp_imp;
+				- if nP: ¬P;
+					apply nnot_not_imp[OF nnP nP].
+				.
+			.
+	end
+
+end
+
+context ExplosiveNot begin
+
+	interpret ImplosiveNot;
+		- if nnP: ¬ ¬ P, nP: ¬P then P;
+			apply not_elim[OF nnP nP].
+		.
+
+end
+
+
+---
+Inverse contraposition already allows explosive negation elimination.
+---
+theory InvContraPos :=
+	import not: MetaInvAntitone (¬) (⟹) (⟹).
+begin
+
+	interpret ExplosiveNot;
+		- if nP: ¬P, P: P then Q;
+			apply not.inv_cmono[OF _ P];
+			by nP.
+		.
+
+	lemma nnot_explode_imp_not:
+		if imp: ¬ ¬ P ⟹ ∀Q. Q then ¬P;
+		apply not.inv_cmono[of _ true];
+		by #elim imp.
+
+end
+
+
+theory ClassicalNot :=
+	import MinimalNot, NNotElim.
+begin
+
+	interpret CoMinimalNot.
+	interpret SelfRefutation.-- This brings the excluded middle
+	thm cases.
+
+	interpret InvContraPos;
+		- if nPnQ: ¬P ⟹ ¬Q, Q: Q then P;
+			apply not_imp_sym[OF nPnQ nnot_intro[OF Q]].
+		.
+
 end

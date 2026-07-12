@@ -357,6 +357,30 @@ begin
 	interpret MetaPartialEquivalence.
 end
 
+theory MetaLeftBound (⊏) ⊥ :=
+	assume left_bound: ⊥ ⊏ x.
+end
+
+theory MetaRightBound (⊏) ⊤ :=
+	assume right_bound: x ⊏ ⊤.
+end
+
+theory MetaMonotone f (<) (⊏) :=
+	assume mono: if x < y then f x ⊏ f y.
+end
+
+theory MetaAntitone f (<) (⊏) :=
+	assume cmono: if x < y then f y ⊏ f x.
+end
+
+theory MetaInvMonotone f (<) (⊏) :=
+	assume inv_mono: if f x ⊏ f y then x < y.
+end
+
+theory MetaInvAntitone f (<) (⊏) :=
+	assume inv_cmono: if f x ⊏ f y then y < x.
+end
+
 ---
 ## Theorems in Foundation
 ---

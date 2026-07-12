@@ -1,0 +1,48 @@
+---
+## Primitive Specification of Conjunction
+---
+fix (∧).
+assume and_intro! for P Q if P, Q then P ∧ Q.
+assume and_elim1: if P ∧ Q then P.
+assume and_elim2: if P ∧ Q then Q.
+
+begin
+
+lemma and_elim#elim if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
+	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
+
+lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q then R;
+	by and_elim[OF PQ PQR].
+
+interpret and: MetaPartialEquivalence (∧).
+
+extend Not begin
+
+	extend ContraPos begin
+
+	lemma nand_intro1: if nP: ¬ P then ¬ (P ∧ Q);
+		apply not.cmono[OF and_intro1];
+		by nP.
+
+	lemma nand_intro2: if nQ: ¬ Q then ¬ (P ∧ Q);
+		apply not_intro;
+		by not_imp_false[OF nQ].
+
+	lemma not_contradiction: ¬ (P ∧ ¬P);
+		apply not_intro;
+		by #elim not_imp_false.
+
+	lemma false_nand: ¬ (false ∧ P);
+		by nand_intro1 not_false.
+
+	lemma nand_false: ¬ (P ∧ false);
+		by nand_intro2 not_false.
+
+end
+
+extend Iff begin
+
+	interpret? And;
+		by iff_intro.
+
+end

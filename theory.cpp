@@ -146,7 +146,11 @@ void Thy::_check_loop_import( Thy const& origin, bool rec ) const {
 	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto const& [im,rec2] = it->second;
-		if( rec ) {
+		im.source()._check_loop_import(origin,rec2);
+	}
+	if( rec ) {
+		for( auto [it,end] = _ref->imports.equal_range(NONREC_IMPORT); it != end; it++ ) {
+			auto const& [im,rec2] = it->second;
 			im.source()._check_loop_import(origin,rec2);
 		}
 	}

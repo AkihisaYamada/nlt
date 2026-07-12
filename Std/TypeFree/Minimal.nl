@@ -1,81 +1,11 @@
 ---
-# Type-Free Minimal Logic
+## Type-Free Existence
 ---
-import TypeSafeMinimal.
 
-
-assume not_intro: if P ⟹ false then ¬P.
-assume not_imp_false#intro?[after 1] if ¬P, P then false.
-
-assume or_elim: if P ∨ Q, P ⟹ R, Q ⟹ R then R.
+assume ex_intro1: for x if P.[x] then ∃x. P.[x].
 assume ex_elim: if ∃x. P.[x], ∀x. P.[x] ⟹ Q then Q.
 
 begin
-
----
-## Disjunction
----
-
-lemma or_iff: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
-	apply iff_intro[OF or_elim or_intro].
-
-interpret or: MetaSymmetric (∨);
-	by #elim or_elim.
-
----
-Algebraic properties of `(∨)`, with respect to `(⟺)`.
-Minimal logic does not allow `false` to be neutral of or: `false ∨ P ⟺ P`,
-because the `false` case does not derive `P`.
----
-interpret or: iff.MetaCompatible (∨);
-	- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
-		by iff_intro #elim or_elim #simp PQ RS.
-	.
-note#cong or.cong.
-
-interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
-	by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
-
-interpret or: iff.MetaIdempotent (∨);
-	- show: P ∨ P ⟺ P;
-		by iff_intro #elim or_elim.
-	.
-
-note#simp or.idem.
-
-lemma or_imp_iff: (P ∨ Q ⟹ R) ⟺ (P ⟹ R) ∧ (Q ⟹ R);
-	apply iff_intro;
-	- if imp;
-		by imp.
-	by #elim or_elim.
-
-lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P then Q ∨ R;
-	by or[unfold imp_imp_iff].
-
-lemma and_or_distrib: P ∧ (Q ∨ R) ⟺ P ∧ Q ∨ P ∧ R;
-	apply iff_intro;
-	simp or_imp_iff.
-
-lemma or_and_distrib: (P ∨ Q) ∧ R ⟺ P ∧ R ∨ Q ∧ R;
-	unfold and.commute;
-	unfold and_or_distrib.
-
-lemma nor_iff: ¬ (P ∨ Q) ⟺ ¬P ∧ ¬Q;
-	unfold not_iff_imp_false;
-	by or_imp_iff.
-
-lemma nnot_or_not: ¬ ¬ (P ∨ ¬P);
-	unfold nor_iff;
-	by non_contradiction.
-
-lemma nnot_nor_iff: ¬ (¬ ¬ P ∨ Q) ⟺ ¬ (P ∨ Q);
-	unfold nor_iff nnnot_iff.
-
-lemma nor_nnot_iff: ¬ (P ∨ ¬ ¬ Q) ⟺ ¬ (P ∨ Q);
-	unfold nor_iff nnnot_iff.
-
-lemma or_imp_nand: P ∨ Q ⟹ ¬ (¬P ∧ ¬Q);
-	by not_intro #elim or_elim.
 
 ---
 ## Existence
