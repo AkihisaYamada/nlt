@@ -10,20 +10,35 @@ fix (¬).
 
 begin
 
-theory SelfRefutation :=
-	assume self_refutation: if P ⟹ ¬P then ¬P.
+theory NotInconsistent :=
+	assume not_inconsistent: ¬(∀P. P).
+end
+
+theory NotIntro :=
+	assume not_intro: if P ⟹ ∀Q. Q then ¬P.
 begin
 
-	extend False begin
+	interpret NotInconsistent;
+		by not_intro.
 
-		lemma not_intro: if nP: P ⟹ false then ¬P;
-			apply self_refutation;
-			by #elim nP.
+	extend False begin
 
 		lemma not_false: ¬false;
 			by not_intro.
 
 	end
+
+end
+
+theory SelfRefutation :=
+	assume self_refutation: if P ⟹ ¬P then ¬P.
+begin
+
+	interpret NotIntro;
+		- if nP: P ⟹ ∀Q. Q then ¬P;
+			apply self_refutation;
+			by #elim nP.
+		.
 
 end
 
@@ -105,9 +120,17 @@ begin
 	Having explosive false yields `¬false ⟺ true`, but it does not make `¬true` explosive;
 	`¬true` only implies `¬ ¬ false`.
 	---
-	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ false;
+	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ Q;
 		apply not_imp_imp_not[OF nt].
 
+	extend NotInconsistent begin
+
+		interpret NotIntro;
+			- if P0: P ⟹ ∀Q. Q then ¬P;
+				apply not.cmono[OF P0 not_inconsistent].
+			.
+
+	end
 
 end
 
@@ -142,7 +165,7 @@ begin
 			by nnot_intro PQ.
 		.
 
-	theorem nnnot_imp_not: -- @English Triple Negation Elimination
+	theorem nnnot_elim: -- @English Triple Negation Elimination
 		¬ ¬ ¬ P ⟹ ¬P;
 		apply not.cmono[OF nnot_intro]>0.
 
@@ -171,18 +194,16 @@ end
 context ContraPos begin
 
 	extend NNotIntro begin
+
 		interpret MinimalNot;
 			- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
 				apply not.cmono[OF PnQ];
 				by nnot_intro[OF Q].
 			.
+
 	end
 
 end
-
----
-Exploring...
----
 
 theory ClaviusLaw :=
 	assume not_imp_imp:
@@ -268,11 +289,22 @@ context ClaviusLaw begin
 end
 
 
----
-Explosivity and Clavius's law imply Pierce's law, and thus excluded middle.
----
 context ExplosiveNot begin
-
+	---
+	Under explosiveness, self-refutation implies double-negation introduction.
+	---
+	extend SelfRefutation begin
+		interpret NNotIntro;
+			- if P: P then ¬ ¬ P;
+				apply self_refutation;
+				- if nP: ¬P;
+					by not_elim[OF nP P].
+				.
+			.
+	end
+	---
+	Clavius's law implies Pierce's law, and thus excluded middle.
+	---
 	extend ClaviusLaw begin
 
 		interpret PierceLaw;
@@ -285,6 +317,32 @@ context ExplosiveNot begin
 					.
 				.
 			.
+		thm cases.
+	end
+
+end
+
+---
+Contraposition, non-inconsistency and explosiveness ends up in classical logic.
+---
+context ContraPos begin
+
+	context NotInconsistent begin
+
+		extend ExplosiveNot begin
+
+			interpret SelfRefutation;
+				- if PnP: P ⟹ ¬P then ¬P;
+					apply not_intro;
+					- if P: P then Q;
+						apply not_elim[OF PnP[OF P] P].
+					.
+				.
+			interpret NNotIntro.
+			interpret MinimalNot.
+
+		end
+
 	end
 
 end
@@ -293,21 +351,18 @@ theory CoMinimalNot :=
 	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
 begin
 
-	lemma not_elim_connect: if nP: ¬P, imp: ¬Q ⟹ P then Q;
-		by not_imp_sym[OF imp nP].
+	interpret ExplosiveNot;
+		- if nP: ¬P, P: P then Q;
+			apply not_imp_sym[OF _ nP];
+			by P.
+		.
 
 	interpret NNotElim;
 		by not_imp_sym[OF imp.refl].
 
-	interpret ExplosiveNot;
-		- if nP: ¬P, P: P then Q;
-			apply not_elim_connect[OF nP];
-			by P.
-		.
-
 	interpret ContraPos;
 		- if imp: P ⟹ Q, nQ: ¬Q then ¬P;
-			apply not_elim_connect[OF nQ];
+			apply not_imp_sym[OF _ nQ];
 			by imp #elim nnot_elim.
 		.
 
@@ -325,11 +380,12 @@ begin
 	lemma nnnot_intro: if not: ¬P then ¬ ¬ ¬P;
 		apply not.cmono[OF nnot_elim not].
 
-	---
-	Self refutation brings consequentia mirabilis in, with which explosivity brings excluded middle.
-	---
-	extend SelfRefutation begin
+	extend NotInconsistent begin
 
+		interpret ExplosiveNot.
+		---
+		Explosivity brings self refutation, which brings consequentia mirabilis, with which explosivity brings excluded middle.
+		---
 		interpret ClaviusLaw;
 			- if imp: ¬P ⟹ P then P;
 				apply nnot_elim;
@@ -339,6 +395,8 @@ begin
 				.
 			.
 		thm cases.
+
+
 	end
 
 end
@@ -387,10 +445,6 @@ context ExplosiveNot begin
 
 end
 
-
----
-Inverse contraposition already allows explosive negation elimination.
----
 theory InvContraPos :=
 	import not: MetaInvAntitone (¬) (⟹) (⟹).
 begin
@@ -401,11 +455,6 @@ begin
 			by nP.
 		.
 
-	lemma nnot_explode_imp_not:
-		if imp: ¬ ¬ P ⟹ ∀Q. Q then ¬P;
-		apply not.inv_cmono[of _ true];
-		by #elim imp.
-
 end
 
 
@@ -414,7 +463,7 @@ theory ClassicalNot :=
 begin
 
 	interpret CoMinimalNot.
-	interpret SelfRefutation.-- This brings the excluded middle
+	interpret NotInconsistent.-- This brings the excluded middle
 	thm cases.
 
 	interpret InvContraPos;
