@@ -537,21 +537,29 @@ public:
 			cout << "no goal" << endl;
 		}
 	}
-	void _auto_instantiate( Import& intp, string const& sym, bool change ) {
-		if( auto const& c = _thy.constant(sym) ) {
-			intp.instantiate(*c);
-		} else if( change ) {
-			auto const& c = _thy.fix(sym);
-			intp.instantiate(c);
-			if CTXT {
-				auto disp = [&]( ostream& os )->ostream&{ return os << "fixed " << _thy.pretty_sym(sym) << endl; };
-				if( MSG ) {
-					cout << disp << _indent(' ');
-				} else {
-					cout << _indent(' ') << disp;
+	void _auto_instantiate(
+		Import& intp, string const& sym, bool change,
+		vector<CTerm>::const_iterator& inst_it, vector<CTerm>::const_iterator inst_end
+	) {
+		if( inst_it != inst_end ) {
+			intp.instantiate(*inst_it);
+			inst_it++;
+		} else {
+			if( auto const& c = _thy.constant(sym) ) {
+				intp.instantiate(*c);
+			} else if( change ) {
+				auto const& c = _thy.fix(sym);
+				intp.instantiate(c);
+				if CTXT {
+					auto disp = [&]( ostream& os )->ostream&{ return os << "fixed " << _thy.pretty_sym(sym) << endl; };
+					if( MSG ) {
+						cout << disp << _indent(' ');
+					} else {
+						cout << _indent(' ') << disp;
+					}
 				}
-			}
-		} else throw Error("\"auto instantiate failed\"")(sym);
+			} else throw Error("\"auto instantiate failed\"")(sym);
+		}
 	}
 	Thy::ThmTest exact( Term const& assm ) {
 		return [assm,this]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
@@ -646,10 +654,15 @@ public:
 			(function<string(string const&)>)[&]( string const& name ){ return *prefix + '.' + name; } :
 			[&]( string const& name )->string{ return name; };
 	}
-	void _auto_import( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change ){
+	void _auto_import(
+		Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change,
+		vector<CTerm>const& insts
+	){
+		auto inst_it = insts.begin();
+		auto inst_end = insts.end();
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
-				_auto_instantiate(intp,*fix,change);
+				_auto_instantiate(intp,*fix,change,inst_it,inst_end);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.resolver(_out_resolver);
 				_auto_discharge(_thy,thm_prefix,intp,*assume,change,infer);
@@ -659,6 +672,9 @@ public:
 			} else {
 				break;
 			}
+		}
+		if( inst_it != inst_end ) {
+			throw Error("\"unexpected instantiate\"")(*inst_it);
 		}
 	}
 /*
@@ -767,28 +783,22 @@ public:
 	void import( bool change ) {
 		ImportPrefix pref = get_import_prefix();
 		auto intp = _thy.thy(pref.name,reader());
-		while( auto const& t = gets_term(1000) ) {
-			for(;;) {
-				if( auto const& assume = intp.assuming() ) {
-					auto infer = _thy.resolver(_out_resolver);
-					_auto_discharge(_thy,pref.forced_prefix,intp,*assume,change,infer);
-				} else if( auto const& obtain = intp.obtaining() ) {
-					auto infer = _thy.resolver(_out_resolver);
-					_auto_retain(_thy,pref.forced_prefix,pref.forced_prefix,intp,*obtain,infer);
-				} else {
-					break;
-				}
+		vector<CTerm> insts;
+		if( change ) {
+			while( auto const& t = gets_term(1000) ) {
+				insts.emplace_back(_thy.enclose(*t));
 			}
-			auto const& fix = intp.fixing();
-			if( !fix ) throw Error("\"unexpected instantiation\"")(*t);
-			intp.instantiate(_thy.enclose(*t));
+		} else {
+			while( auto const& t = gets_term(1000) ) {
+				insts.emplace_back(_thy.cterm(*t));
+			}
 		}
 		bool success = true;
 		if( skips(";") ) {
 			auto const& path = intp.source().print_path();
 			if MSG cout << (change ? "importing " : "interpreting ") << pref << path << endl;
 			_depth++;
-			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change);
+			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			_depth--;
 			if( success ) {
 				add_import(pref,intp);
@@ -798,13 +808,13 @@ public:
 				}
 			}
 		} else if( skips(",") ) {
-			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change);
+			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			add_import(pref,intp);
 			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			return import(change);
 		} else {
 			skip(".");
-			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change);
+			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			add_import(pref,intp);
 		}
@@ -1022,7 +1032,16 @@ public:
 		}
 		return {};
 	};
-	Opt<Thm> _discharge( function<Opt<Opt<Thm>>(CTerm const&)> f, Import& intp, Thy& org_thy, Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, bool change ) {
+	Opt<Thm> _discharge(
+		function<Opt<Opt<Thm>>(CTerm const&)> f,
+		Import& intp,
+		Thy& org_thy,
+		Opt<string const&> thm_prefix,
+		Opt<string const&> sym_prefix,
+		bool change,
+		vector<CTerm>::const_iterator& inst_it,
+		vector<CTerm>::const_iterator inst_end
+	) {
 		for(;;) {
 			if( auto const& assume = intp.assuming() ) {
 				if( auto const& opt = f(assume->first) ) {
@@ -1038,7 +1057,7 @@ public:
 					_auto_discharge(org_thy,thm_prefix,intp,*assume,change,infer);
 				}
 			} else if( auto const& fix = intp.fixing() ) {
-				_auto_instantiate(intp,*fix,change);
+				_auto_instantiate(intp,*fix,change,inst_it,inst_end);
 			} else if( auto const& obtain = intp.obtaining() ) {
 				auto infer = _thy.resolver(_out_resolver);
 				_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
@@ -1047,9 +1066,17 @@ public:
 			}
 		}
 	}
-	bool _import_loop( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change ) {
+	bool _import_loop(
+		Opt<string const&> thm_prefix,
+		Opt<string const&> sym_prefix,
+		Import& intp,
+		bool change,
+		vector<CTerm> const& insts
+	) {
 		auto org_thy = _thy;
 		_thy = org_thy.scope_temp("#import");// namespace
+		auto inst_it = insts.begin();
+		auto inst_end = insts.end();
 		for(;;) try {
 			if MSG cout << _indent();
 			if( _stats() ) {
@@ -1083,7 +1110,7 @@ public:
 							_auto_retain(org_thy,thm_prefix,sym_prefix,intp,*obtain,infer);
 						} else if( auto const& fix = intp.fixing() ) {
 							if( *fix == x ) break;
-							_auto_instantiate(intp,*fix,change);
+							_auto_instantiate(intp,*fix,change,inst_it,inst_end);
 						} else {
 							throw Error("\"unexpected instantiate\"")(x);
 						}
@@ -1093,22 +1120,22 @@ public:
 				}
 			} else if( skips("-") ) {
 				auto pat = _get_subgoal();
-				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change );
+				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change, inst_it, inst_end );
 			} else if( skips("->") ) {
 				auto pat = _get_subgoal();
-				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change );
+				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change, inst_it, inst_end );
 			} else if( skips("obtain") ) {
 				_obtain(org_thy);
 			} else if( skips("define") ) {
 				_define(org_thy);
 			} else if( skips("retain") ) {
-				_retain(thm_prefix,sym_prefix,intp,change,org_thy);
+				_retain(thm_prefix,sym_prefix,intp,change,org_thy,inst_it,inst_end);
 			} else if( skips("oops") ) {
 				return false;
 			} else if( auto ctrl = gets_concluder() ) {
 				for(;;) {
 					if( auto const& fix = intp.fixing() ) {
-						_auto_instantiate(intp,*fix,change);
+						_auto_instantiate(intp,*fix,change,inst_it,inst_end);
 					} else if( auto const& assume = intp.assuming() ) {
 						_auto_discharge(org_thy,thm_prefix,intp,*assume,change,*ctrl);
 					} else if( auto const& obtain = intp.obtaining() ) {
@@ -1129,14 +1156,18 @@ public:
 			if( _through_error ) throw THROUGH;
 			if MSG cout << _indent();
 		}
+		if( inst_it != inst_end ) throw Error("\"unexpected instantiate\"")(*inst_it);
 		_thy = org_thy;
 		return true;
 	}
-	void _retain( Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change, Thy& org_thy ) {
+	void _retain(
+		Opt<string const&> thm_prefix, Opt<string const&> sym_prefix, Import& intp, bool change, Thy& org_thy,
+		vector<CTerm>::const_iterator& inst_it, vector<CTerm>::const_iterator inst_end
+	) {
 		auto sym = get_sym();// the symbol to be instantiated
 		for(;;) {
 			if( auto const& fix = intp.fixing() ) {
-				_auto_instantiate(intp,*fix,change);
+				_auto_instantiate(intp,*fix,change,inst_it,inst_end);
 			} else if( auto const& assume = intp.assuming() ) {
 				auto infer = _thy.resolver(_out_resolver);
 				_auto_discharge(org_thy,thm_prefix,intp,*assume,change,infer);
@@ -1492,7 +1523,7 @@ public:
 			local_thy(loc,true,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
-				_auto_import({},{},src2loc,true);
+				_auto_import({},{},src2loc,true,{});
 				add_import(pref,src2loc);
 /* not sure this should be automated
 				// updating original imports
