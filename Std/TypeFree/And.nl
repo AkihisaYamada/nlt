@@ -20,23 +20,23 @@ extend Not begin
 
 	extend ContraPos begin
 
-	lemma nand_intro1: if nP: ¬ P then ¬ (P ∧ Q);
-		apply not.cmono[OF and_intro1];
-		by nP.
+		lemma nand_intro1: if nP: ¬ P then ¬ (P ∧ Q);
+			apply not.cmono[OF and_elim1];
+			by nP.
 
-	lemma nand_intro2: if nQ: ¬ Q then ¬ (P ∧ Q);
-		apply not_intro;
-		by not_imp_false[OF nQ].
+		lemma nand_intro2: if nQ: ¬ Q then ¬ (P ∧ Q);
+			apply not.cmono[OF and_elim2];
+			by nQ.
 
-	lemma not_contradiction: ¬ (P ∧ ¬P);
-		apply not_intro;
-		by #elim not_imp_false.
+	end
 
-	lemma false_nand: ¬ (false ∧ P);
-		by nand_intro1 not_false.
+	extend MinimalNot begin
 
-	lemma nand_false: ¬ (P ∧ false);
-		by nand_intro2 not_false.
+		lemma not_contradiction: ¬ (P ∧ ¬P);
+			apply self_refutation;
+			by #elim not_elim_not.
+
+	end
 
 end
 

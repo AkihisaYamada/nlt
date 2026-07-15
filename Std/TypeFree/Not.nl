@@ -103,6 +103,19 @@ begin
 	lemma not_true_imp_not: if nt: ¬true then ¬P;
 		apply not_elim_not[OF nt].
 
+	lemma not_imp_not_inconsistent:
+		if nP: ¬P then ¬(∀Q. Q);
+		apply not_imp_imp_not[OF nP].
+
+	extend NotInconsistent begin
+
+		interpret NotIntro;
+			- if P0: P ⟹ ∀Q. Q then ¬P;
+				apply not.cmono[OF P0 not_inconsistent].
+			.
+
+	end
+
 	theory MetaOrder :=
 		import MetaIrreflexive.
 		import MetaTransitive.
@@ -123,14 +136,6 @@ begin
 	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ Q;
 		apply not_imp_imp_not[OF nt].
 
-	extend NotInconsistent begin
-
-		interpret NotIntro;
-			- if P0: P ⟹ ∀Q. Q then ¬P;
-				apply not.cmono[OF P0 not_inconsistent].
-			.
-
-	end
 
 end
 
@@ -178,8 +183,21 @@ begin
 			by nimp_intro nnot_intro.
 		.
 
+	-- `(¬ ¬ P ⟹ ¬Q) ⟺ (P ⟹ ¬Q)`
 	lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
 		by imp nnot_intro.
+
+	lemma imp_not_nnot_imp_not: if PnQ: P ⟹ ¬Q then ¬ ¬ P ⟹ ¬Q;
+		apply imp_not_sym>1;
+		by nnot_intro imp_not_sym[OF PnQ].
+
+	lemma nnot_elim_not: if nnP: ¬ ¬ P, PnQ: P ⟹ ¬Q then ¬Q;
+		apply self_refutation;
+		- if Q;
+			have nP: ¬P;
+				use imp_not_sym[OF PnQ Q].
+			by not_elim_not[OF nnP nP].
+		.
 
 	lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
 		apply not_intro_connect[OF nnPQ];
@@ -190,7 +208,7 @@ begin
 
 end
 
--- Minimal negation is equivalent to contraposition plus double negation introduction.
+-- Under contraposition, minimal negation is equivalent to double negation introduction or self refutation.
 context ContraPos begin
 
 	extend NNotIntro begin
@@ -201,6 +219,17 @@ context ContraPos begin
 				by nnot_intro[OF Q].
 			.
 
+	end
+
+	extend SelfRefutation begin
+
+		interpret NNotIntro;
+			- if P: P then ¬ ¬P;
+				apply self_refutation;
+				- if nP: ¬P;
+					by not_elim_not[OF nP P].
+				.
+			.
 	end
 
 end
@@ -347,6 +376,10 @@ context ContraPos begin
 
 end
 
+---
+The following dual of minimal negation turns out to be "almost" classical,
+in the sense that it is classical or nothing can be denied: `¬P` does not hold for any `P`.
+---
 theory CoMinimalNot :=
 	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
 begin

@@ -25,10 +25,12 @@ extend Not begin
 	extend ContraPos begin
 
 		lemma nor_elim1: if nor: ¬(P ∨ Q) then ¬P;
-			apply not.cmono[OF or_intro1].
+			apply not.cmono[OF _ nor];
+			by or_intro1.
 
 		lemma nor_elim2: if nor: ¬(P ∨ Q) then ¬Q;
-			apply not.cmono[OF or_intro2].
+			apply not.cmono[OF _ nor];
+			by or_intro2.
 
 		lemma nor_elim: if nor: ¬(P ∨ Q), assm: ¬P ⟹ ¬Q ⟹ R then R;
 			by assm[OF nor_elim1[OF nor] nor_elim2[OF nor]].
@@ -36,6 +38,8 @@ extend Not begin
 	end
 
 	extend MinimalNot begin
+
+		interpret .ContraPos.
 
 		lemma nor_intro: if nP: ¬P, nQ: ¬Q then ¬(P ∨ Q);
 			apply self_refutation;
@@ -47,10 +51,12 @@ extend Not begin
 			.
 
 		lemma nnot_excluded_middle: ¬ ¬ (P ∨ ¬P);
-			apply not_intro;
+			apply self_refutation;
 			- if nor: ¬(P ∨ ¬P);
-				apply not_imp_false[of (¬P)];
-				by nor_elim[OF nor].
+				apply nor_elim[OF nor];
+				- if nP: ¬P, nnP: ¬ ¬ P;
+					by not_elim_not[OF nnP nP].
+				.
 			.
 
 	end

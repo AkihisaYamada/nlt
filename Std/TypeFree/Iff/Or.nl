@@ -73,9 +73,9 @@ extend And begin
 
 end
 
-extend Iff.FalseNot begin
+extend Iff.Not begin
 
-	interpret base? base.FalseNot.
+	interpret base? base.Not.
 
 	lemma nor_iff_nimp: ¬ (P ∨ Q) ⟺ ¬(¬P ⟹ ¬ ¬ Q);
 		apply iff_intro;

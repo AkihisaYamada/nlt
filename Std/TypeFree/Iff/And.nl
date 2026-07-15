@@ -85,34 +85,44 @@ extend False begin
 
 end
 
-extend Iff.FalseNot begin
+extend Iff? Iff.Not begin
 
-	interpret base.FalseNot.
+	interpret base? base.Not.
 
-	lemma nand_iff_imp_not: ¬ (P ∧ Q) ⟺ (P ⟹ ¬ Q);
-		unfold not_iff_imp_false.
+	extend MinimalNot begin
 
-	note imp_not_iff_nand: nand_iff_imp_not[dual].
-		
-	lemma nand_nnot_iff: ¬ (P ∧ ¬ ¬ Q) ⟺ ¬ (P ∧ Q);
-		unfold+ nand_iff_imp_not nnnot_iff.
+		interpret base.ContraPos.
+		interpret Iff.MinimalNot.
 
-	lemma nnot_nand_iff: ¬ (¬ ¬ P ∧ Q) ⟺ ¬ (P ∧ Q);
-		unfold and.commute;
-		unfold nand_nnot_iff.
+		lemma nimp_not_iff_and: ¬(P ⟹ ¬Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
+			apply iff_intro;
+			- if nimp;
+				use nimp_not_imp_nnot[OF nimp] nimp_imp_not[OF nimp].
+			simp;
+			apply imp_commute>1;
+			unfold nnot_imp_iff;
+			by nimp_intro.
 
-	lemma nnand_iff: ¬ ¬ (P ∧ Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
-		apply iff_intro;
-		- if nnand;
-			apply+ and_intro nnand[THEN not_imp_imp_not];
-			by #intro? nand_intro1 nand_intro2.
-		fold nnot_nand_iff;
-		by #simp imp_and_iff1.
+		lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
+			unfold not_iff_imp_not_true.
 
-	lemma not_nniff_not: ¬ ¬ (¬ P ⟺ ¬ Q) ⟺ (¬ P ⟺ ¬ Q);
-		unfold[at 0] iff_iff_and;
-		unfold nnand_iff;
-		unfold nnimp_not_iff;
-		fold iff_iff_and.
+		note imp_not_iff_nand: nand_iff_imp_not[dual].
+			
+		lemma nand_nnot_iff: ¬ (P ∧ ¬ ¬ Q) ⟺ ¬ (P ∧ Q);
+			unfold+ nand_iff_imp_not nnnot_iff.
+
+		lemma nnot_nand_iff: ¬ (¬ ¬ P ∧ Q) ⟺ ¬ (P ∧ Q);
+			unfold and.commute;
+			unfold nand_nnot_iff.
+
+		lemma nnand_iff: ¬ ¬ (P ∧ Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
+			apply iff_intro;
+			- if nnand;
+				apply+ and_intro nnand[THEN not_imp_imp_not];
+				by #intro? nand_intro1 nand_intro2.
+			fold nnot_nand_iff;
+			by #simp imp_and_iff1.
+
+	end
 
 end

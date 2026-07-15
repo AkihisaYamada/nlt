@@ -108,6 +108,7 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ---
 
 interpret imp: iff.MetaLeftNeutral (⟹) true;
+goals.
 	by imp_imp_iff.
 
 interpret imp: iff.MetaRightAbsorb (⟹) true;
