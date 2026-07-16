@@ -527,14 +527,14 @@ public:
 			pre = "\t";
 		}
 		if( i == 0 ) {
-			cout << "no goal" << endl;
+			cout << "QED" << endl;
 		}
 	}
 	void print_goal( Thesis const& thesis, string_view const& pre ) {
 		if( auto goal = thesis.has_goal() ) {
 			cout << pre << _thy.pretty(*goal) << endl;
 		} else {
-			cout << "no goal" << endl;
+			cout << "QED" << endl;
 		}
 	}
 	void _auto_instantiate(
@@ -846,7 +846,7 @@ public:
 	}
 	void _print_import_goals( Import const& intp ) {
 		size_t i = 0;
-		size_t n = _print_import_goal(intp,i,"goals: ");
+		size_t n = _print_import_goal(intp,i,"\t");
 		if( n == 0 ) {
 			cout << "no instantiation goals" << endl;
 			return;
@@ -972,7 +972,7 @@ public:
 		}
 		if( pat.proof ) {
 			if MSG {
-				cout << "show: ";
+				cout << "showing ";
 				auto csi = css.begin();
 				if( auto n = loc.revision() ) {
 					for( size_t i = 0; i < n; ) {
@@ -1047,7 +1047,11 @@ public:
 				if( auto const& opt = f(assume->first) ) {
 					if( *opt ) {
 						intp.discharge(**opt);
-						if MSG cout << "discharged " << assume->second << ": " << _thy.pretty(**opt) << endl;
+						if MSG {
+							if( _print_import_goal(intp,0,"next ") == 0 ) {
+								cout << "QED" << endl;
+							}
+						}
 					} else {
 						if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
 					}
@@ -1077,6 +1081,16 @@ public:
 		_thy = org_thy.scope_temp("#import");// namespace
 		auto inst_it = insts.begin();
 		auto inst_end = insts.end();
+		while( inst_it != inst_end ) {
+			auto fix = intp.fixing();
+			if( !fix ) break;
+			intp.instantiate(*inst_it);
+			inst_it++;
+		}
+		if MSG {
+			cout << _indent(' ');
+			_print_import_goals(intp);
+		}
 		for(;;) try {
 			if MSG cout << _indent();
 			if( _stats() ) {
@@ -1510,11 +1524,11 @@ public:
 			if MSG cout << "left " << path << endl;
 		} else if( skips("extend") ) {
 			auto pref = get_import_prefix();
-			skip("begin");
 			Thy parent = _thy;
 			auto src2parent = parent.thy(pref.name,reader());
 			auto src = src2parent.source();
 			auto loc = parent.branch(src.name(),"");
+			skip("begin");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << "extending theory " << src.print_path()
@@ -2020,21 +2034,23 @@ void run( istream& is, string const& name, string const& filepath, bool exit_on_
 	prover.loop();
 	if( print_on_end ) {
 		cout << thy.pretty() << endl;
+	} else {
+		cout << "bye!" << endl;
 	}
 } catch( Term const& e ) {
 	exit(-1);
 }
 
 int main(int argc, char* argv[]) {
-	bool exit_on_error = false;
+	bool exit_on_error = true;
+	bool print_on_exit = true;
 	auto cmd = filesystem::path(argv[0]);
 	auto cmddir = cmd.parent_path();
 	auto verb = FLAGS_MIN;
 	int i = 1;
 	for(;;) {
 		if( i == argc ) {
-			run( cin, "#stdin", "#stdin", exit_on_error, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
-			cout << "bye!" << endl;
+			run( cin, "#stdin", "#stdin", false, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
 			return 0;
 		}
 		string arg = argv[i];
@@ -2042,8 +2058,9 @@ int main(int argc, char* argv[]) {
 			auto opt = arg.substr(1);
 			if( opt == "i" ) {
 				verb = FLAGS_DEFAULT;
+				print_on_exit = false;
 			} else if( opt == "e" ) {
-				exit_on_error = true;
+				exit_on_error = false;
 			} else {
 				cerr << "unexpected option " << arg << endl;
 				return -1;
@@ -2058,7 +2075,7 @@ int main(int argc, char* argv[]) {
 		}
 		auto locdir = filesystem::absolute(file.parent_path());
 		auto fin = fstream(file);
-		run(fin,file.stem(),file,true,verb,cmddir,locdir,true);
+		run(fin,file.stem(),file,exit_on_error,verb,cmddir,locdir,print_on_exit);
 		break;
 	}
 	return 0;
