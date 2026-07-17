@@ -1,6 +1,6 @@
 {
-  "name": "nlt-syntax-highlighting",
-  "displayName": "nlt syntax highlighting",
+  "name": "nlt-syntax",
+  "displayName": "nlt syntax highlighting and snippets",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -18,8 +18,14 @@
     "grammars": [{
       "language": "nlt",
       "scopeName": "source.nlt",
-      "path": "./syntaxes/nlt.tmLanguage.json"
-    }]
+      "path": "./nlt.tmLanguage.json"
+    }],
+	"snippets": [
+		{
+			"language": "nlt",
+			"path": "./nlt-snippets.json"
+		}
+	]
   },
   "repository": {
     "url": "https://github.com/AkihisaYamada/Logic"

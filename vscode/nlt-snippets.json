@@ -1,0 +1,66 @@
+{
+	"implies": {
+		"prefix": ["\\implies","==>"],
+		"body": "⟹"
+	},
+	"forall": {
+		"prefix": ["\\forall","!!"],
+		"body": "∀"
+	},
+	"iff": {
+		"prefix": ["\\iff","<==>"],
+		"body": "⟺"
+	},
+	"exists": {
+		"prefix": ["\\exists","??"],
+		"body": "∃"
+	},
+	"wedge": {
+		"prefix": ["\\wedge","/\\"],
+		"body": "∧"
+	},
+	"vee": {
+		"prefix": ["\\vee","\\/"],
+		"body": "∨"
+	},
+	"neg": {
+		"prefix": ["\\neg","~"],
+		"body": "¬"
+	},
+	"in": {
+		"prefix": ["\\in",":"],
+		"body": "∈"
+	},
+	"le": {
+		"prefix": ["\\le","<="],
+		"body": "≤"
+	},
+	"ge": {
+		"prefix": ["\\ge",">="],
+		"body": "≥"
+	},
+	"to": {
+		"prefix": ["\\to","->"],
+		"body": "→"
+	},
+	"gets": {
+		"prefix": ["\\gets","<-"],
+		"body": "←"
+	},
+	"sqsubset": {
+		"prefix": ["\\sqsubset"],
+		"body": "⊏"
+	},
+	"sqsupset": {
+		"prefix": ["\\sqsupset"],
+		"body": "⊐"
+	},
+	"sqsubseteq": {
+		"prefix": ["[="],
+		"body": "⊑"
+	},
+	"sqsupseteq": {
+		"prefix": ["]="],
+		"body": "⊒"
+	}
+}
