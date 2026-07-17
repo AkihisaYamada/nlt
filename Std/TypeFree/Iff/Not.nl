@@ -28,6 +28,15 @@ extend MinimalNot begin
 		unfold imp_not_commute;
 		simp nnnot_iff.
 
+	lemma nnimp_not_iff: ¬ ¬ (P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
+		apply iff_intro[OF _ nnot_intro];
+		- if nnPnQ: ¬ ¬ (P ⟹ ¬Q), P: P;
+			apply nnot_elim_not[OF nnPnQ];
+			- if PnQ;
+				by PnQ P.
+			.
+		.
+
 	lemma not_nniff_not: ¬ ¬ (¬ P ⟺ ¬ Q) ⟺ (¬ P ⟺ ¬ Q);
 		apply iff_intro[OF _ nnot_intro];
 		- if nniff;

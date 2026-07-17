@@ -96,13 +96,23 @@ theory MetaRelation :=
 	fix (⊏).
 begin
 
-	theory AllRel :=
-		fix (∀⊏).
+	theory AllRel (∀⊏) :=
 		assume all_intro! if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
 		assume all_elim1: for x if ∀y ⊏ a. P.[y], x ⊏ a then P.[x].
 	begin
 		lemma all_elim: if all: ∀x ⊏ a. P.[x], imp: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q then Q;
 			by imp all_elim1[OF all].
+	end
+
+	theory ExRel (∃⊏) :=
+		assume ex_intro1: for x if P.[x], x ⊏ a then ∃x ⊏ a. P.[x].
+		assume ex_elim: if ∃x ⊏ a. P.[x], ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q.
+	begin
+		lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ∃x ⊏ a. P.[x];
+			apply assm;
+			- if Px: P.[x], xa: x ⊏ a;
+				by ex_intro1[OF Px xa].
+			.
 	end
 
 	theory MetaCompatible (*) :=
@@ -118,8 +128,7 @@ begin
 	end
 
 	theory MetaMonotone :=
-		import MetaLeftMonotone.
-		import MetaRightMonotone.
+		import MetaLeftMonotone, MetaRightMonotone.
 	end
 
 	theory MetaCommutative (*) :=
@@ -147,8 +156,7 @@ begin
 	end
 
 	theory MetaNeutral :=
-		import MetaLeftNeutral.
-		import MetaRightNeutral.
+		import MetaLeftNeutral, MetaRightNeutral.
 	end
 
 	theory MetaLeftAbsorb (*) (0) :=
@@ -160,8 +168,7 @@ begin
 	end
 
 	theory MetaAbsorb :=
-		import MetaLeftAbsorb.
-		import MetaRightAbsorb.
+		import MetaLeftAbsorb, MetaRightAbsorb.
 	end
 
 end
@@ -193,8 +200,7 @@ begin
 end
 
 theory MetaPreorder :=
-	import MetaReflexive.
-	import MetaTransitive.
+	import MetaReflexive, MetaTransitive.
 end
 
 theory MetaSymmetric (⊏) :=
@@ -202,13 +208,11 @@ theory MetaSymmetric (⊏) :=
 end
 
 theory MetaTolerance :=
-	import MetaReflexive.
-	import MetaSymmetric.
+	import MetaReflexive, MetaSymmetric.
 end
 
 theory MetaPartialEquivalence :=
-	import MetaSymmetric.
-	import MetaTransitive.
+	import MetaSymmetric, MetaTransitive.
 begin
 
 	interpret? MetaRelation.
@@ -224,8 +228,7 @@ begin
 	end
 
 	theory MetaCommSemigroup :=
-		import MetaSemigroup.
-		import MetaCommutative.
+		import MetaSemigroup, MetaCommutative.
 	end
 
 	extend MetaLeftNeutral begin
@@ -263,26 +266,22 @@ begin
 	end
 
 	extend MetaNeutral begin
-		interpret MetaLeftNeutral.
-		interpret MetaRightNeutral.
+		interpret MetaLeftNeutral, MetaRightNeutral.
 	end
 
 	theory MetaCommNeutral :=
-		import MetaLeftNeutral.
-		import MetaCommutative.
+		import MetaLeftNeutral, MetaCommutative.
 	begin
 		interpret MetaNeutral;
 			by trans[OF commute left_neutral].
 	end
 
 	theory MetaMonoid :=
-		import MetaNeutral.
-		import MetaSemigroup.
+		import MetaNeutral, MetaSemigroup.
 	end
 
 	theory MetaCommMonoid :=
-		import MetaCommNeutral.
-		import MetaCommSemigroup.
+		import MetaCommNeutral, MetaCommSemigroup.
 	begin
 		interpret MetaMonoid.
 	end
@@ -306,40 +305,34 @@ begin
 	end
 
 	extend MetaAbsorb begin
-		interpret MetaLeftAbsorb.
-		interpret MetaRightAbsorb.
+		interpret MetaLeftAbsorb, MetaRightAbsorb.
 	end
 
 	theory MetaCommAbsorb :=
-		import MetaLeftAbsorb.
-		import MetaCommutative.
+		import MetaLeftAbsorb, MetaCommutative.
 	begin
 		interpret MetaAbsorb;
 			by trans[OF commute left_absorb].
 	end
 
 	theory MetaSemigroupAbsorb :=
-		import MetaAbsorb.
-		import MetaSemigroup.
+		import MetaAbsorb, MetaSemigroup.
 	end
 
 	theory MetaCommSemigroupAbsorb :=
-		import MetaCommAbsorb.
-		import MetaCommSemigroup.
+		import MetaCommAbsorb, MetaCommSemigroup.
 	begin
 		interpret MetaSemigroupAbsorb.
 	end
 
 	theory MetaMonoidAbsorb (*) 0 1 :=
-		import MetaAbsorb.
-		import MetaMonoid.
+		import MetaAbsorb, MetaMonoid.
 	begin
 		interpret MetaSemigroupAbsorb.
 	end
 
 	theory MetaCommMonoidAbsorb (*) 0 1 :=
-		import MetaCommAbsorb.
-		import MetaCommMonoid.
+		import MetaCommAbsorb, MetaCommMonoid.
 	begin
 		interpret MetaMonoidAbsorb.
 		interpret MetaCommSemigroupAbsorb.
@@ -348,9 +341,7 @@ begin
 end
 
 theory MetaEquivalence :=
-	import MetaReflexive.
-	import MetaSymmetric.
-	import MetaTransitive.
+	import MetaReflexive, MetaSymmetric, MetaTransitive.
 begin
 	interpret MetaTolerance.
 	interpret MetaPreorder.

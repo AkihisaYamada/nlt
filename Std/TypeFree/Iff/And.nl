@@ -71,19 +71,10 @@ lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x
 		.
 	.
 
-interpret and: iff.MetaCommMonoid (∧) true;
+interpret and: iff.MetaCommMonoidAbsorb (∧) false true;
 	by iff_intro.
 
-note #simp and.left_neutral and.right_neutral.
-
-extend False begin
-
-	interpret and: iff.MetaCommMonoidAbsorb (∧) false true;
-		by iff_intro.
-
-	note#simp and.left_absorb and.right_absorb.
-
-end
+note#simp and.left_neutral and.right_neutral and.left_absorb and.right_absorb.
 
 extend Iff? Iff.Not begin
 
@@ -97,7 +88,7 @@ extend Iff? Iff.Not begin
 		lemma nimp_not_iff_and: ¬(P ⟹ ¬Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
 			apply iff_intro;
 			- if nimp;
-				use nimp_not_imp_nnot[OF nimp] nimp_imp_not[OF nimp].
+				apply nimp_not_elim[OF nimp].
 			simp;
 			apply imp_commute>1;
 			unfold nnot_imp_iff;

@@ -10,23 +10,16 @@ fix (¬).
 
 begin
 
-theory NotInconsistent :=
-	assume not_inconsistent: ¬(∀P. P).
+theory NotFalse :=
+	assume not_false: ¬false.
 end
 
 theory NotIntro :=
-	assume not_intro: if P ⟹ ∀Q. Q then ¬P.
+	assume not_intro: if P ⟹ false then ¬P.
 begin
 
-	interpret NotInconsistent;
+	interpret NotFalse;
 		by not_intro.
-
-	extend False begin
-
-		lemma not_false: ¬false;
-			by not_intro.
-
-	end
 
 end
 
@@ -35,7 +28,7 @@ theory SelfRefutation :=
 begin
 
 	interpret NotIntro;
-		- if nP: P ⟹ ∀Q. Q then ¬P;
+		- if nP: P ⟹ false then ¬P;
 			apply self_refutation;
 			by #elim nP.
 		.
@@ -79,23 +72,24 @@ begin
 	lemma nimp_imp_imp: if imp: ¬(P ⟹ Q) ⟹ R then P ⟹ ¬Q ⟹ R;
 		by imp nimp_intro.
 
-	lemma nimp_imp_not: if nimp: ¬(P ⟹ Q) then ¬Q;
+	lemma nimp_elim2: if nimp: ¬(P ⟹ Q) then ¬Q;
 		apply not_imp_imp_not[OF nimp].
 
-	lemma nimp_not_imp_nnot: if nimpn: ¬(P ⟹ ¬Q) then ¬ ¬ P;
+	lemma nimp_not_elim1: if nimpn: ¬(P ⟹ ¬Q) then ¬ ¬ P;
 		apply not_imp_imp_not[OF nimpn];
 		- if nP, P;
 			apply not_elim_not[OF nP P].
 		.
-	lemma nimp_not_elim_nnot: if nimp: ¬(P ⟹ ¬Q), imp: ¬ ¬ P ⟹ ¬ ¬ Q ⟹ R then R;
-		apply imp;
-		by nimp_imp_not[OF nimp] nimp_not_imp_nnot[OF nimp].
 
-	lemma not_imp_not_all: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
+	lemma nimp_not_elim: if nimp: ¬(P ⟹ ¬Q), imp: ¬ ¬ P ⟹ ¬ ¬ Q ⟹ R then R;
+		apply imp;
+		by nimp_elim2[OF nimp] nimp_not_elim1[OF nimp].
+
+	lemma nall_intro1: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
 		apply not_imp_imp_not[OF nPx].
 
 	lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
-		by not_imp_imp_not[OF nnall not_imp_not_all].
+		by not_imp_imp_not[OF nnall nall_intro1].
 
 	lemma not_imp_not_true: if nP: ¬P, P: P then ¬true;
 		by not_elim_not[OF nP P].
@@ -103,15 +97,15 @@ begin
 	lemma not_true_imp_not: if nt: ¬true then ¬P;
 		apply not_elim_not[OF nt].
 
-	lemma not_imp_not_inconsistent:
-		if nP: ¬P then ¬(∀Q. Q);
+	lemma not_imp_not_false:
+		if nP: ¬P then ¬false;
 		apply not_imp_imp_not[OF nP].
 
-	extend NotInconsistent begin
+	extend NotFalse begin
 
 		interpret NotIntro;
-			- if P0: P ⟹ ∀Q. Q then ¬P;
-				apply not.cmono[OF P0 not_inconsistent].
+			- if P0: P ⟹ false then ¬P;
+				apply not.cmono[OF P0 not_false].
 			.
 
 	end
@@ -133,19 +127,48 @@ begin
 	Having explosive false yields `¬false ⟺ true`, but it does not make `¬true` explosive;
 	`¬true` only implies `¬ ¬ false`.
 	---
-	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ Q;
+	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ false;
 		apply not_imp_imp_not[OF nt].
 
+	extend MetaRelation begin
+
+		extend AllRel begin
+
+			lemma nall_intro1: if nPx: ¬ P.[x], xa: x ⊏ a then ¬(∀x ⊏ a. P.[x]);
+				apply not_imp_imp_not[OF nPx];
+				- if all: ∀x ⊏ a. P.[x];
+					apply all_elim1[OF all xa].
+				.
+			lemma nnall_imp: if nnall: ¬ ¬ (∀x ⊏ a. P.[x]) then ∀x ⊏ a. ¬ ¬ P.[x];
+				apply all_intro;
+				- if xa: x ⊏ a;
+					apply not_imp_imp_not[OF nnall];
+					by nall_intro1[OF _ xa].
+				.
+
+		end
+
+		extend ExRel begin
+
+			lemma nex_elim_not: if nex: ¬(∃x ⊏ a. P.[x]), Px: P.[x], xa: x ⊏ a then ¬Q;
+				apply not_elim_not[OF nex];
+				by ex_intro1[OF Px xa].
+
+		end
+
+	end
 
 end
 
 ---
 ## "Minimal" Negation
 
-Traditional minimal logic with false "define"s negation by `¬P ⟺ (P ⟹ ⊥)` for free `⊥`.
-We can formulate the equivalent without mentioning `⊥`, which corresponds to `¬true`,
-as follows.
-It is also equivalent to forward contraposition with double-negation introduction.
+Traditional minimal logic with false "define"s negation by `¬P ⟺ (P ⟹ false)`,
+while leaving `false` free.
+We can formulate the equivalent without mentioning `false` as follows.
+Here, `false` of traditional minimal logic corresponds to `¬true`.
+
+One merit of this formulation is that it becomes orthogonal to assuming `false` explosive or not.
 ---
 theory NNotIntro :=
 	assume nnot_intro:-- @English Double Negation Introduction
@@ -174,7 +197,7 @@ begin
 		¬ ¬ ¬ P ⟹ ¬P;
 		apply not.cmono[OF nnot_intro]>0.
 
-	lemma imp_not_true_imp_not: if imp: P ⟹ ¬true then ¬P;
+	lemma not_intro_not_true: if imp: P ⟹ ¬true then ¬P;
 		apply not_intro_connect[OF true_intro imp].
 
 	interpret SelfRefutation;
@@ -187,28 +210,44 @@ begin
 	lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
 		by imp nnot_intro.
 
-	lemma imp_not_nnot_imp_not: if PnQ: P ⟹ ¬Q then ¬ ¬ P ⟹ ¬Q;
-		apply imp_not_sym>1;
+	-- If the conclusion is negated, one can eliminate double negation.
+	lemma nnot_elim_not: if nnP: ¬ ¬ P, PnQ: P ⟹ ¬Q then ¬Q;
+		apply imp_not_sym[OF _ nnP];
 		by nnot_intro imp_not_sym[OF PnQ].
 
-	lemma nnot_elim_not: if nnP: ¬ ¬ P, PnQ: P ⟹ ¬Q then ¬Q;
-		apply self_refutation;
-		- if Q;
-			have nP: ¬P;
-				use imp_not_sym[OF PnQ Q].
-			by not_elim_not[OF nnP nP].
+	lemma nimp_not_intro: if nnP: ¬ ¬ P, nnQ: ¬ ¬ Q then ¬(P ⟹ ¬Q);
+		apply nnot_elim_not[OF nnP];
+		by nimp_intro nnQ.
+
+	-- Double negated implication works as implication of double negation. 
+	lemma nnimp_elim_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), nnP: ¬ ¬ P then ¬ ¬ Q;
+		apply nnot_elim_not[OF nnPQ];
+		- if PQ;
+			apply nnot_elim_not[OF nnP];
+			by nnot_intro PQ.
 		.
 
-	lemma nnimp_imp_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), P: P then ¬ ¬ Q;
-		apply not_intro_connect[OF nnPQ];
-		- if nQ: ¬Q then ¬ ¬ ¬ (P ⟹ Q);
-			apply nnot_intro;
-			apply nimp_intro[OF P nQ].
-		.
+	extend MetaRelation begin
+
+		extend ExRel begin
+
+			lemma nex_intro: if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x] then ¬(∃x ⊏ a. P.[x]);
+				apply self_refutation;
+				- if ex: ∃x ⊏ a. P.[x];
+					apply ex_elim[OF ex];
+					- for x if Px: P.[x], xa: x ⊏ a;
+						by not_elim_not[OF all_not[OF xa] Px].
+					.
+				.
+ 
+		end
+
+	end
 
 end
 
 -- Under contraposition, minimal negation is equivalent to double negation introduction or self refutation.
+
 context ContraPos begin
 
 	extend NNotIntro begin
@@ -234,6 +273,33 @@ context ContraPos begin
 
 end
 
+---
+Intuitionistic logic makes false explosive; in the false-free formulation, it means to
+admit negation elimination `¬P ⟹ P ⟹ Q`.
+---
+theory ExplosiveNot :=
+	assume not_elim: if ¬P, P then Q.
+begin
+
+	lemma not_true_elim: if 0: ¬true then Q;
+		apply not_elim[OF 0].
+
+	lemma not_elim_false: if nP: ¬P, P: P then false;
+		apply not_elim[OF nP P].
+
+end
+
+theory IntuitionisticNot :=
+	import NotIntro, ExplosiveNot.
+begin
+
+	interpret MinimalNot;
+		- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
+			by not_intro not_elim_false[OF _ Q] PnQ.
+		.
+
+end
+
 theory ClaviusLaw :=
 	assume not_imp_imp:
 		-- @English Clavius's Law
@@ -245,19 +311,6 @@ end
 theory NNotElim :=
 	assume nnot_elim:-- @English Double Negation Elimination
 		if ¬ ¬ P then P.
-end
-
----
-Intuitionistic logic makes false explosive; in the false-free formulation, admits
-negation elimination `¬P ⟹ P ⟹ Q`.
----
-theory ExplosiveNot :=
-	assume not_elim: if ¬P, P then Q.
-begin
-
-	lemma not_true_elim: if 0: ¬true then Q;
-		apply not_elim[OF 0].
-
 end
 
 ---
@@ -280,15 +333,15 @@ begin
 end
 
 ---
-Under Pierce's law, self-refutation principle, consequentia mirabilis and excluded middle coincide.
+Under Peirce's law, self-refutation principle, consequentia mirabilis and excluded middle coincide.
 ---
 context SelfRefutation begin
 
-	extend PierceLaw begin
+	extend PeirceLaw begin
 
 		interpret ExcludedMiddle;
 			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-				apply pierce_law[of (¬P)];
+				apply peirce_law[of (¬P)];
 				- if QnP: Q ⟹ ¬P then Q;
 					apply nPQ;
 					apply self_refutation;
@@ -302,11 +355,11 @@ end
 
 context ClaviusLaw begin
 
-	extend PierceLaw begin
+	extend PeirceLaw begin
 
 		interpret ExcludedMiddle;
 			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-				apply pierce_law[of P];
+				apply peirce_law[of P];
 				- if QP: Q ⟹ P then Q;
 					apply PQ;
 					apply not_imp_imp;
@@ -320,23 +373,11 @@ end
 
 context ExplosiveNot begin
 	---
-	Under explosiveness, self-refutation implies double-negation introduction.
-	---
-	extend SelfRefutation begin
-		interpret NNotIntro;
-			- if P: P then ¬ ¬ P;
-				apply self_refutation;
-				- if nP: ¬P;
-					by not_elim[OF nP P].
-				.
-			.
-	end
-	---
 	Clavius's law implies Pierce's law, and thus excluded middle.
 	---
 	extend ClaviusLaw begin
 
-		interpret PierceLaw;
+		interpret PeirceLaw;
 			- for Q if PQP: (P ⟹ Q) ⟹ P then P;
 				apply not_imp_imp;
 				- if nP: ¬P;
@@ -356,18 +397,17 @@ Contraposition, non-inconsistency and explosiveness ends up in classical logic.
 ---
 context ContraPos begin
 
-	context NotInconsistent begin
+	context NotFalse begin
 
 		extend ExplosiveNot begin
 
-			interpret SelfRefutation;
+			interpret ContraPos.SelfRefutation;
 				- if PnP: P ⟹ ¬P then ¬P;
 					apply not_intro;
-					- if P: P then Q;
+					- if P: P then false;
 						apply not_elim[OF PnP[OF P] P].
 					.
 				.
-			interpret NNotIntro.
 			interpret MinimalNot.
 
 		end
@@ -399,21 +439,10 @@ begin
 			by imp #elim nnot_elim.
 		.
 
-	lemma nimp_not_elim1: if nimp: ¬(P ⟹ ¬Q) then P;
-		apply nnot_elim;
-		apply nimp_not_imp_nnot[OF nimp].
-
-	lemma nimp_not_elim2: if nimp: ¬(P ⟹ ¬Q) then Q;
-		apply nnot_elim;
-		apply nimp_imp_not[OF nimp].
-
-	lemma nimp_not_elim: if nimp: ¬(P ⟹ ¬Q), PQR: P ⟹ Q ⟹ R then R;
-		apply PQR[OF nimp_not_elim1[OF nimp] nimp_not_elim2[OF nimp]].
-
 	lemma nnnot_intro: if not: ¬P then ¬ ¬ ¬P;
 		apply not.cmono[OF nnot_elim not].
 
-	extend NotInconsistent begin
+	extend NotFalse begin
 
 		interpret ExplosiveNot.
 		---
@@ -496,7 +525,7 @@ theory ClassicalNot :=
 begin
 
 	interpret CoMinimalNot.
-	interpret NotInconsistent.-- This brings the excluded middle
+	interpret NotFalse.-- This brings the excluded middle
 	thm cases.
 
 	interpret InvContraPos;

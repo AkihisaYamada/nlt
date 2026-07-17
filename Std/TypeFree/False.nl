@@ -19,17 +19,3 @@ extend Iff begin
 		by iff_true.
 
 end
-
-extend FalseNot begin
-
-	lemma not_elim: if nP: ¬P, P: P then Q;
-		use not_imp_false[OF nP P].
-
-	extend Iff begin
-
-		lemma not_imp_iff_false: if nP: ¬P then P ⟺ false;
-			by iff_intro not_imp_false[OF nP].
-
-	end
-
-end

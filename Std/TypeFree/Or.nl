@@ -61,6 +61,18 @@ extend Not begin
 
 	end
 
+	extend ExcludedMiddle begin
+
+		lemma or_not:
+			-- @English excluded middle
+			-- @Latin tertium non datur
+			P ∨ ¬P;
+			apply cases[of P];
+			- by or_intro1.
+			- by or_intro2.
+			.
+
+	end
 end
 
 extend Iff begin

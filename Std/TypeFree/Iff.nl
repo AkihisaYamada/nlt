@@ -108,7 +108,6 @@ lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 ---
 
 interpret imp: iff.MetaLeftNeutral (⟹) true;
-goals.
 	by imp_imp_iff.
 
 interpret imp: iff.MetaRightAbsorb (⟹) true;
@@ -121,6 +120,11 @@ note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
 
 lemma iff_true: P ⟹ P ⟺ true.
 
+---
+## False
+---
+lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
+	by iff_true.
 
 ---
 ## Deriving Restricted Quantifiers via `(⟺)`
@@ -153,6 +157,42 @@ extend base: MetaRelation begin
 
 		lemma all_imp: ((∀x ⊏ a. P.[x]) ⟹ Q) ⟺ ((∀x. x ⊏ a ⟹ P.[x]) ⟹ Q);
 			simp all_iff.
+
+	end
+
+	theory ExRel :=
+		fix (∃⊏).
+		assume ex_iff_all: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q).
+	begin
+
+		interpret base.ExRel;
+			- for x if Px: P.[x], xa: x ⊏ a then ∃x ⊏ a. P.[x];
+				unfold ex_iff_all;
+				- for Q if all: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
+					by all[OF Px xa].
+				.
+			- if ex: ∃x ⊏ a. P.[x], imp: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
+				by ex[unfold ex_iff_all, OF imp].
+			.
+		lemma ex_cong_strong:
+			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+			then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
+			unfold+ ex_iff; unfold a; unfold P.
+
+		lemma ex_cong_weak:
+			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
+			unfold+ ex_iff P.
+
+		lemma ex_imp_iff: ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
+			apply iff_intro;
+			- if imp, x: x ⊏ a, Px: P.[x];
+				apply imp ex_intro1[OF x Px].
+			- if all, ex;
+				apply ex_elim[OF ex];
+				- for x if x, Px;
+					apply all[OF x Px].
+				.
+			.
 
 	end
 

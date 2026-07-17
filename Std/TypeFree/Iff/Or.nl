@@ -44,16 +44,12 @@ interpret or: iff.MetaIdempotent (∨);
 note#simp or.idem.
 
 interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
-	by iff_intro #elim or_elim #simp or_iff_true1 or_iff_true2.
+	by iff_intro #elim or_elim.
 
-extend False begin
+interpret or: iff.MetaCommMonoidAbsorb (∨) true false;
+	by iff_intro or_intro #elim or_elim false_elim.
 
-	interpret or: iff.MetaCommMonoid (∨) false true;
-		by iff_intro or_intro #elim or_elim false_elim.
-
-	note#simp or.left_neutral or.right_neutral.
-
-end
+note#simp or.left_neutral or.right_neutral.
 
 extend And begin
 
@@ -73,38 +69,54 @@ extend And begin
 
 end
 
-extend Iff.Not begin
+extend MetaRelation begin
+
+	extend ExRel begin
+
+		lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
+			simp ex_iff and_or_distrib .ex_or_distrib.
+
+	end
+
+end
+
+extend iff? Iff.Not begin
 
 	interpret base? base.Not.
 
-	lemma nor_iff_nimp: ¬ (P ∨ Q) ⟺ ¬(¬P ⟹ ¬ ¬ Q);
-		apply iff_intro;
-		-> if nor, imp;
-			apply not_imp_false[of (¬Q)];
-			use nor;
-			by imp #elim nor_elim.
-		-> if nimp, or;
-			apply not_imp_false[OF nimp];
-			- if nP: ¬P then ¬ ¬ Q;
-				apply or_elim[OF or];
-				- if P;
-					apply not_intro;
-					by not_imp_false[OF nP P].
-				by nnot_intro.
+	extend iff.MinimalNot begin
+
+		interpret base? base.MinimalNot.
+
+		lemma nor_iff_not_nimp_nnot: ¬ (P ∨ Q) ⟺ ¬ (¬P ⟹ ¬ ¬ Q);
+			apply iff_intro;
+			- if nor;
+				apply nor_elim[OF nor];
+				by nimp_intro #simp nnnot_iff.
+			- if nimp;
+				apply nor_intro;
+				- by nimp_not_elim1[OF nimp, unfold nnnot_iff].
+				- by nimp_elim2[OF nimp, unfold nnnot_iff].
+				.
 			.
-		.
 
-	lemma nnot_nor_iff: ¬ (¬ ¬ P ∨ Q) ⟺ ¬ (P ∨ Q);
-		unfold nor_iff_nimp nnnot_iff.
+		lemma nnot_nor_iff: ¬ (¬ ¬ P ∨ Q) ⟺ ¬ (P ∨ Q);
+			unfold nor_iff_not_nimp_nnot nnnot_iff.
 
-	lemma nor_nnot_iff: ¬ (P ∨ ¬ ¬ Q) ⟺ ¬ (P ∨ Q);
-		unfold nor_iff_nimp nnnot_iff.
+		lemma nor_nnot_iff: ¬ (P ∨ ¬ ¬ Q) ⟺ ¬ (P ∨ Q);
+			unfold nor_iff_not_nimp_nnot nnnot_iff.
 
-	extend Or.And begin
+		extend Iff.And begin
 
-		lemma nor_iff: ¬ (P ∨ Q) ⟺ ¬P ∧ ¬Q;
-			unfold not_iff_imp_false;
-			by or_imp_iff.
+			interpret and_not: And.Not.
+			interpret and_not.MinimalNot.
+
+			lemma nor_iff_and: ¬ (P ∨ Q) ⟺ ¬P ∧ ¬Q;
+				unfold nor_iff_not_nimp_nnot;
+				unfold nimp_not_iff_and;
+				unfold nnnot_iff.
+
+		end
 
 	end
 
