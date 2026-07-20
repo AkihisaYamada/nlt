@@ -2,21 +2,22 @@
 # Type-Free Classical Logic
 ---
 import Iff.
-interpret True, False.
-import DoubleNegation.
+
+import Not, ClassicalNot.
 
 fix (∧) (∨) (∃).
-assume or_iff_not_imp: P ∨ Q ⟺ (¬P ⟹ Q).
-assume and_iff_nimp_not: P ∧ Q ⟺ ¬(P ⟹ ¬Q).
+assume or_iff_imp: P ∨ Q ⟺ (¬P ⟹ Q).
+assume and_iff_nimp: P ∧ Q ⟺ ¬(P ⟹ ¬Q).
 assume ex_iff_nall: (∃x. P.[x]) ⟺ ¬(∀x. ¬P.[x]).
 
 begin
 
 interpret Intuitionistic;
-	goals.
-	- for P Q if P: P, Q: Q then P ∧ Q;
-		unfold and_iff_nimp_not;
-		- if imp_not: P ⟹ ¬Q;
+	- show: P ∧ Q ⟺ (∀R. (P ⟹ Q ⟹ R) ⟹ R);
+		simp and_iff_nimp nimp_iff_all.
+	- show: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+		simp or_iff_imp not_imp_iff_all.
+	- show: (∃ x. P.[x]) ⟺ (∀ Q. (∀ x. P.[x] ⟹ Q) ⟹ Q);
+		simp ex_iff_nall nall_iff_all.
+	.
 
-
-lemma and_iff_nor: P ∧ Q ⟺ ¬(¬P ∨ ¬Q);

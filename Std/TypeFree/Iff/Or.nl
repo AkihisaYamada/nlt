@@ -74,17 +74,28 @@ extend MetaRelation begin
 	extend ExRel begin
 
 		lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
-			simp ex_iff and_or_distrib .ex_or_distrib.
+			apply iff_intro;
+			-> if xa: x ⊏ a;
+				apply or_elim[OF _ < <]>2;
+				- by or_intro1 ex_intro1[OF _ xa].
+				- by or_intro2 ex_intro1[OF _ xa].
+				.
+			apply or_elim[OF _ < <]>2;
+			-> if xa: x ⊏ a;
+				by ex_intro1[OF _ xa].
+			-> if xa: x ⊏ a;
+				by ex_intro1[OF _ xa].
+			.
 
 	end
 
 end
 
-extend iff? Iff.Not begin
+extend Iff_Not? Iff.Not begin
 
 	interpret base? base.Not.
 
-	extend iff.MinimalNot begin
+	extend Iff_Not.MinimalNot begin
 
 		interpret base? base.MinimalNot.
 
@@ -111,7 +122,7 @@ extend iff? Iff.Not begin
 			interpret and_not: And.Not.
 			interpret and_not.MinimalNot.
 
-			lemma nor_iff_and: ¬ (P ∨ Q) ⟺ ¬P ∧ ¬Q;
+			lemma nor_iff_and: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 				unfold nor_iff_not_nimp_nnot;
 				unfold nimp_not_iff_and;
 				unfold nnnot_iff.

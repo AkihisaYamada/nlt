@@ -2,10 +2,10 @@
 ---
 # Type-Free Intuitionistic Logic
 ---
-import Iff.
-interpret True, False.
-import Minimal.
+import Iff, IntuitionisticNot, And, Or, Ex.
 
 begin
 
-interpret Explosion.
+interpret Ex.Or.
+interpret And.
+

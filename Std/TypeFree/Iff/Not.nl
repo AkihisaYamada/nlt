@@ -1,8 +1,8 @@
-import TypeFree.Not.
+import base? TypeFree.Not.
 
 begin
 
-extend ContraPos begin
+extend base? ContraPos begin
 
 	lemma not_cong#cong if PQ: P ⟺ Q then ¬ P ⟺ ¬ Q;
 		apply+ iff_intro not.cmono>1;
@@ -10,12 +10,12 @@ extend ContraPos begin
 
 end
 
-extend MinimalNot begin
+extend base? MinimalNot begin
 
 	interpret .ContraPos.
 
 	lemma not_iff_imp_not_true: ¬P ⟺ (P ⟹ ¬true);
-		apply iff_intro[OF _ imp_not_true_imp_not];
+		apply iff_intro[OF _ not_intro_not_true];
 		by #elim not_elim_not.
 
 	lemma imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
@@ -61,6 +61,36 @@ extend MinimalNot begin
 			unfold nnnot_iff.
 		by nnot_intro.
 
+	extend base? MetaRelation begin
+
+		interpret Iff.MetaRelation.
+
+		extend AllRel begin
+
+			interpret base.AllRel.
+
+			lemma nnall_not_iff: ¬ ¬ (∀x ⊏ a. ¬ P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
+				apply iff_intro;
+				- if nnall;
+					use nnall_imp[OF nnall];
+					note#cong all_cong_weak.
+					unfold nnnot_iff.
+				by nnot_intro.
+
+		end
+
+		extend ExRel begin
+
+			interpret base.ExRel.
+
+			lemma nex_nnot: ¬(∃x ⊏ a. ¬ ¬ P.[x]) ⟺ ¬(∃x ⊏ a. P.[x]);
+				unfold not_iff_imp_not_true;
+				simp ex_imp_iff nnot_imp_iff.
+
+		end
+
+	end
+
 end
 
 extend ClassicalNot begin
@@ -70,4 +100,27 @@ extend ClassicalNot begin
 	lemma nnot_iff#simp ¬ ¬ P ⟺ P;
 		apply iff_intro[OF nnot_elim nnot_intro].
 
-end	
+	lemma nimp_iff_all: ¬(P ⟹ Q) ⟺ (∀R. (P ⟹ ¬Q ⟹ R) ⟹ R);
+		apply iff_intro;
+		- by #elim nimp_elim.
+		- if all;
+			apply all;
+			by nimp_intro.
+		.
+
+	lemma not_imp_iff_all: (¬P ⟹ Q) ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R);
+		apply iff_intro;
+		- by #elim not_imp_elim.
+		- if all;
+			apply all;
+			by #elim not_elim.
+		.
+
+	lemma nall_iff_all: ¬(∀x. P.[x]) ⟺ (∀Q. (∀x. ¬ P.[x] ⟹ Q) ⟹ Q);
+		apply iff_intro[OF _ nall_intro];
+		- if nall for Q if assm;
+			apply nall_elim[OF nall];
+			apply assm=.
+		.
+
+end

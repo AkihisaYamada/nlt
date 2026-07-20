@@ -42,7 +42,7 @@ extend Not begin
 		interpret .ContraPos.
 
 		lemma nor_intro: if nP: ¬P, nQ: ¬Q then ¬(P ∨ Q);
-			apply self_refutation;
+			apply imp_not_imp_not;
 			- if or: P ∨ Q;
 				apply or_elim[OF or];
 				- by not_elim_not[OF nP].
@@ -51,7 +51,7 @@ extend Not begin
 			.
 
 		lemma nnot_excluded_middle: ¬ ¬ (P ∨ ¬P);
-			apply self_refutation;
+			apply imp_not_imp_not;
 			- if nor: ¬(P ∨ ¬P);
 				apply nor_elim[OF nor];
 				- if nP: ¬P, nnP: ¬ ¬ P;

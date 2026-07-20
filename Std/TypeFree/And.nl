@@ -33,12 +33,13 @@ extend Not begin
 	extend MinimalNot begin
 
 		lemma not_contradiction: ¬ (P ∧ ¬P);
-			apply self_refutation;
+			apply imp_not_imp_not;
 			by #elim not_elim_not.
 
 	end
 
 end
+
 
 extend Iff begin
 

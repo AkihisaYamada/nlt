@@ -24,12 +24,12 @@ begin
 end
 
 theory SelfRefutation :=
-	assume self_refutation: if P ⟹ ¬P then ¬P.
+	assume imp_not_imp_not: if P ⟹ ¬P then ¬P.
 begin
 
 	interpret NotIntro;
 		- if nP: P ⟹ false then ¬P;
-			apply self_refutation;
+			apply imp_not_imp_not;
 			by #elim nP.
 		.
 
@@ -54,7 +54,7 @@ Here we consider one direction of contraposition `(P ⟹ Q) ⟹ ¬P ⟹ ¬Q`.
 This assumption captures many of (somewhat surprising) behaviors of minimal logic,
 most notably negative explosion: `¬P ⟹ P ⟹ ¬Q`.
 ---
-theory ContraPos :=
+theory ContraPos := -- @Latin modus tollens
 	import not: MetaAntitone (¬) (⟹) (⟹).
 begin
 
@@ -85,8 +85,12 @@ begin
 		apply imp;
 		by nimp_elim2[OF nimp] nimp_not_elim1[OF nimp].
 
-	lemma nall_intro1: if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
+	lemma nall_intro1: for x if nPx: ¬ P.[x] then ¬(∀y. P.[y]);
 		apply not_imp_imp_not[OF nPx].
+
+	lemma nall_intro: if assm: ∀Q. (∀x. ¬ P.[x] ⟹ Q) ⟹ Q then ¬(∀y. P.[y]);
+		apply assm;
+		by #elim nall_intro1.
 
 	lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
 		by not_imp_imp_not[OF nnall nall_intro1].
@@ -110,11 +114,10 @@ begin
 
 	end
 
-	theory MetaOrder :=
-		import MetaIrreflexive.
-		import MetaTransitive.
+	theory MetaOrder (⊏) :=
+		import MetaIrreflexive (⊏), MetaTransitive (⊏).
 	begin
-		interpret MetaAsymmetric;
+		interpret MetaAsymmetric (⊏);
 			- for x y if xy: x ⊏ y then ¬ y ⊏ x;
 				apply not_imp_imp_not[OF irrefl[of x]];
 				- if yx: y ⊏ x then x ⊏ x;
@@ -134,11 +137,17 @@ begin
 
 		extend AllRel begin
 
-			lemma nall_intro1: if nPx: ¬ P.[x], xa: x ⊏ a then ¬(∀x ⊏ a. P.[x]);
+			lemma nall_intro1: for x if nPx: ¬ P.[x], xa: x ⊏ a then ¬(∀x ⊏ a. P.[x]);
 				apply not_imp_imp_not[OF nPx];
 				- if all: ∀x ⊏ a. P.[x];
 					apply all_elim1[OF all xa].
 				.
+			lemma nall_intro: if assm: ∀Q. (∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ¬(∀x ⊏ a. P.[x]);
+				apply assm;
+				- for x;
+					by nall_intro1[of x].
+				.
+
 			lemma nnall_imp: if nnall: ¬ ¬ (∀x ⊏ a. P.[x]) then ∀x ⊏ a. ¬ ¬ P.[x];
 				apply all_intro;
 				- if xa: x ⊏ a;
@@ -150,9 +159,14 @@ begin
 
 		extend ExRel begin
 
-			lemma nex_elim_not: if nex: ¬(∃x ⊏ a. P.[x]), Px: P.[x], xa: x ⊏ a then ¬Q;
-				apply not_elim_not[OF nex];
-				by ex_intro1[OF Px xa].
+			lemma nex_elim1: if nex: ¬(∃x ⊏ a. P.[x]), xa: x ⊏ a then ¬ P.[x];
+				by not.cmono[OF ex_intro1[OF _ xa] nex].
+
+			lemma nex_elim: if nex: ¬(∃x ⊏ a. P.[x]), assm: (∀x. x ⊏ a ⟹ ¬ P.[x]) ⟹ Q then Q;
+				apply assm;
+				- for x;
+					by nex_elim1[OF nex, of x].
+				.
 
 		end
 
@@ -163,11 +177,7 @@ end
 ---
 ## "Minimal" Negation
 
-Traditional minimal logic with false "define"s negation by `¬P ⟺ (P ⟹ false)`,
-while leaving `false` free.
-We can formulate the equivalent without mentioning `false` as follows.
-Here, `false` of traditional minimal logic corresponds to `¬true`.
-
+We choose to specify minimal logic negation without mentioning `false`.
 One merit of this formulation is that it becomes orthogonal to assuming `false` explosive or not.
 ---
 theory NNotIntro :=
@@ -175,6 +185,17 @@ theory NNotIntro :=
 		if P then ¬ ¬P.
 end
 
+---
+The following is a textbook formulation.
+---
+theory NotIntroContr :=
+	assume not_intro_contr:-- @English negation introduction
+		for Q if P ⟹ Q, P ⟹ ¬Q then ¬P.
+end
+
+---
+We propose the following equivalent simpler version.
+---
 theory MinimalNot :=
 	assume imp_not_sym: if P ⟹ ¬Q then Q ⟹ ¬P.
 begin
@@ -205,6 +226,14 @@ begin
 			apply not_intro_connect[OF 1];
 			by nimp_intro nnot_intro.
 		.
+	interpret NotIntroContr;
+		- for Q if PQ: P ⟹ Q, PnQ: P ⟹ ¬Q then ¬P;
+			apply imp_not_imp_not;
+			- if P;
+				apply not_elim_not[of Q];
+				by PQ PnQ P.
+			.
+		.
 
 	-- `(¬ ¬ P ⟹ ¬Q) ⟺ (P ⟹ ¬Q)`
 	lemma nnot_imp_imp: if imp: ¬ ¬ P ⟹ Q then P ⟹ Q;
@@ -232,7 +261,7 @@ begin
 		extend ExRel begin
 
 			lemma nex_intro: if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x] then ¬(∃x ⊏ a. P.[x]);
-				apply self_refutation;
+				apply imp_not_imp_not;
 				- if ex: ∃x ⊏ a. P.[x];
 					apply ex_elim[OF ex];
 					- for x if Px: P.[x], xa: x ⊏ a;
@@ -243,6 +272,20 @@ begin
 		end
 
 	end
+
+end
+
+context NotIntroContr begin
+
+	interpret? MinimalNot;
+		interpret NNotIntro;
+			- if P: P then ¬ ¬ P;
+				by not_intro_contr[of P] P.
+			.
+		- if PnQ: P ⟹ ¬Q, Q then ¬P;
+			apply not_intro_contr[OF PnQ];
+			by nnot_intro Q.
+		.
 
 end
 
@@ -264,7 +307,7 @@ context ContraPos begin
 
 		interpret NNotIntro;
 			- if P: P then ¬ ¬P;
-				apply self_refutation;
+				apply imp_not_imp_not;
 				- if nP: ¬P;
 					by not_elim_not[OF nP P].
 				.
@@ -330,6 +373,12 @@ begin
 			by cases[OF PnP].
 		.
 
+	lemma not_imp_elim: if nPQ: ¬P ⟹ Q, PR: P ⟹ R, QR: Q ⟹ R then R;
+		apply cases[of P];
+		- by PR.
+		- by nPQ QR.
+		.
+
 end
 
 ---
@@ -344,7 +393,7 @@ context SelfRefutation begin
 				apply peirce_law[of (¬P)];
 				- if QnP: Q ⟹ ¬P then Q;
 					apply nPQ;
-					apply self_refutation;
+					apply imp_not_imp_not;
 					by QnP PQ.
 				.
 			.
@@ -388,6 +437,7 @@ context ExplosiveNot begin
 				.
 			.
 		thm cases.
+
 	end
 
 end
@@ -424,9 +474,12 @@ theory CoMinimalNot :=
 	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
 begin
 
+	lemma not_elim_connect: if nP: ¬P, nQP: ¬Q ⟹ P then Q;
+		by not_imp_sym[OF nQP nP].
+
 	interpret ExplosiveNot;
 		- if nP: ¬P, P: P then Q;
-			apply not_imp_sym[OF _ nP];
+			apply not_elim_connect[OF nP];
 			by P.
 		.
 
@@ -435,7 +488,7 @@ begin
 
 	interpret ContraPos;
 		- if imp: P ⟹ Q, nQ: ¬Q then ¬P;
-			apply not_imp_sym[OF _ nQ];
+			apply not_elim_connect[OF nQ];
 			by imp #elim nnot_elim.
 		.
 
@@ -451,7 +504,7 @@ begin
 		interpret ClaviusLaw;
 			- if imp: ¬P ⟹ P then P;
 				apply nnot_elim;
-				apply self_refutation;
+				apply imp_not_imp_not;
 				- if nP: ¬P;
 					apply not.cmono[OF imp nP].
 				.
@@ -528,9 +581,48 @@ begin
 	interpret NotFalse.-- This brings the excluded middle
 	thm cases.
 
+	interpret IntuitionisticNot.
+
 	interpret InvContraPos;
 		- if nPnQ: ¬P ⟹ ¬Q, Q: Q then P;
 			apply not_imp_sym[OF nPnQ nnot_intro[OF Q]].
 		.
+
+	lemma nimp_elim1: if nimp: ¬(P ⟹ Q) then P;
+		have nimp_nn: ¬(P ⟹ ¬ ¬ Q);
+			apply not.cmono[OF _ nimp];
+			apply imp.left_mono>1;
+			apply nnot_elim>0.
+		apply nimp_not_elim[OF nimp_nn];
+		by #elim nnot_elim.
+
+	lemma nimp_elim: if nimp: ¬(P ⟹ Q), assm: P ⟹ ¬Q ⟹ R then R;
+		by assm nimp_elim1[OF nimp] nimp_elim2[OF nimp].
+
+	lemma nall_elim:
+		if nall: ¬(∀x. P.[x]), assm: ∀x. ¬ P.[x] ⟹ Q then Q;
+		apply not_elim_connect[OF nall];
+		- if nQ: ¬Q for x;
+			apply not_imp_sym[OF assm];
+			by nimp_intro nQ.
+		.
+
+	extend MetaRelation begin
+
+		extend AllRel begin
+
+			lemma nall_elim:
+				if nall: ¬(∀x ⊏ a. P.[x]), assm: ∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q then Q;
+				apply not_elim_connect[OF nall];
+				- if nQ: ¬Q;
+					apply all_intro;
+					- if xa: x ⊏ a then P.[x];
+						apply not_imp_sym[OF assm];
+						by nimp_intro xa nQ.
+					.
+				.
+		end
+
+	end
 
 end

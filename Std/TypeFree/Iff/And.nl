@@ -76,14 +76,25 @@ interpret and: iff.MetaCommMonoidAbsorb (∧) false true;
 
 note#simp and.left_neutral and.right_neutral and.left_absorb and.right_absorb.
 
-extend Iff? Iff.Not begin
+extend MetaRelation begin
+
+	extend AllRel begin
+
+		lemma all_and_distrib: (∀x ⊏ a. P.[x] ∧ Q.[x]) ⟺ (∀x ⊏ a. P.[x]) ∧ (∀x ⊏ a. Q.[x]);
+			simp all_iff all_and_distrib imp_and_distrib.
+
+	end
+
+end
+
+extend Iff_Not? Iff.Not begin
 
 	interpret base? base.Not.
 
 	extend MinimalNot begin
 
 		interpret base.ContraPos.
-		interpret Iff.MinimalNot.
+		interpret Iff_Not.MinimalNot.
 
 		lemma nimp_not_iff_and: ¬(P ⟹ ¬Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
 			apply iff_intro;
