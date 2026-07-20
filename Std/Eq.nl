@@ -78,13 +78,11 @@ begin
 		by imp_eq[OF true_intro].
 end
 
-theory MetaInjective :=
-	fix f.
+theory MetaInjective f :=
 	assume inj: if f x = f x' then x = x'.
 end
 
-theory MetaInverse :=
-	fix f g.
+theory MetaInverse f g :=
 	assume inverse: g (f x) = x.
 begin
 	interpret MetaInjective;

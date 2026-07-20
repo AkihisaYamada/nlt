@@ -37,10 +37,10 @@ infix ∈ 51 51 50.
 syntax ∀ _ ∈ _. _ := ∀∈.
 syntax ∃ _ ∈ _. _ := ∃∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
-syntax fun _ ∈ _. _ := fun.∈.
-syntax FUN _ ∈ _. _ := FUN.∈.
-syntax such _ ∈ _. _ := such.∈.
-syntax {_ ∈ _. _} := Collect.∈.
+syntax fun _ ∈ _. _ := fun_∈.
+syntax FUN _ ∈ _. _ := FUN_∈.
+syntax such _ ∈ _. _ := such_∈.
+syntax {_ ∈ _. _} := Collect_∈.
 
 infix ⊆ 51 51 50.
 
@@ -58,8 +58,8 @@ infix < 51 51 50.
 syntax ∀ _ < _. _ := ∀<.
 syntax ∃ _ < _. _ := ∃<.
 syntax ∃! _ < _. _ := ∃!<.
-syntax such _ < _. _ := such.<.
-syntax {_ < _. _} := Collect.<.
+syntax such _ < _. _ := such_<.
+syntax {_ < _. _} := Collect_<.
 
 infix ≤ 51 51 50.
 infix > 51 51 50.
@@ -70,8 +70,8 @@ infix ⊏ 51 51 50.
 syntax ∀ _ ⊏ _. _ := ∀⊏.
 syntax ∃ _ ⊏ _. _ := ∃⊏.
 syntax ∃! _ ⊏ _. _ := ∃!⊏.
-syntax such _ ⊏ _. _ := such.⊏.
-syntax {_ ⊏ _. _} := Collect.⊏.
+syntax such _ ⊏ _. _ := such_⊏.
+syntax {_ ⊏ _. _} := Collect_⊏.
 
 infix ⊐ 51 51 50.
 
@@ -80,27 +80,27 @@ infix |> 60 61 60.-- reverse application
 infix → 61 60 60.
 
 infix + 100 101 100.
-infix - 100 101 100.
+infix - 100 101 100 := _-_.
 infix ⋅ 191 190 190.
 infix * 200 201 200.
 infix / 200 201 200.
 infix \ 201 200 200.
-infix ^ 300 301 300.
+prefix - 301 300 := -_.
+infix ^ 400 401 400.
 infix ++ 100 101 100.
 infix ** 200 201 200.
 
 ---
 ## Type-Free Binary Relations
 ---
-theory MetaRelation :=
-	fix (⊏).
+theory MetaRelation (⊏) :=
 begin
 
 	theory AllRel (∀⊏) :=
-		assume all_intro! if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
+		assume all_intro#intro if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
 		assume all_elim1: for x if ∀y ⊏ a. P.[y], x ⊏ a then P.[x].
 	begin
-		lemma all_elim: if all: ∀x ⊏ a. P.[x], imp: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q then Q;
+		lemma all_elim#elim if all: ∀x ⊏ a. P.[x], imp: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q then Q;
 			by imp all_elim1[OF all].
 	end
 
@@ -113,6 +113,7 @@ begin
 			- if Px: P.[x], xa: x ⊏ a;
 				by ex_intro1[OF Px xa].
 			.
+
 	end
 
 	theory MetaCompatible (*) :=
@@ -120,11 +121,11 @@ begin
 	end
 
 	theory MetaLeftMonotone (*) :=
-		assume left_mono: if y ⊏ y' then x * y ⊏ x * y'.
+		assume left_mono: for x if y ⊏ y' then x * y ⊏ x * y'.
 	end
 
 	theory MetaRightMonotone (*) :=
-		assume right_mono: if x ⊏ x' then x * y ⊏ x' * y.
+		assume right_mono: for y if x ⊏ x' then x * y ⊏ x' * y.
 	end
 
 	theory MetaMonotone :=
@@ -173,10 +174,10 @@ begin
 
 end
 
-theory MetaReflexive (⊏) :=
-	assume refl: x ⊏ x.
+theory MetaReflexive (⊑) :=
+	assume refl: x ⊑ x.
 begin
-	interpret? MetaRelation.
+	interpret? MetaRelation (⊑).
 	extend MetaCompatible begin
 		interpret MetaMonotone;
 			by cong refl.
@@ -199,23 +200,19 @@ begin
 
 end
 
-theory MetaPreorder :=
-	import MetaReflexive, MetaTransitive.
+theory MetaPreorder (⊑) :=
+	import MetaReflexive (⊑), MetaTransitive (⊑).
 end
 
-theory MetaSymmetric (⊏) :=
-	assume sym: if x ⊏ y then y ⊏ x.
+theory MetaSymmetric (~) :=
+	assume sym: if x ~ y then y ~ x.
 end
 
-theory MetaTolerance :=
-	import MetaReflexive, MetaSymmetric.
-end
-
-theory MetaPartialEquivalence :=
-	import MetaSymmetric, MetaTransitive.
+theory MetaPartialEquivalence (~) :=
+	import MetaSymmetric (~), MetaTransitive (~).
 begin
 
-	interpret? MetaRelation.
+	interpret? MetaRelation (~).
 
 	theory MetaSemigroup (*) :=
 		import MetaLeftAssociative (*) (*).
@@ -232,16 +229,16 @@ begin
 	end
 
 	extend MetaLeftNeutral begin
-		interpret MetaReflexive;
-			- for x then x ⊏ x;
-				have 1: x ⊏ 1 * x;
+		interpret MetaReflexive (~);
+			- for x then x ~ x;
+				have 1: x ~ 1 * x;
 					apply sym;
 					by left_neutral.
 				apply trans[OF 1];
 				by left_neutral.
 			.
-		lemma right_neutral_is_neutral: if all: ∀x. x * e ⊏ x then e ⊏ 1;
-			have 1: e ⊏ 1 * e;
+		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
+			have 1: e ~ 1 * e;
 				apply sym;
 				by left_neutral.
 			apply trans[OF 1];
@@ -249,16 +246,16 @@ begin
 	end
 
 	extend MetaRightNeutral begin
-		interpret MetaReflexive (⊏);
-			- for x then x ⊏ x;
-				have 1: x ⊏ x * 1;
+		interpret MetaReflexive (~);
+			- for x then x ~ x;
+				have 1: x ~ x * 1;
 					apply sym;
 					by right_neutral.
 				apply trans[OF 1];
 				by right_neutral.
 			.
-		lemma left_neutral_is_neutral: if all: ∀x. e * x ⊏ x then e ⊏ 1;
-			have 1: e ⊏ e * 1;
+		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
+			have 1: e ~ e * 1;
 				apply sym;
 				by right_neutral.
 			apply trans[OF 1];
@@ -287,8 +284,8 @@ begin
 	end
 
 	extend MetaLeftAbsorb begin
-		lemma right_absorb_is_absorb: if all: ∀x. x * e ⊏ e then e ⊏ 0;
-			have 1: e ⊏ 0 * e;
+		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
+			have 1: e ~ 0 * e;
 				apply sym;
 				by all.
 			apply trans[OF 1];
@@ -296,8 +293,8 @@ begin
 	end
 
 	extend MetaRightAbsorb begin
-		lemma left_absorb_is_absorb: if all: ∀x. e * x ⊏ e then e ⊏ 0;
-			have 1: e ⊏ e * 0;
+		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
+			have 1: e ~ e * 0;
 				apply sym;
 				by all.
 			apply trans[OF 1];
@@ -340,11 +337,9 @@ begin
 
 end
 
-theory MetaEquivalence :=
-	import MetaReflexive, MetaSymmetric, MetaTransitive.
+theory MetaEquivalence (~) :=
+	import MetaReflexive (~), MetaSymmetric (~), MetaPreorder (~).
 begin
-	interpret MetaTolerance.
-	interpret MetaPreorder.
 	interpret MetaPartialEquivalence.
 end
 
@@ -377,9 +372,15 @@ end
 ---
 
 -- Implication is a meta-preorder.
+interpret imp: MetaRelation (⟹).
 interpret imp: MetaPreorder (⟹);
 	- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 		by QR PQ.
+	.
+
+interpret imp: imp.MetaLeftMonotone (⟹);
+	- for P if QR: Q ⟹ R, PQ: P ⟹ Q, P: P then R;
+		by QR PQ P.
 	.
 
 lemma mp: if P: P, PQ: P ⟹ Q then Q;
