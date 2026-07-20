@@ -57,6 +57,7 @@ Lex::Lex() :
 	_char_ranges({
 		{std::char_traits<char>::eof(),{std::char_traits<char>::eof(),Control}},
 		{'.',{'.',Dot}},
+		{'_',{'_',Underscore}},
 		{'9',{'0',Digit}},
 		{' ',{' ',Blank}},
 		{'\t',{'\t',Blank}},
@@ -257,6 +258,12 @@ string_view Lexer::peek_token() {
 		_fetch_follower();
 		token_type = Word;
 		break;
+	case Lex::Underscore:
+		fetch_char();
+		_fetch_word_or_op();
+		_fetch_follower();
+		token_type = Word;
+		break;
 	default:
 		token_type = Special;
 		fetched_char_type = Lex::Blank;
@@ -266,15 +273,25 @@ string_view Lexer::peek_token() {
 	return peeked_token;
 }
 void Lexer::_fetch_follower() {
-	while( fetched_char_type == Lex::Dot ) {
-		auto old_wp = wp;// TODO
-		fetch_char();
-		if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
-			fetched_char_type = Lex::DotBlank;
-			wp = old_wp;
-			return;
+	for(;;) {
+		if( fetched_char_type == Lex::Dot ) {
+			auto old_wp = wp;// TODO
+			fetch_char();
+			if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
+				fetched_char_type = Lex::DotBlank;
+				wp = old_wp;
+				return;
+			}
+			_fetch_word_or_op();
+			continue;
 		}
-		_fetch_word_or_op();
+		if( fetched_char_type == Lex::Underscore ) {
+			rp = wp;
+			fetch_char();
+			_fetch_word_or_op();
+			continue;
+		}
+		return;
 	}
 }
 bool Lexer::_fetch_word_or_op() {

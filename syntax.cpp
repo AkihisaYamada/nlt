@@ -5,15 +5,15 @@ using namespace std;
 Syntax SYNTAX;
 
 Syntax::Syntax() {
-	infix("⟹",0,1,0,{});
+	infix("⟹","⟹",0,1,0,{});
 	binder("∀",0,0);
-	infix(".",-1,-1,-2,{});
+	infix(".",".",-1,-1,-2,{});// Dot cannot be an symbol
 	_closers.emplace(")");
 	_closers.emplace("]");
 }
 
 ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
-	if( _prefixes.contains(sym) || _binders.contains(sym) || _infixes.contains(sym) || _pretty_of.contains(sym) ) {
+	if( _prefixes.contains(sym) || _binders.contains(sym) || _pretty_of.contains(sym) ) {
 		return os << '(' << sym << ')';
 	}
 	if( auto const& x = _pretty_of.finds_value(sym) ) {
@@ -29,13 +29,8 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 		return pretty_sym(os,*sym);
 	} else if( auto const& app = term.app() ) {
 		auto const& fun = app->first, arg = app->second;
-		if( auto const& sym = fun.sym() ) {// unary
-			if( auto const& op = _prefixes.finds_value(*sym) ) {
-				if( level > op->llevel ) os << '(';
-				os << *sym << ' ' << pretty(arg,op->rlevel);
-				if( level > op->llevel ) os << ')';
-				return os;
-			} else if( auto const& op = _binders.finds_value(*sym) ) {// ∀x. _
+		if( auto const& sym = fun.sym() ) {// f s
+			if( auto const& op = _binders.finds_value(*sym) ) {// ∀x. s
 				if( auto const& abs = arg.bind() ) {
 					if( level > op->llevel ) os << '(';
 					os << *sym << ' ' << pretty_sym(abs->first);
@@ -49,8 +44,23 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					return os;
 				}
 			} else if( auto const& sum = _pretty_of.finds_value(*sym) ) {
-				if( auto const& abs = arg.bind() ) {
-					if( auto op = sum->ref<Compr>() ) {// {x. _}
+				if( auto const& x = sum->ref<Unary>() ) {// -_ s
+					auto op = *ASSERTED(_prefixes.finds_value(x->view));
+					if( level > op.llevel ) os << '(';
+					os << x->view << ' ' << pretty(arg,op.rlevel);
+					if( level > op.llevel ) os << ')';
+					return os;
+				} else if( auto const& bin = sum->ref<Binary>() ) {// _-_ (s,t)
+					auto op = *ASSERTED(_infixes.finds_value(bin->view));
+					if( auto const& cons = op.cons )
+					if( auto const& pair = arg.binary(*cons) ) {
+						if( level > op.llevel ) os << '(';
+						os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
+						if( level > op.llevel ) os << ')';
+						return os;
+					}
+				} else if( auto op = sum->ref<Compr>() ) {// {x. s}
+					if( auto const& abs = arg.bind() ) {
 						return os << op->opener << pretty_sym(abs->first) << ". "
 							<< pretty(abs->second,0) << op->closer;
 					}
@@ -76,34 +86,26 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 				} else if( auto const& op = sum->ref<Singleton>() ) {// {_}
 					return os << op->opener << pretty(arg,0) << op->closer;
 				}
-			} else if( auto const& x = finds_infix(*sym) ) {
-				auto const& op = x->second;
-				if( auto const& cons = op.cons )
-				if( auto const& pair = arg.binary(*cons) ) {
-					if( level > op.llevel ) os << '(';
-					os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
-					if( level > op.llevel ) os << ')';
-					return os;
-				}
 			}
 		} else if( auto app_in = fun.app() ) {
 			auto const& fun_in = app_in->first, arg_in = app_in->second;
-			if( auto sym = fun_in.sym() ) {// binary
+			if( auto sym = fun_in.sym() ) {// f s t
 				if( auto const& op = _prefixes.finds_value(*sym) ) {
 					if( level > op->llevel ) os << '(';
 					os << *sym << ' ';
 					os << pretty(arg,op->rlevel);
 					if( level > op->llevel ) os << ')';
 					return os;
-				} else if( auto const& op = _infixes.finds_value(*sym) ) {
-					if( level > op->level ) os << '(';
-					os << pretty(arg_in,op->llevel);
-					os << ' ' << *sym << ' ';
-					os << pretty(arg,op->rlevel);
-					if( level > op->level ) os << ')';
-					return os;
 				} else if( auto const& sum = _pretty_of.finds_value(*sym) ) {
-					if( auto const& op = sum->ref<BinderRel>() ) {
+					if( auto const& bin = sum->ref<Binary>() ) {
+						auto const& op = _infixes.finds_value(bin->view);
+						if( level > op->level ) os << '(';
+						os << pretty(arg_in,op->llevel);
+						os << ' ' << *sym << ' ';
+						os << pretty(arg,op->rlevel);
+						if( level > op->level ) os << ')';
+						return os;
+					} else if( auto const& op = sum->ref<BinderRel>() ) {
 						if( !op->cons )
 						if( auto abs = arg.bind() ) {
 							if( level > op->llevel ) os << '(';

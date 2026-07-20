@@ -112,20 +112,19 @@ void init_lex( Lex& lex ) {
 	lex.register_range('<','@',Lex::MultiOp);
 	lex.register_char('\\',Lex::MultiOp);
 	lex.register_char('^',Lex::MultiOp);
-	lex.register_char('_',Lex::Letter);
 	lex.register_char('`',Lex::MultiOp);
 	lex.register_char('|',Lex::MultiOp);
 	lex.register_char('~',Lex::MultiOp);
 }
 void init_syntax( Syntax& syntax ) {
-	syntax.infix(":",50,51,50,{});
-	syntax.infix(",",-20,-19,-20,{});
-	syntax.infix(";",-30,-29,-30,{});
-	syntax.infix(":=",-1,-1,-2,{});
-	syntax.prefix("if",-1,-2);
-	syntax.infix("then",-2,-1,-2,{});
-	syntax.infix("else",-2,-2,-1,{});
-	syntax.prefix("for",-1,-1);
+	syntax.infix(":",":",50,51,50,{});
+	syntax.infix(",",",",-20,-19,-20,{});
+	syntax.infix(";",";",-30,-29,-30,{});
+	syntax.infix(":=",":=",-1,-1,-2,{});
+	syntax.prefix("if","if",-1,-2);
+	syntax.infix("then","then",-2,-1,-2,{});
+	syntax.infix("else","else",-2,-2,-1,{});
+	syntax.prefix("for","for",-1,-1);
 }
 
 static Error const ProofMismatch = Error("#proof-mismatch");
@@ -256,26 +255,28 @@ public:
 					auto prems = vector<Sum<Thm,CTerm,int>>();
 					auto args = vector<Thm>();
 					auto reorder = map<int,CTerm>();
+					int max = 0;
 					auto sub = loc.fork();
 					auto subctxt = sub.ctxt();
 					CTerm subtmp = tmp.subst(sub);
 					for(;;) {
+						auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
+						if( !imp ) break;
 						if( skips("_") ) {// assume the condition
-							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
-							if( !imp ) throw Error("\"no premise for _\"");
 							subtmp = imp->second;
 							prems.push_back(CTerm{imp->first});
+						} else if( skips("<") ) {
+							subtmp = imp->second;
+							prems.push_back(max);
+							reorder.emplace(max,imp->first);
+							max++;
 						} else if( skips("(") ) {
 							auto i = get_int();
 							skip(")");
-							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
-							if( !imp ) throw Error("\"no premise for index\"");
 							subtmp = imp->second;
 							prems.push_back(i);
 							reorder.emplace(i,imp->first);
 						} else if( auto const& arg = _gets_thm(loc) ) {// unify the condition
-							auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
-							if( !imp ) throw Error("\"no premise\"")(*arg);
 							subtmp = imp->second;
 							prems.push_back(Thm{subctxt.assume(imp->first)});
 							args.push_back(*arg);
@@ -1501,14 +1502,16 @@ public:
 		if( skips("theory") ) {
 			string name = get(Lexer::Word);
 			auto loc = _thy.branch(name,"");
-			while( auto sym = gets_sym() ) {
-				loc.fix(*sym);
-			}
-			skip(":=");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
-				cout << "creating theory " << name << endl;
+				cout << "creating theory " << name;
 			}
+			while( auto sym = gets_sym() ) {
+				loc.fix(*sym);
+				if THY cout << ' ' << loc.pretty_sym(*sym);
+			}
+			skip(":=");
+			if THY cout << endl;
 			local_thy(loc,false,[this]{ loop(); });
 			if MSG cout << "created theory " << name << endl;
 		} else if( skips("context") ) {
@@ -1804,15 +1807,16 @@ public:
 				}
 				skip(".");
 			} else if( skips("prefix") ) {
-				string sym = get();
+				string view = get();
 				int rlevel = get_int();
 				int level = get_int();
+				string actual = skips(":=") ? get() : view;
 				_make_own_parser();
-				_thy.modify_syntax().prefix(sym,level,rlevel);
-				if MSG cout << "new prefix operator " << sym << endl;
+				_thy.modify_syntax().prefix(view,actual,level,rlevel);
+				if MSG cout << "new prefix: " << view << " x := (" << actual << ") x" << endl;
 				skip(".");
 			} else if( skips("infix") ) {
-				string sym = get();
+				string view = get();
 				Opt<string> cons;
 				if( skips("(") ) {
 					cons = {get()};
@@ -1821,13 +1825,14 @@ public:
 				int llevel = get_int();
 				int rlevel = get_int();
 				int level = get_int();
+				string actual = skips(":=") ? get() : view;
 				_make_own_parser();
-				_thy.modify_syntax().infix(sym,level,llevel,rlevel,cons);
+				_thy.modify_syntax().infix(view,actual,level,llevel,rlevel,cons);
 				skip(".");
 				if MSG {
-					cout << "new infix: _ " << sym << " _ := (" << sym;
-					if( cons ) cout << ")(_, _)" << endl;
-					else cout << ") _ _" << endl;
+					cout << "new infix: x " << view << " y := ";
+					if( cons ) cout << actual << "(x, y)" << endl;
+					else cout << '(' << actual << ") x y" << endl;
 				}
 			} else if( skips("syntax") ) {
 				auto opener = get();
@@ -2073,7 +2078,8 @@ int main(int argc, char* argv[]) {
 			cerr << "unsupported file type: " << arg << endl;
 			exit(-1);
 		}
-		auto locdir = filesystem::absolute(file.parent_path());
+		auto parent = file.parent_path();
+		auto locdir = parent.empty() ? filesystem::current_path() : filesystem::absolute(parent);
 		auto fin = fstream(file);
 		run(fin,file.stem(),file,exit_on_error,verb,cmddir,locdir,print_on_exit);
 		break;

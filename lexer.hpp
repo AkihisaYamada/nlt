@@ -33,6 +33,7 @@ public:
 		MultiOp = 1 << 6,
 		Dot = 1 << 7,// .
 		DotBlank = 1 << 8,// special treatment of dot followed by blank
+		Underscore = 1 << 9,
 	};
 private:
 	struct _CharRange {

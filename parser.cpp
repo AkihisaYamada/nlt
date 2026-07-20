@@ -107,16 +107,15 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 			if( !op.empty ) throw Error("\"empty not registered\"");
 			init = *op.empty;
 		}
-	} else if( auto x = syn.finds_prefix(peek) ) {
-		auto const& [binder,op] = *x;
-		if( op.llevel < level ) {
+	} else if( auto op = syn.finds_prefix(peek) ) {
+		if( op->llevel < level ) {
 			return {};
 		}
 		ignore_token();
-		if( auto const& r = _gets_term(x->second.rlevel,fv) ) {
-			init = Term(binder)(*r);
+		if( auto const& r = _gets_term(op->rlevel,fv) ) {
+			init = Term(op->actual)(*r);
 		} else {
-			init = binder;
+			init = op->actual;
 		}
 	} else if( auto x = syn.finds_binder(peek) ) {
 		auto const& [binder,op] = *x;
@@ -146,7 +145,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		if( level != INT_MIN ) {
 			return {};
 		}
-		init = Term(x->first);
+		init = Term(x->actual);
 		ignore_token();
 	} else {
 		auto sym = string(peek);
@@ -179,20 +178,19 @@ Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) &
 			ignore_token();// structured binding
 			return _bind(ret,fv)(_get_term(0,fv));
 		}
-		if( auto x = syn.finds_infix(peek) ) {
-			auto [sym,op] = *x;
-			if( op.level < level ) return ret;
-			if( lastlevel < op.llevel ) return ret;
+		if( auto op = syn.finds_infix(peek) ) {
+			if( op->level < level ) return ret;
+			if( lastlevel < op->llevel ) return ret;
 			ignore_token();
-			if( auto const& tp = op.cons ) {
-				auto const& r = _get_term(op.rlevel,fv);
-				ret = Term(sym)(Term(*tp)(ret)(r));
+			if( auto const& tp = op->cons ) {
+				auto const& r = _get_term(op->rlevel,fv);
+				ret = Term(op->actual)(Term(*tp)(ret)(r));
 			} else {
-				auto const& r = _gets_term(op.rlevel,fv);
-				if( !r ) return Term(sym)(ret);
-				ret = Term(sym)(ret)(*r);
+				auto const& r = _gets_term(op->rlevel,fv);
+				if( !r ) return Term(op->actual)(ret);
+				ret = Term(op->actual)(ret)(*r);
 			}
-			lastlevel = op.level;
+			lastlevel = op->level;
 		} else {
 			if( 1000 <= level ) return ret;
 			auto const& r = _gets_term(1000,fv);

@@ -38,11 +38,13 @@ public:
 	struct Prefix {
 		int llevel;
 		int rlevel;
+		std::string actual;
 	};
 	struct Infix {
 		int level;
 		int llevel;
 		int rlevel;
+		std::string actual;
 		Opt<std::string> cons;// "," if x + y reads +(x,y)
 	};
 	struct Binder {
@@ -56,6 +58,12 @@ public:
 		Opt<std::string> singleton;// {_}
 		Opt<std::string> compr;// {_. _}
 		StrMap<std::pair<std::string,Opt<std::string>>> bcompr;// "∈" → ("{_∈_._}", ",")
+	};
+	struct Unary {
+		std::string view;
+	};
+	struct Binary {
+		std::string view;
 	};
 	struct Empty {
 		std::string opener, closer;
@@ -82,7 +90,7 @@ private:
 	StrMap<Prefix> _prefixes;
 	StrMap<Infix> _infixes;
 	StrMap<Binder> _binders;
-	StrMap<Sum<Empty,Singleton,Compr,BinderRel,ComprRel>> _pretty_of;
+	StrMap<Sum<Unary,Binary,Empty,Singleton,Compr,BinderRel,ComprRel>> _pretty_of;
 	bool _print_ctxt = false;
 public:
 	Syntax();
@@ -92,17 +100,18 @@ public:
 	void print_ctxt( bool b ) {
 		_print_ctxt = b;
 	}
-	void prefix(std::string const& sym, int level, int rlevel) {
-		_prefixes.emplace(sym,Prefix{level,rlevel});
+	void prefix(std::string const& sym, std::string const& actual, int level, int rlevel) {
+		_prefixes.emplace(sym,Prefix{level,rlevel,actual});
 	}
-	Opt<Pair<std::string const&,Prefix const&>> finds_prefix(std::string_view const& sym) const {
-		return _prefixes.finds_pair(sym);
+	Opt<Prefix const&> finds_prefix(std::string_view const& sym) const {
+		return _prefixes.finds_value(sym);
 	}
-	void infix( std::string const& sym, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
-		_infixes.emplace(sym,Infix{level,llevel,rlevel,cons});
+	void infix( std::string const& view, std::string const& actual, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
+		_infixes.emplace(view,Infix{level,llevel,rlevel,actual,cons});
+		_pretty_of.emplace(actual,Binary{view});
 	}
-	Opt<Pair<std::string const&,Infix const&>> finds_infix(std::string_view const& sym) const {
-		return _infixes.finds_pair(sym);
+	Opt<Infix const&> finds_infix(std::string_view const& sym) const {
+		return _infixes.finds_value(sym);
 	}
 	bool has_closer(std::string_view const& sym) const {
 		return _closers.contains(sym);
