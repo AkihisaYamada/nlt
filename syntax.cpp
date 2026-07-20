@@ -29,7 +29,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 		return pretty_sym(os,*sym);
 	} else if( auto const& app = term.app() ) {
 		auto const& fun = app->first, arg = app->second;
-		if( auto const& sym = fun.sym() ) {// f s
+		if( auto const& sym = fun.sym() ) {// unary application
 			if( auto const& op = _binders.finds_value(*sym) ) {// ∀x. s
 				if( auto const& abs = arg.bind() ) {
 					if( level > op->llevel ) os << '(';

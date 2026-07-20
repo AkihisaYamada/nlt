@@ -100,8 +100,9 @@ public:
 	void print_ctxt( bool b ) {
 		_print_ctxt = b;
 	}
-	void prefix(std::string const& sym, std::string const& actual, int level, int rlevel) {
-		_prefixes.emplace(sym,Prefix{level,rlevel,actual});
+	void prefix(std::string const& view, std::string const& actual, int level, int rlevel) {
+		_prefixes.emplace(view,Prefix{level,rlevel,actual});
+		_pretty_of.emplace(actual,Unary{view});
 	}
 	Opt<Prefix const&> finds_prefix(std::string_view const& sym) const {
 		return _prefixes.finds_value(sym);
