@@ -92,8 +92,15 @@ theory PartialEquivalence :=
 end
 
 theory Tolerance A (~) :=
-	import Reflexive A (~).
-	import Symmetric.
+	import Reflexive A (~), Symmetric.
+end
+
+theory Equivalence A (~) :=
+	import Tolerance, PartialEquivalence.
+begin
+
+	interpret Preorder A (~).
+
 end
 
 theory CollectRel (⊏) :=

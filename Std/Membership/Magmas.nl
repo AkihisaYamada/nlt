@@ -421,4 +421,25 @@ context PartialEquivalence begin
 			.
 	end
 
+	theory LeftQuasiGroup :=
+		import MagmaLeftCancel.
+		import lcancel: LeftCancel A A (\) (*).
+	end
+
+	theory RightQuasiGroup :=
+		import MagmaRightCancel.
+		import rcancel: RightCancel A A (/) (*).
+	end
+
+	theory QuasiGroup :=
+		import LeftQuasiGroup.
+		import RightQuasiGroup.
+	end
+
+	theory LeftLoop :=
+		fix (*) 1 (\).
+		import MagmaNeutral.
+		import LeftQuasiGroup.
+	end
+
 end
