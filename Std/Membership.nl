@@ -50,8 +50,12 @@ begin
 end
 
 
-theory Symmetric A (⊏) :=
-	assume sym: if x ⊏ y, x ∈ A, y ∈ A then y ⊏ x.
+theory Reflexive A (⊑) :=
+	assume refl: if x ∈ A then x ⊑ x.
+end
+
+theory Symmetric A (~) :=
+	assume sym: if x ~ y, x ∈ A, y ∈ A then y ~ x.
 end
 
 theory SemiAttractive A (⊏) :=
@@ -67,18 +71,33 @@ theory Attractive :=
 	import DualAttractive.
 end
 
-theory Preorder :=
-	import Reflexive.
-	import Transitive.
+theory Transitive A (⊏) :=
+	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
+begin
+	interpret Attractive;
+		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z;
+			by trans[OF xy yz].
+		- if xy: x ⊏ y, yx: y ⊏ x, xz: x ⊏ z;
+			by trans[OF yx xz].
+		.
 end
 
-theory Tolerance :=
+theory Preorder :=
 	import Reflexive.
+	import Transitive A (⊑).
+end
+
+theory PartialEquivalence :=
+	import Symmetric, Transitive A (~).
+end
+
+theory Tolerance A (~) :=
+	import Reflexive A (~).
 	import Symmetric.
 end
 
-theory CollectRel :=
-	fix (⊏) Collect.⊏.
+theory CollectRel (⊏) :=
+	fix Collect_⊏.
 	assume Collect_intro: if x ⊏ a, P.[x] then x ∈ {x ⊏ a. P.[x]}.
 	assume Collect_elim0: if x ∈ {x ⊏ a. P.[x]} then x ⊏ a.
 	assume Collect_elim1: if x ∈ {x ⊏ a. P.[x]} then P.[x].

@@ -125,6 +125,8 @@ void init_syntax( Syntax& syntax ) {
 	syntax.infix("then","then",-2,-1,-2,{});
 	syntax.infix("else","else",-2,-2,-1,{});
 	syntax.prefix("for","for",-1,-1);
+	syntax.compr("begin","end","begin",-1);
+
 }
 
 static Error const ProofMismatch = Error("#proof-mismatch");
@@ -1534,6 +1536,10 @@ public:
 			auto src2parent = parent.thy(pref.name,reader());
 			auto src = src2parent.source();
 			auto loc = parent.branch(src.name(),"");
+			vector<CTerm> insts;
+			while( auto const& t = gets_term(1000) ) {
+				insts.emplace_back(loc.enclose(*t));
+			}
 			skip("begin");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -1543,7 +1549,7 @@ public:
 			local_thy(loc,true,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
-				_auto_import({},{},src2loc,true,{});
+				_auto_import({},{},src2loc,true,insts);
 				add_import(pref,src2loc);
 /* not sure this should be automated
 				// updating original imports
@@ -1838,14 +1844,15 @@ public:
 					else cout << '(' << actual << ") x y" << endl;
 				}
 			} else if( skips("syntax") ) {
+				int level = gets_int().value_or(INT_MAX);
 				auto opener = get();
 				if( skips("_") ) {
-					if( skips(".") ) {// ∀_. _
+					if( skips(".") ) {// {_. _}
 						skip("_");
 						auto closer = get();
 						skip(":=");
 						auto actual = get_sym();
-						_thy.modify_syntax().compr(opener,closer,actual);
+						_thy.modify_syntax().compr(opener,closer,actual,level);
 						if MSG cout << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
 					} else {
 						auto next = get();
@@ -1869,7 +1876,7 @@ public:
 								skip(":=");
 								auto actual = get_sym();
 								auto cons = _gets_cons();
-								_thy.modify_syntax().bcompr(opener,next,closer,actual,cons);
+								_thy.modify_syntax().bcompr(opener,next,closer,actual,cons,level);
 								if MSG {
 									cout << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
 									if( cons ) {
@@ -1882,7 +1889,7 @@ public:
 						} else {// {_}
 							skip(":=");
 							auto actual = get_sym();
-							_thy.modify_syntax().singleton_compr(opener,next,actual);
+							_thy.modify_syntax().singleton_compr(opener,next,actual,level);
 							if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
 						}
 					}
@@ -1890,7 +1897,7 @@ public:
 					auto closer = get();
 					skip(":=");
 					auto actual = get_sym();
-					_thy.modify_syntax().empty_compr(opener,closer,actual);
+					_thy.modify_syntax().empty_compr(opener,closer,actual,level);
 					if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
 				}
 				skip(".");

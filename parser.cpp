@@ -82,8 +82,11 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		init = _get_term(INT_MIN,fv);
 		skip(")");
 	} else if( auto const& x = syn.finds_opener(peek) ) {
-		ignore_token();
 		auto const& [opener,op] = *x;
+		if( op.level < level ) {
+			return {};
+		}
+		ignore_token();
 		if( auto fst = gets_term(INT_MAX) ) {
 			auto const& follow = peek_token();
 			if( follow == "." ) {// {_. _}

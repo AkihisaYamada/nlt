@@ -53,6 +53,7 @@ public:
 		StrMap<std::pair<std::string,Opt<std::string>>> bbinds;// "∈" → ("∀∈", ",")
 	};
 	struct Opener {
+		int level;
 		std::string closer;
 		Opt<std::string> empty;// {}
 		Opt<std::string> singleton;// {_}
@@ -138,26 +139,26 @@ public:
 		binder.bbinds.emplace(mid,std::pair{std::string(actual),cons});
 		_pretty_of.emplace(actual,BinderRel{binder.llevel,binder.rlevel,std::string(prefix),std::string(mid),cons});
 	}
-	void empty_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
-		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+	void empty_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
 		it->second.empty.emplace(actual);
 		_pretty_of.emplace(actual,Empty{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
-	void singleton_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
-		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+	void singleton_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
 		it->second.singleton.emplace(actual);
 		_pretty_of.emplace(actual,Singleton{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
-	void compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual ) & {
-		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+	void compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
 		it->second.compr.emplace(actual);
 		_pretty_of.emplace(actual,Compr{std::string(opener),std::string(closer)});
 		_closers.emplace(closer);
 	}
-	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual, Opt<std::string> const& cons ) & {
-		auto const& [it,fl] = _openers.emplace(opener,std::string(closer));
+	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual, Opt<std::string> const& cons, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
 		it->second.bcompr.emplace(mid,std::pair{actual,cons});
 		_pretty_of.emplace(actual,ComprRel{std::string(opener),std::string(mid),std::string(closer),cons});
 		_closers.emplace(closer);
