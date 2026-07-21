@@ -3,13 +3,19 @@
 using namespace std;
 
 Opt<string> Parser::gets_thm_name() & {
-	return gets(Lexer::Word|Lexer::Number);
+	return gets(Lexer::WORD|Lexer::NUMBER);
 }
 string Parser::get_thm_name() & {
 	if( auto const& opt = gets_thm_name() ) {
 		return *opt;
 	}
 	throw Error("Required a theorem name");
+}
+string Parser::get_thy_name() & {
+	if( auto const& opt = gets(Tokenizer::WORD) ) {
+		return *opt;
+	}
+	throw Error("Required a theory name");
 }
 
 /**

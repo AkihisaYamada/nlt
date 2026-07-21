@@ -101,7 +101,7 @@ extend Iff_Not? Iff.Not begin
 			- if nimp;
 				apply nimp_not_elim[OF nimp].
 			simp;
-			apply imp_commute>1;
+			apply imp_imp_sym>1;
 			unfold nnot_imp_iff;
 			by nimp_intro.
 

@@ -63,14 +63,14 @@ public:
 class Tokenizer {
 public:
 	enum TokenType {
-		Unset = 0,
-		Special = 1 << 1,
-		Word = 1 << 2,
-		Number = 1 << 3,
-		Operator = 1 << 4,
-		Escaped = 1 << 5,
-		Dots = 1 << 6,
-		Unknown = 1 << 7,
+		UNSET = 0,
+		SPECIAL = 1 << 1,
+		WORD = 1 << 2,
+		NUMBER = 1 << 3,
+		OPERATOR = 1 << 4,
+		ESCAPED = 1 << 5,
+		DOTS = 1 << 6,
+		UNKNOWN = 1 << 7,
 	};
 	friend TokenType operator|( TokenType a, TokenType b ) {
 		return (TokenType)((int)a|(int)b);
@@ -93,7 +93,7 @@ public:
 		}
 		return {};
 	}
-	std::string get( TokenType t = ~Unset ) {
+	std::string get( TokenType t = ~UNSET ) {
 		if( auto const& opt = gets(t) ) {
 			return *opt;
 		}
@@ -174,7 +174,7 @@ private:
 	Lex const* const plex;
 	std::string_view peeked_token;
 	// stores the next token type
-	TokenType token_type = Unset;
+	TokenType token_type = UNSET;
 	// local buffer
 	char buf[1024];
 	Lex::CharType fetched_char_type;
@@ -191,7 +191,7 @@ public:
 	// do not copy a lexer, since the internal state and the input stream get inconsistent.
 	Lexer( Lexer const& ) = delete;
 	void reset() {
-		token_type = Unset;
+		token_type = UNSET;
 	}
 	TokenType peeked_token_type() const {
 		return token_type;

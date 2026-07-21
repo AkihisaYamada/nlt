@@ -96,26 +96,6 @@ infix ** 200 201 200.
 theory MetaRelation (⊏) :=
 begin
 
-	theory AllRel (∀⊏) :=
-		assume all_intro#intro if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
-		assume all_elim1: for x if ∀y ⊏ a. P.[y], x ⊏ a then P.[x].
-	begin
-		lemma all_elim#elim if all: ∀x ⊏ a. P.[x], imp: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q then Q;
-			by imp all_elim1[OF all].
-	end
-
-	theory ExRel (∃⊏) :=
-		assume ex_intro1: for x if P.[x], x ⊏ a then ∃x ⊏ a. P.[x].
-		assume ex_elim: if ∃x ⊏ a. P.[x], ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q.
-	begin
-		lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ∃x ⊏ a. P.[x];
-			apply assm;
-			- if Px: P.[x], xa: x ⊏ a;
-				by ex_intro1[OF Px xa].
-			.
-
-	end
-
 	theory MetaCompatible (*) :=
 		assume cong: if x ⊏ x', y ⊏ y' then x * y ⊏ x' * y'.
 	end
@@ -367,6 +347,31 @@ theory MetaInvAntitone f (<) (⊏) :=
 	assume inv_cmono: if f x ⊏ f y then y < x.
 end
 
+theory AllRel (⊏) :=
+	fix (∀⊏).
+	assume all_intro#intro if ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x].
+	assume all_elim1: for x if ∀y ⊏ a. P.[y], x ⊏ a then P.[x].
+begin
+
+	lemma all_elim#elim if all: ∀x ⊏ a. P.[x], imp: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q then Q;
+		by imp all_elim1[OF all].
+
+end
+
+theory ExRel (⊏) :=
+	fix (∃⊏).
+	assume ex_intro1: for x if P.[x], x ⊏ a then ∃x ⊏ a. P.[x].
+	assume ex_elim: if ∃x ⊏ a. P.[x], ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q.
+begin
+
+	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ∃x ⊏ a. P.[x];
+		apply assm;
+		- if Px: P.[x], xa: x ⊏ a;
+			by ex_intro1[OF Px xa].
+		.
+
+end
+
 ---
 ## Theorems in Foundation
 ---
@@ -392,7 +397,7 @@ lemma weaken: if P: P, Q: Q then P;
 lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
 	by PQR Q.
 
-lemma imp_commute: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
+lemma imp_imp_sym: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
 	by PQR.
 
 lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;

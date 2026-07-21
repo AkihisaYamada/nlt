@@ -174,7 +174,7 @@ void Lexer::fetch_continue( Lex::CharType t ) {
 }
 
 string_view Lexer::peek_token() {
-	if( token_type != Unset ) {// token is already fetched
+	if( token_type != UNSET ) {// token is already fetched
 		return peeked_token;
 	}
 	if( fetched_char_type == Lex::Blank ) {// nothing or only a space is prefetched
@@ -201,11 +201,11 @@ string_view Lexer::peek_token() {
 		while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
 			fetch_continue( Lex::Digit );
 		}
-		token_type = Number;
+		token_type = NUMBER;
 		break;
 	case Lex::DotBlank:// dot-blank is just dot.
 		rp = wp;
-		token_type = Dots;
+		token_type = DOTS;
 		fetched_char_type = Lex::Blank;
 		break;
 	case Lex::Dot:
@@ -215,57 +215,57 @@ string_view Lexer::peek_token() {
 			fetch_continue( Lex::Dot );
 			if( _fetch_word_or_op() ) {
 				_fetch_follower();
-				token_type = Word;
+				token_type = WORD;
 			} else {
-				token_type = Dots;
+				token_type = DOTS;
 			}
 			break;
 		case Lex::Digit: // dot followed by digits
 			fetch_continue( Lex::Digit );
-			token_type = Number;
+			token_type = NUMBER;
 			break;
 		case Lex::SingleOp:// dot followed by a single operator is another operator
 			rp = wp;
 			fetched_char_type = Lex::Blank;// no character is prefetched
-			token_type = Operator;
+			token_type = OPERATOR;
 			break;
 		case Lex::MultiOp:
 			fetch_continue( Lex::MultiOp );
 			_fetch_follower();
-			token_type = Operator;
+			token_type = OPERATOR;
 			break;
 		case Lex::Letter:
 			fetch_continue( Lex::Digit | Lex::Letter );
 			_fetch_follower();
-			token_type = Word;
+			token_type = WORD;
 			break;
 		default:
-			token_type = Dots; // single dot
+			token_type = DOTS; // single dot
 			break;
 		}
 		break;
 	case Lex::SingleOp:
-		token_type = Operator;
+		token_type = OPERATOR;
 		fetched_char_type = Lex::Blank;
 		break;
 	case Lex::MultiOp:
 		fetch_continue( Lex::MultiOp );
 		_fetch_follower();
-		token_type = Operator;
+		token_type = OPERATOR;
 		break;
 	case Lex::Letter:
 		fetch_continue( Lex::Letter | Lex::Digit );
 		_fetch_follower();
-		token_type = Word;
+		token_type = WORD;
 		break;
 	case Lex::Underscore:
 		fetch_char();
 		_fetch_word_or_op();
 		_fetch_follower();
-		token_type = Word;
+		token_type = WORD;
 		break;
 	default:
-		token_type = Special;
+		token_type = SPECIAL;
 		fetched_char_type = Lex::Blank;
 		break;
 	}

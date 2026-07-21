@@ -9,3 +9,8 @@ begin
 interpret Ex.Or.
 interpret And.
 
+extend Eq begin
+
+	interpret And.
+
+end

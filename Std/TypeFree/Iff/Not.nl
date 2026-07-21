@@ -61,39 +61,33 @@ extend base? MinimalNot begin
 			unfold nnnot_iff.
 		by nnot_intro.
 
-	extend base? MetaRelation begin
+	extend Iff.AllRel begin
 
-		interpret Iff.MetaRelation.
+		interpret base.AllRel.
 
-		extend AllRel begin
+		lemma nnall_not_iff: ¬ ¬ (∀x ⊏ a. ¬ P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
+			apply iff_intro;
+			- if nnall;
+				use nnall_imp[OF nnall];
+				note#cong all_cong_weak.
+				unfold nnnot_iff.
+			by nnot_intro.
 
-			interpret base.AllRel.
+	end
 
-			lemma nnall_not_iff: ¬ ¬ (∀x ⊏ a. ¬ P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
-				apply iff_intro;
-				- if nnall;
-					use nnall_imp[OF nnall];
-					note#cong all_cong_weak.
-					unfold nnnot_iff.
-				by nnot_intro.
+	extend Iff.ExRel begin
 
-		end
+		interpret base.ExRel.
 
-		extend ExRel begin
-
-			interpret base.ExRel.
-
-			lemma nex_nnot: ¬(∃x ⊏ a. ¬ ¬ P.[x]) ⟺ ¬(∃x ⊏ a. P.[x]);
-				unfold not_iff_imp_not_true;
-				simp ex_imp_iff nnot_imp_iff.
-
-		end
+		lemma nex_nnot: ¬(∃x ⊏ a. ¬ ¬ P.[x]) ⟺ ¬(∃x ⊏ a. P.[x]);
+			unfold not_iff_imp_not_true;
+			simp ex_imp_iff nnot_imp_iff.
 
 	end
 
 end
 
-extend ClassicalNot begin
+extend base? ClassicalNot begin
 
 	interpret .MinimalNot.
 
@@ -122,5 +116,11 @@ extend ClassicalNot begin
 			apply nall_elim[OF nall];
 			apply assm=.
 		.
+
+	extend AllRel begin
+
+		interpret base.AllRel.
+
+	end
 
 end

@@ -82,6 +82,9 @@ lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
 lemma imp_iff_iff: if !P then (P ⟺ Q) ⟺ Q;
 	by iff_intro #elim iff_elim.
 
+lemma imp_imp_commute: (P ⟹ Q ⟹ R) ⟺ (Q ⟹ P ⟹ R);
+	by iff_intro.
+
 lemma all_imp2_iff#simp (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
 	by iff_intro.
 
@@ -133,98 +136,84 @@ lemma false_iff: false ⟺ (∀P. P);
 ## Deriving Restricted Quantifiers via `(⟺)`
 ---
 
-extend base? MetaRelation begin
+theory AllRel (⊏) :=
+	fix (∀⊏).
+	assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
+begin
 
-	theory AllRel :=
-		fix (∀⊏).
-		assume all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]).
-	begin
+	interpret! Std.AllRel;
+		- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
+			by all[fold all_iff].
+		- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
+			by allIn[unfold all_iff, OF x].
+		.
+	lemma all_cong_strong:
+		if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+		then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
+		unfold+ all_iff a P.
 
-		interpret! base.AllRel;
-			- if all: ∀x. x ⊏ a ⟹ P.[x] then ∀x ⊏ a. P.[x];
-				by all[fold all_iff].
-			- for x if allIn: ∀y ⊏ a. P.[y], x: x ⊏ a then P.[x];
-				by allIn[unfold all_iff, OF x].
+	lemma all_cong_weak:
+		if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. P'.[x]);
+		unfold+ all_iff P.
+
+	lemma imp_all_iff: (P ⟹ ∀x ⊏ a. Q.[x]) ⟺ (∀x ⊏ a. P ⟹ Q.[x]);
+		by iff_intro #simp all_iff.
+
+	lemma all_imp: ((∀x ⊏ a. P.[x]) ⟹ Q) ⟺ ((∀x. x ⊏ a ⟹ P.[x]) ⟹ Q);
+		simp all_iff.
+
+end
+
+theory ExRel (⊏) :=
+	fix (∃⊏).
+	assume ex_iff_all: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q).
+begin
+
+	interpret Std.ExRel;
+		- for x if Px: P.[x], xa: x ⊏ a then ∃x ⊏ a. P.[x];
+			unfold ex_iff_all;
+			- for Q if all: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q then Q;
+				by all[OF xa Px].
 			.
-		lemma all_cong_strong:
-			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
-			then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
-			unfold+ all_iff a P.
+		- if ex: ∃x ⊏ a. P.[x], imp: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
+			by ex[unfold ex_iff_all, OF imp[OF (2) (1)]].
+		.
+	lemma ex_cong_strong:
+		if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
+		then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
+		unfold+ ex_iff_all;
+		unfold a;
+		unfold P;.
 
-		lemma all_cong_weak:
-			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. P'.[x]);
-			unfold+ all_iff P.
+	lemma ex_cong_weak:
+		if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
+		unfold+ ex_iff_all P.
 
-		lemma imp_all_iff: (P ⟹ ∀x ⊏ a. Q.[x]) ⟺ (∀x ⊏ a. P ⟹ Q.[x]);
-			by iff_intro #simp all_iff.
-
-		lemma all_imp: ((∀x ⊏ a. P.[x]) ⟹ Q) ⟺ ((∀x. x ⊏ a ⟹ P.[x]) ⟹ Q);
-			simp all_iff.
-
-	end
-
-	theory ExRel :=
-		fix (∃⊏).
-		assume ex_iff_all: (∃x ⊏ a. P.[x]) ⟺ (∀Q. (∀x. x ⊏ a ⟹ P.[x] ⟹ Q) ⟹ Q).
-	begin
-
-		interpret base.ExRel;
-			- for x if Px: P.[x], xa: x ⊏ a then ∃x ⊏ a. P.[x];
-				unfold ex_iff_all;
-				- for Q if all: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q then Q;
-					by all[OF xa Px].
-				.
-			- if ex: ∃x ⊏ a. P.[x], imp: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
-				by ex[unfold ex_iff_all, OF imp[OF (2) (1)]].
+	lemma ex_imp_iff#simp#rule ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
+		apply iff_intro;
+		- if imp, x: x ⊏ a, Px: P.[x];
+			apply imp ex_intro1[OF Px x].
+		- if all, ex;
+			apply ex_elim[OF ex];
+			- for x if x, Px;
+				apply all[OF Px x].
 			.
-		lemma ex_cong_strong:
-			if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
-			then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
-			unfold+ ex_iff_all;
-			unfold a;
-			unfold P;.
+		.
 
-		lemma ex_cong_weak:
-			if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
-			unfold+ ex_iff_all P.
+end
 
-		lemma ex_imp_iff#simp#rule ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
+---
+We can also formalize the intro/elim formulation of `AllRel` is equivalent to the iff one.
+---
+theory NaiveAllRel :=
+	import Std.AllRel.
+begin
+
+	interpret AllRel;
+		- show all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
 			apply iff_intro;
-			- if imp, x: x ⊏ a, Px: P.[x];
-				apply imp ex_intro1[OF Px x].
-			- if all, ex;
-				apply ex_elim[OF ex];
-				- for x if x, Px;
-					apply all[OF Px x].
-				.
-			.
-
-	end
+			- by #elim all_elim.
+			by all_intro.
+		.
 
 end
-
----
-We can show the intro/elim formulation of `AllRel` is equivalent to the iff one.
-But I don't know how to mechanize this.
-
-context Std.MetaRelation begin
-
-	context AllRel begin
-
-		interpret TypeFree.
-		extend Iff begin
-
-			interpret MetaRelation.
-
-			interpret? AllRel;
-				- show all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
-					apply iff_intro;
-					- by #elim all_elim.
-					by all_intro.
-				.
-		end
-
-	end
-
-end
----

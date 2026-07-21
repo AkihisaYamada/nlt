@@ -225,7 +225,7 @@ public:
 			auto tmp = loc.weaken(ret);
 			for(;;) {
 				if( skips("for") ) {
-					while( auto x = gets(Lexer::Word) ) {
+					while( auto x = gets(Lexer::WORD) ) {
 						loc.fix(*x);
 					}
 				} else if( skips("of") ) {
@@ -735,12 +735,15 @@ public:
 			ret.default_prefix = {NONREC_IMPORT};
 			ret.canonical_prefix = true;
 		} else if( skips("!") ) {// expansive unnamed import
-			ret.name = get_thm_name();
+			ret.name = get_thy_name();
 			ret.default_prefix = {""};
 			ret.canonical_prefix = true;
 			ret.rec = true;
+		} else if( skips(":") ) {// canonically qualified import
+			ret.name = get_thy_name();
+			ret.canonical_prefix = true;
 		} else {
-			string str1 = get_thm_name();
+			string str1 = get_thy_name();
 			if( skips(":") ) {// qualified import
 				ret.name = get();
 				ret.forced_prefix = {str1};
@@ -875,7 +878,7 @@ public:
 		auto ret = GoalPat();
 		bool show = skips("show");
 		if( show ) {
-			ret.name = gets( Tokenizer::Word | Tokenizer::Number );
+			ret.name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
 			ret.cs = gets_claim_status();
 			if( !ret.cs ) skip(":");
 		}
@@ -888,7 +891,7 @@ public:
 				modified = true;
 			} else if( skips("if") ) {
 				do {
-					auto name = gets( Tokenizer::Word | Tokenizer::Number );
+					auto name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
 					auto const& cs = gets_claim_status();
 					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
 					ret.decls.emplace_back(Assume{name,cs,assm});
@@ -1355,7 +1358,7 @@ public:
 	}
 	Pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
 		Pair<Opt<string>,Opt<ClaimStatus>> ret;
-		ret.first = gets( Tokenizer::Word | Tokenizer::Number );
+		ret.first = gets( Tokenizer::WORD | Tokenizer::NUMBER );
 		ret.second = gets_claim_status();
 		if( !ret.second ) {
 			skip(":");
@@ -1500,7 +1503,7 @@ public:
 	}
 	bool _thy_decl() {
 		if( skips("theory") ) {
-			string name = get(Lexer::Word);
+			string name = get(Lexer::WORD);
 			auto loc = _thy.branch(name,"");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -1515,7 +1518,7 @@ public:
 			local_thy(loc,false,[this]{ loop(); });
 			if MSG cout << "created theory " << name << endl;
 		} else if( skips("context") ) {
-			string path = get(Lexer::Word);
+			string path = get(Lexer::WORD);
 			skip("begin");
 			auto oloc = _thy.find_thy(path,reader());
 			if( !oloc ) throw Error("bad context")(path);
@@ -1589,7 +1592,7 @@ public:
 			});
 			if MSG cout << "left " << loc.print_path() << endl;
 		} else if( skips("namespace") ) {
-			auto name = get(Lexer::Word);
+			auto name = get(Lexer::WORD);
 			skip(":");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
@@ -1789,10 +1792,10 @@ public:
 					}();
 					if MSG cout << "registering " << msg << ": ";
 					for(;;) {
-						string const& lsym = get(Special);
+						string const& lsym = get(SPECIAL);
 						unsigned int l = uint_of_chars(lsym.data());
 						if( skips("-") ) {
-							string const& rsym = get(Special);
+							string const& rsym = get(SPECIAL);
 							unsigned int r = uint_of_chars(rsym.data());
 							if MSG cout << lsym  << '-' << rsym << '(' << to_hex(l) << '-' << to_hex(r) << ')';
 							lex.register_range(l,r,type);

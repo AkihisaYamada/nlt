@@ -133,42 +133,38 @@ begin
 	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ false;
 		apply not_imp_imp_not[OF nt].
 
-	extend MetaRelation begin
+	extend AllRel begin
 
-		extend AllRel begin
+		lemma nall_intro1: for x if nPx: ¬ P.[x], xa: x ⊏ a then ¬(∀x ⊏ a. P.[x]);
+			apply not_imp_imp_not[OF nPx];
+			- if all: ∀x ⊏ a. P.[x];
+				apply all_elim1[OF all xa].
+			.
+		lemma nall_intro: if assm: ∀Q. (∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ¬(∀x ⊏ a. P.[x]);
+			apply assm;
+			- for x;
+				by nall_intro1[of x].
+			.
 
-			lemma nall_intro1: for x if nPx: ¬ P.[x], xa: x ⊏ a then ¬(∀x ⊏ a. P.[x]);
-				apply not_imp_imp_not[OF nPx];
-				- if all: ∀x ⊏ a. P.[x];
-					apply all_elim1[OF all xa].
-				.
-			lemma nall_intro: if assm: ∀Q. (∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ¬(∀x ⊏ a. P.[x]);
-				apply assm;
-				- for x;
-					by nall_intro1[of x].
-				.
+		lemma nnall_imp: if nnall: ¬ ¬ (∀x ⊏ a. P.[x]) then ∀x ⊏ a. ¬ ¬ P.[x];
+			apply all_intro;
+			- if xa: x ⊏ a;
+				apply not_imp_imp_not[OF nnall];
+				by nall_intro1[OF _ xa].
+			.
 
-			lemma nnall_imp: if nnall: ¬ ¬ (∀x ⊏ a. P.[x]) then ∀x ⊏ a. ¬ ¬ P.[x];
-				apply all_intro;
-				- if xa: x ⊏ a;
-					apply not_imp_imp_not[OF nnall];
-					by nall_intro1[OF _ xa].
-				.
+	end
 
-		end
+	extend ExRel begin
 
-		extend ExRel begin
+		lemma nex_elim1: if nex: ¬(∃x ⊏ a. P.[x]), xa: x ⊏ a then ¬ P.[x];
+			by not.cmono[OF ex_intro1[OF _ xa] nex].
 
-			lemma nex_elim1: if nex: ¬(∃x ⊏ a. P.[x]), xa: x ⊏ a then ¬ P.[x];
-				by not.cmono[OF ex_intro1[OF _ xa] nex].
-
-			lemma nex_elim: if nex: ¬(∃x ⊏ a. P.[x]), assm: (∀x. x ⊏ a ⟹ ¬ P.[x]) ⟹ Q then Q;
-				apply assm;
-				- for x;
-					by nex_elim1[OF nex, of x].
-				.
-
-		end
+		lemma nex_elim: if nex: ¬(∃x ⊏ a. P.[x]), assm: (∀x. x ⊏ a ⟹ ¬ P.[x]) ⟹ Q then Q;
+			apply assm;
+			- for x;
+				by nex_elim1[OF nex, of x].
+			.
 
 	end
 
@@ -256,20 +252,16 @@ begin
 			by nnot_intro PQ.
 		.
 
-	extend MetaRelation begin
+	extend ExRel begin
 
-		extend ExRel begin
-
-			lemma nex_intro: if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x] then ¬(∃x ⊏ a. P.[x]);
-				apply imp_not_imp_not;
-				- if ex: ∃x ⊏ a. P.[x];
-					apply ex_elim[OF ex];
-					- for x if Px: P.[x], xa: x ⊏ a;
-						by not_elim_not[OF all_not[OF xa] Px].
-					.
+		lemma nex_intro: if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x] then ¬(∃x ⊏ a. P.[x]);
+			apply imp_not_imp_not;
+			- if ex: ∃x ⊏ a. P.[x];
+				apply ex_elim[OF ex];
+				- for x if Px: P.[x], xa: x ⊏ a;
+					by not_elim_not[OF all_not[OF xa] Px].
 				.
- 
-		end
+			.
 
 	end
 
@@ -607,22 +599,18 @@ begin
 			by nimp_intro nQ.
 		.
 
-	extend MetaRelation begin
+	extend AllRel begin
 
-		extend AllRel begin
-
-			lemma nall_elim:
-				if nall: ¬(∀x ⊏ a. P.[x]), assm: ∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q then Q;
-				apply not_elim_connect[OF nall];
-				- if nQ: ¬Q;
-					apply all_intro;
-					- if xa: x ⊏ a then P.[x];
-						apply not_imp_sym[OF assm];
-						by nimp_intro xa nQ.
-					.
+		lemma nall_elim:
+			if nall: ¬(∀x ⊏ a. P.[x]), assm: ∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q then Q;
+			apply not_elim_connect[OF nall];
+			- if nQ: ¬Q;
+				apply all_intro;
+				- if xa: x ⊏ a then P.[x];
+					apply not_imp_sym[OF assm];
+					by nimp_intro xa nQ.
 				.
-		end
-
+			.
 	end
 
 end

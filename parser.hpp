@@ -10,6 +10,7 @@ public:
 	virtual Syntax const& syntax() const = 0;
 	Opt<std::string> gets_thm_name() &;
 	std::string get_thm_name() &;
+	std::string get_thy_name() &; 
 	Opt<Term> gets_term( int level = 0 ) & {
 		std::string fv = "#'";
 		return _gets_term(level,fv);

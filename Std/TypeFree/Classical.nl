@@ -1,9 +1,7 @@
 ---
 # Type-Free Classical Logic
 ---
-import Iff.
-
-import Not, ClassicalNot.
+import Iff, Not, ClassicalNot.
 
 fix (∧) (∨) (∃).
 assume or_iff_imp: P ∨ Q ⟺ (¬P ⟹ Q).
