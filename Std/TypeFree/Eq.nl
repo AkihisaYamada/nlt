@@ -156,6 +156,10 @@ begin
 			unfold snd.
 		by eq.trans[OF 3].
 
+	lemma pair_eq_pair_elim: if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
+		apply assm;
+		by pair_eq_pair_elim1[OF eq] pair_eq_pair_elim2[OF eq].
+
 	lemma eq_pair_fst#simp[after 1] if p: p = (x,y) then fst p = x;
 		simp p.
 	lemma eq_pair_snd#simp[after 1] if p: p = (x,y) then snd p = y;

@@ -82,7 +82,7 @@ lemma imp_imp_iff: if !P then (P ⟹ Q) ⟺ Q;
 lemma imp_iff_iff: if !P then (P ⟺ Q) ⟺ Q;
 	by iff_intro #elim iff_elim.
 
-lemma all_imp2_iff: (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
+lemma all_imp2_iff#simp (∀Q. (P ⟹ Q) ⟹ Q) ⟺ P;
 	by iff_intro.
 
 lemma imp3_iff: (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P ⟹ Q);
