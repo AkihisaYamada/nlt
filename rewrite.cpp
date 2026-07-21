@@ -533,8 +533,9 @@ Thm Resolver::rewrites( Thy const& thy, Thm const& source, Opt<std::string const
 }
 void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp ) & {
 	int i = 0;
+	bool import_default = !( _default_ind < _refls.size() );
 	for( auto const& refl : src._refls ) {
-		register_refl(thy.weaken(refl).subst(intp),i==src._default_ind);
+		register_refl( thy.weaken(refl).subst(intp), import_default && i == src._default_ind );
 		i++;
 	}
 	for( auto const& congs : src._congs ) {

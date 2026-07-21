@@ -162,44 +162,7 @@ begin
 		simp p.
 end
 
-theory And :=
-	fix (∧).
-	assume and_def: (P ∧ Q) = (∀R. (P ⟹ Q ⟹ R) ⟹ R).
-begin
-
-	interpret? TypeFree.And;
-		by #simp and_def.
-
-end
-
-theory Or :=
-	fix (∨).
-	assume or_def: (P ∨ Q) = (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R).
-begin
-
-	interpret TypeFree.Or;
-		note#simp or_def.
-		- if or: P ∨ Q;
-			apply or[unfold or_def]=.
-		.
-
-end
-
-theory Ex :=
-	fix (∃).
-	assume ex_def: (∃x. P.[x]) = (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q).
-begin
-
-	interpret TypeFree.Ex;
-		- for x if Px: P.[x] then ∃x. P.[x];
-			unfold ex_def;
-			- for Q if assm;
-				by assm[of x] Px.
-			.
-		- for P;
-			unfold ex_def;
-			apply imp.refl>0.
-		.
+extend Ex begin
 
 	lemma ex_eq1: ∃x. x = a;
 		apply ex_intro1[of a].
@@ -211,22 +174,15 @@ end
 
 theory Ex1 :=
 	fix (∃!).
-	assume ex1_def: (∃!x. P.[x]) = (∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q).
+	assume ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x].
+	assume ex1_elim: if ∃!x. P.[x], ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q.
 begin
 
 	lemma ex1_intro: if assm: ∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q then ∃!x. P.[x];
-		apply eq_imp_rev[OF ex1_def];
-		apply assm=.
-
-	lemma ex1_intro1: for x P if Px: P.[x], u: ∀y. P.[y] ⟹ y = x then ∃!x. P.[x];
-		unfold ex1_def;
-		- for Q if assm;
-			by assm[of x] Px u.
+		apply assm;
+		- for x;
+			apply ex1_intro1>0.
 		.
-
-	lemma ex1_elim: if ex1: ∃!x. P.[x], all: ∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q then Q;
-		apply eq_imp[OF ex1_def ex1, OF all].
-
 	lemma ex1_eq1: ∃!x. x = a;
 		apply ex1_intro1[of a].
 
@@ -234,7 +190,7 @@ begin
 		apply ex1_intro1[of a];
 		by #elim eq.sym.
 
-	lemma ex1_imp_unique: if ex1: ∃!x. P.[x], Px: P.[x], Py: P.[y] then y = x;
+	lemma ex1_imp_eq: if ex1: ∃!x. P.[x], Px: P.[x], Py: P.[y] then y = x;
 		apply ex1_elim[OF ex1];
 		- for z if Pz, eq;
 			unfold eq[OF Px] eq[OF Py].
@@ -268,70 +224,5 @@ begin
 		- if PQ: P ⟺ Q;
 			apply PQ[unfold iff_def].
 		.
-
-	interpret iff_eq: iff.MetaCommutative (=);
-		by iff_intro[OF eq.sym eq.sym].
-
-	lemma eq_imp_iff#cong? if eq: P = Q then P ⟺ Q;
-		unfold[on (=)] eq.
-
-	lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
-		apply iff_intro;
-		- if all;
-			apply all.
-		- if Pa: P.[a], xa: x = a;
-			by Pa #simp xa.
-		.
-
-	lemma eq_refl_iff#simp x = x ⟺ true;
-		by iff_intro.
-
-	extend Eq.And begin
-
-		interpret base? base.And;
-			by eq_imp_iff[OF and_def].
-
-	end
-
-	extend Eq.Or begin
-
-		interpret base? base.Or;
-			by eq_imp_iff[OF or_def].
-
-	end
-
-	extend Eq.Ex begin
-
-		interpret base? base.Ex;
-			by eq_imp_iff[OF ex_def].
-
-		extend And begin
-
-			interpret base.And.
-
-			lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
-				apply iff_intro;
-				-> if xa: x = a, Px: P.[x];
-					by Px #fold xa.
-				- if Pa: P.[a];
-					by ex_intro1[of a] Pa.
-				.
-			lemma ex_eq_and_iff2: (∃x. a = x ∧ P.[x]) ⟺ P.[a];
-				unfold iff_eq.commute;
-				by ex_eq_and_iff.
-
-		end
-
-	end
-
-	extend Ex1 begin
-
-		lemma ex1_cong#cong
-			if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
-			unfold ex1_def iff.
-
-		note#simp iff_true[OF ex1_eq1] iff_true[OF ex1_eq2].
-
-	end
 
 end
