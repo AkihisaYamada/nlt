@@ -3,38 +3,26 @@
 # Negation
 
 We consider negation as primitive, rather than as a derived notion of `false`.
-This view allows to declare explosive `false` without exploding every contradiction `P ∧ ¬P`.
+This view allows to declare explosive `false` without forcing every contradiction `P ∧ ¬P` lead to inconsistency.
+
+* **inconsistency** is the term `∀P. P`.
+
+* **explosive** terms are those which *imply anything* or equivalently *lead to inconsistency*,
+  i.e. `P` such that `P ⟹ ∀Q. Q`. Inconsistency is canonically explosive.
+
+* **contradiction** refers to the situation where both `P` and `¬P` holds.
+
+* To **refute** `P` means to prove `¬P`.
+
 ---
 
 fix (¬).
 
 begin
 
-theory NotFalse :=
-	assume not_false: ¬false.
-end
-
-theory NotIntro :=
-	assume not_intro: if P ⟹ false then ¬P.
-begin
-
-	interpret NotFalse;
-		by not_intro.
-
-end
-
-theory SelfRefutation :=
-	assume imp_not_imp_not: if P ⟹ ¬P then ¬P.
-begin
-
-	interpret NotIntro;
-		- if nP: P ⟹ false then ¬P;
-			apply imp_not_imp_not;
-			by #elim nP.
-		.
-
-end
-
+---
+Some relation properties involve negation.
+---
 theory MetaIrreflexive (⊏) :=
 	assume irrefl: ¬ x ⊏ x.
 end
@@ -42,9 +30,42 @@ end
 theory MetaAsymmetric (⊏) :=
 	assume asym: if x ⊏ y then ¬ y ⊏ x.
 end
----
-Note that antisymmetry is not yet definable, because it requires equality.
----
+
+
+
+-- Probably the least assumption of negation is that inconsistency is refuted.
+theory NotInconsistent :=
+	assume not_inconsistent: ¬(∀P. P).
+end
+
+-- A stronger, yet very mild assumption is that explosive terms are refuted.
+theory NotExplosive :=
+	assume not_intro:-- @English refutation by inconsistency
+		if P ⟹ ∀Q. Q then ¬P.
+begin
+
+	interpret NotInconsistent;
+		by not_intro.
+
+end
+
+-- Slightly more bold is to say one can assume `P` to refute `P`.
+theory SelfRefutation :=
+	assume imp_not_imp_not: if P ⟹ ¬P then ¬P.
+begin
+
+	interpret NotExplosive;
+		- if nP: P ⟹ ∀Q. Q then ¬P;
+			apply imp_not_imp_not;
+			by #elim nP.
+		.
+
+end
+
+theory NNotIntro :=
+	assume nnot_intro:-- @English Double Negation Introduction
+		if P then ¬ ¬P.
+end
 
 
 ---
@@ -95,22 +116,27 @@ begin
 	lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
 		by not_imp_imp_not[OF nnall nall_intro1].
 
-	lemma not_imp_not_true: if nP: ¬P, P: P then ¬true;
-		by not_elim_not[OF nP P].
-
-	lemma not_true_imp_not: if nt: ¬true then ¬P;
-		apply not_elim_not[OF nt].
-
-	lemma not_imp_not_false:
-		if nP: ¬P then ¬false;
+	-- If there is anything negated, then the theory is not inconsistent.
+	lemma not_imp_not_inconsistent: if nP: ¬P then ¬(∀Q. Q);
 		apply not_imp_imp_not[OF nP].
 
-	extend NotFalse begin
+	-- And if it is not inconsistent, explosive statements are negated.
+	extend NotInconsistent begin
 
-		interpret NotIntro;
-			- if P0: P ⟹ false then ¬P;
-				apply not.cmono[OF P0 not_false].
+		interpret NotExplosive;
+			- if P0: P ⟹ ∀Q. Q then ¬P;
+				apply not.cmono[OF P0 not_inconsistent].
 			.
+
+	end
+
+	extend True begin
+
+		lemma not_imp_not_true: if nP: ¬P, P: P then ¬true;
+			by not_elim_not[OF nP P].
+
+		lemma not_true_imp_not: if nt: ¬true then ¬P;
+			apply not_elim_not[OF nt].
 
 	end
 
@@ -125,13 +151,6 @@ begin
 				.
 			.
 	end
-
-	---
-	Having explosive false yields `¬false ⟺ true`, but it does not make `¬true` explosive;
-	`¬true` only implies `¬ ¬ false`.
-	---
-	lemma not_true_imp_nnot_false: if nt: ¬true then ¬ ¬ false;
-		apply not_imp_imp_not[OF nt].
 
 	extend AllRel begin
 
@@ -175,13 +194,7 @@ end
 
 We choose to specify minimal logic negation without mentioning `false`.
 One merit of this formulation is that it becomes orthogonal to assuming `false` explosive or not.
----
-theory NNotIntro :=
-	assume nnot_intro:-- @English Double Negation Introduction
-		if P then ¬ ¬P.
-end
 
----
 The following is a textbook formulation.
 ---
 theory NotIntroContr :=
@@ -213,9 +226,6 @@ begin
 	theorem nnnot_elim: -- @English Triple Negation Elimination
 		¬ ¬ ¬ P ⟹ ¬P;
 		apply not.cmono[OF nnot_intro]>0.
-
-	lemma not_intro_not_true: if imp: P ⟹ ¬true then ¬P;
-		apply not_intro_connect[OF true_intro imp].
 
 	interpret SelfRefutation;
 		- if 1: P ⟹ ¬P then ¬P;
@@ -309,28 +319,22 @@ context ContraPos begin
 end
 
 ---
-Intuitionistic logic makes false explosive; in the false-free formulation, it means to
-admit negation elimination `¬P ⟹ P ⟹ Q`.
+Intuitionistic logic makes contradiction explosive.
 ---
 theory ExplosiveNot :=
 	assume not_elim: if ¬P, P then Q.
-begin
-
-	lemma not_true_elim: if 0: ¬true then Q;
-		apply not_elim[OF 0].
-
-	lemma not_elim_false: if nP: ¬P, P: P then false;
-		apply not_elim[OF nP P].
-
 end
 
 theory IntuitionisticNot :=
-	import NotIntro, ExplosiveNot.
+	import NotExplosive, ExplosiveNot.
 begin
 
 	interpret MinimalNot;
 		- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
-			by not_intro not_elim_false[OF _ Q] PnQ.
+			apply not_intro;
+			- if P;
+				apply not_elim[OF PnQ[OF P] Q].
+			.
 		.
 
 end
@@ -439,14 +443,14 @@ Contraposition, non-inconsistency and explosiveness ends up in classical logic.
 ---
 context ContraPos begin
 
-	context NotFalse begin
+	context NotInconsistent begin
 
 		extend ExplosiveNot begin
 
 			interpret ContraPos.SelfRefutation;
 				- if PnP: P ⟹ ¬P then ¬P;
 					apply not_intro;
-					- if P: P then false;
+					- if P: P then Q;
 						apply not_elim[OF PnP[OF P] P].
 					.
 				.
@@ -487,7 +491,7 @@ begin
 	lemma nnnot_intro: if not: ¬P then ¬ ¬ ¬P;
 		apply not.cmono[OF nnot_elim not].
 
-	extend NotFalse begin
+	extend NotInconsistent begin
 
 		interpret ExplosiveNot.
 		---
@@ -570,7 +574,7 @@ theory ClassicalNot :=
 begin
 
 	interpret CoMinimalNot.
-	interpret NotFalse.-- This brings the excluded middle
+	interpret NotInconsistent.-- This brings the excluded middle
 	thm cases.
 
 	interpret IntuitionisticNot.

@@ -770,20 +770,20 @@ public:
 		auto src = import.source();
 		_update_parent(src);// in case of interpreting a child.
 		if( pref.forced_prefix ) {
-			_thy.add_import(*pref.forced_prefix,import,pref.rec);
+			_thy.add_import(*pref.forced_prefix,import,pref.rec,false);
 		}
 		if( pref.default_prefix ) {
-			_thy.add_import(*pref.default_prefix,import,pref.rec);
+			_thy.add_import(*pref.default_prefix,import,pref.rec,pref.rec);
 			if( *pref.default_prefix == "" && _no_syntax ) {// TODO: make elegant
 				_no_syntax = false;
 				_thy.modify_syntax() = import.source().syntax();
 			}
 		}
 		if( pref.optional_prefix ) {
-			_thy.add_import(*pref.optional_prefix,import,pref.rec);
+			_thy.add_import(*pref.optional_prefix,import,pref.rec,false);
 		}
 		if( pref.canonical_prefix ) {
-			_thy.add_import(import.source().name(),import,pref.rec);
+			_thy.add_import(import.source().name(),import,pref.rec,false);
 		}
 	};
 	void import( bool change ) {
@@ -1515,21 +1515,33 @@ public:
 				loc.fix(*sym);
 				if THY cout << ' ' << loc.pretty_sym(*sym);
 			}
-			skip(":=");
-			if THY cout << endl;
-			local_thy(loc,false,[this]{ loop(); });
+			if( skips(".") ) {
+			} else {
+				bool finalized;
+				if( skips("begin") ) {
+					finalized = true;
+				} else {
+					skip(":=");
+					finalized = false;
+				}
+				if THY cout << endl;
+				local_thy(loc,finalized,[this]{ loop(); });
+			}
 			if MSG cout << "created theory " << name << endl;
 		} else if( skips("context") ) {
 			string path = get(Lexer::WORD);
-			skip("begin");
-			auto oloc = _thy.find_thy(path,reader());
-			if( !oloc ) throw Error("bad context")(path);
-			if THY {
-				if( !MSG ) cout << _indent(' ');
-				cout << "reopening theory " << oloc->source().print_path() << endl;
+			auto loc = _thy.find_thy(path,reader()).value_or_throw(Error("bad context")(path));
+			if( skips(".") ) {
+				if MSG cout << "touched " << path << endl;
+			} else {
+				skip("begin");
+				if THY {
+					if( !MSG ) cout << _indent(' ');
+					cout << "reopening theory " << loc.source().print_path() << endl;
+				}
+				local_thy( loc.source(), true, [this]{ loop(); } );
+				if MSG cout << "left " << path << endl;
 			}
-			local_thy( oloc->source(), true, [this]{ loop(); } );
-			if MSG cout << "left " << path << endl;
 		} else if( skips("extend") ) {
 			auto pref = get_import_prefix();
 			Thy parent = _thy;
@@ -2040,7 +2052,7 @@ void run( istream& is, string const& name, string const& filepath, bool exit_on_
 	auto prover = Prover(thy,is,filepath,lex,exit_on_error,out,FLAG_SYS,0);
 	for( auto& parent : views::reverse(parents) ) {
 		thy = thy.branch((string)parent.name,parent.dirpath);
-		thy.add_import(parent.name,thy.self(),true);
+		thy.add_import(parent.name,thy.self(),true,false);
 		auto fis = ifstream(parent.filepath);
 		prover.reader()(thy,fis,parent.filepath);
 	}

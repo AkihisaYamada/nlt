@@ -45,7 +45,7 @@ Thy Thy::scope_temp( string_view const& name ) const {
 }
 Thy Thy::scope( string_view const& name ) {
 	auto const& intp = Ctxt::self();
-	return add_import(name,Import(intp,_branch(name,"",true,intp)),true).source();
+	return add_import(name,Import(intp,_branch(name,"",true,intp)),true,false).source();
 }
 
 string const& Thy::name() const & {
@@ -93,11 +93,11 @@ void Thy::reset_rewrite() & {
 		}
 	}
 }
-void Thy::import_rewrite( Import const& import ) & {
+void Thy::import_rewrite( Import const& import, bool override_default ) & {
 	Thy const& src = import.source();
 	for( auto& [rew_name,val] : src._ref->rewriter ) {
 		auto& rew = modify_rewriter(rew_name);
-		rew.import(*val.first,src,import);
+		rew.import(*val.first,src,import,override_default);
 	}
 }
 Thm Thy::thm( string_view const& name ) const {
@@ -155,11 +155,11 @@ void Thy::_check_loop_import( Thy const& origin, bool rec ) const {
 		}
 	}
 }
-Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec ) & {
+Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override_default ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	if( prefix.empty() ) {
 		import.source()._check_loop_import(*this,rec);// check looping import
-		import_rewrite(import);
+		import_rewrite(import,override_default);
 	}
 	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
 }
@@ -537,8 +537,9 @@ ostream& Thy::pretty_rewrite(
 	auto const& rels = rew.rels();
 	for( size_t i = 0; i < rels.size(); i++ ) {
 		auto const& rel = rels[i];
-		os << mk_indent(n) << prefix << '[' << i << "] for (" << rel << ") " << endl
-			<< mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
+		os << mk_indent(n) << prefix << "[on " << rel;
+		if( rew._default_ind == i ) os << ", default";
+		os << ']' << endl << mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
 		if( auto trans = rew._trans.finds_value(i) ) {
 			os << mk_indent(n1) << "trans: " << pretty(*trans) << endl;
 		}

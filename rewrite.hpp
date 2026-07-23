@@ -94,7 +94,7 @@ public:
 	void register_fallback( Thm const& thm ) &;
 	void register_to_true( Thm const& thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const &;
-	void import( Rewrite const& src, Thy const& thy, Intp const& intp ) &;
+	void import( Rewrite const& src, Thy const& thy, Intp const& intp, bool override_default ) &;
 	size_t get_ind( Opt<std::string> const& rel ) const &;
 };
 

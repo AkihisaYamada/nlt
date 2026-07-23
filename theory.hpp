@@ -129,7 +129,7 @@ public:
 	/** Weaken closed term from an ancestor. */
 	CTerm weaken( CTerm const& t ) const;
 	/** Adds an import. */
-	Import& add_import( std::string_view const& prefix, Import const& im, bool rec ) &;
+	Import& add_import( std::string_view const& prefix, Import const& im, bool rec, bool override_default ) &;
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */
@@ -183,7 +183,7 @@ public:
 	void reset_rewrite() &;
 	void register_dual( Thm const& thm ) &;
 	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
-	void import_rewrite( Import const& import ) &;
+	void import_rewrite( Import const& import, bool override_default ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;
 	Pair<std::string,Thm> define( Term const& eq, Opt<std::string const&> name ) &;
@@ -201,7 +201,7 @@ public:
 		size_t indent = 0,
 		bool scope = false,
 		bool path = true,
-		bool print_rewrite = false
+		bool print_rewrite = true
 	) const & {
 		return [&endl,indent,scope,path,print_rewrite,this]( std::ostream& os )->std::ostream&{
 			return pretty(os,endl,indent,scope,path,print_rewrite);

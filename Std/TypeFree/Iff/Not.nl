@@ -14,17 +14,19 @@ extend base? MinimalNot begin
 
 	interpret .ContraPos.
 
-	lemma not_iff_imp_not_true: ¬P ⟺ (P ⟹ ¬true);
-		apply iff_intro[OF _ not_intro_not_true];
-		by #elim not_elim_not.
-
+	lemma not_iff_imp_not: if P: P then ¬Q ⟺ (Q ⟹ ¬P);
+		apply iff_intro;
+		- by #elim not_elim_not.
+		- if QnP; apply imp_not_imp_not;
+			by P #elim QnP not_elim_not.
+		.
 	lemma imp_not_commute: (P ⟹ ¬Q) ⟺ (Q ⟹ ¬P);
 		apply iff_intro[OF imp_not_sym imp_not_sym].
 
 	lemma nnnot_iff: ¬ ¬ ¬ P ⟺ ¬ P;
 		apply iff_intro[OF nnnot_elim nnot_intro].
 
-	lemma nnot_imp_iff: (¬ ¬ P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
+	lemma nnot_imp_not_iff: (¬ ¬ P ⟹ ¬Q) ⟺ (P ⟹ ¬Q);
 		unfold imp_not_commute;
 		simp nnnot_iff.
 
@@ -80,8 +82,7 @@ extend base? MinimalNot begin
 		interpret base.ExRel.
 
 		lemma nex_nnot: ¬(∃x ⊏ a. ¬ ¬ P.[x]) ⟺ ¬(∃x ⊏ a. P.[x]);
-			unfold not_iff_imp_not_true;
-			simp ex_imp_iff nnot_imp_iff.
+			by iff_intro nex_intro #elim nex_elim #simp nnnot_iff.
 
 	end
 

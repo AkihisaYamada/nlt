@@ -13,19 +13,3 @@ lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q then ∃x. P.[x];
 		by ex_intro1[of x].
 	.
 
-lemma ex_true: ∃x. true;
-	by ex_intro.
-
-lemma ex_false_elim: if ex: ∃x. false then P;
-	apply ex_elim[OF ex].
-
-extend Iff begin
-
-	interpret? Ex;
-		- for P; apply iff_intro;
-			- apply ex_elim>0.
-			- apply ex_intro>0.
-			.
-		.
-
-end

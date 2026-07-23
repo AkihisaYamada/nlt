@@ -1,28 +1,14 @@
-fix (∨).
-assume or_iff: P ∨ Q ⟺ (∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R).
+import base? TypeFree.Or.
 
 begin
 
-interpret or: iff.MetaAbsorb (∨) true;
-	by iff_intro #simp or_iff.
-
-note#simp or.left_absorb or.right_absorb.
-
-interpret base? TypeFree.Or;
-	- if P: P then P ∨ Q;
-		unfold or_iff iff_true[OF P].
-	- if Q: Q then P ∨ Q;
-		unfold or_iff iff_true[OF Q].
-	- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R then R;
-		by PQ[unfold or_iff, OF PR QR].
-	.
+interpret True, False.
 
 lemma or_iff_true1#simp if ! P then P ∨ Q ⟺ true;
 	by iff_intro or_intro1.
 
 lemma or_iff_true2#simp if ! Q then P ∨ Q ⟺ true;
 	by iff_intro or_intro2.
-
 
 ---
 Algebraic properties of `(∨)`, with respect to `(⟺)`.
@@ -43,13 +29,14 @@ interpret or: iff.MetaIdempotent (∨);
 
 note#simp or.idem.
 
-interpret or: iff.MetaCommSemigroupAbsorb (∨) true;
-	by iff_intro #elim or_elim.
-
 interpret or: iff.MetaCommMonoidAbsorb (∨) true false;
-	by iff_intro or_intro #elim or_elim false_elim.
+	- by iff_intro or_intro #elim or_elim.
+	- by iff_intro or_intro #elim or_elim.
+	- by iff_intro #elim or_elim false_elim.
+	- by iff_intro #elim or_elim.
+	.
 
-note#simp or.left_neutral or.right_neutral.
+note#simp or.left_absorb or.right_absorb or.left_neutral or.right_neutral.
 
 extend And begin
 
@@ -69,25 +56,21 @@ extend And begin
 
 end
 
-extend MetaRelation begin
+extend ExRel begin
 
-	extend ExRel begin
-
-		lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
-			apply iff_intro;
-			-> if xa: x ⊏ a;
-				apply or_elim[OF _ < <]>2;
-				- by or_intro1 ex_intro1[OF _ xa].
-				- by or_intro2 ex_intro1[OF _ xa].
-				.
+	lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
+		apply iff_intro;
+		-> if xa: x ⊏ a;
 			apply or_elim[OF _ < <]>2;
-			-> if xa: x ⊏ a;
-				by ex_intro1[OF _ xa].
-			-> if xa: x ⊏ a;
-				by ex_intro1[OF _ xa].
+			- by or_intro1 ex_intro1[OF _ xa].
+			- by or_intro2 ex_intro1[OF _ xa].
 			.
-
-	end
+		apply or_elim[OF _ < <]>2;
+		-> if xa: x ⊏ a;
+			by ex_intro1[OF _ xa].
+		-> if xa: x ⊏ a;
+			by ex_intro1[OF _ xa].
+		.
 
 end
 

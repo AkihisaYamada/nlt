@@ -531,11 +531,11 @@ Thm Resolver::rewrites( Thy const& thy, Thm const& source, Opt<std::string const
 	}// s ⟹ t
 	return tmp << source;
 }
-void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp ) & {
+void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp, bool override_default ) & {
 	int i = 0;
-	bool import_default = !( _default_ind < _refls.size() );
+	override_default = override_default || !( _default_ind < _refls.size() );
 	for( auto const& refl : src._refls ) {
-		register_refl( thy.weaken(refl).subst(intp), import_default && i == src._default_ind );
+		register_refl( thy.weaken(refl).subst(intp), override_default && i == src._default_ind );
 		i++;
 	}
 	for( auto const& congs : src._congs ) {

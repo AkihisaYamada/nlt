@@ -1,5 +1,5 @@
 ---
-# If-and-only-if
+# Type-free if-and-only-if
 ---
 fix (⟺).
 
@@ -106,31 +106,34 @@ lemma imp_all_iff: (P ⟹ ∀x. Q.[x]) ⟺ (∀x. P ⟹ Q.[x]);
 lemma imp_iff_iff1: if !P then (P ⟺ Q) ⟺ Q;
 	by iff_intro #elim iff_elim.
 
----
-## True
----
+extend True begin
 
-interpret imp: iff.MetaLeftNeutral (⟹) true;
-	by imp_imp_iff.
+	interpret imp: iff.MetaLeftNeutral (⟹) true;
+		by imp_imp_iff.
 
-interpret imp: iff.MetaRightAbsorb (⟹) true;
-	by iff_intro.
+	interpret imp: iff.MetaRightAbsorb (⟹) true;
+		by iff_intro.
 
-interpret iff: iff.MetaCommNeutral (⟺) true;
-	by iff_intro #elim iff_elim.
+	interpret iff: iff.MetaCommNeutral (⟺) true;
+		by iff_intro #elim iff_elim.
 
-note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
+	note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
 
-lemma iff_true: P ⟹ P ⟺ true.
+	lemma iff_true: P ⟹ P ⟺ true.
 
----
-## False
----
-lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
-	by iff_true.
+end
 
-lemma false_iff: false ⟺ (∀P. P);
-	by iff_intro.
+extend False begin
+
+	lemma false_iff: false ⟺ (∀P. P);
+		by iff_intro.
+
+	extend True begin
+		lemma false_imp_iff#simp (false ⟹ P) ⟺ true;
+			by iff_true.
+	end
+
+end
 
 ---
 ## Deriving Restricted Quantifiers via `(⟺)`
@@ -203,7 +206,7 @@ begin
 end
 
 ---
-We can also formalize the intro/elim formulation of `AllRel` is equivalent to the iff one.
+We can also formalize that the intro/elim formulations are equivalent to the iff ones.
 ---
 theory NaiveAllRel :=
 	import Std.AllRel.

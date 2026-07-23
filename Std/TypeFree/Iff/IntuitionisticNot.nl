@@ -1,19 +1,26 @@
-
-fix (¬).
-assume not_iff: ¬P ⟺ (P ⟹ false).
+interpret False.
+import FalseNot.
 
 begin
 
-interpret Not.
-
 interpret Not.IntuitionisticNot;
-	by #simp not_iff false_iff.
+	by #simp not_iff_imp_false false_iff.
 
 interpret MinimalNot.
 
-context ClassicalNot begin
+context Not.IntuitionisticNot begin
 
-	interpret Iff.IntuitionisticNot;
-		by iff_intro not_intro #elim not_elim.
+	extend Iff begin
+
+		interpret False.
+		interpret Iff.IntuitionisticNot;
+			- for P;
+				apply iff_intro;
+				- by #elim not_elim.
+				- if P0; by not_intro #elim P0.
+				.
+			.
+
+	end
 
 end

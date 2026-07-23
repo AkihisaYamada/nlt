@@ -1,17 +1,6 @@
-fix (∃).
-assume ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q).
+import base? TypeFree.Ex.
 
 begin
-
-interpret base? TypeFree.Ex;
-	- for x if Px: P.[x];
-		unfold ex_iff;
-		- for Q if assm;
-			apply assm[OF Px].
-		.
-	- for P if ex;
-		apply ex[unfold ex_iff]=.
-	.
 
 lemma ex_imp_iff_all#simp#rule ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 	apply iff_intro;
@@ -19,6 +8,16 @@ lemma ex_imp_iff_all#simp#rule ((∃x. P.[x]) ⟹ Q) ⟺ (∀x. P.[x] ⟹ Q);
 		by imp ex_intro1[OF Px].
 	- if imp: ∀x. P.[x] ⟹ Q;
 		by #elim imp ex_elim.
+	.
+
+lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
+	apply iff_intro;
+	-> for x if Px for Q if assm;
+		apply assm[OF Px].
+	- if assm;
+		apply assm;
+		- for x if Px; by ex_intro1[OF Px].
+		.
 	.
 
 lemma ex_cong#cong#rule_cong if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
@@ -64,7 +63,7 @@ extend Not begin
 	extend MinimalNot begin
 
 		lemma nex_iff_all_not: ¬ (∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
-			unfold not_iff_imp_not_true.
+			unfold not_true.not_iff_imp_false.
 
 	end
 

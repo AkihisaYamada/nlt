@@ -2,6 +2,7 @@
 ---
 # Type-Free Intuitionistic Logic
 ---
+
 import Iff, IntuitionisticNot, And, Or, Ex.
 
 begin
@@ -11,6 +12,7 @@ interpret And.
 
 extend Eq begin
 
+	interpret Ex.
 	interpret And.
 
 end

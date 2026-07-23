@@ -39,11 +39,3 @@ extend Not begin
 	end
 
 end
-
-
-extend Iff begin
-
-	interpret? And;
-		by iff_intro.
-
-end

@@ -74,11 +74,3 @@ extend Not begin
 
 	end
 end
-
-extend Iff begin
-
-	interpret? Or;
-		- for P Q;
-			apply iff_intro[OF or_elim or_intro].
-		.
-end

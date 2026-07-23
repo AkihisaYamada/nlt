@@ -60,6 +60,7 @@ theory TwoValued :=
 	assume imp_imp_eq: if P, Q then P = Q.
 	assume imp_eq: if P then (P ⟹ Q) = Q.
 begin
+	interpret True.
 	lemma eq_true: if P: P then P = true;
 		by imp_imp_eq[OF P true_intro].
 	lemma true_eq: if P: P then true = P;
@@ -166,16 +167,6 @@ begin
 		simp p.
 end
 
-extend Ex begin
-
-	lemma ex_eq1: ∃x. x = a;
-		apply ex_intro1[of a].
-
-	lemma ex_eq2: ∃x. a = x;
-		apply ex_intro1[of a].
-
-end
-
 theory Ex1 :=
 	fix (∃!).
 	assume ex1_intro1: for x P if P.[x], ∀y. P.[y] ⟹ y = x then ∃!x. P.[x].
@@ -212,21 +203,60 @@ begin
 end
 
 
-theory Iff :=
-	fix (⟺).
-	assume iff_def: (P ⟺ Q) = (∀R. ((P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R) ⟹ R).
-begin
+extend Membership begin
 
-	interpret base? TypeFree.Iff;
-		- if PQ: P ⟹ Q, QP: Q ⟹ P then P ⟺ Q;
-			unfold iff_def;
-			- for R if assm then R;
-				by assm PQ QP.
+	theory Antisymmetric A (⊑) :=
+		assume antisym: if x ⊑ y, y ⊑ x, x ∈ A, y ∈ A then x = y.
+	begin
+		interpret Attractive A (⊑);
+			- if xy: x ⊑ y, yx: y ⊑ x;
+				by #simp antisym[OF xy yx].
+			- if xy: x ⊑ y, yx: y ⊑ x;
+				by #simp antisym[OF yx xy].
 			.
-		- if PQ: P ⟺ Q;
-			apply PQ[unfold iff_def].
-		- if PQ: P ⟺ Q;
-			apply PQ[unfold iff_def].
+	end
+
+	theory PseudoOrder :=
+		import Reflexive, Antisymmetric.
+	end
+
+	theory Order :=
+		import Preorder, Antisymmetric.
+	begin
+		interpret PseudoOrder.
+	end
+
+	theory Injective f A :=
+		assume injective: if x ∈ A, x' ∈ A, f x = f x' then x = x'.
+	end
+
+	theory Pair :=
+		fix (,) fst snd.
+		assume fst: if x ∈ A, y ∈ B then fst (x,y) = x.
+		assume snd: if x ∈ A, y ∈ B then snd (x,y) = y.
+	end
+
+end
+
+extend! Iff begin
+
+	interpret Iff.Eq;
+		- show: x = y ⟺ (∀ P. P.[x] ⟹ P.[y]);
+			apply iff_intro;
+			- if eq, Px: P.[x];
+				by eq_cong_meta[of P, OF eq, THEN eq_imp, OF Px].
+			- if assm; by assm[of (z. x = z)].
+			.
 		.
+
+end
+
+extend Ex begin
+
+	lemma ex_eq1: ∃x. x = a;
+		apply ex_intro1[of a].
+
+	lemma ex_eq2: ∃x. a = x;
+		apply ex_intro1[of a].
 
 end
