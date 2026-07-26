@@ -37,14 +37,18 @@ end
 
 theory UniqueSuch :=
 	fix (such).
-	assume such_intro_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].
+	assume such_intro1_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].
 begin
+
+	lemma such_intro_ex1: for Q if ex1: ∃!x. P.[x], all: ∀x. P.[x] ⟹ Q.[x] then Q.[such x. P.[x]];
+		apply all;
+		by such_intro1_ex1[OF ex1].
 
 	lemma such_eq_intro: if ex1: ∃!y. P.[y], Px: P.[x] then (such y. P.[y]) = x;
 		apply ex1_elim[OF ex1];
 		- for z if Pz: P.[z], 1: ∀y. P.[y] ⟹ y = z;
 			have zT: (such x. P.[x]) = z;
-				by 1[OF such_intro_ex1[OF ex1]].
+				by 1[OF such_intro1_ex1[OF ex1]].
 			unfold zT;
 			unfold 1[OF Px].
 		.

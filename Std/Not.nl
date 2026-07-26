@@ -587,7 +587,6 @@ begin
 
 	interpret CoMinimalNot.
 	interpret NotInconsistent.-- This brings the excluded middle
-	thm cases.
 
 	interpret IntuitionisticNot.
 

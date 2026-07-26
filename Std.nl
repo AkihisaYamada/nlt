@@ -26,7 +26,7 @@ infix ∧ 20 21 20.
 prefix ¬ 30 30.
 binder ∃ 0 0.
 binder ∃! 0 0.
-binder fun 50 0.
+binder fun 51 50.
 binder FUN 51 0.
 binder such 50 0.
 

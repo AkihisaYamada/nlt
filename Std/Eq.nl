@@ -52,6 +52,9 @@ lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
 	apply eq.trans[OF 1];
 	by fun_cong[OF fg].
 
+lemma eq_elim_dual: for P x y if xy: x = y, Py: P.[y] then P.[x];
+	apply eq_elim[OF eq.sym[OF xy] Py].
+
 ---
 ## Theories
 ---
@@ -103,6 +106,12 @@ theory MetaIf :=
 begin
 end
 
+---
+Extensionality
+---
+theory Ext :=
+	assume bind_eq#cong if ∀x. F.[x] = G.[x] then (x. F.[x]) = (x. G.[x]).
+end
 
 extend Ex begin
 
