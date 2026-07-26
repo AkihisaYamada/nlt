@@ -1,4 +1,4 @@
-import ..Iff.
+import! ..Iff.
 
 begin
 

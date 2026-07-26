@@ -53,19 +53,3 @@ begin
 
 end
 
-extend Membership begin
-
-theory UniqueChoice :=
-	import MetaPair.
-	assume unique_choice:
-		if ∀x ∈ A. ∃!y ∈ B. P.[x,y] then ∃f ∈ A → B. ∀x ∈ A. P.[x, f x].
-begin
-	interpret Abbrev;
-		- for F;
-			apply unique_choice[of ((x,y). y = F.[x]), simp, THEN ex_elim];
-			- for f if f;
-				apply ex_intro1[of f];
-				by f.
-			.
-		.
-end

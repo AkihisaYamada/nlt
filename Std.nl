@@ -27,7 +27,7 @@ prefix ¬ 30 30.
 binder ∃ 0 0.
 binder ∃! 0 0.
 binder fun 50 0.
-binder FUN 50 0.
+binder FUN 51 0.
 binder such 50 0.
 
 infix ∈ 51 51 50.
@@ -92,39 +92,6 @@ infix ** 200 201 200.
 ---
 ## Theories
 
-It is safe to declare true and false, but it is also natural to put more assumptions later,
-e.g. `true ∈ Prop`. So here we encapsulate them in theories with no assumptions.
----
-theory True begin
-
-	obtain true where true_intro! true;
-		- for thesis if assm;
-			by assm[of (∀P. P ⟹ P)].
-		.
-	interpret imp: MetaRightBound (⟹) true.
-
-end
-
-theory False begin
-
-	obtain false where false_elim#elim
-		-- @English Law of Explosion
-		-- @Latin ex falso quodlibet
-		if false then P;
-		- for thesis if assm;
-			by assm[of (∀P. P)].
-		.
-	interpret imp: MetaLeftBound (⟹) false.
-
-end
-
--- @English Peirce's law
--- The following version does not restrict to propositions.
-theory PeirceLaw :=
-	assume peirce_law: for Q if (P ⟹ Q) ⟹ P then P.
-end
-
----
 ### Type-Free Binary Relations
 ---
 theory MetaRelation (⊏) :=
@@ -404,6 +371,41 @@ begin
 			by ex_intro1[OF Px xa].
 		.
 
+end
+
+---
+### Tiny Logical Theories
+
+It is safe to declare true and false, but it is also natural to put more assumptions later,
+e.g. `true ∈ Prop`. So here we encapsulate them in theories with no assumptions.
+---
+theory True begin
+
+	obtain true where true_intro! true;
+		- for thesis if assm;
+			by assm[of (∀P. P ⟹ P)].
+		.
+	interpret imp: MetaRightBound (⟹) true.
+
+end
+
+theory False begin
+
+	obtain false where false_elim#elim
+		-- @English Law of Explosion
+		-- @Latin ex falso quodlibet
+		if false then P;
+		- for thesis if assm;
+			by assm[of (∀P. P)].
+		.
+	interpret imp: MetaLeftBound (⟹) false.
+
+end
+
+-- @English Peirce's law
+-- The following version does not restrict to propositions.
+theory PeirceLaw :=
+	assume peirce_law: for Q if (P ⟹ Q) ⟹ P then P.
 end
 
 ---

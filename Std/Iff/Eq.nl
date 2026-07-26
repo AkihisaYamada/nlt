@@ -3,7 +3,7 @@ assume eq_iff_all: x = y ⟺ (∀P. P.[x] ⟹ P.[y]).
 
 begin
 
-interpret base? TypeFree.Eq;
+interpret base? Std.Eq;
 	by #simp eq_iff_all.
 
 interpret iff_eq: iff.MetaCommutative (=);

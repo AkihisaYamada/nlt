@@ -1,4 +1,4 @@
-import base? TypeFree.Not.
+import base? Std.Not.
 
 begin
 

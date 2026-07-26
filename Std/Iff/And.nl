@@ -1,7 +1,7 @@
 ---
 ## Conjunction via Iff
 ---	
-import base? TypeFree.And.
+import base? Std.And.
 
 begin
 

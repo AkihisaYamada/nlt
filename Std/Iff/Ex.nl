@@ -1,4 +1,4 @@
-import base? TypeFree.Ex.
+import base? Std.Ex.
 
 begin
 

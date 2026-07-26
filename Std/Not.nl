@@ -113,6 +113,10 @@ begin
 		apply assm;
 		by #elim nall_intro1.
 
+	lemma nall_elim_not: if nall: ¬(∀x. P.[x]), QP: Q ⟹ ∀x. P.[x] then ¬Q;
+		apply not_imp_imp_not[OF nall]; by QP.
+
+
 	lemma nnall_imp: if nnall: ¬ ¬ (∀x. P.[x]) then ∀x. ¬ ¬ P.[x];
 		by not_imp_imp_not[OF nnall nall_intro1].
 
@@ -353,7 +357,7 @@ theory NNotElim :=
 end
 
 ---
-Excluded middle allows case distinction.
+Excluded middle (EM) allows case distinction.
 ---
 theory ExcludedMiddle :=
 	assume cases: if P ⟹ Q, ¬P ⟹ Q then Q.
@@ -378,6 +382,39 @@ begin
 end
 
 ---
+While EM implies consequentia mirabilis, the converse also holds under contraposition.
+---
+context ContraPos begin
+
+	extend ClaviusLaw begin
+
+		interpret ExcludedMiddle;
+			- show: ∀Q. (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q;
+				apply not_imp_imp;
+				- if not: ¬(∀Q. (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q), PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+					apply nPQ;
+					apply nall_elim_not[OF not].
+				.
+			.
+
+	end
+
+	---
+	Contraposition and explosiveness is almost intuitionistic negation.
+	---
+	context NotInconsistent begin
+
+		extend ExplosiveNot begin
+
+			interpret IntuitionisticNot.
+
+		end
+
+	end
+
+end
+
+---
 Under Peirce's law, self-refutation principle, consequentia mirabilis and excluded middle coincide.
 ---
 context SelfRefutation begin
@@ -398,27 +435,29 @@ context SelfRefutation begin
 
 end
 
-context ClaviusLaw begin
+---
+If explosive statements are negated, then Peirce's law implies consequentia mirabilis.
+---
+context NotExplosive begin
 
 	extend PeirceLaw begin
 
-		interpret ExcludedMiddle;
-			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-				apply peirce_law[of P];
-				- if QP: Q ⟹ P then Q;
-					apply PQ;
-					apply not_imp_imp;
-					by nPQ QP.
+		interpret ClaviusLaw;
+			- if nPP: ¬P ⟹ P then P;
+				apply peirce_law[of (∀Q. Q)];
+				- if PnnP: P ⟹ ∀Q. Q;
+					apply nPP;
+					apply not_intro[OF PnnP].
 				.
 			.
+
 	end
 
 end
 
-
 context ExplosiveNot begin
 	---
-	Clavius's law implies Pierce's law, and thus excluded middle.
+	Conversely, explosiveness plus Clavius's law implies Peirce's law (thus excluded middle).
 	---
 	extend ClaviusLaw begin
 
@@ -432,35 +471,16 @@ context ExplosiveNot begin
 					.
 				.
 			.
-		thm cases.
+		interpret NNotElim;
+			- if nnP: ¬ ¬ P then P;
+				apply not_imp_imp;
+				by not_elim[OF nnP].
+			.
 
 	end
 
 end
 
----
-Contraposition, non-inconsistency and explosiveness ends up in classical logic.
----
-context ContraPos begin
-
-	context NotInconsistent begin
-
-		extend ExplosiveNot begin
-
-			interpret ContraPos.SelfRefutation;
-				- if PnP: P ⟹ ¬P then ¬P;
-					apply not_intro;
-					- if P: P then Q;
-						apply not_elim[OF PnP[OF P] P].
-					.
-				.
-			interpret MinimalNot.
-
-		end
-
-	end
-
-end
 
 ---
 The following dual of minimal negation turns out to be "almost" classical,
@@ -470,12 +490,9 @@ theory CoMinimalNot :=
 	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
 begin
 
-	lemma not_elim_connect: if nP: ¬P, nQP: ¬Q ⟹ P then Q;
-		by not_imp_sym[OF nQP nP].
-
 	interpret ExplosiveNot;
 		- if nP: ¬P, P: P then Q;
-			apply not_elim_connect[OF nP];
+			apply not_imp_sym[OF _ nP];
 			by P.
 		.
 
@@ -484,18 +501,15 @@ begin
 
 	interpret ContraPos;
 		- if imp: P ⟹ Q, nQ: ¬Q then ¬P;
-			apply not_elim_connect[OF nQ];
+			apply not_imp_sym[OF _ nQ];
 			by imp #elim nnot_elim.
 		.
 
-	lemma nnnot_intro: if not: ¬P then ¬ ¬ ¬P;
-		apply not.cmono[OF nnot_elim not].
-
 	extend NotInconsistent begin
 
-		interpret ExplosiveNot.
+		interpret IntuitionisticNot.
 		---
-		Explosivity brings self refutation, which brings consequentia mirabilis, with which explosivity brings excluded middle.
+		Explosivity with contraposition brings self refutation, which brings consequentia mirabilis, with which explosivity brings excluded middle.
 		---
 		interpret ClaviusLaw;
 			- if imp: ¬P ⟹ P then P;
@@ -505,8 +519,6 @@ begin
 					apply not.cmono[OF imp nP].
 				.
 			.
-		thm cases.
-
 
 	end
 
@@ -597,7 +609,7 @@ begin
 
 	lemma nall_elim:
 		if nall: ¬(∀x. P.[x]), assm: ∀x. ¬ P.[x] ⟹ Q then Q;
-		apply not_elim_connect[OF nall];
+		apply not_imp_sym[OF _ nall];
 		- if nQ: ¬Q for x;
 			apply not_imp_sym[OF assm];
 			by nimp_intro nQ.
@@ -607,13 +619,31 @@ begin
 
 		lemma nall_elim:
 			if nall: ¬(∀x ⊏ a. P.[x]), assm: ∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q then Q;
-			apply not_elim_connect[OF nall];
+			apply not_imp_sym[OF _ nall];
 			- if nQ: ¬Q;
 				apply all_intro;
 				- if xa: x ⊏ a then P.[x];
 					apply not_imp_sym[OF assm];
 					by nimp_intro xa nQ.
 				.
+			.
+	end
+
+end
+
+context IntuitionisticNot begin
+	---
+	In intuitionistic negation, both consequentia mirabilis and Peirce's law yield classical negation.
+	---
+	extend ExplosiveNot.ClaviusLaw begin
+		interpret ClassicalNot;
+			interpret NotExplosive.PeirceLaw.
+			.
+	end
+
+	extend PeirceLaw begin
+		interpret ClassicalNot;
+			interpret ClaviusLaw.
 			.
 	end
 

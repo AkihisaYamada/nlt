@@ -1,4 +1,4 @@
-import base? TypeFree.Or.
+import base? Std.Or.
 
 begin
 
