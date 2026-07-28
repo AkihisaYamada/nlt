@@ -136,12 +136,6 @@ Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 		ptr = &parent->source();
 	}
 }
-Thm Thy::weaken( Thm const& thm ) const {
-	return thm.subst(interpret_ancestor(thm.ctxt()));
-}
-CTerm Thy::weaken( CTerm const& t ) const {
-	return t.subst(interpret_ancestor(t.ctxt()));
-}
 void Thy::_check_loop_import( Thy const& origin, bool rec ) const {
 	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {

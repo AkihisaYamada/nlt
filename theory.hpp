@@ -124,10 +124,6 @@ public:
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
 	bool has_ancestor( Ctxt const& ctxt ) const &;
-	/** Weaken theorem from an ancestor. */
-	Thm weaken( Thm const& thm ) const;
-	/** Weaken closed term from an ancestor. */
-	CTerm weaken( CTerm const& t ) const;
 	/** Adds an import. */
 	Import& add_import( std::string_view const& prefix, Import const& im, bool rec, bool override_default ) &;
 	/** Remove import */
@@ -201,7 +197,7 @@ public:
 		size_t indent = 0,
 		bool scope = false,
 		bool path = true,
-		bool print_rewrite = true
+		bool print_rewrite = false
 	) const & {
 		return [&endl,indent,scope,path,print_rewrite,this]( std::ostream& os )->std::ostream&{
 			return pretty(os,endl,indent,scope,path,print_rewrite);

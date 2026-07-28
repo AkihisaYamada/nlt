@@ -102,8 +102,7 @@ public:
 	/** @brief Tries to apply a set of rules once */
 	void apply( std::set<Intro> const& rules ) & {
 		auto child = _thy.branch();
-		auto g = strip_all(goal(),*child.parent());
-		if( !_apply(rules,g,child) ) throw Error("\"not applicable\"")(g);
+		if( !_apply(rules,child.weaken(goal()),child) ) throw Error("\"not applicable\"")(goal());
 	}
 	/** @brief Applies set of rules many times */
 	void apply( std::set<Intro> const& rules, size_t min, size_t max, bool normalize, bool wide ) & {

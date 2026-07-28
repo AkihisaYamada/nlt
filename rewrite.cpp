@@ -34,7 +34,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 	Thy subthy = branch();
 	Thm body = subthy.weaken(thm);
 	for(;;) {
-		body = strip_all(body,subthy.self()).first;
+		body = strip_all(body,subthy).first;
 		auto imp = body.cbinary(IMP);
 		if(!imp) break;
 		Thm assm = subthy.assume(imp->first);
@@ -60,7 +60,8 @@ void Rewrite::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong
 }
 
 void Rewrite::register_imp( Thm const& thm, bool dir ) & {
-	auto rule = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
+	auto var_ctxt = thm.ctxt().fork().ctxt();
+	auto rule = strip_all(var_ctxt.weaken(thm),var_ctxt,patvar_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
 	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
 	if( auto const& imp2 = imp->second.cbinary(IMP) )
 	if( auto const& rel = gets_binary_sym(imp->first) ) {
@@ -206,7 +207,8 @@ void Rewrite::register_fallback( Thm const& thm ) & {
 }
 
 void Thy::register_dual( Thm const& thm ) & {
-	Thm thm_strip = strip_all(thm,thm.ctxt().fork(),patvar_maker()).first;
+	auto var_ctxt = thm.ctxt().fork().ctxt();
+	Thm thm_strip = strip_all(var_ctxt.weaken(thm),var_ctxt,patvar_maker()).first;
 	if( auto const& imp = thm_strip.cbinary(IMP) )
 	if( auto const& bin = strips_binary(imp->first) ) {
 		auto const& [rel,l,r] = *bin;
@@ -276,13 +278,13 @@ bool Resolver::_step_cond(
 	if( rewrite )
 	if( auto o = _step(subthy,source,simp,ind,pos_it,pos_end) ) {
 		auto [eq,t] = *o;// Γ; ∀v'; φθ.[v']... ⊢ Xθ.[v'] = t.[v']
-		auto res = t.lift(thy.cterm(ALL));// Γ ⊢ ∀v'. t.[v']
+		auto res = t.lift();// Γ ⊢ ∀v'. t.[v']
 		intp.instantiate( all ? res.capp()->second : res );
 		intp.discharge(eq.intro());// Γ ⊢ ∀v'. φθ.[v']... ⟹ Xθ.[v'] = res.[v']
 		return true;
 	}
 	auto eq = _make_refl(subthy,source,ind);
-	auto res = source.lift(thy.cterm(ALL));
+	auto res = source.lift();
 	intp.instantiate( all ? res.capp()->second : res );
 	intp.discharge(eq.intro());
 	if( log > 14 ) _log() << "! condition reflected: " << thy.pretty(eq) << endl;

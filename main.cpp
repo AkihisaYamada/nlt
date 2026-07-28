@@ -254,53 +254,71 @@ public:
 					}
 					tmp = tmp.intro();
 				} else if( skips("OF") ) {
-					auto prems = vector<Sum<Thm,CTerm,int>>();
+					auto var_ctxt = loc.fork().ctxt();
+					auto strip_ctxt = var_ctxt.fork().ctxt();
+					auto strip_thm = strip_ctxt.weaken(tmp);
+					auto reorder_intp = var_ctxt.fork();
+					auto reorder_ctxt = reorder_intp.ctxt();
+					auto reorder_prems = vector<Sum<Thm,pair<bool,size_t>>>();
 					auto args = vector<Thm>();
-					auto reorder = map<int,CTerm>();
-					int max = 0;
-					auto sub = loc.fork();
-					auto subctxt = sub.ctxt();
-					CTerm subtmp = tmp.subst(sub);
+					auto head_prems = vector<CTerm>();
+					auto tail_prems = vector<CTerm>();
 					for(;;) {
-						auto imp = strip_all(subtmp,subctxt.self()).cbinary(IMP);
+						strip_thm = strip_all(strip_thm,var_ctxt).first;
+						auto imp = strip_thm.cbinary(IMP);
 						if( !imp ) break;
-						if( skips("_") ) {// assume the condition
-							subtmp = imp->second;
-							prems.push_back(CTerm{imp->first});
-						} else if( skips("<") ) {
-							subtmp = imp->second;
-							prems.push_back(max);
-							reorder.emplace(max,imp->first);
-							max++;
-						} else if( skips("(") ) {
-							auto i = get_int();
-							skip(")");
-							subtmp = imp->second;
-							prems.push_back(i);
-							reorder.emplace(i,imp->first);
-						} else if( auto const& arg = _gets_thm(loc) ) {// unify the condition
-							subtmp = imp->second;
-							prems.push_back(Thm{subctxt.assume(imp->first)});
-							args.push_back(*arg);
+						int mode;
+						if( skips("_") ) {// assume the premise later
+							mode = 1;
+						} else if( skips("<") ) {// assume before
+							mode = 2;
+						} else if( auto const& arg = _gets_thm(loc) ) {// unify with the argument
+							mode = 3;
+							args.emplace_back(*arg);
 						} else {
 							break;
 						}
+						strip_thm = strip_thm.impE(strip_ctxt.assume(imp->first));
+						auto reorder_prem = reorder_ctxt.weaken(imp->first.lift());
+						switch( mode ) {
+						case 1:
+							reorder_prems.emplace_back(pair{false,tail_prems.size()});
+							tail_prems.emplace_back(reorder_prem);
+							break;
+						case 2:
+							reorder_prems.emplace_back(pair{true,head_prems.size()});
+							head_prems.emplace_back(reorder_prem);
+							break;
+						case 3:
+							reorder_prems.emplace_back(reorder_ctxt.assume(reorder_prem));
+							break;
+						} 
 					}
-					tmp = tmp.subst(sub);// reorder arguments
-					auto reorder_thm = map<int,Thm>();
-					for( auto [i,prem] : reorder ) {
-						reorder_thm.emplace(i,subctxt.assume(prem));
+					// forming reordered theorem
+					auto head_assms = vector<Thm>();
+					for( auto const& head : head_prems ) {
+						head_assms.emplace_back( reorder_ctxt.assume(head) );
 					}
-					for( auto const& prem : prems ) {
-						if( auto p = prem.ref<CTerm>() ) {
-							tmp = tmp << subctxt.assume(*p);
-						} else if( auto t = prem.ref<Thm>() ) {
-							tmp = tmp << *t;
-						} else if( auto i = prem.ref<int>() ) {
-							tmp = tmp << reorder_thm.find(*i)->second;
-						} else assert(false);
+					auto tail_assms = vector<Thm>();
+					for( auto const& tail : tail_prems ) {
+						tail_assms.emplace_back( reorder_ctxt.assume(tail) );
 					}
-					tmp = tmp.intro();
+					auto reorder = Intp::make(strip_ctxt,var_ctxt).compose(reorder_intp);
+					for( auto const& prem : reorder_prems ) {
+						if( auto thm = prem.ref<Thm>() ) {
+							reorder.discharge(*thm);
+						} else {
+							auto [head,ind] = *prem.ref<1>();
+							if( head ) {
+								reorder.discharge(head_assms[ind]);
+							} else {
+								reorder.discharge(tail_assms[ind]);
+							}
+						}
+					}
+					// obtain the theorem with premises reordered, and then variables quantified 
+					tmp = strip_thm.subst(reorder).intro().intro();
+					// in particular, premises which will be unified come in front
 					for( auto const& arg : args ) {
 						tmp = tmp << arg;
 					}
@@ -308,15 +326,14 @@ public:
 					auto sub = loc.branch();
 					auto tmp2 = sub.weaken(tmp); // φ ⟹... ψ
 					auto thm = _get_thm(sub);// ψ ⟹ χ
-					auto sub2strip = sub.fork();
-					auto [strip_thm,n] = strip_all(thm,sub2strip);
-					auto strip_ctxt = strip_thm.ctxt();
+					auto strip_ctxt = sub.fork().ctxt();
+					auto [strip_thm,n] = strip_all(strip_ctxt.weaken(thm),strip_ctxt);
 					auto imp = strip_thm.cbinary(IMP);
 					if( !imp ) throw Error("\"malformed THEN\"")(strip_thm);
 					auto cond = imp->first;
-					auto arg = tmp2.subst(sub2strip);
+					auto arg = strip_ctxt.weaken(tmp2);
 					for(;;){
-						arg = strip_all(arg,strip_ctxt.self()).first;
+						arg = strip_all(arg,strip_ctxt).first;
 						auto imp = arg.cbinary(IMP);
 						if( !imp ) break;
 						arg = arg.impE(strip_ctxt.assume(imp->first));
@@ -1457,9 +1474,16 @@ public:
 	}
 	void _define( Thy& org_thy ) {
 		Opt<string> name_op;
-		if( skips("(") ) {
-			name_op = get();
-			skip(")");
+		if( skips("[") ) {
+			for(;;) {
+				if( skips("as") ) {
+					if( name_op ) throw Error("#define")("\"duplicate as\"");
+					name_op = get();
+				} else {
+					break;
+				}
+			}
+			skip("]");
 		}
 		Term eq = get_term();
 		skip(".");
@@ -1611,7 +1635,7 @@ public:
 			if MSG cout << "left " << loc.print_path() << endl;
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::WORD);
-			skip(":");
+			skip("begin");
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << "creating namespace " << name << endl;
@@ -1997,8 +2021,8 @@ public:
 		for( auto& prop : ranges::reverse_view(props) ) {
 			goal = prop >>= goal;
 		}
-		goal = goal.lift(thesis_thy.cterm(ALL)) >>= var;
-		goal = goal.lift(_thy.cterm(ALL));
+		goal = goal.lift() >>= var;
+		goal = goal.lift();
 		auto thesis = Thesis::claim_exact(_thy,goal);
 		_depth++;
 		skip(";");

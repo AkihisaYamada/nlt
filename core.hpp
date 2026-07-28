@@ -321,6 +321,8 @@ private:
 	Ctxt(Ref<Body>&& ref) : _ref(ref) {}
 	Ctxt(Opt<Ctxt> const& parent);
 	Thm _assume(Term const& t) &;
+	void _weaken( CTerm const& thm ) const&;
+	void _update_parent() const&;
 public:
 	struct Fix : public std::string {};
 	class Assume : public Term {};
@@ -361,6 +363,8 @@ public:
 	Opt<CTerm> obtains(std::string_view const& name) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	bool has_constant(std::string_view const& sym) const;
+	/** tests if a symbol is fixed within the revision. */
+	bool has_constant(std::string_view const& sym, size_t rev) const;
 	/** tests if a symbol is fixed in this or ancestor contexts. */
 	Opt<CTerm> constant(std::string_view const& sym) const;
 	/** Ensures that a term is closed in this context. */
@@ -401,6 +405,10 @@ public:
 	 * @return interpretation of the parent in the child.
 	 */
 	Intp fork() const;
+	/** @brief Weakens a theorem in an ancestor. */
+	Thm weaken( Thm const& thm ) const&;
+	/** @brief Weakens a closed term in an ancestor. */
+	CTerm weaken( CTerm const& thm ) const&;
 	Ctxt& operator=(Ctxt const& other)& = default;
 	Ctxt& operator=(Ctxt && other)& = default;
 	friend bool operator==( Ctxt const& l, Ctxt const& r );
@@ -546,7 +554,7 @@ public:
 	 *   Symbols fixed in the context will be quantified.
 	 * @return the closed term with respect to the parent.
 	 */
-	CTerm lift(CTerm const& quantifier) const;
+	CTerm lift() const;
 	/** @brief Moves the statement to the parent context.
 	 * Context-bound symbols will be universally quantified,
 	 * and assumptions are made into implication.
@@ -593,6 +601,7 @@ inline Opt<CTerm> Ctxt::closed(CTerm const& t) const {
 	if( t.ctxt() == *this ) return {t};
 	return closed((Term)t);
 }
+
 /** @brief Substitution.
  * For efficiency, the range should be closed with respect to a common context.
  */
@@ -713,6 +722,14 @@ inline Thm Ctxt::assume(CTerm const& t) {
 inline Thm Ctxt::assume(Term const& t) {
 	return _assume(enclose(t));
 }
+inline Thm Ctxt::weaken( Thm const& thm ) const & {
+	_weaken(thm);
+	return CTerm(*this,thm);
+}
+inline CTerm Ctxt::weaken( CTerm const& thm ) const & {
+	_weaken(thm);
+	return CTerm(*this,thm);
+}
 
 /** @brief Interpreter, translates facts of a context into the context it belongs. */
 class Intp {
@@ -726,7 +743,7 @@ class Intp {
 	 */
 	 explicit Intp(Ctxt const& src, Subst const& tgt, int rev) : _subst(tgt), _src(src), _rev(rev) {}
 public:
-	/** @brief makes a direct interpretation. */
+	/** @brief makes an interpretation of a child. */
 	static Intp make( Ctxt const& src, Ctxt const& tgt );
 	Ctxt source() && {
 		return std::move(_src);
@@ -750,7 +767,14 @@ public:
 	}
 	/** tests if there is no pending modification */
 	bool ready() const {
-		return _rev < 0 /* indicates trivial interpretation */ || _rev == _src.revision();
+		if( _rev == -1 ) {/* indicates trivial interpretation */
+			return true;
+		} else if( _rev == -2 ) {// parent interpretation
+			_subst.ctxt()._update_parent();
+			return true;
+		} else {
+			return _rev == _src.revision();
+		}
 	}
 	/** @brief tests if the substitution is identity */
 	bool identity() const {
@@ -862,7 +886,7 @@ inline Intp Ctxt::fork() const {
 	auto child = Ctxt(Ref<Body>::make());
 	auto rev = revision();
 	child._ref->parent = {{*this,rev}};
-	return Intp(*this,child,rev);
+	return Intp(*this,child,-2);
 }
 inline Opt<CTerm> Ctxt::obtains(std::string_view const& name) const {
 	if( auto it = _ref->constants.find(name); it != _ref->constants.end() ) {

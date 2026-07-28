@@ -51,17 +51,17 @@ bool is_patvar( std::string_view const& sym );
 /**
  * @brief strips universal quantifiers.
  * @param t ∀x... φ
- * @param intp interpretation of the context of `t` in the context that will fix the bound variables
+ * @param ctxt the context that will fix the bound variables
  * @param renamer
  * @return closed term φ in context
  */
-CTerm strip_all( CTerm t, Intp const& intp, Renamer const& renamer );
+CTerm strip_all( CTerm t, Ctxt& ctxt, Renamer const& renamer );
 
 /**
  * @brief strips universal quantifiers with default renaming
  */
-inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
-	return strip_all(t,intp,avoider(intp.ctxt()));
+inline CTerm strip_all( CTerm const& t, Ctxt& ctxt ) {
+	return strip_all(t,ctxt,avoider(ctxt));
 }
 
 /**
@@ -69,15 +69,15 @@ inline CTerm strip_all( CTerm const& t, Intp const& intp ) {
  * @param thm the theorem to be stripped.
  * @param child this context will fix the bound variables.
  */
-std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child, Renamer const& renamer );
+std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& child, Renamer const& renamer );
 
 /**
  * @brief strips universal quantifiers.
  * @param thm the theorem to be stripped.
- * @return Intp this context will fix the bound variables.
+ * @return pair of resulting theorem and the number of variables.
  */
-inline std::pair<Thm,size_t> strip_all( Thm const& thm, Intp const& child ) {
-	return strip_all(thm,child,avoider(child.ctxt()));
+inline std::pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& child ) {
+	return strip_all(thm,child,avoider(child));
 }
 
 /**
@@ -176,8 +176,8 @@ public:
 	 * universal quantifications are processed but not implications.
      */
 	static Intro axiom( Thm const& thm ) {
-		auto intp = thm.ctxt().fork();
-		auto [conc,vars] = strip_all(thm,intp,patvar_maker());
+		auto var_ctxt = thm.ctxt().fork().ctxt();
+		auto [conc,vars] = strip_all(thm,var_ctxt,patvar_maker());
 		return Intro(thm,conc,vars,0);
 	}
 	Thm const& conclusion() const& {

@@ -23,15 +23,14 @@ CTerm dummy( Ctxt const& ctxt ) {
 }
 
 Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
-	auto child = thm.ctxt().fork();
-	auto self = child.ctxt().self();
+	auto child = thm.ctxt().fork().ctxt();
 	auto f = patvar_maker();
-	Thm rule = thm.subst(child);
+	Thm rule = child.weaken(thm);
 	size_t vars = 0;
 	size_t i = 0;
 	for( ;; i++ ) {
 		if( i == n && !all ) break;
-		auto const& [rule2,vars2] = strip_all(rule,self,f);
+		auto const& [rule2,vars2] = strip_all(rule,child,f);
 		rule = rule2;
 		vars += vars2;
 		if( i == n ) break;
@@ -40,7 +39,7 @@ Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
 			if( n != 255 ) throw Error("\"making intro rule failed\"")(thm);
 			break;
 		}
-		rule = rule.impE(child.ctxt().assume(imp->first));
+		rule = rule.impE(child.assume(imp->first));
 	}
 	return Intro(thm,rule,vars,i);
 }
@@ -49,11 +48,11 @@ Intro Intro::rule( Thm const& thm ) {
 	return imp(thm,255,true);
 }
 Elim Elim::rule( Thm const& thm, short after, char mode ) {
-	auto child = thm.ctxt().fork();
-	Thm body = strip_all(thm,child,patvar_maker()).first;
+	auto child = thm.ctxt().fork().ctxt();
+	Thm body = strip_all(child.weaken(thm),child,patvar_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
-	Thm premise = child.ctxt().assume(imp->first);
+	Thm premise = child.assume(imp->first);
 	body = body.impE(premise);
 	return Elim(thm,premise,body,after,mode);
 }
@@ -229,7 +228,7 @@ bool Resolver::_discharge(
 		};
 	};
 	for(;;) {// strip all assumptions
-		goal = strip_all(goal,subthy.self());
+		goal = strip_all(goal,subthy);
 		auto imp = goal.cbinary(IMP);
 		if( !imp ) break;// no more assumption
 		auto assm = subthy.assume(imp->first);// make the assumption

@@ -245,7 +245,27 @@ bool Ctxt::has_constant(string_view const& sym) const {
 	}
 	if( auto p = find_parent() ) {
 		auto [parent,rev] = *p;
-		return parent.has_constant(sym);
+		return parent.has_constant(sym,rev);
+	}
+	return false;
+}
+bool Ctxt::has_constant(string_view const& sym, size_t rev) const {
+	if( rev == revision() ) {// up-to-date
+		if( fixes(sym) || obtains(sym) ) {
+			return true;
+		}
+	} else {
+		for( size_t i = 0; i < rev; i++ ) {
+			if( auto c = fixed(i) ) {
+				if( *c == sym ) return true;
+			} else if( auto o = obtained(i) ) {
+				if( get<0>(*o) == sym ) return true;
+			}
+		}
+	}
+	if( auto p = find_parent() ) {
+		auto [parent,rev] = *p;
+		return parent.has_constant(sym,rev);
 	}
 	return false;
 }
@@ -350,14 +370,13 @@ Opt<tuple<string,Intp,CTerm>> CTerm::cbinder( std::string_view const& b ) const 
 	}
 	return {};
 }
-CTerm CTerm::lift( CTerm const& quantifier ) const {
+CTerm CTerm::lift() const {
 	auto const& [parent,rev] = _ctxt.parent();
-	if( quantifier.ctxt() != parent ) throw Error("#cterm")("\"wrong context lift\"");
 	Term ret = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
 		if( auto fix = _ctxt.fixed(i) ) {
-			ret = ((Term)quantifier)( *fix /= ret );
+			ret = *fix &= ret;
 		}
 	}
 	return CTerm(parent,ret);
@@ -385,6 +404,27 @@ CTerm Term::csubst(Subst const& subst) const {
 		throw UnboundVariable(sym);
 	};
 	return CTerm(ctxt,map(f,fixed));
+}
+
+void Ctxt::_update_parent() const& {
+	auto& [parent,rev] = *_ref->parent;
+	while( rev < parent.revision() ) {
+		auto test = [&]( std::string const& sym ) {
+			if( _ref->fvars.contains(sym) || _ref->constants.contains(sym) )
+				throw Error(__func__)("\"parent fixed local constant\"")(sym);
+		};
+		if( auto v = parent.fixed(rev) ) test(*v);
+		else if( auto o = parent.obtained(rev) ) test(get<0>(*o));
+		rev++;
+	}
+}
+void Ctxt::_weaken( CTerm const& thm ) const& {
+	if( thm.ctxt() == *this ) return;
+	auto& p = _ref->parent;
+	if( !p ) throw Error(__func__)("\"not an ancestor\"")(thm);
+	auto& [parent,rev] = *p;
+	parent._weaken(thm);
+	_update_parent();
 }
 
 Intp Intp::make(Ctxt const& src, Ctxt const& tgt) {

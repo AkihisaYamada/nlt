@@ -265,21 +265,19 @@ struct Matcher {
 Opt<Subst> match( Term const& pat, CTerm const& val, function<bool(string_view const&)> const& fvar, Opt<Subst const&> subst ) {
 	return Matcher(val.ctxt(),fvar).matches(pat,val,subst);
 }
-pair<Thm,size_t> strip_all( Thm const& thm, Intp const& toChild, Renamer const& renamer ) {
-	pair<Thm,size_t> ret = {thm.subst(toChild),0};
-	auto ctxt = toChild.ctxt();
+pair<Thm,size_t> strip_all( Thm const& thm, Ctxt& ctxt, Renamer const& renamer ) {
+	pair<Thm,size_t> ret = {thm,0};
+	auto loc = thm.ctxt();
 	while( auto all = ret.first.binder(ALL) ) {
 		auto [v,b] = *all;
 		auto nv = renamer(v);
 		if( !nv ) break;
 		ret.second++;
-		ret.first = ret.first.allE(ctxt.fix(*nv));
+		ret.first = ret.first.allE(loc.weaken(ctxt.fix(*nv)));
 	}
 	return ret;
 }
-CTerm strip_all(CTerm t, Intp const& child, Renamer const& renamer) {
-	t = t.subst(child);
-	auto ctxt = child.ctxt();
+CTerm strip_all(CTerm t, Ctxt& ctxt, Renamer const& renamer) {
 	auto subst = Subst(ctxt);
 	for(;;) {
 		auto a = t.cunary(ALL);
@@ -311,7 +309,7 @@ Thm match_discharge( Thm const& thm, Thm const& arg ) {
 	auto assm2match = assm_ctxt.fork();
 	auto match_ctxt = assm2match.ctxt();
 	auto thm2match = thm2assm.compose(assm2match);
-	Thm rule = strip_all(thm,thm2match).first;
+	Thm rule = strip_all(match_ctxt.weaken(thm),match_ctxt).first;
 	auto const& imp = rule.cbinary(IMP);
 	if( !imp ) throw Error("#match_discharge")(thm);
 	auto const& arg_weaken = arg.subst(thm2assm);

@@ -335,17 +335,17 @@ Thm operator<<( Thm thm, Thm arg ) {
 	// expand thm into fix x... ⊢ (∀y... prem) ⟹ concl
 	auto concl_intp = ctxt.fork();
 	auto concl_ctxt = concl_intp.ctxt();
-	Thm strip_thm = strip_all(thm,concl_intp).first;
+	Thm strip_thm = strip_all(concl_ctxt.weaken(thm),concl_ctxt).first;
 	auto imp = strip_thm.cbinary(IMP);
 	if( !imp ) throw Error("#util")("\"discharge\"")(strip_thm)(arg);
 	// expand prem into fix x... y... ⊢ prem
 	auto prem_intp = concl_ctxt.fork();
 	auto prem_ctxt = prem_intp.ctxt();
-	CTerm prem_strip = strip_all(imp->first,prem_intp);
+	CTerm prem_strip = strip_all(prem_ctxt.weaken(imp->first),prem_ctxt);
 	// expand arg into fix x... y... z... ⊢ arg
 	auto arg_intp = prem_ctxt.fork();
 	auto arg_ctxt = arg_intp.ctxt();
-	Thm arg_strip = strip_all(arg.subst(concl_intp).subst(prem_intp),arg_intp).first;
+	Thm arg_strip = strip_all(arg_ctxt.weaken(arg),arg_ctxt).first;
 	// move prem into fix x... y... z... ⊢ prem
 	prem_strip = prem_strip.subst(arg_intp);
 	// find x... and z... such that prem = arg
