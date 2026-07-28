@@ -534,9 +534,6 @@ ostream& Thy::pretty_rewrite(
 		os << mk_indent(n) << prefix << "[on " << rel;
 		if( rew._default_ind == i ) os << ", default";
 		os << ']' << endl << mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
-		if( auto trans = rew._trans.finds_value(i) ) {
-			os << mk_indent(n1) << "trans: " << pretty(*trans) << endl;
-		}
 		if( auto fallback = rew._fallbacks.finds_value(i) ) {
 			os << mk_indent(n1) << "fallback: " << pretty(*fallback) << endl;
 		}

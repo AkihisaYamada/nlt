@@ -177,6 +177,8 @@ public:
 	}
 	Rewrite& modify_rewriter( std::string_view const& rew_name ) &;
 	void reset_rewrite() &;
+	void register_trans( Thm const& thm ) &;
+	Thm trans( std::string_view const& rel ) const&;
 	void register_dual( Thm const& thm ) &;
 	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
 	void import_rewrite( Import const& import, bool override_default ) &;

@@ -11,6 +11,7 @@ string const INF = "#inf";
 string const SIMP = "#simp";
 string const CONG = "#cong";
 string const DUAL = "#dual";
+string const TRANS = "#trans";
 
 void cerr_proof_thms( Thy const& thy ) {
 	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INF } ) {

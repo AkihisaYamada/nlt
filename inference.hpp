@@ -19,6 +19,8 @@ extern std::string const ELIM;
 extern std::string const INF;
 /** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
 extern std::string const DUAL;
+/** prefix for transitivity rules, e.g. ∀x y. x = y ⟹ ∀z. y = z ⟹ x = z */
+extern std::string const TRANS;
 /** rewriter name for simplifier */
 extern std::string const SIMP;
 /** prefix for congruence rules */

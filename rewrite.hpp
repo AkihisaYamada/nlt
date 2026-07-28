@@ -43,8 +43,6 @@ private:
 	StrMap<size_t const> _rel2ind;
 	/** reflexivity theorems, e.g., ∀x. x = x */
 	std::vector<Thm> _refls;
-	/** ∀x y z. x = y ⟹ y = z ⟹ x = z */
-	Map<size_t,Thm> _trans;
 	/** ∀P Q. P = Q ⟹ P ⟹ Q */
 	Map<size_t,Imp> _imps;
 	/** ∀P Q. P = Q ⟹ Q ⟹ P */
@@ -87,7 +85,6 @@ public:
 	}
 	bool register_refl( Thm const& thm, bool def ) &;
 	void register_imp( Thm const& thm, bool dir ) &;
-	void register_trans( Thm const& thm ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
 	std::tuple<char,std::string,Rule> make_rule( Thm const& thm, bool cong ) const&;
 	bool register_cong( Thm const& thm ) &;

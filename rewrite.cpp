@@ -95,7 +95,7 @@ bool Rewrite::register_refl( Thm const& thm, bool def ) & {
 	}
 	return true;
 }
-void Rewrite::register_trans( Thm const& thm ) & {
+void Thy::register_trans( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);// ∀x y, x = y, ∀z, y = z, φ... ⊢ x = z
 	auto xz = rule.conclusion();
 	Ctxt ctxt = xz.ctxt();
@@ -106,13 +106,18 @@ void Rewrite::register_trans( Thm const& thm ) & {
 	if( auto const& yz = ctxt.assumed(4) )
 	if( auto const& rel2 = gets_binary_sym(*yz) )
 	if( auto const& rel3 = gets_binary_sym(xz) )
-	if( *rel1 == *rel2 && *rel2 == *rel3 )
-	if( auto const& ind = gets_rel_ind(*rel1) ) {
-		_trans.emplace(*ind,thm);
+	if( *rel1 == *rel2 && *rel2 == *rel3 ) {
+		add_thm(TRANS+*rel1,thm);
 		return;
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
+Thm Thy::trans( string_view const& rel ) const& {
+	auto ret = find_thm(TRANS+rel);
+	if( !ret ) throw Error("\"transitivity rule unregistered\"")(rel);
+	return *ret;
+}
+
 tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
 	// parsing congruence rule
 	auto intro = Intro::rule(thm);// e.g. ∀x y, (φ ⟹... x = y), ∀x2 y2, ... ⊢ l[x...] = r[y...]
@@ -463,10 +468,9 @@ Opt<Thm> Resolver::_steps(
 	if( max <= 1 && !normalize ) {
 		return eq;
 	}
-	auto const& trans = rew->_trans.finds_value(ind);
-	if( !trans ) throw Error("\"transitivity rule unregistered\"");
+	auto trans = thy.trans(rew->_rels[ind]);
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
-	Thm ltrans = thy.weaken(*trans).allE(s);
+	Thm ltrans = trans.allE(s);
 	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(thy,t,simp,ind,begin,end);
@@ -544,9 +548,6 @@ void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp, bool
 		for( auto const& cong : congs ) {
 			register_cong(thy.weaken(cong).subst(intp));
 		}
-	}
-	for( auto const& [i,trans] : src._trans ) {
-		register_trans(thy.weaken(trans).subst(intp));
 	}
 	for( auto const& [i,imp] : src._imps ) {
 		register_imp(thy.weaken(imp.thm).subst(intp),true);

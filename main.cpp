@@ -38,7 +38,7 @@ struct ClaimStatus {
 		void operator=( bool b ) { self = b; }
 	};
 	Ternary intro = {false,false}, cong = {false,false};
-	bool elim = false, dual = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
+	bool elim = false, dual = false, trans = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
 	unsigned char after = 0;
 	unsigned char prems = 255;
 	bool strip_all = true;
@@ -448,6 +448,8 @@ public:
 					cs.elim = true;
 				} else if( skips("dual") ) {
 					cs.dual = true;
+				} else if( skips("trans") ) {
+					cs.trans = true;
 				} else if( skips("simp") ) {
 					cs.unfold = true;
 				} else if( skips("fold") ) {
@@ -510,6 +512,9 @@ public:
 			}
 			if( cs->dual ) {
 				loc.register_dual(thm);
+			}
+			if( cs->trans ) {
+				loc.register_trans(thm);
 			}
 			if( cs->unfold ) {
 				if( cs->after > 0 ) {
@@ -1768,6 +1773,30 @@ public:
 				thesis.apply(rule,true);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, "used goals:\n\t" );
+			} else if( skips("...") ) {
+				auto rel = get( TokenType::OPERATOR | TokenType::WORD );
+				auto t = get_term();
+				auto goal = thesis.goal();
+				auto op = goal.cbinary(rel);
+				if( !op ) throw Error("\"transitive proof mismatch\"");
+				auto lhs = op->first;
+				auto rhs = _thy.cterm(t);
+				auto claim = _thy.cterm(rel)(lhs)(rhs);
+				auto thm = _thy.trans(rel).allE(lhs).allE(rhs);// s = t ⟹ ∀u. t = u ⟹ s = u
+				if( skips(";") ) {
+					auto subthesis = Thesis::claim_exact(_thy,claim);
+					_depth++;
+					if MSG cout << _indent();
+					auto o = _prove(subthesis);
+					_depth--;
+					if( o ) {
+						thesis.apply(Intro::rule(thm.impE(*o)),false);
+					}
+				} else {
+					skip(".");
+					thesis.apply( Intro::rule(thm.impE(_thy.prove(claim))), false );
+				}
+				if MSG print_goals( thesis, "chained goals:\n\t" );
 			} else if( skips("oops") ) {
 				return {};
 			} else if( skips("") ) {
@@ -1802,24 +1831,13 @@ public:
 					Thm imp = get_thm();
 					Thm revimp = get_thm();
 					Thm refl = get_thm();
-					Thm trans = get_thm();
 					if MSG cout << "registering " << ( mode == 1 ? "simplifier" : "rulifier" ) <<
 						":\n\timp: " << _thy.pretty(imp) <<
 						"\n\trev: " <<  _thy.pretty(revimp) <<
-						"\n\trefl: " << _thy.pretty(refl) <<
-						"\n\ttrans: " << _thy.pretty(trans);
+						"\n\trefl: " << _thy.pretty(refl);
 					rew.register_refl(refl,def);
 					rew.register_imp(imp,true);
 					rew.register_imp(revimp,false);
-					rew.register_trans(trans);
-					if MSG cout << endl;
-				} else if( skips("trans") ) {
-					if MSG cout << "registering transitivity: ";
-					auto& rew = _thy.modify_rewriter(SIMP);
-					while( auto const& thm = gets_thm() ) {
-						rew.register_trans(*thm);
-						if MSG cout << _thy.pretty(*thm);
-					}
 					if MSG cout << endl;
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
