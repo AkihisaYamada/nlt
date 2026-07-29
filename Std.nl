@@ -86,7 +86,7 @@ prefix - 301 300 := -_.
 infix ^ 400 401 400.
 infix ++ 100 101 100.
 infix ** 200 201 200.
-
+infix ∘ 1000 1001 1000.
 
 
 ---
@@ -166,15 +166,14 @@ begin
 end
 
 theory MetaTransitive (⊏) :=
-	assume trans: if x ⊏ y, y ⊏ z then x ⊏ z.
+	assume trans#trans if x ⊏ y, y ⊏ z then x ⊏ z.
 begin
 	interpret? MetaRelation.
 	extend MetaMonotone begin
 		interpret MetaCompatible;
 			- if xx': x ⊏ x', yy': y ⊏ y' then x * y ⊏ x' * y';
-				have 1: x * y ⊏ x' * y;
+				... ⊏ x' * y;
 					by right_mono xx'.
-				apply trans[OF 1];
 				by left_mono yy'.
 			.
 	end
@@ -212,34 +211,30 @@ begin
 	extend MetaLeftNeutral begin
 		interpret MetaReflexive (~);
 			- for x then x ~ x;
-				have 1: x ~ 1 * x;
+				... ~ 1 * x;
 					apply sym;
 					by left_neutral.
-				apply trans[OF 1];
 				by left_neutral.
 			.
 		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
-			have 1: e ~ 1 * e;
+			... ~ 1 * e;
 				apply sym;
 				by left_neutral.
-			apply trans[OF 1];
 			by all.
 	end
 
 	extend MetaRightNeutral begin
 		interpret MetaReflexive (~);
 			- for x then x ~ x;
-				have 1: x ~ x * 1;
+				... ~ x * 1;
 					apply sym;
 					by right_neutral.
-				apply trans[OF 1];
 				by right_neutral.
 			.
 		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
-			have 1: e ~ e * 1;
+			... ~ e * 1;
 				apply sym;
 				by right_neutral.
-			apply trans[OF 1];
 			by all.
 	end
 
@@ -266,19 +261,17 @@ begin
 
 	extend MetaLeftAbsorb begin
 		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
-			have 1: e ~ 0 * e;
+			... ~ 0 * e;
 				apply sym;
 				by all.
-			apply trans[OF 1];
 			by left_absorb.
 	end
 
 	extend MetaRightAbsorb begin
 		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
-			have 1: e ~ e * 0;
+			... ~ e * 0;
 				apply sym;
 				by all.
-			apply trans[OF 1];
 			by right_absorb.
 	end
 

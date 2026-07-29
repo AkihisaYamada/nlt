@@ -38,7 +38,7 @@
     "tags": {
       "patterns": [{
         "name": "support.type.property-name",
-        "match": ":|!|\\?|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|dual|fold)\\b"
+        "match": ":|!|\\?|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|dual|trans)\\b"
       }]
 	},
     "proof-steps": {

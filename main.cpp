@@ -1785,8 +1785,13 @@ public:
 				auto thm = _thy.trans(rel).allE(lhs).allE(rhs);// s = t ⟹ ∀u. t = u ⟹ s = u
 				if( skips(";") ) {
 					auto subthesis = Thesis::claim_exact(_thy,claim);
-					_depth++;
-					if MSG cout << _indent();
+					if MSG {
+						cout << "chaining: " << _thy.pretty(claim) << endl;
+						_depth++;
+						cout << _indent();
+					} else {
+						_depth++;
+					}
 					auto o = _prove(subthesis);
 					_depth--;
 					if( o ) {

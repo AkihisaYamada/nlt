@@ -51,7 +51,7 @@ test_util: test_util.exe
 
 .PHONY: vscode
 
-vscode: vscode/language-configuration.json vscode/syntaxes
+vscode: vscode/language-configuration.json vscode/nlt.tmLanguage.json
 	cd vscode; npx vsce package
 
 $(DEPEND)/%.d: %.cpp
