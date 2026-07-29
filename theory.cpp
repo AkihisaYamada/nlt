@@ -108,6 +108,7 @@ Thm Thy::thm( string_view const& name ) const {
 Opt<string> Thy::find_assm_name( size_t rev ) const {
 	return _ref->assm_names.finds_value(rev);
 }
+
 StrMMap<Pair<Import,bool>> const& Thy::imports() const {
 	return _ref->imports;
 }
@@ -304,6 +305,28 @@ Opt<Thm> Thy::_find_thm(
 		return ret;
 	}
 	return {};
+}
+void Thy::add_term_thm( Term const& t, std::string const& prop, Thm const& thm ) & {
+	assert( thm.ctxt() == *this );
+	add_thm(prop,thm,t);
+}
+Thm Thy::term_thm( Term const& s, std::string const& prop ) & {
+	auto ret = find_thm(prop,
+		[&]( Import const& import, std::string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
+			auto t = info.ref<Term>();
+			assert(t);
+			if( t->subst(import) == s ) {
+				auto ret = thm.subst(import);
+				if( import.source() != *this ) {// memoize for better reuse
+					add_term_thm(s,prop,ret);
+				}
+				return ret;
+			}
+			return {};
+		}
+	);
+	if( !ret ) throw Error("\"term theorem not found\"")(prop)(s);
+	return *ret;
 }
 
 Opt<Import> Thy::find_thy(

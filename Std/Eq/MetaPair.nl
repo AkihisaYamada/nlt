@@ -45,3 +45,20 @@ lemma eq_pair_fst#simp[after 1] if p: p = (x,y) then fst p = x;
 
 lemma eq_pair_snd#simp[after 1] if p: p = (x,y) then snd p = y;
 	simp p.
+
+---
+One can obtain a pair `(Abs,Rep)`, such that `Rep (Abs x) = x`.
+---
+obtain AbsRep where AbsRep_spec: snd AbsRep (fst AbsRep x) = x;
+	- for thesis if assm;
+		apply assm[of ((,) fst, snd)];
+		- for x; simp.
+		.
+	.
+define Abs = fst AbsRep.
+define Rep = snd AbsRep.
+
+interpret AbsRep: MetaInverse Abs Rep;
+	by #simp Abs_def Rep_def AbsRep_spec.
+
+note#simp AbsRep.inverse.

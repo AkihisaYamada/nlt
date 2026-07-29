@@ -327,6 +327,13 @@ Intuitionistic logic makes contradiction explosive.
 ---
 theory ExplosiveNot :=
 	assume not_elim: if ¬P, P then Q.
+begin
+
+	lemma not_imp_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R, nP: ¬P then Q;
+		apply assm;
+		- by not_elim[OF nP].
+		.
+
 end
 
 theory IntuitionisticNot :=
@@ -378,7 +385,7 @@ begin
 		- by PR.
 		- by nPQ QR.
 		.
-
+		
 end
 
 ---
@@ -388,13 +395,15 @@ context ContraPos begin
 
 	extend ClaviusLaw begin
 
+		lemma not_imp_elim: if nPQ: ¬P ⟹ Q, PR: P ⟹ R, QR: Q ⟹ R then R;
+			apply not_imp_imp;
+			- if nR: ¬R;
+				by QR nPQ not.cmono[OF PR nR].
+			.
+
 		interpret ExcludedMiddle;
-			- show: ∀Q. (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q;
-				apply not_imp_imp;
-				- if not: ¬(∀Q. (P ⟹ Q) ⟹ (¬P ⟹ Q) ⟹ Q), PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
-					apply nPQ;
-					apply nall_elim_not[OF not].
-				.
+			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
+				apply not_imp_elim[OF nPQ PQ].
 			.
 
 	end

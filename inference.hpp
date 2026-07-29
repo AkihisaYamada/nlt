@@ -210,14 +210,14 @@ public:
 	/** @brief applies rewriting */
 	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
 	/** @brief Rewrites a theorem */
-	Thm rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
+	Thm rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
 	/**
 	 * @brief returns a rewrite equation for the given source term at given position.
 	 * 
 	 * @param source the term to be rewritten
 	 * @return the equation
 	 */
-	Thm steps( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+	Thm steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
 		size_t ind = rew->get_ind(rel);
 		if( auto ret = _steps(thy,source,simp,min,max,normalize,pos,ind) ) {
 			return *ret;
@@ -254,7 +254,7 @@ private:
 	 * @returns equation, the rhs, and whether rewrite succeeded
 	 */
 	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, Opt<std::string const&> simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _steps( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
+	Opt<Thm> _steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
 };
 
 inline void Thesis::auto_discharge() & {

@@ -30,7 +30,7 @@ Opt<string const&> gets_binary_sym( Term const& term ) {
 }
 Opt<string const&> gets_binary_sym( Term&& term ) = delete;// for memory safety
 
-Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
+Thm Thy::dualize( Thm const& thm, Resolver& resolver ) & {
 	Thy subthy = branch();
 	Thm body = subthy.weaken(thm);
 	for(;;) {
@@ -43,9 +43,8 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) const & {
 	}
 	if( auto const& bin = strips_binary(body) ) {
 		auto const& [rel,l,r] = *bin;
-		auto const& dual = find_thm(DUAL+rel);
-		if( !dual ) throw Error("\"no dual rule for\"")(rel);
-		Thm dual_thm = subthy.weaken(*dual) << body;
+		auto const& dual = term_thm(rel,DUAL);
+		Thm dual_thm = subthy.weaken(dual) << body;
 		while( auto o = resolver.discharges(subthy,dual_thm,{}) ) {
 			dual_thm = *o;
 		}
@@ -107,15 +106,13 @@ void Thy::register_trans( Thm const& thm ) & {
 	if( auto const& rel2 = gets_binary_sym(*yz) )
 	if( auto const& rel3 = gets_binary_sym(xz) )
 	if( *rel1 == *rel2 && *rel2 == *rel3 ) {
-		add_thm(TRANS+*rel1,thm);
+		add_term_thm(*rel1,TRANS,thm);
 		return;
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
-Thm Thy::trans( string_view const& rel ) const& {
-	auto ret = find_thm(TRANS+rel);
-	if( !ret ) throw Error("\"transitivity rule unregistered\"")(rel);
-	return *ret;
+Thm Thy::trans( Term const& rel ) & {
+	return term_thm(rel,TRANS);
 }
 
 tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
@@ -447,7 +444,7 @@ size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
 }
 
 Opt<Thm> Resolver::_steps(
-	Thy const& thy, 
+	Thy& thy, 
 	CTerm const& s,
 	Opt<std::string const&> simp,
 	size_t min,
@@ -501,7 +498,7 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	size_t ind = rew->get_ind(rel);
 	auto const& revimp = rew->_revimps.finds_value(ind);// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
 	if( !revimp ) throw Error("\"unregistered backward rewriting\"");
-	auto const& thy = thesis.thy();
+	auto& thy = thesis.thy();
 	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
 	auto ret = (bool)steps;
 	if( ret ) {
@@ -522,7 +519,7 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	if( log > 1 ) _log() << "rewritten thesis to: " << thesis << endl;
 	return ret;
 }
-Thm Resolver::rewrites( Thy const& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
+Thm Resolver::rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
 	size_t ind = rew->_default_ind;
 	auto const& imp = rew->_imps.finds_value(ind);
 	if( !imp ) throw Error("\"unregistered forward rewriting\"");

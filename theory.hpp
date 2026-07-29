@@ -6,7 +6,7 @@
 
 class AThm;
 class Import;
-using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule>;
+using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule,Term>;
 
 template<typename T>
 using StrMMap = MMap<std::string,T>;
@@ -116,6 +116,12 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {}) &;
+	/** @brief A theorem bound to term.
+	 * @arg prop name of term property
+	 */
+	Thm term_thm( Term const& t, std::string const& prop ) &;
+	/** @brief Assigns a theorem as a term property. */
+	void add_term_thm( Term const& t, std::string const& prop, Thm const& thm ) &;
 	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
@@ -178,9 +184,9 @@ public:
 	Rewrite& modify_rewriter( std::string_view const& rew_name ) &;
 	void reset_rewrite() &;
 	void register_trans( Thm const& thm ) &;
-	Thm trans( std::string_view const& rel ) const&;
+	Thm trans( Term const& rel ) &;
 	void register_dual( Thm const& thm ) &;
-	Thm dualize( Thm const& thm, Resolver& resolver ) const &;
+	Thm dualize( Thm const& thm, Resolver& resolver ) &;
 	void import_rewrite( Import const& import, bool override_default ) &;
 	Resolver resolver( char log = 0 ) const &;
 	Thm prove( CTerm const& claim, char log = 0 ) const &;

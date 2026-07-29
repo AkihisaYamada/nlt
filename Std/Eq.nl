@@ -25,6 +25,7 @@ interpret eq: MetaEquivalence (=);
 	.
 
 note#dual eq.sym.
+note#trans eq.trans.
 
 lemma eq_imp: if PQ: P = Q, P: P then Q;
 	by eq_elim[of (x. x), OF PQ P].
@@ -32,7 +33,7 @@ lemma eq_imp: if PQ: P = Q, P: P then Q;
 lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
-set simp eq_imp eq_imp_rev eq.refl eq.trans.
+set simp eq_imp eq_imp_rev eq.refl.
 
 lemma eq_cong_meta#cong for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
@@ -47,9 +48,8 @@ lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
 lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
-	have 1: f x = f y;
+	... = f y;
 		by arg_cong[OF xy].
-	apply eq.trans[OF 1];
 	by fun_cong[OF fg].
 
 lemma eq_elim_dual: for P x y if xy: x = y, Py: P.[y] then P.[x];
@@ -67,10 +67,10 @@ theory MetaInverse f g :=
 	assume inverse: g (f x) = x.
 begin
 	interpret MetaInjective;
-		- for x x' if eq: f x = f x';
-			have 1: g (f x) = g (f x');
-				unfold eq.
-			by 1[unfold inverse].
+		- for x x' if eq: f x = f x' then x = x';
+			... = g (f x); unfold inverse.
+			... = g (f x'); unfold eq.
+			unfold inverse.
 		.
 end
 
@@ -100,7 +100,7 @@ theory MetaIf :=
 	fix If.
 	assume If_then: if P then If P x y = x.
 	---
-	A minimal specification: P and ¬P will not lead to explosion.
+	A paraconsistent specification: P and ¬P will not lead to explosion.
 	---
 	assume If_else: if P ⟹ x = y then If P x y = y.
 begin

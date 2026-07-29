@@ -24,11 +24,11 @@ interpret iff: MetaEquivalence (⟺);
 		.
 	.
 note! iff.refl.
-
-set simp iff_elim1 iff_elim2 iff.refl iff.trans.
-set rule iff_elim1 iff_elim2 iff.refl iff.trans.
-
+note#trans iff.trans.
 note#dual iff.sym.
+
+set simp iff_elim1 iff_elim2 iff.refl.
+set rule iff_elim1 iff_elim2 iff.refl.
 
 interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
@@ -179,7 +179,7 @@ begin
 				by all[OF xa Px].
 			.
 		- if ex: ∃x ⊏ a. P.[x], imp: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
-			by ex[unfold ex_iff_all, OF imp[OF (2) (1)]].
+			by ex[unfold ex_iff_all, OF imp[OF _ <]].
 		.
 	lemma ex_cong_strong:
 		if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])

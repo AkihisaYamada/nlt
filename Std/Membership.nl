@@ -113,19 +113,3 @@ begin
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
 end
 
-theory FunType :=
-	fix (→).
-	assume Fun_elim: if f ∈ A → B, x ∈ A then f x ∈ B.
-end
-
----
-# Type for Dependent Functions
----
-theory DepFunType :=
-	fix (FunIn).
-	assume FunIn_elim: if f ∈ FUN x ∈ A. B.[x], x ∈ A then f x ∈ B.[x].
-begin
-
-term FUN x ∈ A. B.
-
-end
