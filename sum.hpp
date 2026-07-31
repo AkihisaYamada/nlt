@@ -66,6 +66,9 @@ public:
 		}
 		return {};
 	}
+	friend bool operator<( Sum const& x, Sum const& y ) {
+		return x._un < y._un;
+	}
 };
 
 #endif

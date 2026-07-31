@@ -1,9 +1,18 @@
 #include<fstream>
 #include<filesystem>
 #include<ranges>
+#include<sanitizer/lsan_interface.h>
 #include"inference.hpp"
 #include"parser.hpp"
 
+#ifdef __SANITIZE_ADDRESS__
+#define EXIT(n) do {\
+	__lsan_do_leak_check();\
+	__lsan_disable();\
+	exit(n); } while(0)
+#else
+#define EXIT exit
+#endif
 #define FLAG_ERR (1 << 0)
 #define FLAG_SYS (1 << 1)
 #define FLAG_STA (1 << 2)
@@ -31,65 +40,82 @@ using namespace std;
 string const RULIFY = "#rulify";
 string const RULIFY_CONG = "#rcong";
 
-struct ClaimStatus {
-	struct Ternary {
-		bool self, weak;
-		operator bool() const { return self; }
-		void operator=( bool b ) { self = b; }
-	};
-	Ternary intro = {false,false}, cong = {false,false};
-	bool elim = false, dual = false, trans = false, unfold = false, fold = false, inflated = false, rulify = false, rulify_cong = false, followable = true;
+struct IntroClaim {
 	unsigned char after = 0;
 	unsigned char prems = 255;
 	bool strip_all = true;
-	static ClaimStatus const INFLATED;
+	bool weak = false;
 };
-inline ClaimStatus const ClaimStatus::INFLATED = {
-	.intro = {true,false},
-	.inflated = true,
+bool operator<( IntroClaim const& x, IntroClaim const& y ) {
+	return x.after < y.after || x.prems < y.prems || x.strip_all < y.strip_all;
+}
+ostream& operator<<( ostream& os, IntroClaim const& cs ) {
+	os << "#intro";
+	char const* post = "";
+	char const* pre = "[";
+	if( cs.prems != 255 ) {
+		os << pre << "prems " << (int)cs.prems;
+		post = "]";
+		pre = ", ";
+	}
+	if( cs.after > 0 ) {
+		os << pre << "after " << (int)cs.after;
+		post = "]";
+		pre = ", ";
+	}
+	return os << post;
+}
+struct SimpClaim {
+	unsigned char after = 0;
+	bool dual = false;
 };
+bool operator<( SimpClaim const& x, SimpClaim const& y ) {
+	return x.after < y.after || x.dual < y.dual;
+}
+ostream& operator<<( ostream& os, SimpClaim const& cs ) {
+	os << "#simp";
+	if( cs.after > 0 ) os << "[after " << (int)cs.after << ']';
+	return os;
+}
 
-ostream& operator<<( ostream& os, ClaimStatus && cs ) = delete;
+enum class OtherClaim {
+	ELIM, INFL, REFL, DUAL, TRANS,
+	CONG, CONG_WEAK, REWRITE_IMP, REWRITE_REV,
+	RULE, RULE_CONG
+};
+ostream& operator<<( ostream& os, OtherClaim const& cs ) {
+	switch( cs ) {
+		case OtherClaim::ELIM: return os << "#elim";
+		case OtherClaim::INFL: return os << "#infl";
+		case OtherClaim::REFL: return os << "#refl";
+		case OtherClaim::TRANS: return os << "#trans";
+		case OtherClaim::DUAL: return os << "#dual";
+		case OtherClaim::CONG: return os << "#cong";
+		case OtherClaim::CONG_WEAK: return os << "#cong?";
+		case OtherClaim::REWRITE_IMP: return os << "#rewrite_imp";
+		case OtherClaim::REWRITE_REV: return os << "#rewrite_rev";
+		case OtherClaim::RULE: return os << "#rule";
+		case OtherClaim::RULE_CONG: return os << "#rule_cong";
+		default: assert(false);
+	}
+}
+
+using ClaimStatus = set<Sum<IntroClaim,SimpClaim,OtherClaim>>;
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
-	auto _print_cs_mod = [&]{
-		char const* post = "";
-		char const* pre = "[";
-		if( cs.prems != 255 ) {
-			os << pre << "prems " << (int)cs.prems;
-			post = "]";
-			pre = ", ";
+	if( cs.empty() ) return os << ':';
+	for( auto const& c : cs ) {
+		if( auto const& intro = c.ref<IntroClaim>() ) {
+			os << *intro;
+		} else if( auto const& simp = c.ref<SimpClaim>() ) {
+			os << *simp;
+		} else if( auto const& other = c.ref<OtherClaim>() ) {
+			os << *other;
+		} else {
+			assert(false);
 		}
-		if( cs.after > 0 ) {
-			os << pre << "after " << (int)cs.after;
-			post = "]";
-			pre = ", ";
-		}
-		os << post;
-	}; 
-	if( cs.intro ) {
-		os << "#intro";
-		if( cs.intro.weak ) os << '?';
-		_print_cs_mod();
 	}
-	if( cs.elim ) {
-		os << "#elim";
-	}
-	if( cs.dual ) {
-		os << "#dual";
-	}
-	if( cs.unfold ) {
-		os << "#simp";
-		_print_cs_mod();
-	}
-	if( cs.fold ) {
-		os << "#fold";
-	}
-	if( cs.cong ) {
-		os << "#cong";
-		if( cs.cong.weak ) os << '?';
-	}
-	return os << ": ";
+	return os;
 }
 
 Pair<fstream,string> file_of_thy( string_view const& dir, string_view const& name ) {
@@ -426,114 +452,130 @@ public:
 			return os << ' ' << flush;
 		};
 	}
-	Opt<ClaimStatus> gets_claim_status() {
-		ClaimStatus cs;
+	bool gets_claim_status( ClaimStatus& cs ) {
 		if( skips("!") ) {
-			cs.intro = {true,false};
-			cs.inflated = true;
+			cs.emplace(IntroClaim());
+			cs.emplace(OtherClaim::INFL);
 		} else if( skips("?") ) {
-			cs.intro = {true,true};
-			cs.inflated = true;
+			cs.emplace(IntroClaim{.weak=true});
+			cs.emplace(OtherClaim::INFL);
 		} else if( skips("#") ) {
 			do {
 				if( skips("intro") ) {
-					cs.intro = {true,skips("?")};
+					IntroClaim intro;
+					if( skips("[") ) {
+						do {
+							if( skips("after") ) {
+								intro.after = get_int();
+							} else if( skips("prems") ) {
+								intro.prems = get_int();
+							} else if( skips("no_expand") ) {
+								intro.strip_all = false;
+							} else break;
+						} while( skips(",") );
+						skip("]");
+					}
+					intro.weak = skips("?");
+					cs.emplace(intro);
 				} else if( skips("cong") ) {
-					cs.cong = {true,skips("?")};
+					cs.emplace( skips("?") ? OtherClaim::CONG_WEAK : OtherClaim::CONG );
 				} else if( skips("rule" ) ) {
-					cs.rulify = true;
+					cs.emplace( OtherClaim::RULE );
 				} else if( skips("rule_cong") ) {
-					cs.rulify_cong = true;
+					cs.emplace( OtherClaim::RULE_CONG );
 				} else if( skips("elim") ) {
-					cs.elim = true;
+					cs.emplace( OtherClaim::ELIM );
+				} else if( skips("refl") ) {
+					cs.emplace( OtherClaim::REFL );
 				} else if( skips("dual") ) {
-					cs.dual = true;
+					cs.emplace( OtherClaim::DUAL );
 				} else if( skips("trans") ) {
-					cs.trans = true;
+					cs.emplace( OtherClaim::TRANS );
 				} else if( skips("simp") ) {
-					cs.unfold = true;
-				} else if( skips("fold") ) {
-					cs.fold = true;
+					unsigned char after = 0;
+					if( skips("[") ) {
+						if( skips("after") ) {
+							after = get_int();
+						}
+						skip("]");
+					}
+					cs.emplace( SimpClaim{.after=after} );
+				} else if( skips("rewrite_imp") ) {
+					cs.emplace( OtherClaim::REWRITE_IMP );
+				} else if( skips("rewrite_rev") ) {
+					cs.emplace( OtherClaim::REWRITE_REV );
 				} else {
 					throw Error("\"unknown rule\"")(peek_token());
 				}
-				if( skips("[") ) {
-					do {
-						if( skips("after") ) {
-							cs.after = get_int();
-						} else if( skips("prems") ) {
-							cs.prems = get_int();
-						} else if( skips("no_expand") ) {
-							cs.strip_all = false;
-						} else break;
-					} while( skips(",") );
-					skip("]");
-				}
 			} while( skips("#") );
 		} else {
-			return {};
+			return false;
 		}
-		return {cs};
+		return true;
 	}
-	void add_claim( Thy& loc, Opt<string> const& name, Opt<ClaimStatus> const& cs, Thm const& thm ) {
+	void add_claim( Thy& loc, Opt<string> const& name, ClaimStatus const& cs, Thm const& thm ) {
 		ThmInfo info = {};
-		if( cs ) {
-			if( cs->inflated ) {
-				auto blaster = loc.resolver(_out_resolver);
-				blaster.inflate(loc,thm);
-			}
-			if( cs->intro ) {
-				if( cs->after > 0 ) {
-					info = {Elim::rule( thm, cs->after-1, cs->intro.weak ? '?' : '!' )};
+		for( auto mode : cs ) {
+			if( auto const& intro = mode.ref<IntroClaim>() ) {
+				if( intro->after > 0 ) {
+					info = {Elim::rule( thm, intro->after-1, intro->weak ? '?' : '!' )};
 					loc.add_thm(INF,thm,info);
 				} else {
-					info = {Intro::imp(thm,cs->prems,cs->strip_all)};
-					add_intro(loc,thm,*info.ref<Intro>(),!cs->intro.weak);
+					info = {Intro::imp(thm,intro->prems,intro->strip_all)};
+					add_intro(loc,thm,*info.ref<Intro>(),!intro->weak);
 				}
-			}
-			if( cs->cong ) {
-				if( cs->cong.weak ) {
-					loc.modify_rewriter(SIMP).register_fallback(thm);
+			} else if( auto const& simp = mode.ref<SimpClaim>() ) {
+				Thm thm2 = simp->dual ? [&]{
+					auto resolver = Resolver({},_out_resolver);
+					return loc.dualize(thm,resolver);
+				}() : thm;
+				if( simp->after > 0 ) {
+					info = {Elim::rule(thm2,simp->after-1,'=')};
+					loc.add_thm(INF,thm2,info);
 				} else {
-					loc.modify_rewriter(SIMP).register_cong(thm);
-				}
-			}
-			if( cs->rulify ) {
-				auto [ind,rel,rule] = loc.rewriter(RULIFY).make_rule(thm,false);
-				info = {rule};
-				loc.add_thm(RULIFY+rel,thm,info);
-			}
-			if( cs->rulify_cong ) {
-				loc.modify_rewriter(RULIFY).register_cong(thm);
-			}
-			if( cs->elim ) {
-				info = {Elim::rule(thm,0,'?')};
-				loc.add_thm(ELIM,thm,info);
-			}
-			if( cs->dual ) {
-				loc.register_dual(thm);
-			}
-			if( cs->trans ) {
-				loc.register_trans(thm);
-			}
-			if( cs->unfold ) {
-				if( cs->after > 0 ) {
-					info = {Elim::rule(thm,cs->after-1,'=')};
-					loc.add_thm(INF,thm,info);
-				} else {
-					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm,false);
+					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm2,false);
 					info = {rule};
-					loc.add_thm(SIMP+rel,thm,info);
+					loc.add_thm(SIMP+rel,thm2,info);
 				}
-			}
-			if( cs->fold ) {
-				auto resolver = Resolver({},_out_resolver);
-				auto const& dual = loc.dualize(thm,resolver);
-				if( cs->after > 0 ) {
-					loc.add_thm(INF,dual,Elim::rule(dual,cs->after,'='));
-				} else {
-					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(dual,false);
-					loc.add_thm(SIMP+rel,dual,rule);
+			} else if( auto const& other = mode.ref<OtherClaim>() ) {
+				switch( *other ) {
+				case OtherClaim::ELIM:
+					info = {Elim::rule(thm,0,'?')};
+					loc.add_thm(ELIM,thm,info);
+					break;
+				case OtherClaim::INFL: {
+					auto blaster = loc.resolver(_out_resolver);
+					blaster.inflate(loc,thm);
+				} break;
+				case OtherClaim::DUAL:
+					loc.register_dual(thm);
+					break;
+				case OtherClaim::TRANS:
+					loc.register_trans(thm);
+					break;
+				case OtherClaim::REFL:
+					loc.register_refl(thm);
+					break;
+				case OtherClaim::CONG:
+					loc.modify_rewriter(SIMP).register_cong(thm);
+					break;
+				case OtherClaim::CONG_WEAK:
+					loc.modify_rewriter(SIMP).register_fallback(thm);
+					break;
+				case OtherClaim::REWRITE_IMP:
+					loc.register_imp(thm,true);
+					break;
+				case OtherClaim::REWRITE_REV:
+					loc.register_imp(thm,false);
+					break;
+				case OtherClaim::RULE: {
+					auto [ind,rel,rule] = loc.rewriter(RULIFY).make_rule(thm,false);
+					info = {rule};
+					loc.add_thm(RULIFY+rel,thm,info);
+				} break;
+				case OtherClaim::RULE_CONG:
+					loc.modify_rewriter(RULIFY).register_cong(thm);
+					break;
 				}
 			}
 		}
@@ -888,12 +930,12 @@ public:
 	struct Fix : string {};
 	struct Assume {
 		Opt<string> name;
-		Opt<ClaimStatus> cs;
+		ClaimStatus cs;
 		Opt<Term> assm;
 	};
 	struct GoalPat {
 		Opt<string> name;
-		Opt<ClaimStatus> cs;
+		ClaimStatus cs;
 		vector<Sum<Fix,Assume>> decls;
 		Opt<Term> concl;
 		bool proof;
@@ -903,8 +945,7 @@ public:
 		bool show = skips("show");
 		if( show ) {
 			ret.name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
-			ret.cs = gets_claim_status();
-			if( !ret.cs ) skip(":");
+			if( !gets_claim_status(ret.cs) ) skip(":");
 		}
 		bool modified = false;
 		for(;;) {
@@ -916,8 +957,8 @@ public:
 			} else if( skips("if") ) {
 				do {
 					auto name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
-					auto const& cs = gets_claim_status();
-					auto assm = cs ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
+					ClaimStatus cs;
+					auto assm = gets_claim_status(cs) ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
 					ret.decls.emplace_back(Assume{name,cs,assm});
 				} while( skips(",") );
 				modified = true;
@@ -946,7 +987,7 @@ public:
 		auto loc = _thy.branch();
 		auto to_loc = *loc.parent();
 		auto loc_goal = goal.subst(to_loc);
-		auto css = vector<Pair<Opt<string>,Opt<ClaimStatus>>>();
+		auto css = vector<Pair<Opt<string>,ClaimStatus>>();
 		for( auto const& decl : pat.decls ) {
 			if( auto const& var = decl.ref<Fix>() ) {
 				auto all = loc_goal.cunary(ALL);
@@ -1189,7 +1230,7 @@ public:
 				break;
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
-				exit(0);
+				EXIT(0);
 			} else {
 				throw Error("\"Unexpected\"")(get());
 			}
@@ -1281,7 +1322,9 @@ public:
 				resolver.inflate(_thy,*thm);
 				add_intro(_thy,*thm,true);
 			}
-			while( auto cs = gets_claim_status() ) {
+			for(;;) {
+				ClaimStatus cs;
+				if( !gets_claim_status(cs) ) break;
 				while( auto thm = gets_thm() ) {
 					add_claim(_thy,{},cs,*thm);
 				}
@@ -1361,13 +1404,11 @@ public:
 		auto thm = get_thm();
 		add_claim(_thy,name,cs,thm);
 		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
-		if( !name && cs ) {
+		if( !name && !cs.empty() ) {
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
 				if MSG {
-					cout << "\t";
-					if( cs ) cout << *cs;
-					cout << _thy.pretty(*o) << endl;
+					cout << "\t" << cs << _thy.pretty(*o) << endl;
 				}
 			}
 		}
@@ -1380,11 +1421,10 @@ public:
 		_thy = prev_thy;
 		return ret;
 	}
-	Pair<Opt<string>,Opt<ClaimStatus>> _get_name_status() {
-		Pair<Opt<string>,Opt<ClaimStatus>> ret;
+	Pair<Opt<string>,ClaimStatus> _get_name_status() {
+		Pair<Opt<string>,ClaimStatus> ret;
 		ret.first = gets( Tokenizer::WORD | Tokenizer::NUMBER );
-		ret.second = gets_claim_status();
-		if( !ret.second ) {
+		if( !gets_claim_status(ret.second) ) {
 			skip(":");
 		}
 		return ret;
@@ -1393,7 +1433,7 @@ public:
 		return [&]( ostream& os )->ostream& {
 			if( name ) cout << *name;
 			if( cs ) {
-				os << *cs;
+				os << *cs << ' ';
 			} else {
 				os << ": ";
 			}
@@ -1431,7 +1471,7 @@ public:
 						for(;;) {
 							auto t = get_term();
 							if MSG cout << _thy.pretty(t);
-							add_claim(assm_thy,{},ClaimStatus::INFLATED,assm_thy.assume(t));
+							add_claim(assm_thy,{},{IntroClaim(),OtherClaim::INFL},assm_thy.assume(t));
 							if( !skips(",") ) break;
 							if MSG cout << ", " << flush;
 						}
@@ -1806,7 +1846,7 @@ public:
 				return {};
 			} else if( skips("") ) {
 				cerr << location() << ": Unexpected EOF" << endl;
-				exit(0);
+				EXIT(0);
 			} else {
 				throw Error("\"Unexpected\"")(get());
 			}
@@ -1832,18 +1872,14 @@ public:
 			} else if( skips("set") ) {
 				if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
 					auto& rew = _thy.modify_rewriter( mode == 1 ? SIMP : RULIFY );
-					bool def = skips("!");
-					Thm imp = get_thm();
-					Thm revimp = get_thm();
-					Thm refl = get_thm();
-					if MSG cout << "registering " << ( mode == 1 ? "simplifier" : "rulifier" ) <<
-						":\n\timp: " << _thy.pretty(imp) <<
-						"\n\trev: " <<  _thy.pretty(revimp) <<
-						"\n\trefl: " << _thy.pretty(refl);
-					rew.register_refl(refl,def);
-					rew.register_imp(imp,true);
-					rew.register_imp(revimp,false);
-					if MSG cout << endl;
+					bool def = !skips("?");
+					auto rel = get_sym();
+					rew.register_rel(rel,def);
+					if MSG {
+						cout << "registered ";
+						if( def ) cout << "default ";
+						cout << ( mode == 1 ? "simplifier" : "rulifier" ) << " on " << _thy.pretty(rel) << endl;
+					}
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
 					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
@@ -2019,7 +2055,7 @@ public:
 		auto sym = t.sym();
 		if( !sym ) throw Error("\"expected a symbol\"")(t);
 		vector<CTerm> props;
-		vector<tuple<Opt<string>,Opt<ClaimStatus>,Thm>> prop_thms;
+		vector<tuple<Opt<string>,ClaimStatus,Thm>> prop_thms;
 		Thy thesis_thy = _thy.branch();
 		CTerm var = thesis_thy.fix("_thesis");
 		Thy goal_thy = thesis_thy.branch();
@@ -2112,7 +2148,7 @@ void run( istream& is, string const& name, string const& filepath, bool exit_on_
 		cout << "bye!" << endl;
 	}
 } catch( Term const& e ) {
-	exit(-1);
+	EXIT(-1);
 }
 
 int main(int argc, char* argv[]) {
@@ -2145,7 +2181,7 @@ int main(int argc, char* argv[]) {
 		auto file = filesystem::path(arg);
 		if( file.extension() != ".nl" ) {
 			cerr << "unsupported file type: " << arg << endl;
-			exit(-1);
+			EXIT(-1);
 		}
 		auto parent = file.parent_path();
 		auto locdir = parent.empty() ? filesystem::current_path() : filesystem::absolute(parent);

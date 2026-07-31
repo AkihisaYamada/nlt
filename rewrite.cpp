@@ -43,7 +43,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) & {
 	}
 	if( auto const& bin = strips_binary(body) ) {
 		auto const& [rel,l,r] = *bin;
-		auto const& dual = term_thm(rel,DUAL);
+		auto const& [dual,info] = term_thm(rel,DUAL);
 		Thm dual_thm = subthy.weaken(dual) << body;
 		while( auto o = resolver.discharges(subthy,dual_thm,{}) ) {
 			dual_thm = *o;
@@ -58,41 +58,41 @@ void Rewrite::add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong
 	rules[ind].emplace_back(std::move(rule));
 }
 
-void Rewrite::register_imp( Thm const& thm, bool dir ) & {
+void Thy::register_imp( Thm const& thm, bool dir ) & {
 	auto var_ctxt = thm.ctxt().fork().ctxt();
 	auto rule = strip_all(var_ctxt.weaken(thm),var_ctxt,patvar_maker()).first;// x = y ⟹ conds... ⟹ x ⟹ y
-	if( auto const& imp = rule.cbinary(IMP) )// conds... ⟹ x ⟹ y
-	if( auto const& imp2 = imp->second.cbinary(IMP) )
-	if( auto const& rel = gets_binary_sym(imp->first) ) {
-		auto const& ind = gets_rel_ind(*rel);
-		if( !ind ) throw Error("\"unregistered relation\"")(*rel);
+	if( auto const& imp = rule.cbinary(IMP) )
+	if( auto const& bin = strips_binary(imp->first) )
+	if( auto const& imp2 = imp->second.cbinary(IMP) ) {// conds... ⟹ x ⟹ y
+		auto const& [rel,l,r] = *bin;
 		Term t = imp2->second;
 		size_t conds = 0;
 		while( auto imp3 = t.binary(IMP) ) {
 			t = imp3->second;
 			conds++;
 		}
-		( dir ? _imps : _revimps ).emplace(*ind,Imp{thm,conds});
+		add_term_thm( rel, dir ? REWRITE_IMP : REWRITE_REV, thm, Rewrite::ImpInfo{conds} );
 		return;
 	}
 	throw Error("\"malformed imp\"")(thm);
 }
-bool Rewrite::register_refl( Thm const& thm, bool def ) & {
+bool Rewrite::register_rel( string const& rel, bool def ) & {
+	if( !gets_rel_ind(rel) ) {
+		size_t ind = _rels.size();
+		_rels.emplace_back(rel);
+		_rel2ind.emplace(rel,ind);
+		_congs.emplace_back();
+	}
+	if( def ) {
+		_default_rel = {rel};
+	}
+	return true;
+}
+void Thy::register_refl( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);
 	auto const& rel = gets_binary_sym(rule.conclusion());
 	if( !rel ) throw Error("\"malformed refl\"")(thm);
-	if( gets_rel_ind(*rel) ) {
-		return false;
-	}
-	size_t ind = _rels.size();
-	_rels.emplace_back(*rel);
-	_rel2ind.emplace(*rel,ind);
-	_refls.emplace_back(thm);
-	_congs.emplace_back();
-	if( def ) {
-		_default_ind = ind;
-	}
-	return true;
+	add_term_thm(*rel,REFL,thm);
 }
 void Thy::register_trans( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);// ∀x y, x = y, ∀z, y = z, φ... ⊢ x = z
@@ -112,7 +112,7 @@ void Thy::register_trans( Thm const& thm ) & {
 	throw Error("\"malformed trans\"")(thm);
 }
 Thm Thy::trans( Term const& rel ) & {
-	return term_thm(rel,TRANS);
+	return term_thm(rel,TRANS).first;
 }
 
 tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
@@ -148,9 +148,9 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 				if( auto x = strips_binary(body) ) {
 					auto const& [rel,s,t] = *x;
 					if( rel == IMP ) {// guarded condition
-						auto guard = cond_ctxt.closed(s);
-						if( !guard ) throw Error("\"open guarded condition\"")(body)(thm);
-						cond_ctxt.assume(*guard);
+						auto constraint = cond_ctxt.closed(s);
+						if( !constraint ) throw Error("\"open constrained condition or guard\"")(body)(thm);
+						cond_ctxt.assume(*constraint);
 						body = t;
 						continue;
 					}
@@ -159,15 +159,16 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 						if( !cond_lhs ) throw Error("\"open condition lhs\"")(s)(thm);
 						auto cond = rule_ctxt.assume((Term)*assm);//TODO: reduce double-check
 						if( abs && !t.unbind() ) throw Error("\"unsupported condition\"")(t)(thm);
-						conds.emplace_back(ind,abs,true,cond);
+						conds.emplace_back(rel,abs,true,cond);
 						cond_thms.emplace_back(std::move(cond));
 						break;
 					}
 				}
+				// guard
 				auto cond_conc = cond_ctxt.closed(body);
 				if( !cond_conc ) throw Error("\"open guard\"")(body)(thm);
 				auto cond = rule_ctxt.assume(cond_conc->intro());
-				conds.emplace_back(Opt<size_t>{},false,(bool)body.sym(),cond);
+				conds.emplace_back(Opt<string>{},false,(bool)body.sym(),cond);
 				cond_thms.emplace_back(std::move(cond));
 				break;
 			}
@@ -237,7 +238,7 @@ bool Resolver::_step_cond(
 	CTerm const& cond,// Δ ⊢ φ... ⟹ x = y or ∀v. φ.[v]... ⟹ X.[v] = Y.[v]
 	bool rewrite,
 	Opt<std::string const&> simp,
-	char ind,
+	string const& rel,
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
@@ -278,23 +279,23 @@ bool Resolver::_step_cond(
 		// source == (Γ; φθ... ⊢ xθ)
 	}
 	if( rewrite )
-	if( auto o = _step(subthy,source,simp,ind,pos_it,pos_end) ) {
+	if( auto o = _step(subthy,source,simp,rel,pos_it,pos_end) ) {
 		auto [eq,t] = *o;// Γ; ∀v'; φθ.[v']... ⊢ Xθ.[v'] = t.[v']
 		auto res = t.lift();// Γ ⊢ ∀v'. t.[v']
 		intp.instantiate( all ? res.capp()->second : res );
 		intp.discharge(eq.intro());// Γ ⊢ ∀v'. φθ.[v']... ⟹ Xθ.[v'] = res.[v']
 		return true;
 	}
-	auto eq = _make_refl(subthy,source,ind);
+	auto eq = _make_refl(subthy,source,rel);
 	auto res = source.lift();
 	intp.instantiate( all ? res.capp()->second : res );
 	intp.discharge(eq.intro());
 	if( log > 14 ) _log() << "! condition reflected: " << thy.pretty(eq) << endl;
 	return false;
 }
-Thm Resolver::_make_refl( Thy const& thy, CTerm const& source, char ind ) & {
+Thm Resolver::_make_refl( Thy& thy, CTerm const& source, string const& rel ) & {
 	indent++;
-	Thm refl = thy.weaken(rew->_refls[ind]).allE(source);
+	Thm refl = thy.term_thm(rel,REFL).first.allE(source);
 	while( auto imp = refl.cbinary(IMP) ) {
 		refl = refl.impE(prove(thy,imp->first,{}));
 	}
@@ -329,7 +330,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	size_t i = 0;
 	bool applied = false;
 	for( auto const& cond : rule.conds ) {
-		if( !cond.ind ) {// guard condition should be automatically provable
+		if( !cond.rel ) {// guard condition should be automatically provable
 			auto guard = intp.assuming();
 			assert(guard);
 			auto o = proves( subthy, *guard, cond.rec ? simp : Opt<string const&>{} );
@@ -341,11 +342,11 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 			intp.discharge(*o);
 		} else {
 			if( pos_it == pos_end ) {// active
-				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it,pos_end) || applied;
+				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.rel,pos_it,pos_end) || applied;
 			} else if( *pos_it == i ) {
-				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.ind,pos_it+1,pos_end) || applied;
+				applied = _step_cond(subthy,intp,cond.assm,true,simp,*cond.rel,pos_it+1,pos_end) || applied;
 			} else {
-				_step_cond(subthy,intp,cond.assm,false,{},*cond.ind,pos_it,pos_end);
+				_step_cond(subthy,intp,cond.assm,false,{},*cond.rel,pos_it,pos_end);
 			}
 			i++;
 		}
@@ -365,7 +366,8 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	return {};
 }
 
-Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, char ind, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, string const& rel, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
+	size_t ind = rew->gets_rel_ind(rel).value_or_throw(Error("\"Unregistered rewrite relation\"")(rel));
 	if( log > 12 ) {
 		_log() << "- rewriting ";
 		if( pos_it != pos_end ) {
@@ -375,7 +377,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 			}
 			cerr << "] ";
 		}
-		cerr << '(' << rew->_rels[ind] << "): " << thy.pretty(source) << endl;
+		cerr << '(' << rel << "): " << thy.pretty(source) << endl;
 	}
 	indent++;
 	auto apply = [&]( Rewrite::Rule const& rule, Subst const& matcher, Intp const& intp )->Opt<Thm> {
@@ -434,13 +436,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 }
 
 size_t Rewrite::get_ind( Opt<std::string> const& rel ) const & {
-	if( rel ) {
-		auto const& o = gets_rel_ind(*rel);
-		if( !o ) throw Error("\"unregistered relation\"")(*rel);
-		return *o;
-	} else {
-		return _default_ind;
-	}
+	return gets_rel_ind(rel.value_or(default_rel())).value_or_throw( Error("\"unregistered relation\"")(*rel) );
 }
 
 Opt<Thm> Resolver::_steps(
@@ -451,10 +447,10 @@ Opt<Thm> Resolver::_steps(
 	size_t max,
 	bool normalize,
 	vector<char> const& pos,
-	char ind
+	string const& rel
 ) & {
 	auto begin = pos.begin(), end = pos.end();
-	auto const& init = _step(thy,s,simp,ind,begin,end);
+	auto const& init = _step(thy,s,simp,rel,begin,end);
 	if( !init ) {
 		if( min == 0 ) {
 			return {};
@@ -465,12 +461,12 @@ Opt<Thm> Resolver::_steps(
 	if( max <= 1 && !normalize ) {
 		return eq;
 	}
-	auto trans = thy.trans(rew->_rels[ind]);
+	auto trans = thy.term_thm(rel,TRANS).first;
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
 	Thm ltrans = trans.allE(s);
 	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
-		auto const& step = _step(thy,t,simp,ind,begin,end);
+		auto const& step = _step(thy,t,simp,rel,begin,end);
 		if( !step ) {
 			if( i < min ) throw Error("\"too few steps\"")(to_string(i))(to_string(min))(t);
 			return eq;
@@ -490,22 +486,21 @@ Opt<Thm> Resolver::_steps(
 		t = t2;
 	}
 }
-bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
+bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string const&> orel ) & {
 	if( !rew ) return false;
 	// thesis: s ⟹ rest
 	auto const& goal = thesis.has_goal();
 	if( !goal ) return false;
-	size_t ind = rew->get_ind(rel);
-	auto const& revimp = rew->_revimps.finds_value(ind);// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
-	if( !revimp ) throw Error("\"unregistered backward rewriting\"");
 	auto& thy = thesis.thy();
-	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,ind);// s = t
+	auto const& rel = orel.value_or(rew->default_rel());
+	auto const& [revimp,info] = thy.term_thm(rel,REWRITE_REV);
+	auto const& impinfo = *ASSERTED(info.ref<Rewrite::ImpInfo>());
+	auto steps = _steps(thy,*goal,simp,min,max,normalize,pos,rel);// s = t
 	auto ret = (bool)steps;
 	if( ret ) {
-		auto imp = thy.weaken(revimp->thm);// x = y ⟹ φ ⟹... y ⟹ x
+		auto imp = revimp;// ∀x y. x = y ⟹ φ ⟹... y ⟹ x
 		imp = imp << *steps; // φθ ⟹... t ⟹ s
-		auto conds = revimp->conds;
-		for( size_t i = 0; i < conds; i++ ) {
+		for( size_t i = 0; i < impinfo.conds; i++ ) {
 			imp = imp.impE(prove(thy,imp.cbinary(IMP)->first,{}));
 		}// t ⟹ s
 		thesis.apply(Intro::imp(imp,1,false),false);// t ⟹ rest
@@ -520,37 +515,29 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	return ret;
 }
 Thm Resolver::rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
-	size_t ind = rew->_default_ind;
-	auto const& imp = rew->_imps.finds_value(ind);
-	if( !imp ) throw Error("\"unregistered forward rewriting\"");
-	auto steps = _steps(thy,source,simp,min,max,normalize,pos,ind);
+	string rel = rew->_default_rel.value_or_throw(Error("\"no default rewrite relation\""));
+	auto const& [imp,info] = thy.term_thm(rel,REWRITE_IMP);
+	auto const& impinfo = *ASSERTED(info.ref<Rewrite::ImpInfo>());
+	auto tmp = imp; // ∀x y. (x ⟺ y) ⟹ conds... ⟹ x ⟹ y
+	auto steps = _steps(thy,source,simp,min,max,normalize,pos,rel);
 	if( !steps ) {
 		return source;
 	}
-	auto tmp = thy.weaken(imp->thm);// (s ⟺ t) ⟹ conds... ⟹ s ⟹ t
 	tmp = tmp << *steps;// conds... ⟹ s ⟹ t
-	for( int i = 0; i < imp->conds; i++ ) {
+	for( int i = 0; i < impinfo.conds; i++ ) {
 		tmp = discharge(thy,tmp,{});
 	}// s ⟹ t
 	return tmp << source;
 }
 void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp, bool override_default ) & {
-	int i = 0;
-	override_default = override_default || !( _default_ind < _refls.size() );
-	for( auto const& refl : src._refls ) {
-		register_refl( thy.weaken(refl).subst(intp), override_default && i == src._default_ind );
-		i++;
+	override_default = override_default || !_default_rel;
+	for( auto const& rel : src._rels ) {
+		register_rel( rel, override_default && src._default_rel.contains(rel) );
 	}
 	for( auto const& congs : src._congs ) {
 		for( auto const& cong : congs ) {
 			register_cong(thy.weaken(cong).subst(intp));
 		}
-	}
-	for( auto const& [i,imp] : src._imps ) {
-		register_imp(thy.weaken(imp.thm).subst(intp),true);
-	}
-	for( auto const& [i,imp] : src._revimps ) {
-		register_imp(thy.weaken(imp.thm).subst(intp),false);
 	}
 	for( auto const& [i,thm] : src._fallbacks ) {
 		register_fallback(thy.weaken(thm).subst(intp));

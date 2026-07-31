@@ -8,11 +8,14 @@ import eq: MetaReflexive (=).
 assume eq_elim: for P x y if x = y, P.[x] then P.[y].
 
 begin
+
+set simp (=).
+
 ---
 ## Theorems
 ---
 
-note! eq.refl.
+note#intro#refl eq.refl.
 
 ---
 Equality is an equivalence.
@@ -27,13 +30,11 @@ interpret eq: MetaEquivalence (=);
 note#dual eq.sym.
 note#trans eq.trans.
 
-lemma eq_imp: if PQ: P = Q, P: P then Q;
+lemma eq_imp#rewrite_imp if PQ: P = Q, P: P then Q;
 	by eq_elim[of (x. x), OF PQ P].
 
-lemma eq_imp_rev: if PQ: P = Q, Q: Q then P;
+lemma eq_imp_rev#rewrite_rev if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
-
-set simp eq_imp eq_imp_rev eq.refl.
 
 lemma eq_cong_meta#cong for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].

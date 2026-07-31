@@ -151,7 +151,7 @@ struct Matcher {
 				}
 				return false;
 			}
-			if( subst ) if( auto const& act = subst->get(*sym) ) {// actually substituted
+			if( subst ) if( auto const& act = subst->get(*sym) ) {// pat is actually substituted
 				return match(*act,val,{});
 			}
 			if( auto const& map_opt = matcher.get(*sym) ) {// already assigned variable

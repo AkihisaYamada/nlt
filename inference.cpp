@@ -7,11 +7,13 @@ string const INTRO = "#intro";
 string const WEAK = "#weak";
 string const ELIM = "#elim";
 string const INF = "#inf";
-
-string const SIMP = "#simp";
-string const CONG = "#cong";
+string const REFL = "#refl";
 string const DUAL = "#dual";
 string const TRANS = "#trans";
+string const REWRITE_IMP = "#rewrite_imp";
+string const REWRITE_REV = "#rewrite_rev";
+string const SIMP = "#simp";
+string const CONG = "#cong";
 
 void cerr_proof_thms( Thy const& thy ) {
 	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INF } ) {
@@ -198,6 +200,7 @@ void Resolver::inflate( Thy& thy, Thm const& assm ) & {
 		thy.add_thm(lbl,athm,athm.info);
 	}
 }
+
 bool Resolver::_discharge(
 	Thesis& thesis,
 	size_t trial,

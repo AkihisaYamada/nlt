@@ -17,9 +17,15 @@ extern std::string const CONCL;
 extern std::string const ELIM;
 /** name for inflation rules, φ ⟹ ψ */
 extern std::string const INF;
-/** prefix for dualizer rules, e.g. ∀x y. x = y ⟹ y = x */
+/** property for implication rule: ∀P Q. P = Q ⟹ P ⟹ Q */
+extern std::string const REWRITE_IMP;
+/** property for reverse implication: ∀P Q. P = Q ⟹ Q ⟹ P */
+extern std::string const REWRITE_REV;
+/** property for reflexivity rule: ∀x. x = x */
+extern std::string const REFL;
+/** property for dualizer rule, e.g. ∀x y. x = y ⟹ y = x */
 extern std::string const DUAL;
-/** prefix for transitivity rules, e.g. ∀x y. x = y ⟹ ∀z. y = z ⟹ x = z */
+/** property for transitivity rules, e.g. ∀x y. x = y ⟹ ∀z. y = z ⟹ x = z */
 extern std::string const TRANS;
 /** rewriter name for simplifier */
 extern std::string const SIMP;
@@ -163,7 +169,7 @@ class Resolver {
 public:
 	Opt<Rewrite const&> const rew;
 	Rewrite::Rules rules;
-	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_refls.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_rels.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool discharges( Thesis& thesis, Opt<std::string const&> simp ) & {
 		return _discharge(thesis,1,true,simp,elim_res.size());
 	}
@@ -208,7 +214,7 @@ public:
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm ) &;
 	/** @brief applies rewriting */
-	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string> const& rel ) &;
+	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string const&> rel ) &;
 	/** @brief Rewrites a theorem */
 	Thm rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
 	/**
@@ -217,12 +223,11 @@ public:
 	 * @param source the term to be rewritten
 	 * @return the equation
 	 */
-	Thm steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string> const& rel ) & {
-		size_t ind = rew->get_ind(rel);
-		if( auto ret = _steps(thy,source,simp,min,max,normalize,pos,ind) ) {
+	Thm steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, std::string const& rel ) & {
+		if( auto ret = _steps(thy,source,simp,min,max,normalize,pos,rel) ) {
 			return *ret;
 		}
-		return _make_refl(thy,source,ind);
+		return _make_refl(thy,source,rel);
 	}
 private:
 	bool _apply_and_discharge(
@@ -248,13 +253,20 @@ private:
 		Opt<std::string const&> simp,
 		size_t elim_res_ind
 	) &;
-	Thm _make_refl( Thy const& thy, CTerm const& source, char ind ) &;
-	Opt<std::pair<Thm,CTerm>> _step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Thm _make_refl( Thy& thy, CTerm const& source, std::string const& rel ) &;
+	Opt<std::pair<Thm,CTerm>> _step(
+		Thy const& thy,
+		CTerm const& source,
+		Opt<std::string const&> simp,
+		std::string const& rel,
+		std::vector<char>::const_iterator it,
+		std::vector<char>::const_iterator end
+	) &;
 	/** rewrites abstraction.
 	 * @returns equation, the rhs, and whether rewrite succeeded
 	 */
-	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, Opt<std::string const&> simp, char ind, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
-	Opt<Thm> _steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, char ind ) &;
+	bool _step_cond( Thy const& thy, Intp& intp, CTerm const& cond, bool rewrite, Opt<std::string const&> simp, std::string const& rel, std::vector<char>::const_iterator it, std::vector<char>::const_iterator end ) &;
+	Opt<Thm> _steps( Thy& thy, CTerm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, std::string const& rel ) &;
 };
 
 inline void Thesis::auto_discharge() & {

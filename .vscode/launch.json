@@ -9,10 +9,12 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["Std/Fun.nl"],
+"args": ["-i","Std/Eq/Membership.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
-"environment": [{"name": "ASAN_OPTIONS", "value": "abort_on_error=1"}],
+"environment": [
+	{"name": "ASAN_OPTIONS", "value": "abort_on_error=1"}
+],
 "externalConsole": false,
 "MIMode": "gdb",
 "miDebuggerPath": "/usr/bin/gdb",

@@ -17,7 +17,7 @@ public:
 		friend Resolver;
 		friend Thy;
 		struct Cond {
-			Opt<size_t> ind;
+			Opt<std::string> rel;
 			bool abs;
 			bool rec;// allow recursive rewriting
 			CTerm assm;// φ or x. φ if abs
@@ -33,27 +33,22 @@ public:
 			return thm;
 		}
 	};
-private:
-	struct Imp {
-		Thm thm;// s = t ⟹ conditions ... ⟹ s ⟹ t
+	struct ImpInfo {// s = t ⟹ conditions ... ⟹ s ⟹ t
 		size_t conds;// number of conditions
 	};
+private:
 	/** relation symbols, e.g., ⟺ or = */
 	std::vector<std::string> _rels;
 	StrMap<size_t const> _rel2ind;
 	/** reflexivity theorems, e.g., ∀x. x = x */
 	std::vector<Thm> _refls;
-	/** ∀P Q. P = Q ⟹ P ⟹ Q */
-	Map<size_t,Imp> _imps;
-	/** ∀P Q. P = Q ⟹ Q ⟹ P */
-	Map<size_t,Imp> _revimps;
 	/** ∀x y x' y'. x = x' ⟹ y = y' ⟹ x + y = x' + y' */
 	std::vector<std::vector<Rule>> _congs;
 	/** ∀P Q. P = Q ⟹ P ⟺ Q */
 	Map<size_t,Rule> _fallbacks;
 	/** ∀P. P ⟹ P = true */
 	Opt<std::pair<Thm,size_t>> _to_true;
-	size_t _default_ind;
+	Opt<std::string> _default_rel;
 	friend Resolver;
 	friend Thy;
 public:
@@ -83,16 +78,18 @@ public:
 		assert( ind < _refls.size() );
 		return _refls[ind];
 	}
-	bool register_refl( Thm const& thm, bool def ) &;
-	void register_imp( Thm const& thm, bool dir ) &;
 	/** Congruence rules should be in form `∀x... y... x = y... ⟹ φ... ⟹ l[x...] = r[y...]` */
 	std::tuple<char,std::string,Rule> make_rule( Thm const& thm, bool cong ) const&;
+	bool register_rel( std::string const& rel, bool def ) &;
 	bool register_cong( Thm const& thm ) &;
 	void register_fallback( Thm const& thm ) &;
 	void register_to_true( Thm const& thm ) &;
 	void add_rewrite_rule( Rewrite::Rules& rules, Thm const& thm, bool cong ) const &;
 	void import( Rewrite const& src, Thy const& thy, Intp const& intp, bool override_default ) &;
 	size_t get_ind( Opt<std::string> const& rel ) const &;
+	std::string default_rel() const& {
+		return _default_rel.value_or_throw(Error("\"missing default rewrite relation\""));
+	}
 };
 
 #endif

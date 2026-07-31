@@ -49,4 +49,9 @@ bool operator==( Pair<T1,T2> const& x, Pair<U1,U2> const& y ) {
 	return x.first == y.first && x.second == y.second;
 }
 
+template<typename T1, typename T2, typename U1, typename U2>
+bool operator<( Pair<T1,T2> const& x, Pair<U1,U2> const& y ) {
+	return x.first < y.first || x.second < y.second;
+}
+
 #endif

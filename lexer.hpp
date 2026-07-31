@@ -141,15 +141,15 @@ public:
 		if( !ret ) throw SyntaxError("\"expected bool\"");
 		return *ret;
 	}
-	Opt<size_t> gets_nat();
-	size_t get_nat() {
-		auto ret = gets_nat();
+	Opt<size_t> gets_nat( std::function<bool(size_t)> const& test = [](size_t n){ return true; } );
+	size_t get_nat( std::function<bool(size_t)> const& test = [](size_t n){ return true; } ) {
+		auto ret = gets_nat(test);
 		if( !ret ) throw SyntaxError("\"expected nat\"");
 		return *ret;
 	}
-	Opt<int> gets_int();
-	int get_int() {
-		auto ret = gets_int();
+	Opt<int> gets_int( std::function<bool(int)> const& test = [](int n){ return true; } );
+	int get_int( std::function<bool(int)> const& test = [](int n){ return true; } ) {
+		auto ret = gets_int(test);
 		if( !ret ) throw SyntaxError("\"expected int\"");
 		return *ret;
 	}

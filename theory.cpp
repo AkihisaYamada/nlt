@@ -11,6 +11,7 @@ struct Thy::_Body {
 	string name;
 	std::filesystem::path dir;
 	StrMMap<Pair<Thm,ThmInfo>> thms;
+	StrMap<Map<Term,Pair<Thm,ThmInfo>>> term_thms;
 	/** local theories */
 	StrMap<Thy> thys;
 	Map<size_t,string> assm_names;
@@ -224,6 +225,14 @@ Opt<Thm> Thy::_find_thm_name(
 	bool allow_ancestor,
 	bool allow_rec
 ) const {
+	if( auto ret = _find_thm_local(name,import,test) ) return ret;
+	return _find_thm_unqualified(name,import,test,allow_ancestor,allow_rec);
+}
+Opt<Thm> Thy::_find_thm_local(
+	string_view const& name,
+	Import const& import,
+	ThmTest const& test
+) const {
 	// find from local theorems
 	if( name == "*" ) {
 		for( auto const& [name,athm] : _ref->thms ) {
@@ -238,6 +247,16 @@ Opt<Thm> Thy::_find_thm_name(
 			}
 		}
 	}
+	return {};
+}
+
+Opt<Thm> Thy::_find_thm_unqualified(
+	string_view const& name,
+	Import const& import,
+	ThmTest const& test,
+	bool allow_ancestor,
+	bool allow_rec
+) const {
 	auto f = [&]( auto const& fst_end )->Opt<Thm> {
 		for( auto [it,end] = fst_end; it != end; it++ ) {
 			auto const& [p,rec] = it->second;
@@ -306,27 +325,69 @@ Opt<Thm> Thy::_find_thm(
 	}
 	return {};
 }
-void Thy::add_term_thm( Term const& t, std::string const& prop, Thm const& thm ) & {
+void Thy::add_term_thm( Term const& t, std::string const& prop, Thm const& thm, ThmInfo const& info ) & {
 	assert( thm.ctxt() == *this );
-	add_thm(prop,thm,t);
+	auto [it,fl] = _ref->term_thms.emplace(prop,{});
+	auto& map = it->second;
+	map.emplace(t,Pair<Thm,ThmInfo>(thm,info));
 }
-Thm Thy::term_thm( Term const& s, std::string const& prop ) & {
-	auto ret = find_thm(prop,
-		[&]( Import const& import, std::string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-			auto t = info.ref<Term>();
-			assert(t);
-			if( t->subst(import) == s ) {
-				auto ret = thm.subst(import);
-				if( import.source() != *this ) {// memoize for better reuse
-					add_term_thm(s,prop,ret);
-				}
-				return ret;
+
+Opt<Pair<Thm,ThmInfo>> Thy::_find_term_thm( Term const& s, std::string const& prop, Import const& import, bool allow_rec ) & {
+	if( auto map = _ref->term_thms.finds_value(prop) ) {
+		for( auto const& [t,val] : *map ) {
+			if( t.subst(import) == s ) {// TODO: implement equal modulo substitution
+				auto const& [thm,info] = val;
+				return {{thm.subst(import),info}};
 			}
-			return {};
 		}
-	);
-	if( !ret ) throw Error("\"term theorem not found\"")(prop)(s);
-	return *ret;
+	}
+	// find from imports
+	auto f = [&]( auto const& it )->Opt<Pair<Thm,ThmInfo>>{
+		auto const& [p,rec] = it->second;
+		if( auto ret = p.source()._find_term_thm(s.subst(import),prop,p.compose(import),rec) ) {
+			return ret;
+		}
+		return {};
+	};
+	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
+		if( auto ret = f(it) ) return ret;
+	}
+	if( allow_rec ) {
+		for( auto [it,end] = _ref->imports.equal_range(NONREC_IMPORT); it != end; it++ ) {
+			if( auto ret = f(it) ) return ret;
+		}
+	}
+	return {};
+}
+Opt<Pair<Thm,ThmInfo> const&> Thy::find_term_thm( Term const& s, std::string const& prop ) & {
+	// find from local database
+	auto [pair,fresh] = _ref->term_thms.emplace(prop,{});
+	if( !fresh ) {
+		if( auto ret = pair->second.finds_value(s) ) {
+			return ret;
+		}
+	}
+	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
+		auto const& [p,rec] = it->second;
+		if( auto ret = p.source()._find_term_thm(s,prop,p,rec) ) {
+			auto [it,fl] = pair->second.emplace(s,*ret);
+			return {it->second};
+		}
+	}
+	for( auto [it,end] = _ref->imports.equal_range(NONREC_IMPORT); it != end; it++ ) {
+		auto const& [p,rec] = it->second;
+		if( auto ret = p.source()._find_term_thm(s,prop,p,rec) ) {
+			auto [it,fl] = pair->second.emplace(s,*ret);
+			return {it->second};
+		}
+	}
+	if( auto const& p = parent() )
+	if( auto ret = p->source().find_term_thm(s,prop) ) {
+		auto const& [thm,info] = *ret;
+		auto [it,fl] = pair->second.emplace(s,Pair<Thm,ThmInfo>(weaken(thm),info));
+		return {it->second};
+	}
+	return {};
 }
 
 Opt<Import> Thy::find_thy(
@@ -555,7 +616,7 @@ ostream& Thy::pretty_rewrite(
 	for( size_t i = 0; i < rels.size(); i++ ) {
 		auto const& rel = rels[i];
 		os << mk_indent(n) << prefix << "[on " << rel;
-		if( rew._default_ind == i ) os << ", default";
+		if( rew._default_rel.contains(rel) ) os << ", default";
 		os << ']' << endl << mk_indent(n1) << "refl: " << pretty( rew.get_refl(i) ) << endl;
 		if( auto fallback = rew._fallbacks.finds_value(i) ) {
 			os << mk_indent(n1) << "fallback: " << pretty(*fallback) << endl;

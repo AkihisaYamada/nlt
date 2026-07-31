@@ -306,23 +306,27 @@ bool Lexer::_fetch_word_or_op() {
 	}
 }
 
-Opt<size_t> Tokenizer::gets_nat() {
+Opt<size_t> Tokenizer::gets_nat( std::function<bool(size_t)> const& test ) {
 	auto const& t = peek_token();
 	int ret;
 	auto last = t.data()+t.size();
 	auto [ptr,ec] = from_chars(t.data(),last,ret);
 	if( ptr != last ) return {};
 	reset();
+	if( !test(ret) ) throw Error("\"out of range\"")(to_string(ret));
 	return ret;
 }
-Opt<int> Tokenizer::gets_int() {
+Opt<int> Tokenizer::gets_int( std::function<bool(int)> const& test ) {
+	int ret;
 	if( skips("-") ) {
-		return {-(int)get_nat()};
+		ret = -(int)get_nat();
+	} else {
+		auto n = gets_nat();
+		if( !n ) return {};
+		ret = *n;
 	}
-	if( auto n = gets_nat() ) {
-		return {(int)*n};
-	}
-	return {};
+	if( !test(ret) ) throw Error("\"out of range\"")(to_string(ret));
+	return ret;
 }
 float Tokenizer::get_float() {
 	auto const& t = peek_token();

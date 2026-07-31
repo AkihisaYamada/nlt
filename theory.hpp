@@ -6,7 +6,7 @@
 
 class AThm;
 class Import;
-using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule,Term>;
+using ThmInfo = Sum<void*,Intro,Elim,Rewrite::Rule,Rewrite::ImpInfo>;
 
 template<typename T>
 using StrMMap = MMap<std::string,T>;
@@ -51,6 +51,27 @@ private:
 		bool allow_ancestor,
 		bool allow_rec
 	) const;
+	/** Finds theorem from local theorems */
+	Opt<Thm> _find_thm_local(
+		std::string_view const& name,
+		Import const& import,
+		ThmTest const& test
+	) const;
+	/** Finds theorem by unprefixed name */
+	Opt<Thm> _find_thm_unqualified(
+		std::string_view const& name,
+		Import const& import,
+		ThmTest const& test,
+		bool allow_ancestor,
+		bool allow_rec
+	) const;
+	/** Finds term property */
+	Opt<Pair<Thm,ThmInfo>> _find_term_thm(
+		Term const& t,
+		std::string const& prop,
+		Import const& import,
+		bool allow_rec
+	) &;
 	/** Finds theory by path */
 	Opt<Import> _find_thy(
 		std::string_view const& path,
@@ -116,12 +137,14 @@ public:
 	 * @exception is thrown if the theorem doesn't belong to this theory
 	 */
 	void add_thm(std::string_view const& name, Thm const& thm, ThmInfo const& info = {}) &;
-	/** @brief A theorem bound to term.
-	 * @arg prop name of term property
-	 */
-	Thm term_thm( Term const& t, std::string const& prop ) &;
+	/** Finds a term property */
+	Opt<Pair<Thm,ThmInfo> const&> find_term_thm( Term const& t, std::string const& prop ) &;
+	/** Gets a term property */
+	Pair<Thm,ThmInfo> const& term_thm( Term const& t, std::string const& prop ) & {
+		return find_term_thm(t,prop).value_or_throw( Error("\"missing term property\"")(prop)(t) );
+	}
 	/** @brief Assigns a theorem as a term property. */
-	void add_term_thm( Term const& t, std::string const& prop, Thm const& thm ) &;
+	void add_term_thm( Term const& t, std::string const& prop, Thm const& thm, ThmInfo const& info = {} ) &;
 	/** Finds the name of assumption made in the revision */
 	Opt<std::string> find_assm_name( size_t rev ) const;
 	/** Assuming a closed term. */
@@ -183,6 +206,8 @@ public:
 	}
 	Rewrite& modify_rewriter( std::string_view const& rew_name ) &;
 	void reset_rewrite() &;
+	void register_refl( Thm const& thm ) &;
+	void register_imp( Thm const& thm, bool dir ) &;
 	void register_trans( Thm const& thm ) &;
 	Thm trans( Term const& rel ) &;
 	void register_dual( Thm const& thm ) &;
