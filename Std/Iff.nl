@@ -4,10 +4,13 @@
 fix (⟺).
 
 assume iff_intro: if P ⟹ Q, Q ⟹ P then P ⟺ Q.
-assume iff_elim1: if P ⟺ Q, P then Q.
-assume iff_elim2: if P ⟺ Q, Q then P.
+assume iff_elim1#rewrite_imp if P ⟺ Q, P then Q.
+assume iff_elim2#rewrite_rev if P ⟺ Q, Q then P.
 
 begin
+
+set simp (⟺).
+set rule (⟺).
 
 lemma iff_elim: if PQ: P ⟺ Q, imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R then R;
 	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
@@ -23,12 +26,9 @@ interpret iff: MetaEquivalence (⟺);
 		- by iff_elim2[OF PQ] iff_elim2[OF QR].
 		.
 	.
-note! iff.refl.
+note#intro#refl iff.refl.
 note#trans iff.trans.
 note#dual iff.sym.
-
-set simp iff_elim1 iff_elim2 iff.refl.
-set rule iff_elim1 iff_elim2 iff.refl.
 
 interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);

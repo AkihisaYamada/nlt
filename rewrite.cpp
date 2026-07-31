@@ -219,7 +219,7 @@ void Thy::register_dual( Thm const& thm ) & {
 		while( auto imp2 = t.cbinary(IMP) ) {
 			t = imp2->second;
 		}
-		add_thm(DUAL+rel,thm);
+		add_term_thm(rel,DUAL,thm);
 		return;
 	}
 	throw Error("\"malformed dual rule\"")(thm);
