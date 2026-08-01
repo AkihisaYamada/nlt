@@ -79,14 +79,13 @@ ostream& operator<<( ostream& os, SimpClaim const& cs ) {
 }
 
 enum class OtherClaim {
-	ELIM, INFL, REFL, DUAL, TRANS,
+	ELIM, REFL, DUAL, TRANS,
 	CONG, CONG_WEAK, REWRITE_IMP, REWRITE_REV,
 	RULE, RULE_CONG
 };
 ostream& operator<<( ostream& os, OtherClaim const& cs ) {
 	switch( cs ) {
 		case OtherClaim::ELIM: return os << "#elim";
-		case OtherClaim::INFL: return os << "#infl";
 		case OtherClaim::REFL: return os << "#refl";
 		case OtherClaim::TRANS: return os << "#trans";
 		case OtherClaim::DUAL: return os << "#dual";
@@ -455,10 +454,8 @@ public:
 	bool gets_claim_status( ClaimStatus& cs ) {
 		if( skips("!") ) {
 			cs.emplace(IntroClaim());
-			cs.emplace(OtherClaim::INFL);
 		} else if( skips("?") ) {
 			cs.emplace(IntroClaim{.weak=true});
-			cs.emplace(OtherClaim::INFL);
 		} else if( skips("#") ) {
 			do {
 				if( skips("intro") ) {
@@ -519,7 +516,7 @@ public:
 			if( auto const& intro = mode.ref<IntroClaim>() ) {
 				if( intro->after > 0 ) {
 					info = {Elim::rule( thm, intro->after-1, intro->weak ? '?' : '!' )};
-					loc.add_thm(INF,thm,info);
+					loc.add_thm(INFLATOR,thm,info);
 				} else {
 					info = {Intro::imp(thm,intro->prems,intro->strip_all)};
 					add_intro(loc,thm,*info.ref<Intro>(),!intro->weak);
@@ -531,7 +528,7 @@ public:
 				}() : thm;
 				if( simp->after > 0 ) {
 					info = {Elim::rule(thm2,simp->after-1,'=')};
-					loc.add_thm(INF,thm2,info);
+					loc.add_thm(INFLATOR,thm2,info);
 				} else {
 					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm2,false);
 					info = {rule};
@@ -543,10 +540,6 @@ public:
 					info = {Elim::rule(thm,0,'?')};
 					loc.add_thm(ELIM,thm,info);
 					break;
-				case OtherClaim::INFL: {
-					auto blaster = loc.resolver(_out_resolver);
-					blaster.inflate(loc,thm);
-				} break;
 				case OtherClaim::DUAL:
 					loc.register_dual(thm);
 					break;
@@ -1319,7 +1312,6 @@ public:
 		if( skips("by") ) {
 			auto resolver = _thy.resolver(_out_resolver);
 			while( auto thm = gets_thm() ) {
-				resolver.inflate(_thy,*thm);
 				add_intro(_thy,*thm,true);
 			}
 			for(;;) {
@@ -1369,7 +1361,7 @@ public:
 			return true;
 		} else if( skips("thms") ) {
 			bool shp = skips("#");
-			string name = get_thm_name();
+			string name = gets_thm_name().value_or("");
 			string ref = shp ? "#"+name : name;
 			cout << "thms " << ref << ":\n" << _thy.print_thms(ref);
 			skip(".");
@@ -1471,7 +1463,7 @@ public:
 						for(;;) {
 							auto t = get_term();
 							if MSG cout << _thy.pretty(t);
-							add_claim(assm_thy,{},{IntroClaim(),OtherClaim::INFL},assm_thy.assume(t));
+							add_claim(assm_thy,{},{IntroClaim()},assm_thy.assume(t));
 							if( !skips(",") ) break;
 							if MSG cout << ", " << flush;
 						}

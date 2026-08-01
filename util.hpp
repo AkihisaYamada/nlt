@@ -180,6 +180,12 @@ public:
 		auto [conc,vars] = strip_all(thm,var_ctxt,patvar_maker());
 		return Intro(thm,conc,vars,0);
 	}
+	bool is_exact() const& {
+		return _vars == 0 && _conds == 0;
+	}
+	bool is_concl() const& {
+		return _conds == 0;
+	}
 	Thm const& conclusion() const& {
 		return _pat;
 	}

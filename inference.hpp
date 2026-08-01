@@ -15,8 +15,8 @@ extern std::string const WEAK;
 extern std::string const CONCL;
 /** name for elimination rules */
 extern std::string const ELIM;
-/** name for inflation rules, φ ⟹ ψ */
-extern std::string const INF;
+/** name for inflator rules */
+extern std::string const INFLATOR;
 /** property for implication rule: ∀P Q. P = Q ⟹ P ⟹ Q */
 extern std::string const REWRITE_IMP;
 /** property for reverse implication: ∀P Q. P = Q ⟹ Q ⟹ P */
@@ -37,6 +37,8 @@ void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = 
 inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
 	add_intro(thy,thm,Intro::rule(thm),allow_intro);
 }
+/** declare derivable conclusions */
+void inflate( Thy& thy, Thm const& assm );
 
 /** Class for inference */
 class Thesis {
@@ -211,8 +213,6 @@ public:
 		if( !imp ) throw Error("nothing to resolve")(thesis);
 		return thesis.impE(prove(thy,imp->first,simp));
 	}
-	/** declare derivable conclusions */
-	void inflate( Thy& thy, Thm const& assm ) &;
 	/** @brief applies rewriting */
 	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string const&> rel ) &;
 	/** @brief Rewrites a theorem */

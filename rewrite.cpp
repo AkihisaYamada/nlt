@@ -254,7 +254,6 @@ bool Resolver::_step_cond(
 		while( auto imp = pat.binary(IMP) ) {
 			auto assm = subthy.assume(subthy.weaken((v /= imp->first).csubst(intp)).inst(vt));
 			// assm == ((v. φ.[v])θ).[v'] ≡ φθ.[v']
-			inflate(subthy,assm);
 			add_intro(subthy,assm);
 			pat = imp->second;
 		}// subthy == (Γ; ∀v'; φθ.[v']...)
@@ -267,7 +266,6 @@ bool Resolver::_step_cond(
 	} else {// pat: φ... ⟹ x = y
 		while( auto imp = pat.binary(IMP) ) {
 			auto assm = subthy.assume(subthy.weaken(imp->first.csubst(intp)));// φθ
-			inflate(subthy,assm);
 			add_intro(subthy,assm);
 			pat = imp->second;
 		}// subthy == (Γ; φθ...)

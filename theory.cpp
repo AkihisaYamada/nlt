@@ -234,7 +234,7 @@ Opt<Thm> Thy::_find_thm_local(
 	ThmTest const& test
 ) const {
 	// find from local theorems
-	if( name == "*" ) {
+	if( name == "" ) {
 		for( auto const& [name,athm] : _ref->thms ) {
 			if( auto ret = test(import,name,athm.first,athm.second) ) {
 				return ret;

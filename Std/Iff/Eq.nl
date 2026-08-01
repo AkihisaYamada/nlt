@@ -36,7 +36,7 @@ extend AllRel begin
 		apply iff_intro;
 		- if Pa;
 			apply all_intro;
-			by all_elim1[OF Pa, unfold ab] #fold PQ.
+			by all_elim1[OF Pa, unfold ab] #simp PQ[dual].
 		- if Qb;
 			apply all_intro;
 			by all_elim1[OF Qb] #simp ab PQ.
@@ -99,7 +99,7 @@ extend Iff.Ex begin
 		lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 			apply iff_intro;
 			-> if xa: x = a, Px: P.[x];
-				by Px #fold xa.
+				by Px #simp xa[dual].
 			- if Pa: P.[a];
 				by ex_intro1[of a] Pa.
 			.

@@ -34,13 +34,13 @@ interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
 		apply iff_intro;
 		- if PR: P ⟺ R then Q ⟺ S;
-			have QR: Q ⟺ R;
-				by iff.trans[OF iff.sym[OF PQ] PR].
-			by iff.trans[OF QR RS].
+			... ⟺ P; by PQ[dual].
+			... ⟺ R; by PR.
+			by RS.
 		- if QS: Q ⟺ S then P ⟺ R;
-			have PS: P ⟺ S;
-				by iff.trans[OF PQ QS].
-			by iff.trans[OF PS iff.sym[OF RS]].
+			... ⟺ Q; by PQ.
+			... ⟺ S; by QS.
+			by RS[dual].
 		.
 	.
 
@@ -186,7 +186,7 @@ begin
 		then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
 		unfold+ ex_iff_all;
 		unfold a;
-		unfold P;.
+		unfold P.
 
 	lemma ex_cong_weak:
 		if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);

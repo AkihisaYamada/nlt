@@ -4,9 +4,9 @@ using namespace std;
 string const EXACT = "#exact";
 string const CONCL = "#concl";
 string const INTRO = "#intro";
+string const INFLATOR = "#inf";
 string const WEAK = "#weak";
 string const ELIM = "#elim";
-string const INF = "#inf";
 string const REFL = "#refl";
 string const DUAL = "#dual";
 string const TRANS = "#trans";
@@ -16,7 +16,7 @@ string const SIMP = "#simp";
 string const CONG = "#cong";
 
 void cerr_proof_thms( Thy const& thy ) {
-	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INF } ) {
+	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INFLATOR } ) {
 		cerr << name << ":" << thy.print_thms(name);
 	}
 }
@@ -76,18 +76,43 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 			return {INTRO,{thm,Intro::rule(thm)}};
 		}
 	}
-	return {INF,{thm,Elim::rule(thm,_after-1,_mode)}};
+	return {INFLATOR,{thm,Elim::rule(thm,_after-1,_mode)}};
 }
 
 void add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro ) {
 	if( intro.conds() > 0 ) {
 		thy.add_thm( allow_intro ? INTRO : WEAK, thm, {intro} );
-	} else if( intro.vars() > 0 ) {
-		thy.add_thm(CONCL,thm,{intro});
 	} else {
-		thy.add_thm(EXACT,thm);
+		if( intro.vars() > 0 ) {
+		thy.add_thm(CONCL,thm,{intro});
+		} else {
+			thy.add_thm(EXACT,thm);
+		}
+		inflate(thy,thm);
 	}
 }
+
+void inflate( Thy& thy, Thm const& assm ) {
+	auto infs = vector<pair<string,AThm>>();// inflation results
+	// one cannot update the list while reading the list.
+	thy.find_thm( INFLATOR, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
+		auto elim = info.ref<Elim>();
+		assert(elim);
+		if( auto m = elim->matches(assm,{import}) ) {
+			infs.push_back(elim->instantiate(*m,assm,import,thy));
+		}
+		return {};
+	} );
+	for( auto const& [lbl,athm] : infs ) {
+//		if( log > 3 ) _log() << "- inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
+		if( auto intro = athm.info.ref<Intro>() ) {
+			add_intro( thy, athm, *intro, lbl != WEAK );
+		} else {
+			thy.add_thm(lbl,athm,athm.info);
+		}
+	}
+}
+
 void Thesis::apply( Intro const& rule, bool wide ) & {
 	if( !applies(rule) ) throw Error("\"not applicable\"")(goal())(rule.conclusion());
 	if( wide && push() ) {
@@ -184,23 +209,6 @@ bool Resolver::_apply_and_discharge(
 	return true;
 }
 
-void Resolver::inflate( Thy& thy, Thm const& assm ) & {
-	// one cannot update the list while reading the list.
-	auto infs = vector<pair<string,AThm>>();
-	thy.find_thm( INF, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
-		auto elim = info.ref<Elim>();
-		assert(elim);
-		if( auto m = elim->matches(assm,{import}) ) {
-			infs.push_back(elim->instantiate(*m,assm,import,thy));
-		}
-		return {};
-	} );
-	for( auto const& [lbl,athm] : infs ) {
-		if( log > 3 ) _log() << "- inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
-		thy.add_thm(lbl,athm,athm.info);
-	}
-}
-
 bool Resolver::_discharge(
 	Thesis& thesis,
 	size_t trial,
@@ -242,8 +250,7 @@ bool Resolver::_discharge(
 		}
 		// checks if an elimination rule matches
 		if( subthy.find_thm( ELIM, elim_test(assm) ) ) continue;
-		// no elimination matches, declare what can be inferred from the assumption
-		inflate(subthy,assm);
+		// no elimination matches, declare as a weak introduction
 		add_intro(subthy,assm);
 		if( log > 3 ) _log() << "- declared assumption: " << subthy.pretty(assm) << endl;
 	}
@@ -303,8 +310,8 @@ bool Resolver::_discharge(
 					elim_res_ind++;
 					continue;
 				}
-				if( log > 5 ) _log() << "- inflating elimination result: " << subthy.pretty(athm) << endl;
-				inflate(subthy,athm);
+				if( log > 5 ) _log() << "- declaring elimination result: " << subthy.pretty(athm) << endl;
+				add_intro(subthy,athm);
 				elim_res_ind++;
 				continue;
 			}// no elimination result matched
