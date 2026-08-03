@@ -4,15 +4,8 @@
 With type-free equality, equations are not necessarily propositions.
 ---
 import ..Prop.
-fix Eq.
-assume eq_prop! if x ∈ Eq, y ∈ Eq then (x = y) ∈ Prop.
 
 begin
-
-theory Pair :=
-	import MetaPair.
-	assume pair_eq#intro if x ∈ Eq, y ∈ Eq then (x,y) ∈ Eq.
-end
 
 theory FalseNot :=
 	fix false.

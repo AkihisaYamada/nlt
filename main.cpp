@@ -1522,10 +1522,46 @@ public:
 			}
 			skip("]");
 		}
-		Term eq = get_term();
-		skip(".");
-		auto [def_name,def_thm] = org_thy.define(eq,name_op);
-		if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
+		auto l = get_sym();
+		auto name = name_op.value_or(l);
+		if( skips(":=") ) {
+			Term r = get_term();
+			CTerm r_cterm = org_thy.cterm(r);
+			skip(".");
+			// goal: ∀thesis. (∀l. (∀P. P.[r] ⟹ P.[l]) ⟹ thesis) ⟹ thesis
+			auto thesis_ctxt = org_thy.fork().ctxt();
+			auto thesis_sym = *avoider(org_thy)("?thesis");
+			auto thesis_term = thesis_ctxt.fix(thesis_sym);
+			auto l_ctxt = thesis_ctxt.fork().ctxt();
+			auto l_cterm = l_ctxt.fix(l);
+			auto P = *avoider(org_thy)("P");
+			auto P_ctxt = l_ctxt.fork().ctxt();
+			auto P_term = P_ctxt.fix(P);
+			// fix thesis l P ⊢ P.[r]
+			auto Pr = P %= P_ctxt.weaken(r_cterm);
+			// fix thesis l ⊢ ∀P. P.[r] ⟹ P.[l]
+			auto spec = (Pr >>= (P %= P_ctxt.weaken(l_cterm))).lift();
+			// fix thesis ⊢ ∀l. (∀P. P.[r] ⟹ P.[l]) ⟹ thesis
+			Thm assm = thesis_ctxt.assume( (spec >>= l_ctxt.weaken(thesis_term)).lift() );
+			// fix thesis l ⊢ ∀P. P.[r] ⟹ P.[r]
+			Thm refl = P_ctxt.assume(Pr).intro();
+			// fix thesis ⊢ ∀P. P.[r] ⟹ P.[r]
+			refl = refl.intro().allE(thesis_term/* or whatever */);
+			// ∀thesis. (∀l. (∀P. P.[r] ⟹ P.[l]) ⟹ thesis) ⟹ thesis
+			Thm ex = assm.allE(thesis_ctxt.weaken(r_cterm)).impE(refl).intro();
+			// l, ∀thesis. ((∀P. P.[r] ⟹ P.[l]) ⟹ thesis) ⟹ thesis
+			auto const& [sym,spec_thm] = org_thy.obtain(l,ex,make_spec_name(name),true);
+			Thm def_thm = spec_thm << org_thy.term_thm(IMP,REFL).first;
+			auto def_name = name + "_intro";
+			org_thy.add_thm(def_name,def_thm);
+			if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
+		} else {
+			auto rel = get(TokenType::OPERATOR);
+			Term r = get_term();
+			skip(".");
+			auto [def_name,def_thm] = org_thy.define(Term(rel)(l)(r),name_op);
+			if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
+		}
 	}
 	void local_thy( Thy loc, bool finalized, function<void()> const& op ) {
 		_depth++;
@@ -1613,13 +1649,19 @@ public:
 			while( auto const& t = gets_term(1000) ) {
 				insts.emplace_back(loc.enclose(*t));
 			}
-			skip("begin");
+			bool finalized;
+			if( skips("begin") ) {
+				finalized = true;
+			} else {
+				skip(":=");
+				finalized = false;
+			}
 			if THY {
 				if( !MSG ) cout << _indent(' ');
 				cout << "extending theory " << src.print_path()
 					<< " into " << loc.print_path() << endl;
 			}
-			local_thy(loc,true,[&]{
+			local_thy(loc,finalized,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
 				_auto_import({},{},src2loc,true,insts);
@@ -1693,21 +1735,15 @@ public:
 		}
 		return true;
 	}
-	bool _shared_decl() {
-		if( skips("obtain") ) {
-			_obtain(_thy);
-		} else if( skips("define") ) {
-			_define(_thy);
-		} else if( skips("interpret") ) {
-			import(false);
-		} else {
-			return false;
-		}
-		return true;
-	}
 	Opt<Thm> proof_loop( Thesis& thesis ) {
 		for(;;) try {
-			if( _stats() || _shared_decl() ) {
+			if( _stats() ) {
+			} else if( skips("obtain") ) {
+				_obtain(_thy);
+			} else if( skips("define") ) {
+				_define(_thy);
+			} else if( skips("interpret") ) {
+				import(false);
 			} else if( skips("note") ) {
 				_note();
 			} else if( skips("goal") ) {
@@ -1860,7 +1896,13 @@ public:
 
 	void loop() {
 		for(;;) try {
-			if( _stats() || _thy_decl() || _shared_decl() ) {
+			if( _stats() || _thy_decl() ) {
+			} else if( skips("obtain") ) {
+				_obtain(_thy);
+			} else if( skips("definition") ) {
+				_define(_thy);
+			} else if( skips("interpretation") ) {
+				import(false);
 			} else if( skips("set") ) {
 				if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
 					auto& rew = _thy.modify_rewriter( mode == 1 ? SIMP : RULIFY );

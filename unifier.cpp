@@ -244,7 +244,7 @@ private:
 	// lhs is non-pattern unbinding
 	void unify_lunbind2( string const& x, CTerm const& larg, CTerm const& r ) {
 		if( auto const& rsym = r.sym() ) {
-			return unify_rsym(x/larg,*rsym);
+			return unify_rsym( x %= larg, *rsym );
 		} if( auto const& rfix = r.cunbind() ) {/// rhs is also unbinding
 			auto const& [y,_,rarg] = *rfix;
 			return unify_unbinds(x,larg,y,rarg);
@@ -269,7 +269,7 @@ private:
 		if( auto argsym = rarg.sym() )
 		if( auto const& i = inds[1].finds_value(*argsym) ) {// rhs is a higher-order pattern
 			StrSet bounds;
-			subst.assign(y,sanitize(bvars[0][*i]/=x/larg,bounds,avoids[0],inds[0]));
+			subst.assign(y,sanitize(bvars[0][*i] /= x %= larg,bounds,avoids[0],inds[0]));
 			return;
 		}
 		unify_syms(x,y);

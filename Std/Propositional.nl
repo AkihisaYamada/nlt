@@ -3,23 +3,42 @@
 
 We fix a class `Prop` in which logical operators are closed.
 ---
-import Prop.
+import Membership.
 
-fix true false (∧) (∨) (¬) (⟺).
-assume false_type! false ∈ Prop.
-import and: Magma Prop (∧).
-import or: Magma Prop (∨).
-import not: Unary (¬) Prop Prop.
-import iff: Magma Prop (⟺).
+fix Prop.
+import imp: Magma Prop (⟹).
 
 begin
 
-note! imp.closed and.closed or.closed not.closed iff.closed.
+note! imp.closed.
 
--- `true` is obtained via `false ⟹ false`.
-obtain true where true_intro! true, true_type! true ∈ Prop;
-	- for thesis if assm;
-		apply assm[of (false ⟹ false)].
-	.
+theory Relation A (⊏) :=
+	import Binary (⊏) A A Prop.
+end
 
-interpret iff: Magmas (⟺).-- Magma notions wrt (⟺)
+theory PierceLaw :=
+	assume pierce_law: if (P ⟹ Q) ⟹ P, P ∈ Prop, Q ∈ Prop then P.
+end
+
+theory True :=
+	fix true.
+	assume true_prop! true ∈ Prop.
+	assume true_intro! true.
+end
+
+theory False :=
+	fix false.
+	assume false_prop! false ∈ Prop.
+	assume false_elim: if false, P ∈ Prop then P.
+begin
+
+	interpretation True;
+		obtain true where true_def: if P.[false ⟹ false] then P.[true];
+			- for thesis if assm;
+				apply assm[of (false ⟹ false)].
+			.
+		- apply true_def[of (x. x ∈ Prop)].
+		- apply true_def[of (x. x)].
+		.
+
+end

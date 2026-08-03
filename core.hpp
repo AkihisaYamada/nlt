@@ -578,7 +578,7 @@ public:
 		return CTerm( body._ctxt, v /= (Term)body );
 	}
 	/** closed binding */
-	friend CTerm operator/(std::string_view const& v, CTerm const& arg) {
+	friend CTerm operator%=(std::string_view const& v, CTerm const& arg) {
 		if( !arg._ctxt.constant(v) ) throw Error(__func__)("\"wrong context binding\"")(v);
 		return CTerm( arg._ctxt, v %= (Term)arg );
 	}

@@ -32,7 +32,7 @@ private:
 		}
 		throw Error("\"expected a term\"")(get());
 	}
-	Term _nest_abs( Term const& bind, int level, std::string& fv ) &;
+	Term _nest_abs( std::string const& binder, Syntax::Binder const& op, std::string& fv ) &;
 };
 
 #endif

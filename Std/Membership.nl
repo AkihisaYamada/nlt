@@ -22,7 +22,17 @@ end
 
 theory To :=
 	fix (→).
-	assume to_elim1: if f ∈ A → B, a ∈ A then f a ∈ B.
+	assume to_elim1#intro[after 1] if f : A → B, x : A then f x : B.
+begin
+	---
+	Type judgment of application can be reduced to that of the function,
+	if one knows the type of the argument.
+	---
+	lemma app_in#intro[after 1] if [x : A, f : A → B] then f x : B.
+
+	lemma to_elim: if f: f : A → B, assm: (∀x. x : A ⟹ f x : B) ⟹ Q then Q;
+		use f; by assm.
+
 end
 
 theory Binary :=
@@ -42,7 +52,7 @@ theory SubsetEq :=
 	assume subseteq_elim1: if A ⊆ B, x ∈ A then x ∈ B.
 	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
-	interpret subseteq: MetaPreorder (⊆);
+	interpretation subseteq: MetaPreorder (⊆);
 		- by subseteq_intro.
 		- if AB: A ⊆ B, BC: B ⊆ C;
 			by subseteq_intro BC[THEN subseteq_elim1] AB[THEN subseteq_elim1].
@@ -74,7 +84,7 @@ end
 theory Transitive A (⊏) :=
 	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
-	interpret Attractive;
+	interpretation Attractive;
 		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z;
 			by trans[OF xy yz].
 		- if xy: x ⊏ y, yx: y ⊏ x, xz: x ⊏ z;
@@ -99,7 +109,7 @@ theory Equivalence A (~) :=
 	import Tolerance, PartialEquivalence.
 begin
 
-	interpret Preorder A (~).
+	interpretation Preorder A (~).
 
 end
 
@@ -112,4 +122,3 @@ begin
 	lemma Collect_elim: if x: x ∈ {x ⊏ a. P.[x]}, assm: x ⊏ a ⟹ P.[x] ⟹ Q then Q;
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
 end
-

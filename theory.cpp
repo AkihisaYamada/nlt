@@ -39,7 +39,9 @@ Thy Thy::branch() const& {
 	return _branch(ANONYM_THY,"",false,Ctxt::fork());
 }
 Thy Thy::branch( string_view const& name, filesystem::path const& dir ) {
-	return _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork())).first->second;
+	auto const& [it,fl] = _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork()));
+	if( !fl ) throw Error("\"duplicate theory\"")(name);
+	return it->second;
 }
 Thy Thy::scope_temp( string_view const& name ) const {
 	return _branch(name,"",true,Ctxt::self());

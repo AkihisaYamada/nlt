@@ -38,7 +38,7 @@ assume typedef:
 
 begin
 
-theory TypeDefine pred :=
+theory TypeDefinition pred :=
 	assume nonempty: if ∀witness. pred witness ⟹ Q then Q.
 begin
 
@@ -101,7 +101,44 @@ begin
 		.
 	.
 
-foo
+	define ABS = tp (fun x y z. x).
+	define Abs = tp (fun x y z. y).
+	define Rep = tp (fun x y z. z).
+
+	lemma ABS_type: ABS : TYPE V → TYPE V;
+		apply tp_spec[OF ABS_def Abs_def Rep_def].
+
+	lemma Abs_type: if X: X : TYPE V then Abs : X → ABS X;
+		apply tp_spec[OF ABS_def Abs_def Rep_def];
+		- if 1, 2, 3, 4, 5, 6;
+			by 2[OF X].
+		.
+
+	lemma Rep_type: if X: X : TYPE V then Rep : ABS X → X;
+		apply tp_spec[OF ABS_def Abs_def Rep_def];
+		- if 1, 2, 3, 4, 5, 6;
+			by 3[OF X].
+		.
+
+	lemma Abs: if X: X : TYPE V, a: a : ABS X then pred (Rep a);
+		apply tp_spec[OF ABS_def Abs_def Rep_def];
+		- if 1, 2, 3, 4, 5, 6;
+			by 4[OF X a].
+		.
+
+	lemma Abs_Rep: if X: X : TYPE V, a: a : ABS X then Abs (Rep a) = a;
+		apply tp_spec[OF ABS_def Abs_def Rep_def];
+		- if 1, 2, 3, 4, 5, 6;
+			by 5[OF X a].
+		.
+
+	lemma Rep_Abs: if X: X : TYPE V, x: x : X, px: pred x then Rep (Abs x) = x;
+		apply tp_spec[OF ABS_def Abs_def Rep_def];
+		- if 1, 2, 3, 4, 5, 6;
+			by 6[OF X x px].
+		.
+
+end
 
 ---
 ### Pairs
@@ -109,11 +146,18 @@ foo
 One can encode a pair of `x` and `y` as a higher-order function `fun p. p x y`.
 ---
 
-namespace prod begin
+interpret prod! TypeDefinition (fun f. true);
+	- for Q if assm; by assm[of id].
+	.
 
-define is_pair = fun x y i. i x y.
+define[as prod] (×) = fun X Y. prod.ABS (X → Y → Prop).
+define[as pair] (,) = fun x y. prod.Abs (fun z. z x y).
+define fst = fun p. prod.Rep p (fun x y. x).
+define snd = fun p. prod.Rep p (fun x y. y).
 
-		
+lemma prod_type: if X: X : TYPE V, Y: Y : TYPE V then X × Y : TYPE V;
+	
+
 
 obtain pair_tp where tp_spec:
 	if  (,) = pair_tp (fun x y z. x),

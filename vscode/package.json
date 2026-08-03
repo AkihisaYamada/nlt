@@ -23,7 +23,7 @@
 	"snippets": [
 		{
 			"language": "nlt",
-			"path": "./nlt-snippets.json"
+			"path": "./nlt.code-snippets"
 		}
 	]
   },

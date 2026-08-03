@@ -62,13 +62,13 @@ static function<Term(Term const&)> _bind( Term const& pat, string& fv ) {
 	};
 }
 
-Term Parser::_nest_abs( Term const& bind, int level, string& fv ) & {
+Term Parser::_nest_abs( string const& binder, Syntax::Binder const& op, string& fv ) & {
 	if( auto next = _gets_term(INT_MAX,fv) ) {
 		auto f = _bind(*next,fv);
-		return bind(f(_nest_abs(bind,level,fv)));
+		return Term(binder)(f(_nest_abs(binder,op,fv)));
 	}
 	skip(".");
-	return _get_term(level,fv);
+	return _get_term(op.rlevel,fv);
 }
 
 Opt<Term> Parser::_gets_term( int level, string& fv ) & {
@@ -126,29 +126,56 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		} else {
 			init = op->actual;
 		}
-	} else if( auto x = syn.finds_binder(peek) ) {
+	} else if( auto x = syn.finds_binder(peek) ) {// ∀ ...
 		auto const& [binder,op] = *x;
 		if( op.llevel < level ) {
 			return {};
 		}
 		ignore_token();
-		if( auto fst = gets_term(INT_MAX) ) {
-			auto f = _bind(*fst,fv);
-			auto follow = peek_token();
-			if( auto y = op.bbinds.finds_pair(follow) ) {// ∀x ∈ X. _
-				ignore_token();
-				auto [actual,cons] = y->second;
-				auto range = _get_term(0,fv);
-				skip(".");
-				auto bind = f(_get_term(op.rlevel,fv));
-				init = Term(actual);
-				init = cons ? init(Term(*cons)(range)(bind)) : init(range)(bind);
-			} else {// ∀x y z. _
-				auto bind = f(_nest_abs(binder,op.rlevel,fv));
-				init = Term(binder)(bind);
+		vector<Pair<function<Term(Term const&)>,vector<function<Term(Term const&)>>>> range_params;
+		while( auto const& fst = gets_term(INT_MAX) ) {// ∀x y z ...
+			vector<function<Term(Term const&)>> params = {_bind(*fst,fv)};
+			while( auto const& param = gets_term(INT_MAX) ) {
+				params.emplace_back(_bind(*param,fv));
 			}
-		} else {
+			auto const& follow = peek_token();
+			if( auto y = op.bbinds.finds_value(follow) ) {// ∀x y z ∈ X ...
+				ignore_token();
+				auto const& [actual,cons] = *y;
+				auto const& range = _get_term(0,fv);
+				auto f = [&]()->function<Term(Term const&)>{
+					if( cons ) {
+						return [actual,range,cons=*cons]( Term const& bind ){
+							return Term(actual)(Term(cons)(range)(bind));
+						};
+					}
+					return [actual,range]( Term const& bind ){
+						return Term(actual)(range)(bind);
+					};
+				}();
+				range_params.emplace_back(std::move(f),std::move(params));
+				if( skips(",") ) continue;// ∀x y z ∈ X, ...
+			} else {
+				range_params.emplace_back(
+					[&binder]( Term const& bind ){ return Term(binder)(bind); }, std::move(params)
+				);
+			}
+			break;
+		}
+		size_t n = range_params.size();
+		if( n == 0 ) {
 			init = binder;
+		} else {
+			skip(".");
+			init = _get_term(op.rlevel,fv);
+			do {
+				n--;
+				auto const& [f,binds] = range_params[n];
+				for( size_t m = binds.size(); m != 0; ) {
+					m--;
+					init = f(binds[m](init));
+				}
+			} while( n != 0 );
 		}
 	} else if( auto x = syn.finds_infix(peek) ) {// + 1
 		if( level != INT_MIN ) {

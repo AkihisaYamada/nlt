@@ -89,10 +89,21 @@ bool Rewrite::register_rel( string const& rel, bool def ) & {
 	return true;
 }
 void Thy::register_refl( Thm const& thm ) & {
-	auto rule = Intro::rule(thm);
-	auto const& rel = gets_binary_sym(rule.conclusion());
-	if( !rel ) throw Error("\"malformed refl\"")(thm);
-	add_term_thm(*rel,REFL,thm);
+	Ctxt strip_ctxt = thm.ctxt().fork().ctxt();
+	CTerm t = strip_ctxt.weaken(thm);
+	for(;;) {
+		t = strip_all(t,strip_ctxt);
+		auto imp = strips_binary(t);
+		if( !imp ) break;
+		auto const& [rel,l,r] = *imp;
+		if( l.sym() && l == r ) {
+			add_term_thm(rel,REFL,thm);
+			return;
+		}
+		if( rel != IMP ) break;
+		t = r;
+	}
+	Error("\"malformed refl\"")(thm);
 }
 void Thy::register_trans( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);// ∀x y, x = y, ∀z, y = z, φ... ⊢ x = z
