@@ -1535,26 +1535,47 @@ public:
 			auto l_ctxt = thesis_ctxt.fork().ctxt();
 			auto l_cterm = l_ctxt.fix(l);
 			auto P = *avoider(org_thy)("P");
-			auto P_ctxt = l_ctxt.fork().ctxt();
-			auto P_term = P_ctxt.fix(P);
+			auto lP_ctxt = l_ctxt.fork().ctxt();
+			auto P_lP = lP_ctxt.fix(P);
 			// fix thesis l P ⊢ P.[r]
-			auto Pr = P %= P_ctxt.weaken(r_cterm);
+			auto Pr = P %= lP_ctxt.weaken(r_cterm);
 			// fix thesis l ⊢ ∀P. P.[r] ⟹ P.[l]
-			auto spec = (Pr >>= (P %= P_ctxt.weaken(l_cterm))).lift();
+			auto spec = (Pr >>= (P %= lP_ctxt.weaken(l_cterm))).lift();
 			// fix thesis ⊢ ∀l. (∀P. P.[r] ⟹ P.[l]) ⟹ thesis
 			Thm assm = thesis_ctxt.assume( (spec >>= l_ctxt.weaken(thesis_term)).lift() );
 			// fix thesis l ⊢ ∀P. P.[r] ⟹ P.[r]
-			Thm refl = P_ctxt.assume(Pr).intro();
+			Thm refl = lP_ctxt.assume(Pr).intro();
 			// fix thesis ⊢ ∀P. P.[r] ⟹ P.[r]
 			refl = refl.intro().allE(thesis_term/* or whatever */);
 			// ∀thesis. (∀l. (∀P. P.[r] ⟹ P.[l]) ⟹ thesis) ⟹ thesis
 			Thm ex = assm.allE(thesis_ctxt.weaken(r_cterm)).impE(refl).intro();
 			// l, ∀thesis. ((∀P. P.[r] ⟹ P.[l]) ⟹ thesis) ⟹ thesis
 			auto const& [sym,spec_thm] = org_thy.obtain(l,ex,make_spec_name(name),true);
-			Thm def_thm = spec_thm << org_thy.term_thm(IMP,REFL).first;
-			auto def_name = name + "_intro";
-			org_thy.add_thm(def_name,def_thm);
-			if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
+			// deriving intro: ∀P. P.[r] ⟹ P.[l]
+			Thm intro_thm = spec_thm << org_thy.term_thm(IMP,REFL).first;
+			// deriving elim: ∀P. P.[l] ⟹ P.[r]
+			// refl: ∀P. P.[r] ⟹ P.[r]
+			Ctxt P_ctxt = org_thy.fork().ctxt();
+			P_ctxt.fix(P);
+			refl = P_ctxt.assume( P %= P_ctxt.weaken(r_cterm) ).intro();
+DEB(_thy.pretty(refl));
+			Ctxt sur_ctxt = org_thy.fork().ctxt();
+			auto x_cterm = sur_ctxt.fix(*avoider(sur_ctxt)("_"));
+			sur_ctxt.fix(P);
+			CTerm sur = (P %= x_cterm) >>= P %= sur_ctxt.weaken(r_cterm);// P.[x] ⟹ P.[r]
+DEB(_thy.pretty(sur));
+			sur = sur.lift();// ∀x P. P.[x] ⟹ P.[r]
+DEB(_thy.pretty(sur));
+			sur = ASSERTED(sur.capp())->second;// x. ∀P. P.[x] ⟹ P.[r]
+DEB(_thy.pretty(sur));
+			Thm elim_thm = intro_thm.allE(sur).impE(refl);// ∀P. P.[l] ⟹ P.[r]
+			// registering
+			auto intro_name = name + "_intro";
+			org_thy.add_thm(intro_name,intro_thm);
+			auto elim_name = name + "_elim";
+			org_thy.add_thm(elim_name,elim_thm);
+			if MSG cout << "defined " << intro_name << ": " << _thy.pretty(intro_thm) << endl <<
+				_indent(' ') << elim_name << ": " << _thy.pretty(elim_thm) << endl;
 		} else {
 			auto rel = get(TokenType::OPERATOR);
 			Term r = get_term();

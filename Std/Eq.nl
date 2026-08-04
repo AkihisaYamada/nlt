@@ -92,6 +92,11 @@ theory FunComp :=-- aka B
 	assume comp_app#simp (f ∘ g) x = f (g x).
 end
 
+theory Dual :=-- aka C
+	fix dual.
+	assume dual_app#simp dual f x y = f y x.
+end
+
 theory RevApp :=
 	fix (|>).
 	assume revapp#simp x |> f = f x.

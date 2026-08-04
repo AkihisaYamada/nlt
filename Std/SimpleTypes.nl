@@ -15,21 +15,9 @@ We will use `fun` instead of historical λ.
 import FunIn, To.
 
 ---
-Proof assistants based on HOL implement type synonyms in their kernels, relying on a meta-assumption that their type-forming rules do not admit paradoxes via type synonyms.
-
-While a naive encoding of is to formalize what are types and admit abbreviations restricted to types,
-we instead allow types of types and use function abstractions over types.
-The following formalization lets us as expressive as possible, while avoiding Girard's Paradox, and avoiding relying numbers whose foundation we are constructing.
----
-fix TYPE.
-assume TYPE: if α : V then α : TYPE V.
-assume to_type! (→) : TYPE V → TYPE V → TYPE V.
-
----
 We need a dedicated type `Prop` ($o$ in Church's notation) for propositions. 
 ---
 fix Prop.
-assume Prop_type: Prop : TYPE V.
 
 ---
 Church then declares as primitives negation ($N_{oo}$), disjunction ($A_{ooo}$), and universal quantification ($Π_{o(oα)}$), and defines implication ($⊃$) from negation and disjunction.
@@ -61,33 +49,36 @@ assume all_axiom: if f : A → Prop, x : A then all A f ⟹ f x.
 ---
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
-In our notation, `∀x : α. A` := `all α (fun x : α. A)`, but our parser does not support such a replacement;
-as α is duplicated, why such a replacement is terminating is not trivial.
-Types are introduced to ensure this termination, but here α is a type and simple type theory does not consider types of types.
-Therefore, we must explicitly state that this notation is assumed.
+In our notation, `∀x : α. s` := `all α (fun x : α. s)`, but there are two difficulties to formalize this.
+
+First, as this definition duplicates α, it is not obviously safe to replace the left-hand side to the right-hand side.
+Types are there to ensure this kind of replacement to terminate, but here α is a type and simple type theory does not consider types of types.
+One can argue that any such reduction is safe, provided the right-hand side has a type.
+So we postulate such an abstraction, where `(fun x. F.[x]) s` can be reduced to `F.[s]`, provided the latter is typed.
+
+The next question is how `∀x : α. F.[x]` should be internally. One clean option would be `(∀:) α F`, but now the above argument fails because `(∀:) α` cannot be represented as a typed term.
+We conclude that `(∀:)` should take the two arguments simultaneously, i.e., `(∀:)(α, x. s)`. This demands syntactic pairing.
 ---
-fix (∀:).
-assume all_notation: if C.[∀x : A. P.[x]] then C.[all A (fun x : A. P.[x])].
+
+begin
+
+definition (∀:) := fun (A,P). all A (fun x : A. P.[x]).
 
 ---
 Similarly, Church's treatment of existential quantification as a notation
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
-is not admissible without explicit assumption, since it is parametric to type α.
-Here we choose an intuitionist-friendly definition.
+uses untyped arguments. 
 ---
-fix (∃:).
-assume ex_notation: if C.[∃x : A. P.[x]] then C.[∀Q : Prop. (∀x : A. P.[x] ⟹ Q) ⟹ Q].
+definition (∃:) := fun (A,P). ∀Q : Prop. (∀x : A. P.[x] ⟹ Q) ⟹ Q.
 
 ---
 The type-parametrized equality
 > $Q_{oαα} ⟶ λx_α λy_α [(f_{oα})[f_{oα} x_α ⊃ f_{oα} y_α]$.
-must also be axiomatized.
+also takes a type as a parameter.
 ---
-fix eq.
-assume eq_notation: if C.[eq A] then C.[fun x y : A. ∀f : A → Prop. f x ⟹ f y].
+definition eq := fun A. fun x y : A. ∀f : A → Prop. f x ⟹ f y.
 
 
-begin
 
 lemma to_TYPE: if [A : TYPE V, B : TYPE V] then A → B : TYPE V.
 
@@ -104,12 +95,12 @@ lemma all_elim1:
 
 interpretation Propositional (:).
 
-definition false := all Prop (fun x : Prop. x).
+definition false := ∀x : Prop. x.
 definition true := (false ⟹ false).
 definition[as not] (¬) := fun P : Prop. P ⟹ false. 
-definition[as and] (∧) := fun P Q : Prop. all Prop (fun R : Prop. (P ⟹ Q ⟹ R) ⟹ R).
-definition[as iff] (⟺) := fun P : Prop, Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
-definition[as or] (∨) := fun P : Prop, Q : Prop. all Prop (fun R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R).
+definition[as and] (∧) := fun P Q : Prop. ∀R : Prop. (P ⟹ Q ⟹ R) ⟹ R.
+definition[as iff] (⟺) := fun P Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
+definition[as or] (∨) := fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 
 interpretation False;
 	- by #simp false_def.
@@ -126,7 +117,7 @@ interpretation True;
 
 ### Identity
 ---
-define id = fun x. x.
+definition id = fun x. x.
 
 lemma id_type! id : A → A;
 	unfold id_def.
