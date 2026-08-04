@@ -1039,13 +1039,14 @@ public:
 				if( auto n = loc.revision() ) {
 					for( size_t i = 0; i < n; ) {
 						if( auto const& v = loc.fixed(i) ) {
-							cout << "for " << _thy.pretty(*v) << ' ';
+							cout << "for " << _thy.pretty(*v);
 							for(;;) {
 								i++;
 								auto const& v = loc.fixed(i);
 								if(!v) break;
-								cout << _thy.pretty(*v) << ' ';
+								cout << ' ' << _thy.pretty(*v);
 							}
+							cout << endl << _indent(' ');
 							continue;
 						}
 						if( auto const& assm = loc.assumed(i) ) {
@@ -1055,9 +1056,9 @@ public:
 								csi++;
 								auto const assm = loc.assumed(i);
 								if( !assm ) break;
-								cout << ", " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+								cout << ',' << endl << _indent(' ') << "   " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 							}
-							cout << ' ';
+							cout << endl << _indent(' ');
 							continue;
 						}
 						assert(false);
@@ -1449,6 +1450,7 @@ public:
 					if MSG cout << ' ' << *sym << flush;
 					assm_thy.fix(*sym);
 				}
+				if MSG cout << endl << _indent(' ');
 			} else if( skips("if") ) {
 				needthen = true;
 				if MSG {
@@ -1472,12 +1474,13 @@ public:
 					} else {
 						auto [name,cs] = _get_name_status();
 						auto t = get_term();
-						if MSG cout << _print_name_status(name,cs) << _thy.pretty(t) << ", " << flush;
+						if MSG cout << _print_name_status(name,cs) << _thy.pretty(t) << ", ";
 						auto assm = assm_thy.assume(t);
 						add_claim(assm_thy,name,cs,assm);
 					}
 					if( !skips(",") ) break;
 				};
+				if MSG cout << endl << _indent(' ');
 			} else {
 				break;
 			}
@@ -1558,24 +1561,21 @@ public:
 			Ctxt P_ctxt = org_thy.fork().ctxt();
 			P_ctxt.fix(P);
 			refl = P_ctxt.assume( P %= P_ctxt.weaken(r_cterm) ).intro();
-DEB(_thy.pretty(refl));
 			Ctxt sur_ctxt = org_thy.fork().ctxt();
 			auto x_cterm = sur_ctxt.fix(*avoider(sur_ctxt)("_"));
 			sur_ctxt.fix(P);
 			CTerm sur = (P %= x_cterm) >>= P %= sur_ctxt.weaken(r_cterm);// P.[x] ⟹ P.[r]
-DEB(_thy.pretty(sur));
 			sur = sur.lift();// ∀x P. P.[x] ⟹ P.[r]
-DEB(_thy.pretty(sur));
 			sur = ASSERTED(sur.capp())->second;// x. ∀P. P.[x] ⟹ P.[r]
-DEB(_thy.pretty(sur));
 			Thm elim_thm = intro_thm.allE(sur).impE(refl);// ∀P. P.[l] ⟹ P.[r]
 			// registering
 			auto intro_name = name + "_intro";
 			org_thy.add_thm(intro_name,intro_thm);
 			auto elim_name = name + "_elim";
 			org_thy.add_thm(elim_name,elim_thm);
-			if MSG cout << "defined " << intro_name << ": " << _thy.pretty(intro_thm) << endl <<
-				_indent(' ') << elim_name << ": " << _thy.pretty(elim_thm) << endl;
+			if MSG cout << "defined " << _thy.pretty(sym) << " where" << endl <<
+				_indent(' ') << "  " << intro_name << ": " << _thy.pretty(intro_thm) << endl <<
+				_indent(' ') << "  " << elim_name << ": " << _thy.pretty(elim_thm) << endl;
 		} else {
 			auto rel = get(TokenType::OPERATOR);
 			Term r = get_term();

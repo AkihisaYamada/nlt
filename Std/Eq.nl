@@ -20,7 +20,7 @@ note#intro#refl eq.refl.
 ---
 Equality is an equivalence.
 ---
-interpret eq: MetaEquivalence (=);
+interpretation eq: MetaEquivalence (=);
 	- if xy: x = y then y = x;
 		by eq_elim[of (z. z = x), OF xy].
 	- if xy: x = y, yz: y = z then x = z;
@@ -67,7 +67,7 @@ end
 theory MetaInverse f g :=
 	assume inverse: g (f x) = x.
 begin
-	interpret MetaInjective;
+	interpretation MetaInjective;
 		- for x x' if eq: f x = f x' then x = x';
 			... = g (f x); unfold inverse.
 			... = g (f x'); unfold eq.
@@ -87,19 +87,77 @@ theory Const :=-- aka K
 	assume const#simp const x y = x.
 end
 
-theory FunComp :=-- aka B
+theory Comp :=-- aka B
 	fix (∘).
 	assume comp_app#simp (f ∘ g) x = f (g x).
+begin
+
+	definition comp2 = (∘) ∘ (∘).
+
+	lemma comp2_app#simp comp2 f g x y = f (g x y);
+		simp comp2_def.
+
+	definition comp3 = comp2 ∘ (∘).
+
+	lemma comp3#simp (comp3 f g x y z = f (g x y z));
+		simp comp3_def.
+
+
 end
 
 theory Dual :=-- aka C
 	fix dual.
 	assume dual_app#simp dual f x y = f y x.
+begin
+
 end
 
-theory RevApp :=
-	fix (|>).
-	assume revapp#simp x |> f = f x.
+theory Comb :=
+	import Id, Const, Comp, Dual.
+begin
+
+	definition app = (∘) id.
+	lemma app#simp app f x = f x;
+		simp app_def.
+
+	definition paracomp = dual ((∘) ∘ dual (∘)).
+	lemma paracomp_app#simp paracomp f g x y = f x (g y);
+		simp paracomp_def.
+
+	definition[as revapp] (|>) = dual id.
+	lemma revapp#simp x |> f = f x;
+		simp revapp_def.
+
+	lemma : ((z |>) ∘ (y |>) ∘ (x |>)) f = f x y z.
+
+	obtain pair_tp where pair_tp_spec:
+		if	pair = pair_tp (const ∘ dual const),
+			fst = pair_tp (const const),
+			snd = pair_tp (const ∘ const),
+			(∀x y. fst (pair x y) = x) ⟹
+			(∀x y. snd (pair x y) = y) ⟹ P
+		then P;
+		- for thesis if assm;
+			apply assm[of ((dual ((∘) ∘ dual ∘ dual id) id |>) ∘ ((const |>) |>) ∘ ((dual const |>) |>))];
+			- for pair if pair0 for fst if fst0 for snd if snd0 for P if assm2;
+				apply assm2;
+				- for x y; simp fst0 pair0.
+				- for x y; simp snd0 pair0.
+				.
+			.
+		.
+
+	definition[as pair] (,) = pair_tp (const ∘ dual const).
+	definition fst = pair_tp (const const).
+	definition snd = pair_tp (const ∘ const).
+
+	lemma fst_pair#simp fst (x,y) = x;
+		apply pair_tp_spec[OF pair_def fst_def snd_def].
+
+	lemma snd_pair#simp snd (x,y) = y;
+		apply pair_tp_spec[OF pair_def fst_def snd_def].
+
+
 end
 
 theory MetaIf :=
