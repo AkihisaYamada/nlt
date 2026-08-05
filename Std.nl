@@ -180,7 +180,7 @@ begin
 	extend MetaMonotone begin
 		interpretation MetaCompatible;
 			- if xx': x ⊏ x', yy': y ⊏ y' then x * y ⊏ x' * y';
-				... ⊏ x' * y;
+				.. ⊏ x' * y;
 					by right_mono xx'.
 				by left_mono yy'.
 			.
@@ -219,13 +219,13 @@ begin
 	extend MetaLeftNeutral begin
 		interpretation MetaReflexive (~);
 			- for x then x ~ x;
-				... ~ 1 * x;
+				.. ~ 1 * x;
 					apply sym;
 					by left_neutral.
 				by left_neutral.
 			.
 		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
-			... ~ 1 * e;
+			.. ~ 1 * e;
 				apply sym;
 				by left_neutral.
 			by all.
@@ -234,13 +234,13 @@ begin
 	extend MetaRightNeutral begin
 		interpretation MetaReflexive (~);
 			- for x then x ~ x;
-				... ~ x * 1;
+				.. ~ x * 1;
 					apply sym;
 					by right_neutral.
 				by right_neutral.
 			.
 		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
-			... ~ e * 1;
+			.. ~ e * 1;
 				apply sym;
 				by right_neutral.
 			by all.
@@ -269,7 +269,7 @@ begin
 
 	extend MetaLeftAbsorb begin
 		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
-			... ~ 0 * e;
+			.. ~ 0 * e;
 				apply sym;
 				by all.
 			by left_absorb.
@@ -277,7 +277,7 @@ begin
 
 	extend MetaRightAbsorb begin
 		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
-			... ~ e * 0;
+			.. ~ e * 0;
 				apply sym;
 				by all.
 			by right_absorb.

@@ -47,7 +47,7 @@ assume all_type! all A : (A → Prop) → Prop.
 Church's original formulation of ∀-introduction is the rule of inference:
 > VI. From $F_{oα} x_α$ to infer $Π_{o(oα)} F_{oα}$ provided that $x_α$ is not a free variable of $F_{oα}$.
 ---
-assume all_intro: if f : A → Prop, ∀x. x : A ⟹ f x then all A f.
+assume all_rule: if f : A → Prop, ∀x. x : A ⟹ f x then all A f.
 ---
 The ∀-elimination is the formal axiom (family):
 > 5$^α$. $Π_{o(oα)} f_{oα} ⊃ f_{oα} x_α$
@@ -99,12 +99,15 @@ interpretation Propositional (:) .
 interpretation AllRelStrict (:) (∀:);
 	- by to_elim1[OF all_type] #simp all_def.
 	- if ! ∀ x. x : a ⟹ P.[x];
-		by #simp all_def #intro all_intro.
+		by #simp all_def #intro all_rule.
 	- for s if all: ∀ x : A. P.[x], P!, s! then P.[s];
 		have 1: (fun x : A. P.[x]) s;
 			apply all_axiom[OF _ _ all[unfold all_def]].
 		use 1; simp.
 	.
+
+note#intro all_intro.
+note#elim all_elim.
 
 interpretation False;
 	- by #simp false_def.
@@ -115,6 +118,12 @@ interpretation False;
 		by #simp true_def.
 	.
 
+interpretation And;
+	- by #simp and_def.
+	- by #simp and_def.
+	- for P Q if and, !, !; use and; simp and_def.
+	- for P Q if and, !, !; use and; simp and_def.
+	.
 
 ---
 ## Basic Combinators

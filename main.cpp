@@ -926,10 +926,11 @@ public:
 		ClaimStatus cs;
 		Opt<Term> assm;
 	};
+	struct Omit {};
 	struct GoalPat {
 		Opt<string> name;
 		ClaimStatus cs;
-		vector<Sum<Fix,Assume>> decls;
+		vector<Sum<Fix,Assume,Omit>> decls;
 		Opt<Term> concl;
 		bool proof;
 	};
@@ -949,6 +950,10 @@ public:
 				modified = true;
 			} else if( skips("if") ) {
 				do {
+					if( skips("...") ) {
+						ret.decls.emplace_back(Omit{});
+						break;
+					}
 					auto name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
 					ClaimStatus cs;
 					auto assm = gets_claim_status(cs) ? gets_term() : skips(":") ? Opt<Term>{get_term()} : Opt<Term>();
@@ -1017,6 +1022,12 @@ public:
 					loc_goal = imp->second;
 				}
 				css.emplace_back(name,cs);
+			} else if( decl.ref<Omit>() ) {
+				while( auto const& imp = loc_goal.cbinary(IMP) ) {
+					add_intro(loc,loc.assume(imp->first),true);
+					css.emplace_back("!",ClaimStatus{});
+					loc_goal = imp->second;
+				}
 			} else {
 				assert(false);
 			}
@@ -1862,12 +1873,12 @@ public:
 				thesis.apply(rule,true);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, "used goals:\n\t" );
-			} else if( skips("...") ) {
+			} else if( skips("..") ) {
 				auto rel = get( TokenType::OPERATOR | TokenType::WORD );
 				auto t = get_term();
 				auto goal = thesis.goal();
 				auto op = goal.cbinary(rel);
-				if( !op ) throw Error("\"transitive proof mismatch\"");
+				if( !op ) throw Error("\"chain proof mismatch\"");
 				auto lhs = op->first;
 				auto rhs = _thy.cterm(t);
 				auto claim = _thy.cterm(rel)(lhs)(rhs);

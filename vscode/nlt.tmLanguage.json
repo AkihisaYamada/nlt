@@ -50,7 +50,7 @@
     "proof-structures": {
       "patterns": [{
         "name": "support.class.nlt",
-        "match": ",|->?|\\.(\\s|$)|\\b(for|if|then|else|where)\\b"
+        "match": ",|->?|(?<!\\.)\\.+(\\s|$)|\\b(for|if|then|else|where)\\b"
       }]
     },
 	"binders": {

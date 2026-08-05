@@ -61,11 +61,11 @@ end
 
 
 theory Reflexive A (⊑) :=
-	assume refl: if x ∈ A then x ⊑ x.
+	assume refl#refl if x ∈ A then x ⊑ x.
 end
 
 theory Symmetric A (~) :=
-	assume sym: if x ~ y, x ∈ A, y ∈ A then y ~ x.
+	assume sym#dual if x ~ y, x ∈ A, y ∈ A then y ~ x.
 end
 
 theory SemiAttractive A (⊏) :=
@@ -82,7 +82,7 @@ theory Attractive :=
 end
 
 theory Transitive A (⊏) :=
-	assume trans: if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
+	assume trans#trans if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
 	interpretation Attractive;
 		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z;

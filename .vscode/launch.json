@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Std/SimpleTypes.nl"],
+"args": ["-i","Std/Propositional/Iff.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [
