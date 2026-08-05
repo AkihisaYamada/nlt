@@ -113,6 +113,14 @@ begin
 
 end
 
+theory Monotone f A (<) (⊏) :=
+	assume mono: if x < y, x ∈ A, y ∈ A then f x ⊏ f y.
+end
+
+theory Antitone f A (<) (⊏) :=
+	assume cmono: if x ⊏ y, x ∈ A, y ∈ A then f y < f x.
+end
+
 theory CollectRel (⊏) :=
 	fix Collect_⊏.
 	assume Collect_intro: if x ⊏ a, P.[x] then x ∈ {x ⊏ a. P.[x]}.
@@ -121,4 +129,17 @@ theory CollectRel (⊏) :=
 begin
 	lemma Collect_elim: if x: x ∈ {x ⊏ a. P.[x]}, assm: x ⊏ a ⟹ P.[x] ⟹ Q then Q;
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
+end
+
+theory Fun :=
+	fix (fun).
+	assume fun_app_elim: for P A if P.[(fun x. F.[x]) s], F.[s] ∈ A then P.[F.[s]].
+begin
+
+	lemma fun_app_intro: if P: P.[F.[s]], A: F.[s] ∈ A then P.[(fun x. F.[x]) s];
+		apply fun_app_elim[for Z, of (y. P.[y] ⟹ Z), OF _ A P].
+
+	lemma fun_indep_elim: if app: P.[(fun x. s) t], A: s ∈ A then P.[s];
+		apply fun_app_elim[of P, OF app A].
+
 end

@@ -8,25 +8,32 @@ This theory formalizes Church's simple type theory[^Church1940] mostly following
 	The Journal of Symbolic Logic, Vol. 5, No. 2. (Jun., 1940), pp. 56-68
 
 The original theory considers lambda terms with full type annotations.
-We take the convention to use type judgement `s : α` instead of annotating every term with its type.
-But we follow Church essentially that each bound variable is explicitly typed.
+We take the convention to use type judgement `s : α` instead of annotating every term with its type,
+but essentially follow Church by explicitly assigning a type to each bound variable.
 We will use `fun` instead of historical λ.
+
+A fundamental design choice is how to treat reductions. The 1940 paper does not formulate reduction relation but admit rule of inference:
+
+> II. To replace any part $((λx_β M_α)N_β)$ of a formula by the result of substituting 
+$N_β$ for $x_β$ throughout $M_α$, provided that the bound variables of $M_α$ are distinct both 
+from $x_β$ and from the free variables of $N_β$.
+
+While we can formalize reduction as "replacement" (see Std/Membership/Fun), Church also uses $⟶$ to represent notational equality. It is also possible to understand that his $⟶$ is something the parser must perform, but I would like such an operation to be achieved in the formalized part.
+
+Therefore, we import syntactic equality, and formalize β-reduction as a type-restricted equation.
 ---
-import FunIn, To.
+import Eq, FunIn, To.
 
 ---
-We need a dedicated type `Prop` ($o$ in Church's notation) for propositions. 
----
-fix Prop.
-
----
-Church then declares as primitives negation ($N_{oo}$), disjunction ($A_{ooo}$), and universal quantification ($Π_{o(oα)}$), and defines implication ($⊃$) from negation and disjunction.
+Church then declares a special type $o$, `Prop` in our notation, for propositions,
+and declares negation ($N_{oo}$), disjunction ($A_{ooo}$), and universal quantification ($Π_{o(oα)}$) as primitive symbols.
 The choice of negation and disjunction as primitives is incompatible with intuitionistic logic, and Church admits the rule of inference
 > V. From $A_o ⊃ B_o$ and $A_o$, to infer $B_o$.
-although implication is a derived notion.
+although implication ($⊃$) is defined from negation and disjunction.
 
 Therefore, we take implication as a primitive. As we already have implication in the foundation, we just postulate its type.
 ---
+fix Prop.
 assume imp_type! (⟹) : Prop → Prop → Prop.
 
 ---
@@ -40,7 +47,7 @@ assume all_type! all A : (A → Prop) → Prop.
 Church's original formulation of ∀-introduction is the rule of inference:
 > VI. From $F_{oα} x_α$ to infer $Π_{o(oα)} F_{oα}$ provided that $x_α$ is not a free variable of $F_{oα}$.
 ---
-assume all_intro: if f : A → Prop, ∀x. x : A ⟹ f x then all f.
+assume all_intro: if f : A → Prop, ∀x. x : A ⟹ f x then all A f.
 ---
 The ∀-elimination is the formal axiom (family):
 > 5$^α$. $Π_{o(oα)} f_{oα} ⊃ f_{oα} x_α$
@@ -49,68 +56,65 @@ assume all_axiom: if f : A → Prop, x : A then all A f ⟹ f x.
 ---
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
-In our notation, `∀x : α. s` := `all α (fun x : α. s)`, but there are two difficulties to formalize this.
 
-First, as this definition duplicates α, it is not obviously safe to replace the left-hand side to the right-hand side.
-Types are there to ensure this kind of replacement to terminate, but here α is a type and simple type theory does not consider types of types.
-One can argue that any such reduction is safe, provided the right-hand side has a type.
-So we postulate such an abstraction, where `(fun x. F.[x]) s` can be reduced to `F.[s]`, provided the latter is typed.
-
-The next question is how `∀x : α. F.[x]` should be internally. One clean option would be `(∀:) α F`, but now the above argument fails because `(∀:) α` cannot be represented as a typed term.
-We conclude that `(∀:)` should take the two arguments simultaneously, i.e., `(∀:)(α, x. s)`. This demands syntactic pairing.
+It is not trivial that this reduction is safe, as parameter α is duplicated.
+Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types of types.
+A formalized machinery for this kind of reduction is rather involving, so we treat Church's "notation" involving type paremeters as assumptions.
 ---
+fix (∀:).
+syntax ∀ _ : _. _ := ∀:.
+assume all_def: (∀x : A. P.[x]) = all A (fun x : A. P.[x]).
+
+---
+Church treats existential quantification just a notation:
+> $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
+We adopt this treatment, with an intuitionist-friendly definition.
+---
+fix (∃:). syntax ∃ _ : _. _ := ∃:.
+assume ex_def: (∃x : A. P.[x]) = (∀Q : Prop. (∀x : A. P.[x] ⟹ Q) ⟹ Q).
+
+---
+Church defines equality via type-parametrized equality constant
+> $Q_{oαα} ⟶ λx_α λy_α [(f_{oα})[f_{oα} x_α ⊃ f_{oα} y_α]$.
+> $[A_α = B_α] ⟶ Q_{oαα} A_α B_α$.
+As we needed syntactic equality already, I see little sense in defining such type-parametrized equality. We just postulate that equality between terms of the same type is a prosition ($o$).
+---
+assume eq_prop: if x : A, y : A then (x = y) : Prop.
 
 begin
 
-definition (∀:) := fun (A,P). all A (fun x : A. P.[x]).
-
 ---
-Similarly, Church's treatment of existential quantification as a notation
-> $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
-uses untyped arguments. 
+Other logical constants do not require type parameters and thus can be defined as simply typed constants.
 ---
-definition (∃:) := fun (A,P). ∀Q : Prop. (∀x : A. P.[x] ⟹ Q) ⟹ Q.
 
----
-The type-parametrized equality
-> $Q_{oαα} ⟶ λx_α λy_α [(f_{oα})[f_{oα} x_α ⊃ f_{oα} y_α]$.
-also takes a type as a parameter.
----
-definition eq := fun A. fun x y : A. ∀f : A → Prop. f x ⟹ f y.
+definition false = ∀x : Prop. x.
+definition true = (false ⟹ false).
+definition[as not] (¬) = fun P : Prop. P ⟹ false. 
+definition[as and] (∧) = fun P Q : Prop. ∀R : Prop. (P ⟹ Q ⟹ R) ⟹ R.
+definition[as iff] (⟺) = fun P Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
+definition[as or] (∨) = fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 
+interpretation Propositional (:) .
 
-
-lemma to_TYPE: if [A : TYPE V, B : TYPE V] then A → B : TYPE V.
-
-lemma all_prop#intro if [f : A → Prop] then all A f : Prop;
-	by to_elim1[OF all_type].
-
-lemma all_elim1:
-	if all: all A (fun x : A. F.[x]), F: ∀x. x : A ⟹ F.[x] : Prop, x: x : A
-	then F.[x];
-	apply funIn_app_elim[of(z. z), OF _ x];
-	apply all_axiom[OF _ x all];
-	apply fun_to;
-	by #elim F.
-
-interpretation Propositional (:).
-
-definition false := ∀x : Prop. x.
-definition true := (false ⟹ false).
-definition[as not] (¬) := fun P : Prop. P ⟹ false. 
-definition[as and] (∧) := fun P Q : Prop. ∀R : Prop. (P ⟹ Q ⟹ R) ⟹ R.
-definition[as iff] (⟺) := fun P Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
-definition[as or] (∨) := fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
+interpretation AllRelStrict (:) (∀:);
+	- by to_elim1[OF all_type] #simp all_def.
+	- if ! ∀ x. x : a ⟹ P.[x];
+		by #simp all_def #intro all_intro.
+	- for s if all: ∀ x : A. P.[x], P!, s! then P.[s];
+		have 1: (fun x : A. P.[x]) s;
+			apply all_axiom[OF _ _ all[unfold all_def]].
+		use 1; simp.
+	.
 
 interpretation False;
 	- by #simp false_def.
 	- if false: false, P: P : Prop then P;
 		apply all_elim1[OF false[unfold false_def]];
 		by P.
+	retain true;
+		by #simp true_def.
 	.
 
-interpretation True;
-	by #simp true_def.
 
 ---
 ## Basic Combinators

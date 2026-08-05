@@ -2016,7 +2016,7 @@ public:
 								if MSG {
 									cout << "binder middle " << opener << " x " << next << " y. z := " << actual;
 									if( cons ) {
-										cout << "(y " << *cons << " z)" << endl;
+										cout << "(y " << *cons << " (x. z))" << endl;
 									} else {
 										cout << " y (x. z)" << endl;
 									}

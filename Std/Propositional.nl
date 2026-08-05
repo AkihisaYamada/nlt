@@ -14,6 +14,10 @@ note! imp.closed.
 
 theory Relation A (⊏) :=
 	import Binary (⊏) A A Prop.
+begin
+
+	note! closed.
+
 end
 
 theory PierceLaw :=
@@ -41,4 +45,26 @@ begin
 		- apply true_def[of (x. x)].
 		.
 
+end
+
+theory AllRelStrict (⊏) (∀⊏) :=
+	assume all_prop! if ∀x. x ⊏ A ⟹ P.[x] ∈ Prop then (∀x ⊏ A. P.[x]) ∈ Prop.
+	assume all_intro: if ∀x. x ⊏ A ⟹ P.[x], ∀x. x ⊏ A ⟹ P.[x] ∈ Prop then ∀x ⊏ A. P.[x].
+	assume all_elim1: for s if ∀x ⊏ A. P.[x], ∀x. x ⊏ A ⟹ P.[x] ∈ Prop, s ⊏ A then P.[s].
+begin
+
+	lemma all_elim:
+		if all: ∀x ⊏ A. P.[x], assm: (∀x. x ⊏ A ⟹ P.[x]) ⟹ Q,
+		   prop: ∀x. x ⊏ A ⟹ P.[x] ∈ Prop
+		then Q;
+		apply assm;
+		- for x; by all_elim1[of x, OF all prop].
+		.
+
+end
+
+theory ExRelStrict (⊏) (∀⊏) :=
+	assume ex_prop! if ∀x. x ⊏ A ⟹ P.[x] ∈ Prop then (∃x ⊏ A. P.[x]) ∈ Prop.
+	assume ex_intro1: if P.[x], x ⊏ A, ∀x. x ⊏ A ⟹ P.[x] ∈ Prop then ∃x ⊏ A. P.[x].
+	assume ex_elim: if ∃x ⊏ A. P.[x], ∀x. P.[x] ⟹ x ⊏ A ⟹ Q, ∀x. x ⊏ A ⟹ P.[x] ∈ Prop then Q.
 end

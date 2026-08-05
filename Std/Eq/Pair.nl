@@ -6,7 +6,7 @@ assume snd#simp snd (x,y) = y.
 
 begin
 
-interpret pair: MetaInjective (,);
+interpretation pair: MetaInjective (,);
 	- for x x' if eq: (,) x = (,) x' then x = x';
 		have 1: fst (x,x) = fst (x',x);
 			unfold eq.
@@ -55,10 +55,10 @@ obtain AbsRep where AbsRep_spec: snd AbsRep (fst AbsRep x) = x;
 		- for x; simp.
 		.
 	.
-define Abs = fst AbsRep.
-define Rep = snd AbsRep.
+definition Abs = fst AbsRep.
+definition Rep = snd AbsRep.
 
-interpret AbsRep: MetaInverse Abs Rep;
+interpretation AbsRep: MetaInverse Abs Rep;
 	by #simp Abs_def Rep_def AbsRep_spec.
 
 note#simp AbsRep.inverse.

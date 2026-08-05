@@ -112,54 +112,6 @@ begin
 
 end
 
-theory Comb :=
-	import Id, Const, Comp, Dual.
-begin
-
-	definition app = (∘) id.
-	lemma app#simp app f x = f x;
-		simp app_def.
-
-	definition paracomp = dual ((∘) ∘ dual (∘)).
-	lemma paracomp_app#simp paracomp f g x y = f x (g y);
-		simp paracomp_def.
-
-	definition[as revapp] (|>) = dual id.
-	lemma revapp#simp x |> f = f x;
-		simp revapp_def.
-
-	lemma : ((z |>) ∘ (y |>) ∘ (x |>)) f = f x y z.
-
-	obtain pair_tp where pair_tp_spec:
-		if	pair = pair_tp (const ∘ dual const),
-			fst = pair_tp (const const),
-			snd = pair_tp (const ∘ const),
-			(∀x y. fst (pair x y) = x) ⟹
-			(∀x y. snd (pair x y) = y) ⟹ P
-		then P;
-		- for thesis if assm;
-			apply assm[of ((dual ((∘) ∘ dual ∘ dual id) id |>) ∘ ((const |>) |>) ∘ ((dual const |>) |>))];
-			- for pair if pair0 for fst if fst0 for snd if snd0 for P if assm2;
-				apply assm2;
-				- for x y; simp fst0 pair0.
-				- for x y; simp snd0 pair0.
-				.
-			.
-		.
-
-	definition[as pair] (,) = pair_tp (const ∘ dual const).
-	definition fst = pair_tp (const const).
-	definition snd = pair_tp (const ∘ const).
-
-	lemma fst_pair#simp fst (x,y) = x;
-		apply pair_tp_spec[OF pair_def fst_def snd_def].
-
-	lemma snd_pair#simp snd (x,y) = y;
-		apply pair_tp_spec[OF pair_def fst_def snd_def].
-
-
-end
-
 theory MetaIf :=
 	fix If.
 	assume If_then: if P then If P x y = x.
