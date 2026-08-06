@@ -98,8 +98,7 @@ theory RightInverse A (*) (1) inverse :=
 end
 
 theory CommMagma :=
-	import Magma.
-	import Commutative.
+	import Magma, Commutative.
 end
 
 theory Action A B (∘) (⋅) :=
@@ -129,20 +128,20 @@ theory Ringoid A (*) (+) :=
 	import add: Magma A (+).
 	import Distributive A (*) (+).
 begin
-	interpretation LeftModuloid A A (*) (+) (+);
+	interpret LeftModuloid A A (*) (+) (+);
 		interpret sadd: Magma A (+);
 			by add.closed.
 		.
-	interpretation RightModuloid A A (*) (+) (+).
+	interpret RightModuloid A A (*) (+) (+).
 end
 
 context Reflexive begin
 
-	interpretation Magmas (⊑).
+	interpret Magmas (⊑).
 
 	extend Compatible begin
 
-		interpretation Monotone A (*);
+		interpret Monotone A (*);
 			- if 1: y ⊑ y', x! x ∈ A, ! y ∈ A, ! y' ∈ A then x * y ⊑ x * y';
 				apply comp[OF refl[OF x] 1].
 			- if 1: x ⊑ x', ! x ∈ A, ! x' ∈ A, y! y ∈ A then x * y ⊑ x' * y;
@@ -154,12 +153,12 @@ end
 
 context Transitive begin
 
-	interpretation Magmas (⊏).
+	interpret Magmas (⊏).
 
 	theory MonoMagma :=
 		import Magma, Monotone.
 	begin
-		interpretation Compatible;
+		interpret Compatible;
 			- if x: x ⊏ x', y: y ⊏ y', ... then x * y ⊏ x' * y';
 				.. ⊏ x' * y;
 					apply right_mono[OF x].
@@ -171,7 +170,7 @@ context Transitive begin
 		import CommMagma.
 		import LeftMonotone A A.
 	begin
-		interpretation MonoMagma;
+		interpret MonoMagma;
 			- if xx': x ⊏ x', ... for y if ... then x * y ⊏ x' * y;
 				.. ⊏ y * x;
 					apply commute.
@@ -185,7 +184,7 @@ end
 
 context PartialEquivalence begin
 
-	interpretation Magmas (~).
+	interpret Magmas (~).
 
 	theory MagmaLeftNeutral (*) (1) :=
 		import Magma.
@@ -217,15 +216,13 @@ context PartialEquivalence begin
 	end
 
 	theory MagmaNeutral :=
-		import MagmaLeftNeutral.
-		import MagmaRightNeutral.
+		import MagmaLeftNeutral, MagmaRightNeutral.
 	end
 
 	theory CommMagmaNeutral :=
-		import MagmaLeftNeutral.
-		import CommMagma.
+		import MagmaLeftNeutral, CommMagma.
 	begin
-		interpretation MagmaNeutral;
+		interpret MagmaNeutral;
 			- for x if ! x ∈ A then x * 1 ~ x;
 				.. ~ 1 * x;
 					apply commute.
@@ -237,7 +234,7 @@ context PartialEquivalence begin
 		import Magma.
 		import LeftAssociative A A (*) (*).
 	begin
-		interpretation RightAssociative A A (*) (*);
+		interpret RightAssociative A A (*) (*);
 			- if ! x ∈ A, ! y ∈ A, ! z ∈ A;
 				apply sym;
 				apply left_assoc.
@@ -246,20 +243,17 @@ context PartialEquivalence begin
 	end
 
 	theory CommSemigroup :=
-		import CommMagma.
-		import Semigroup.
+		import CommMagma, Semigroup.
 	end
 
 	theory Monoid :=
-		import MagmaNeutral.
-		import Semigroup.
+		import MagmaNeutral, Semigroup.
 	end
 
 	theory CommMonoid :=
-		import CommMagmaNeutral.
-		import CommSemigroup.
+		import CommMagmaNeutral, CommSemigroup.
 	begin
-		interpretation Monoid.
+		interpret Monoid.
 	end
 
 	theory MagmaLeftAbsorb (*) (0) :=
@@ -297,7 +291,7 @@ context PartialEquivalence begin
 		import CommMagma.
 		import MagmaLeftAbsorb.
 	begin
-		interpretation MagmaAbsorb;
+		interpret MagmaAbsorb;
 			- for x if !x ∈ A then x * 0 ~ 0;
 				.. ~ 0 * x;
 					by commute.
@@ -306,27 +300,23 @@ context PartialEquivalence begin
 	end
 
 	theory SemigroupAbsorb :=
-		import MagmaAbsorb.
-		import Semigroup.
+		import MagmaAbsorb, Semigroup.
 	end
 
 	theory CommSemigroupAbsorb :=
-		import CommMagmaAbsorb.
-		import CommSemigroup.
+		import CommMagmaAbsorb, CommSemigroup.
 	begin
-		interpretation SemigroupAbsorb.
+		interpret SemigroupAbsorb.
 	end
 
 	theory MonoidAbsorb (*) (0) (1) :=
-		import SemigroupAbsorb.
-		import Monoid.
+		import SemigroupAbsorb, Monoid.
 	end
 
 	theory CommMonoidAbsorb (*) (0) (1) :=
-		import CommMonoid.
-		import CommMagmaAbsorb.
+		import CommMonoid, CommMagmaAbsorb.
 	begin
-		interpretation MonoidAbsorb.
+		interpret MonoidAbsorb.
 	end
 
 	theory CommRingoid (*) (+) :=
@@ -335,7 +325,7 @@ context PartialEquivalence begin
 		import LeftDistributive A A (*) (+) (+).
 	begin
 		note! mul.closed add.closed.
-		interpretation Ringoid;
+		interpret Ringoid;
 			- if ! x ∈ A, ! y ∈ A, ! z ∈ A then (x + y) * z ~ x * z + y * z;
 				.. ~ z * (x + y);
 					apply mul.commute.
@@ -359,7 +349,7 @@ context PartialEquivalence begin
 		import mul: CommSemigroup (*).
 		import add: CommSemigroup (+).
 	begin
-		interpretation Semiring.
+		interpret Semiring.
 	end
 
 	theory MagmaLeftCancel :=
@@ -370,7 +360,7 @@ context PartialEquivalence begin
 		import LeftCancel A A.
 	begin
 		note! lcancel.closed.
-		interpretation LeftCancellative A A;
+		interpret LeftCancellative A A;
 			- if eq: x * y ~ x * y', ... then y ~ y';
 				.. ~ x \ (x * y);
 					apply sym;
@@ -390,7 +380,7 @@ context PartialEquivalence begin
 		import RightCancel A A.
 	begin
 		note! rcancel.closed.
-		interpretation RightCancellative A A;
+		interpret RightCancellative A A;
 			- for x y x' if eq: x * y ~ x' * y, ... then x ~ x';
 				.. ~ x * y / y;
 					apply sym;

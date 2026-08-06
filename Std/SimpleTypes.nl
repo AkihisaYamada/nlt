@@ -31,7 +31,8 @@ The choice of negation and disjunction as primitives is incompatible with intuit
 > V. From $A_o ⊃ B_o$ and $A_o$, to infer $B_o$.
 although implication ($⊃$) is defined from negation and disjunction.
 
-Therefore, we take implication as a primitive. As we already have implication in the foundation, we just postulate its type.
+Therefore, we take implication as a primitive.
+As we already have implication in the foundation, we just postulate its type.
 ---
 fix Prop.
 assume imp_type! (⟹) : Prop → Prop → Prop.
@@ -94,13 +95,13 @@ definition[as and] (∧) = fun P Q : Prop. ∀R : Prop. (P ⟹ Q ⟹ R) ⟹ R.
 definition[as iff] (⟺) = fun P Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
 definition[as or] (∨) = fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 
-interpretation Propositional (:) .
+interpret Typed (:) .
 
-interpretation AllRelStrict (:) (∀:);
+interpret AllRelStrict (:) (∀:);
 	- by to_elim1[OF all_type] #simp all_def.
 	- if ! ∀ x. x : a ⟹ P.[x];
 		by #simp all_def #intro all_rule.
-	- for s if all: ∀ x : A. P.[x], P!, s! then P.[s];
+	- for s if all: ∀ x : A. P.[x], ... then P.[s];
 		have 1: (fun x : A. P.[x]) s;
 			apply all_axiom[OF _ _ all[unfold all_def]].
 		use 1; simp.
@@ -109,20 +110,53 @@ interpretation AllRelStrict (:) (∀:);
 note#intro all_intro.
 note#elim all_elim.
 
-interpretation False;
-	- by #simp false_def.
-	- if false: false, P: P : Prop then P;
-		apply all_elim1[OF false[unfold false_def]];
-		by P.
-	retain true;
-		by #simp true_def.
+interpret Intuitionistic;
+	interpret False;
+		- by #simp false_def.
+		- if false: false for P if ...;
+			apply all_elim1[OF false[unfold false_def]].
+		retain true;
+			by #simp true_def.
+		.
+	note#simp not_def.
+	interpret Not, IntuitionisticNot;
+		- if nP: ¬P, P, ... for Q if ...;
+			apply nP[simp, OF P, THEN false_elim].
+		.
+	interpret And;
+		note#simp and_def.
+		- if and: P ∧ Q, ...; use and.
+		- if and: P ∧ Q, ...; use and.
+		.
+	interpret Iff;
+		- by #simp iff_def.
+		- by #simp iff_def.
+		- if PQ: P ⟺ Q, ...;
+			by PQ[simp iff_def, THEN and_elim1].
+		- if PQ: P ⟺ Q, ...;
+			by PQ[simp iff_def, THEN and_elim2].
+		.
+	interpret Or;
+		note #simp or_def.
+		- if PQ: P ∨ Q, PR: P ⟹ R, QR: Q ⟹ R, ...;
+			by all_elim1[OF PQ[simp] !][OF ! PR QR].
+		.
 	.
 
-interpretation And;
-	- by #simp and_def.
-	- by #simp and_def.
-	- for P Q if and, !, !; use and; simp and_def.
-	- for P Q if and, !, !; use and; simp and_def.
+interpret ExRelStrict (:) (∃:);
+	note #simp ex_def.
+	- if Px: P.[x] for A if ...;
+		simp;
+		apply all_intro;
+		- if ! Q : Prop, all;
+			by all_elim1[OF all !, OF ! Px].
+		.
+	- if ex: ∃x : A. P.[x] for Q if assm, ...;
+		apply ex[simp, THEN all_elim1, of Q, OF ! !];
+		apply all_intro;
+		- for x if ...;
+			by assm[of x].
+		.
 	.
 
 ---

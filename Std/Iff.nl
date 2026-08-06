@@ -34,12 +34,12 @@ interpret iff: iff.MetaCompatible (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then (P ⟺ R) ⟺ (Q ⟺ S);
 		apply iff_intro;
 		- if PR: P ⟺ R then Q ⟺ S;
-			... ⟺ P; by PQ[dual].
-			... ⟺ R; by PR.
+			.. ⟺ P; by PQ[dual].
+			.. ⟺ R; by PR.
 			by RS.
 		- if QS: Q ⟺ S then P ⟺ R;
-			... ⟺ Q; by PQ.
-			... ⟺ S; by QS.
+			.. ⟺ Q; by PQ.
+			.. ⟺ S; by QS.
 			by RS[dual].
 		.
 	.
@@ -49,13 +49,15 @@ note#cong iff.cong.
 lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
 	- if PR, Q;
-		note P: Q[fold PQ].
-		note R: PR[OF P].
-		by R[unfold RS[OF Q]].
+		fold RS[OF Q];
+		apply PR;
+		unfold PQ;
+		by Q.
 	- if QS, P;
-		note Q: P[unfold PQ].
-		note S: QS[OF Q].
-		by S[fold RS[OF Q]].
+		unfold RS[OF P[unfold PQ]];
+		apply QS;
+		fold PQ;
+		by P.
 	.
 
 lemma imp_cong_right#rule_cong if QR: Q ⟺ R then (P ⟹ Q) ⟺ (P ⟹ R);

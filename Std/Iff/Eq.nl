@@ -148,7 +148,7 @@ begin
 
 end
 
-extend MetaPair begin
+extend Pair begin
 
 	lemma all_pair: (∀(x,y). P.[x,y]) ⟺ (∀x y. P.[x,y]);
 		apply iff_intro;

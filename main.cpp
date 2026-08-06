@@ -190,7 +190,7 @@ public:
 		return _thy;
 	}
 	Opt<Thm> gets_thm() {
-		return _gets_thm(_thy);
+		return _gets_thm(_thy,true);
 	}
 	Thm get_thm() {
 		auto ret = gets_thm();
@@ -226,7 +226,7 @@ public:
 		ret.min = 1;
 		ret.max = 0;
 		ret.normalize = skips("+");
-		while( auto const& arg = _gets_thm(loc) ) {
+		while( auto const& arg = _gets_thm(loc,true) ) {
 			auto rule = *arg;
 			if( rev ) {
 				rule = loc.dualize(rule,resolver);
@@ -241,7 +241,7 @@ public:
 		}
 		return ret;
 	}
-	Opt<Thm> _gets_thm( Thy& thy ) {
+	Opt<Thm> _gets_thm( Thy& thy, bool root ) {
 		auto const& opt = gets_thm_name();
 		if( !opt ) {
 			return {};
@@ -284,21 +284,31 @@ public:
 					auto strip_thm = strip_ctxt.weaken(tmp);
 					auto reorder_intp = var_ctxt.fork();
 					auto reorder_ctxt = reorder_intp.ctxt();
-					auto reorder_prems = vector<Sum<Thm,pair<bool,size_t>>>();
+					auto reorder_prems = vector<Sum<Thm,pair<char,size_t>>>();
 					auto args = vector<Thm>();
+					auto parent_prems = vector<CTerm>();
 					auto head_prems = vector<CTerm>();
 					auto tail_prems = vector<CTerm>();
+					auto auto_prems = vector<CTerm>();// number of heads to be automatically discharged
 					for(;;) {
 						strip_thm = strip_all(strip_thm,var_ctxt).first;
 						auto imp = strip_thm.cbinary(IMP);
 						if( !imp ) break;
-						int mode;
-						if( skips("_") ) {// assume the premise later
+						char mode;
+						if( skips("_") ) {// assume the premise
 							mode = 1;
-						} else if( skips("<") ) {// assume before
+							reorder_prems.emplace_back(pair{mode,head_prems.size()});
+						} else if( skips(">") ) {// move the premise to the last
 							mode = 2;
-						} else if( auto const& arg = _gets_thm(loc) ) {// unify with the argument
+							reorder_prems.emplace_back(pair{mode,tail_prems.size()});
+						} else if( skips("!") ) {// discharge
 							mode = 3;
+							reorder_prems.emplace_back(pair{mode,auto_prems.size()});
+						} else if( skips("<") ) {// assume in the parent
+							mode = 4;
+							reorder_prems.emplace_back(pair{mode,parent_prems.size()});
+						} else if( auto const& arg = _gets_thm(loc,false) ) {// unify with the argument
+							mode = 0;
 							args.emplace_back(*arg);
 						} else {
 							break;
@@ -307,37 +317,50 @@ public:
 						auto reorder_prem = reorder_ctxt.weaken(imp->first.lift());
 						switch( mode ) {
 						case 1:
-							reorder_prems.emplace_back(pair{false,tail_prems.size()});
-							tail_prems.emplace_back(reorder_prem);
-							break;
-						case 2:
-							reorder_prems.emplace_back(pair{true,head_prems.size()});
 							head_prems.emplace_back(reorder_prem);
 							break;
+						case 2:
+							tail_prems.emplace_back(reorder_prem);
+							break;
 						case 3:
+							auto_prems.emplace_back(reorder_prem);
+							break;
+						case 4:
+							parent_prems.emplace_back(reorder_prem);
+							break;
+						case 0:
 							reorder_prems.emplace_back(reorder_ctxt.assume(reorder_prem));
 							break;
 						} 
 					}
 					// forming reordered theorem
+					auto auto_assms = vector<Thm>();
+					for( auto const& prem : auto_prems ) {
+						auto_assms.emplace_back( reorder_ctxt.assume(prem) );
+					}
+					auto parent_assms = vector<Thm>();
+					for( auto const& prem : parent_prems ) {
+						parent_assms.emplace_back( reorder_ctxt.assume(prem) );
+					}
 					auto head_assms = vector<Thm>();
-					for( auto const& head : head_prems ) {
-						head_assms.emplace_back( reorder_ctxt.assume(head) );
+					for( auto const& prem : head_prems ) {
+						head_assms.emplace_back( reorder_ctxt.assume(prem) );
 					}
 					auto tail_assms = vector<Thm>();
-					for( auto const& tail : tail_prems ) {
-						tail_assms.emplace_back( reorder_ctxt.assume(tail) );
+					for( auto const& prem : tail_prems ) {
+						tail_assms.emplace_back( reorder_ctxt.assume(prem) );
 					}
 					auto reorder = Intp::make(strip_ctxt,var_ctxt).compose(reorder_intp);
 					for( auto const& prem : reorder_prems ) {
 						if( auto thm = prem.ref<Thm>() ) {
 							reorder.discharge(*thm);
 						} else {
-							auto [head,ind] = *prem.ref<1>();
-							if( head ) {
-								reorder.discharge(head_assms[ind]);
-							} else {
-								reorder.discharge(tail_assms[ind]);
+							auto [mode,ind] = *prem.ref<1>();
+							switch( mode ) {
+							case 1: reorder.discharge(head_assms[ind]); break;
+							case 2: reorder.discharge(tail_assms[ind]); break;
+							case 3: reorder.discharge(auto_assms[ind]); break;
+							case 4: reorder.discharge(parent_assms[ind]); break;
 							}
 						}
 					}
@@ -347,10 +370,27 @@ public:
 					for( auto const& arg : args ) {
 						tmp = tmp << arg;
 					}
+					if( !parent_prems.empty() || !auto_prems.empty() ) {
+						auto sub = loc.branch();
+						tmp = strip_all(sub.weaken(tmp),sub).first;
+						// move assumptions to parent
+						for( size_t i = 0; i < parent_prems.size(); i++ ) {
+							Term prem = ASSERTED(tmp.cbinary(IMP))->first;
+							if( root ) throw Error("\"Cannot move assumption up\"")(prem);
+							tmp = tmp.impE(sub.weaken(loc.assume(prem)));
+						}
+						// auto discharge
+						for( size_t i = 0; i < auto_prems.size(); i++ ) {
+							auto prem = ASSERTED(tmp.cbinary(IMP))->first;
+							auto resolver = thy.resolver(_out_resolver);
+							tmp = tmp.impE(resolver.prove(sub,prem,{SIMP}));
+						}
+						tmp = tmp.intro();
+					}
 				} else if( skips("THEN") ) {
 					auto sub = loc.branch();
 					auto tmp2 = sub.weaken(tmp); // φ ⟹... ψ
-					auto thm = _get_thm(sub);// ψ ⟹ χ
+					auto thm = _get_thm(sub,root);// ψ ⟹ χ
 					auto strip_ctxt = sub.fork().ctxt();
 					auto [strip_thm,n] = strip_all(strip_ctxt.weaken(thm),strip_ctxt);
 					auto imp = strip_thm.cbinary(IMP);
@@ -387,7 +427,7 @@ public:
 				} else if( skips("simp") ) {
 					auto const& rew = loc.rewriter(SIMP);
 					auto resolver = Resolver(rew,_out_resolver);
-					while( auto thm = _gets_thm(loc) ) {
+					while( auto thm = _gets_thm(loc,true) ) {
 						rew.add_rewrite_rule(resolver.rules,*thm,false);
 					}
 					tmp = resolver.rewrites(loc,tmp,{SIMP},1,255,true,{});
@@ -406,8 +446,8 @@ public:
 		}
 		return ret;
 	}
-	Thm _get_thm( Thy& loc ) {
-		auto ret = _gets_thm(loc);
+	Thm _get_thm( Thy& loc, bool root ) {
+		auto ret = _gets_thm(loc,root);
 		if( !ret ) throw Error("\"expected a theorem\"")(get());
 		return *ret;
 	}
@@ -1874,15 +1914,14 @@ public:
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, "used goals:\n\t" );
 			} else if( skips("..") ) {
-				auto rel = get( TokenType::OPERATOR | TokenType::WORD );
-				auto t = get_term();
-				auto goal = thesis.goal();
-				auto op = goal.cbinary(rel);
+				auto rel1 = get( TokenType::OPERATOR | TokenType::WORD );
+				auto rhs = get_term();
+				auto op = strips_binary(thesis.goal());
 				if( !op ) throw Error("\"chain proof mismatch\"");
-				auto lhs = op->first;
-				auto rhs = _thy.cterm(t);
-				auto claim = _thy.cterm(rel)(lhs)(rhs);
-				auto thm = _thy.trans(rel).allE(lhs).allE(rhs);// s = t ⟹ ∀u. t = u ⟹ s = u
+				auto t = _thy.cterm(rhs);
+				auto [rel3,s,u] = *op;
+				auto claim = _thy.cterm(rel1)(s)(t);
+				auto thm = _thy.trans(rel1,rel3).allE(s).allE(t);// s = t ⟹ ∀u. t = u ⟹ s = u
 				if( skips(";") ) {
 					auto subthesis = Thesis::claim_exact(_thy,claim);
 					if MSG {
@@ -1933,7 +1972,7 @@ public:
 				_obtain(_thy);
 			} else if( skips("definition") ) {
 				_define(_thy);
-			} else if( skips("interpretation") ) {
+			} else if( skips("interpret") ) {
 				import(false);
 			} else if( skips("set") ) {
 				if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {

@@ -20,7 +20,7 @@ note#intro#refl eq.refl.
 ---
 Equality is an equivalence.
 ---
-interpretation eq: MetaEquivalence (=);
+interpret eq: MetaEquivalence (=);
 	- if xy: x = y then y = x;
 		by eq_elim[of (z. z = x), OF xy].
 	- if xy: x = y, yz: y = z then x = z;
@@ -49,7 +49,7 @@ lemma fun_cong: if fg: f = g then f x = g x;
 	by eq_cong_meta[of (h. h x), OF fg].
 
 lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
-	... = f y;
+	.. = f y;
 		by arg_cong[OF xy].
 	by fun_cong[OF fg].
 
@@ -67,10 +67,10 @@ end
 theory MetaInverse f g :=
 	assume inverse: g (f x) = x.
 begin
-	interpretation MetaInjective;
+	interpret MetaInjective;
 		- for x x' if eq: f x = f x' then x = x';
-			... = g (f x); unfold inverse.
-			... = g (f x'); unfold eq.
+			.. = g (f x); unfold inverse.
+			.. = g (f x'); unfold eq.
 			unfold inverse.
 		.
 end

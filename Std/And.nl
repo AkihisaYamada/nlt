@@ -14,7 +14,7 @@ lemma and_elim#elim if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R then R;
 lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q then R;
 	by and_elim[OF PQ PQR].
 
-interpretation and: MetaPartialEquivalence (∧).
+interpret and: MetaPartialEquivalence (∧).
 
 extend Not begin
 

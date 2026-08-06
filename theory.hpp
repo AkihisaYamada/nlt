@@ -209,7 +209,7 @@ public:
 	void register_refl( Thm const& thm ) &;
 	void register_imp( Thm const& thm, bool dir ) &;
 	void register_trans( Thm const& thm ) &;
-	Thm trans( Term const& rel ) &;
+	Thm trans( Term const& rel1, Term const& rel3 ) &;
 	void register_dual( Thm const& thm ) &;
 	Thm dualize( Thm const& thm, Resolver& resolver ) &;
 	void import_rewrite( Import const& import, bool override_default ) &;

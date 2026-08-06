@@ -1,4 +1,3 @@
-
 --- Syntactic Pairing ---
 fix (,) fst snd.
 assume fst#simp fst (x,y) = x.
@@ -6,12 +5,13 @@ assume snd#simp snd (x,y) = y.
 
 begin
 
-interpretation pair: MetaInjective (,);
+interpret pair: MetaInjective (,);
 	- for x x' if eq: (,) x = (,) x' then x = x';
 		have 1: fst (x,x) = fst (x',x);
 			unfold eq.
 		by 1[unfold fst].
 	.
+
 lemma pair_eq_pair_intro: if x: x = x', y: y = y' then (x,y) = (x',y');
 	simp x y.
 
@@ -58,7 +58,7 @@ obtain AbsRep where AbsRep_spec: snd AbsRep (fst AbsRep x) = x;
 definition Abs = fst AbsRep.
 definition Rep = snd AbsRep.
 
-interpretation AbsRep: MetaInverse Abs Rep;
+interpret AbsRep: MetaInverse Abs Rep;
 	by #simp Abs_def Rep_def AbsRep_spec.
 
 note#simp AbsRep.inverse.

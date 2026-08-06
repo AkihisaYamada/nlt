@@ -207,7 +207,7 @@ theory NotIntroContr :=
 end
 
 ---
-We propose the following equivalent simpler version.
+The following is an equivalent simpler formulation.
 ---
 theory MinimalNot :=
 	assume imp_not_sym: if P ⟹ ¬Q then Q ⟹ ¬P.

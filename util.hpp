@@ -13,6 +13,8 @@ inline std::string operator+( std::string x, std::string_view const& y ) {
 
 extern Term const DUMMY;
 
+static Term const PAIR = Term(",");
+
 /** comparison of terms */
 int compare_term( Term const& l, Term const& r );
 /** comparison of terms */

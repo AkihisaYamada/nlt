@@ -13,7 +13,7 @@ assume funIn_app_elim: for P if P.[(fun x : A. F.[x]) s], s : A then P.[F.[s]].
 
 begin
 
-interpretation Membership (:).
+interpret Membership (:).
 
 lemma funIn_app_intro: for P if PFs: P.[F.[s]], s: s : A then P.[(fun x : A. F.[x]) s];
 	apply funIn_app_elim[for Y, of (z. P.[z] ⟹ Y), OF _ s PFs].

@@ -5,7 +5,7 @@ begin
 theory Antisymmetric A (⊑) :=
 	assume antisym: if x ⊑ y, y ⊑ x, x ∈ A, y ∈ A then x = y.
 begin
-	interpretation Attractive A (⊑);
+	interpret Attractive A (⊑);
 		- if xy: x ⊑ y, yx: y ⊑ x; by #simp antisym[OF xy yx].
 		- if xy: x ⊑ y, yx: y ⊑ x; by #simp antisym[OF yx xy].
 		.
@@ -18,7 +18,7 @@ end
 theory Order :=
 	import Preorder, Antisymmetric.
 begin
-	interpretation PseudoOrder.
+	interpret PseudoOrder.
 end
 
 theory Injective f A :=
@@ -45,7 +45,7 @@ theory Fun :=
 		for A F if F.[s] ∈ A then (fun x. F.[x]) s = F.[s].
 begin
 
-	interpretation base.Fun;
+	interpret base.Fun;
 		- for P A if P: P.[(fun x. F.[x]) s], FsA: F.[s] ∈ A then P.[F.[s]];
 			use P[unfold fun_app[OF FsA]].
 		.
@@ -54,17 +54,15 @@ begin
 	If the result is a member, then function application can be reduced.
 	---
 	lemma fun_app_eq: for A if eq: F.[s] = t, ! t ∈ A then (fun x. F.[x]) s = t;
-		... = F.[s];
+		.. = F.[s];
 			apply fun_app[of A];
 			by #simp eq.
-		... = t;
-			by #simp eq.
-		.
+		by #simp eq.
 
 	lemma fun_indep#simp[after 1] if ! s ∈ A then (fun x. s) t = s;
 		by fun_app[of A].
 
-	interpretation Abbrev;
+	interpret Abbrev;
 		- if assm: ∀f. (∀A x. F.[x] ∈ A ⟹ f x = F.[x]) ⟹ P then P;
 			apply assm[of (fun x. F.[x])];
 			by #elim fun_app.

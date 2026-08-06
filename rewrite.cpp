@@ -115,15 +115,14 @@ void Thy::register_trans( Thm const& thm ) & {
 	if( ctxt.fixed(3) )
 	if( auto const& yz = ctxt.assumed(4) )
 	if( auto const& rel2 = gets_binary_sym(*yz) )
-	if( auto const& rel3 = gets_binary_sym(xz) )
-	if( *rel1 == *rel2 && *rel2 == *rel3 ) {
-		add_term_thm(*rel1,TRANS,thm);
+	if( auto const& rel3 = gets_binary_sym(xz) ) {
+		add_term_thm(PAIR(*rel1)(*rel3),TRANS,thm);
 		return;
 	}
 	throw Error("\"malformed trans\"")(thm);
 }
-Thm Thy::trans( Term const& rel ) & {
-	return term_thm(rel,TRANS).first;
+Thm Thy::trans( Term const& rel1, Term const& rel3 ) & {
+	return term_thm(PAIR(rel1)(rel3),TRANS).first;
 }
 
 tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool cong ) const& {
@@ -470,7 +469,7 @@ Opt<Thm> Resolver::_steps(
 	if( max <= 1 && !normalize ) {
 		return eq;
 	}
-	auto trans = thy.term_thm(rel,TRANS).first;
+	auto trans = thy.trans(rel,rel);
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
 	Thm ltrans = trans.allE(s);
 	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
