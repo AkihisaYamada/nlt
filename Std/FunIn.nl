@@ -7,7 +7,7 @@ This theory directly formalizes Church 1940's rule of inference
   from $x_β$ and from the free variables of $N_β$.
 without introducing meta-equality.
 ---
-fix (fun_:) (:).
+fix (:) (fun_:).
 
 assume funIn_app_elim: for P if P.[(fun x : A. F.[x]) s], s : A then P.[F.[s]].
 

@@ -1620,9 +1620,9 @@ public:
 			sur = ASSERTED(sur.capp())->second;// x. ∀P. P.[x] ⟹ P.[r]
 			Thm elim_thm = intro_thm.allE(sur).impE(refl);// ∀P. P.[l] ⟹ P.[r]
 			// registering
-			auto intro_name = name + "_intro";
+			auto intro_name = name + "_def_intro";
 			org_thy.add_thm(intro_name,intro_thm);
-			auto elim_name = name + "_elim";
+			auto elim_name = name + "_def_elim";
 			org_thy.add_thm(elim_name,elim_thm);
 			if MSG cout << "defined " << _thy.pretty(sym) << " where" << endl <<
 				_indent(' ') << "  " << intro_name << ": " << _thy.pretty(intro_thm) << endl <<

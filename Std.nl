@@ -28,6 +28,8 @@ binder ∃ 0 0.
 binder ∃! 0 0.
 binder fun 51 0.
 binder FUN 51 0.
+binder some 50 0.
+binder the 50 0.
 binder such 50 0.
 
 syntax ∀ _ : _. _ := ∀:.
@@ -35,6 +37,8 @@ syntax ∃ _ : _. _ := ∃:.
 syntax ∃! _ : _. _ := ∃!:.
 syntax fun _ : _. _ := fun_:.
 syntax FUN _ : _. _ := FUN_:.
+syntax the _ : _. _ := the_:.
+syntax some _ : _. _ := some_:.
 syntax such _ : _. _ := such_:.
 syntax {_ : _. _} := Collect_:.
 
@@ -44,7 +48,8 @@ syntax ∃ _ ∈ _. _ := ∃∈.
 syntax ∃! _ ∈ _. _ := ∃!∈.
 syntax fun _ ∈ _. _ := fun_∈.
 syntax FUN _ ∈ _. _ := FUN_∈.
-syntax such _ ∈ _. _ := such_∈.
+syntax the _ ∈ _. _ := the_∈.
+syntax some _ ∈ _. _ := some_∈.
 syntax {_ ∈ _. _} := Collect_∈.
 
 infix ⊆ 51 51 50.
@@ -60,12 +65,6 @@ infix ⊇ 51 51 50.
 infix ⊃ 51 51 50.
 
 infix < 51 51 50.
-syntax ∀ _ < _. _ := ∀<.
-syntax ∃ _ < _. _ := ∃<.
-syntax ∃! _ < _. _ := ∃!<.
-syntax such _ < _. _ := such_<.
-syntax {_ < _. _} := Collect_<.
-
 infix ≤ 51 51 50.
 infix > 51 51 50.
 infix ≥ 51 51 50.
@@ -75,7 +74,6 @@ infix ⊏ 51 51 50.
 syntax ∀ _ ⊏ _. _ := ∀⊏.
 syntax ∃ _ ⊏ _. _ := ∃⊏.
 syntax ∃! _ ⊏ _. _ := ∃!⊏.
-syntax such _ ⊏ _. _ := such_⊏.
 syntax {_ ⊏ _. _} := Collect_⊏.
 
 infix ⊐ 51 51 50.

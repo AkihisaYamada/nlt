@@ -47,24 +47,78 @@ begin
 
 end
 
-theory AllRelStrict (⊏) (∀⊏) :=
-	assume all_prop! if ∀x. x ⊏ A ⟹ P.[x] : Prop then (∀x ⊏ A. P.[x]) : Prop.
-	assume all_intro: if ∀x. x ⊏ A ⟹ P.[x], ∀x. x ⊏ A ⟹ P.[x] : Prop then ∀x ⊏ A. P.[x].
-	assume all_elim1: for s if ∀x ⊏ A. P.[x], ∀x. x ⊏ A ⟹ P.[x] : Prop, s ⊏ A then P.[s].
+theory AllRelStrict A (⊏) (∀⊏) :=
+	assume all_prop! if a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop then (∀x ⊏ a. P.[x]) : Prop.
+	assume all_intro! if ∀x. x ⊏ a ⟹ P.[x], a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop then ∀x ⊏ a. P.[x].
+	assume all_elim1: for s if ∀x ⊏ a. P.[x], a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop, s ⊏ a then P.[s].
 begin
 
-	lemma all_elim:
-		if all: ∀x ⊏ A. P.[x], assm: (∀x. x ⊏ A ⟹ P.[x]) ⟹ Q,
-		   prop: ∀x. x ⊏ A ⟹ P.[x] : Prop
+	lemma all_elim#elim
+		if all: ∀x ⊏ a. P.[x], assm: (∀x. x ⊏ a ⟹ P.[x]) ⟹ Q,
+		   [a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop]
 		then Q;
 		apply assm;
-		- for x; by all_elim1[of x, OF all prop].
+		- for x; by all_elim1[of x, OF all].
 		.
 
 end
 
-theory ExRelStrict (⊏) (∃⊏) :=
-	assume ex_prop! if ∀x. x ⊏ A ⟹ P.[x] : Prop then (∃x ⊏ A. P.[x]) : Prop.
-	assume ex_intro1: if P.[x], x ⊏ A, ∀x. x ⊏ A ⟹ P.[x] : Prop then ∃x ⊏ A. P.[x].
-	assume ex_elim: if ∃x ⊏ A. P.[x], ∀x. P.[x] ⟹ x ⊏ A ⟹ Q, ∀x. x ⊏ A ⟹ P.[x] : Prop, Q : Prop then Q.
+theory ExRelStrict A (⊏) (∃⊏) :=
+	assume ex_prop! if a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop then (∃x ⊏ a. P.[x]) : Prop.
+	assume ex_intro1: for x if P.[x], x ⊏ a, a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop then ∃x ⊏ a. P.[x].
+	assume ex_elim: if ∃x ⊏ a. P.[x], ∀x. P.[x] ⟹ x ⊏ a ⟹ Q, a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop, Q : Prop then Q.
+end
+
+theory FirstOrder TYPE (∀:) (∃:) :=
+	import AllRelStrict TYPE (:) (∀:).
+	import ExRelStrict TYPE (:) (∃:).
+begin
+
+	---
+	A logic is called *impredicative* if quantification over propositions are allowed.
+	This property can be simply characterized by saying `Prop` is a type.
+	---
+	theory Impredicative :=
+		assume prop_type! Prop : TYPE.
+	begin
+
+		definition false := ∀P : Prop. P.
+
+		interpret False;
+			- apply false_def_intro[of (x. x : Prop)].
+			- if false;
+				note all: false_def_elim[of (x. x), OF false].
+				apply all_elim1[OF all ! !]=.
+			.
+
+	end
+
+end
+
+theory SecondOrder IND :=
+	import FirstOrder, To.
+	assume ind_type: if A : IND then A : TYPE.
+	assume to_type! if A : IND, B : TYPE then A → B : TYPE.
+end
+
+theory HigherOrder :=
+	import FirstOrder, To.
+	assume to_type! if A : TYPE, B : TYPE then A → B : TYPE.
+begin
+
+	interpret? SecondOrder TYPE.
+
+end
+
+---
+The presence of the choice operator requires that every type `A` is inhabited.
+We can accommodate empty types by restricting `A` to belong to a certain class `TYPE`.
+---
+theory TypedSome TYPE :=
+	fix some_:.
+	assume some_type! if A : TYPE, ∀x. x : A ⟹ P.[x] : Prop then (some x : A. P.[x]) : A.
+	assume some_intro1: for x if P.[x], A : TYPE, x : A, ∀x. x : A ⟹ P.[x] : Prop then P.[some z : A. P.[z]].
+begin
+
+
 end

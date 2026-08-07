@@ -49,7 +49,9 @@ interpret iff: iff.Compatible Prop (⟺);
 
 note#cong iff.cong.
 
-lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S, [P : Prop, Q : Prop, R : Prop, S : Prop] then (P ⟹ R) ⟺ (Q ⟹ S);
+lemma imp_cong#cong
+	if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S, [P : Prop, Q : Prop, R : Prop, S : Prop]
+	then (P ⟹ R) ⟺ (Q ⟹ S);
 	apply iff_intro;
 	- if PR, Q;
 		fold RS[OF Q];
@@ -63,7 +65,7 @@ lemma imp_cong#cong if PQ: P ⟺ Q, RS: Q ⟹ R ⟺ S, [P : Prop, Q : Prop, R : 
 		by P.
 	.
 
-lemma imp_cong_right#rule_cong if QR: Q ⟺ R, [P : Prop, Q : Prop, R : Prop] then (P ⟹ Q) ⟺ (P ⟹ R);
+lemma imp_cong_right#rule_cong if QR: P ⟹ Q ⟺ R, [P : Prop, Q : Prop, R : Prop] then (P ⟹ Q) ⟺ (P ⟹ R);
 	unfold QR.
 
 interpret imp: iff.Compatible Prop (⟹);
@@ -103,5 +105,52 @@ extend True begin
 	note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
 
 	lemma iff_true: if !P, [P : Prop] then P ⟺ true.
+
+end
+
+extend AllRelStrict begin
+
+	lemma all_cong:
+		if PQ: ∀x. x ⊏ a ⟹ P.[x] ⟺ Q.[x],
+		   [a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop, ∀x. x ⊏ a ⟹ Q.[x] : Prop]
+		then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. Q.[x]);
+		apply iff_intro;
+		- if P;
+			apply all_intro;
+			- if ! x ⊏ a; fold PQ; by all_elim1[of x, OF P].
+			.
+		- if Q;
+			apply all_intro;
+			- if ! x ⊏ a; unfold PQ; by all_elim1[of x, OF Q].
+			.
+		.
+
+end
+
+extend ExRelStrict begin
+
+	lemma ex_cong:
+		if PQ: ∀x. x ⊏ a ⟹ P.[x] ⟺ Q.[x],
+		   [a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop, ∀x. x ⊏ a ⟹ Q.[x] : Prop]
+		then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. Q.[x]);
+		apply iff_intro;
+		- if P;
+			apply ex_elim[OF P];
+			- if ! P.[x], ...; apply ex_intro1[of x]; fold PQ.
+			.
+		- if Q;
+			apply ex_elim[OF Q];
+			- if ! Q.[x], ...; apply ex_intro1[of x]; unfold PQ.
+			.
+		.
+
+end
+
+extend FirstOrder begin
+
+	interpret AllRelStrict TYPE (:) (∀:).
+	interpret ExRelStrict TYPE (:) (∃:).
+
+	note#cong#rule_cong all_cong ex_cong.
 
 end

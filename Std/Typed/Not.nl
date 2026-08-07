@@ -100,14 +100,15 @@ begin
 	extend AllRelStrict begin
 
 		lemma nall_intro1: for x
-			if nPx: ¬ P.[x], xa! x ⊏ a, [∀y. y ⊏ a ⟹ P.[y] : Prop]
+			if nPx: ¬ P.[x], [x ⊏ a, a : A, ∀y. y ⊏ a ⟹ P.[y] : Prop]
 			then ¬(∀x ⊏ a. P.[x]);
 			apply not_imp_imp_not[OF nPx];
 			- if all: ∀x ⊏ a. P.[x];
-				apply all_elim1[OF all _ xa].
+				apply all_elim1[OF all].
 			.
 		lemma nall_intro:
-			if assm: ∀Q. (∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q, [∀y. y ⊏ a ⟹ P.[y] : Prop]
+			if assm: ∀Q. (∀x. ¬ P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q,
+			   [a : A, ∀y. y ⊏ a ⟹ P.[y] : Prop]
 			then ¬(∀x ⊏ a. P.[x]);
 			apply assm;
 			- for x;
@@ -115,7 +116,7 @@ begin
 			.
 
 		lemma nnall_imp:
-			if nnall: ¬ ¬ (∀x ⊏ a. P.[x]), [∀y. y ⊏ a ⟹ P.[y] : Prop]
+			if nnall: ¬ ¬ (∀x ⊏ a. P.[x]), [a : A, ∀y. y ⊏ a ⟹ P.[y] : Prop]
 			then ∀x ⊏ a. ¬ ¬ P.[x];
 			apply all_intro;
 			- if xa! x ⊏ a;
@@ -128,12 +129,13 @@ begin
 	extend ExRelStrict begin
 
 		lemma nex_elim1:
-			if nex: ¬(∃x ⊏ a. P.[x]), xa! x ⊏ a, [∀y. y ⊏ a ⟹ P.[y] : Prop]
+			if nex: ¬(∃x ⊏ a. P.[x]), xa! x ⊏ a, [a : A, ∀y. y ⊏ a ⟹ P.[y] : Prop]
 			then ¬ P.[x];
 			apply not_imp_imp_not[OF nex]; by ex_intro1[OF _ xa].
 
 		lemma nex_elim:
-			if nex: ¬(∃x ⊏ a. P.[x]), assm: (∀x. x ⊏ a ⟹ ¬ P.[x]) ⟹ Q, [∀y. y ⊏ a ⟹ P.[y] : Prop]
+			if nex: ¬(∃x ⊏ a. P.[x]), assm: (∀x. x ⊏ a ⟹ ¬ P.[x]) ⟹ Q,
+			   [a : A, ∀y. y ⊏ a ⟹ P.[y] : Prop]
 			then Q;
 			apply assm;
 			- for x;
@@ -219,7 +221,7 @@ begin
 	extend ExRelStrict begin
 
 		lemma nex_intro:
-			if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x], [∀x. x ⊏ a ⟹ P.[x] : Prop]
+			if all_not: ∀x. x ⊏ a ⟹ ¬ P.[x], [a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop]
 			then ¬(∃x ⊏ a. P.[x]);
 			apply imp_not_imp_not;
 			- if ex: ∃x ⊏ a. P.[x];

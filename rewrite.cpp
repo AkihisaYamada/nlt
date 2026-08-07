@@ -319,7 +319,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 	vector<char>::const_iterator pos_it,
 	vector<char>::const_iterator pos_end
 ) & {
-	if( log > 12 ) _log() << "{ " << ( rule.cong ? "cong" : "rewrite" ) << " rule " << "matched: " << thy.pretty(rule.thm) << endl;
+	if( log > 6 ) _log() << "{ " << ( rule.cong ? "cong" : "rewrite" ) << " rule " << "matched: " << thy.pretty(rule.thm) << endl;
 	indent++;
 	Ctxt const& rule_ctxt = rule.thm.ctxt();
 	Ctxt const& pat_ctxt = rule.pat.ctxt();// (Δ, ∀x..., ∀y, s = y, ...)
@@ -344,7 +344,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 			auto o = proves( subthy, *guard, cond.rec ? simp : Opt<string const&>{} );
 			if( !o ) {
 				indent--;
-				if( log > 10 ) _log() << "}! failed to resolve guard: " << thy.pretty(*guard) << endl;
+				if( log > 11 ) _log() << "}! failed to resolve guard: " << thy.pretty(*guard) << endl;
 				return {};
 			}
 			intp.discharge(*o);
@@ -367,7 +367,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 			assert(false);
 		}
 		auto ret = rule.concl.subst(intp);
-		if( log > 12 ) _log() << "} rewritten: " << thy.pretty(ret) << endl;
+		if( log > 5 ) _log() << "} rewritten: " << thy.pretty(ret) << endl;
 		return {ret.intro()};
 	}
 	if( log > 13 ) _log() << "}! failed to apply: " << thy.pretty(rule) << endl;
@@ -376,7 +376,7 @@ Opt<Thm> Resolver::_apply_rewrite_rule(
 
 Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<std::string const&> simp, string const& rel, vector<char>::const_iterator pos_it, vector<char>::const_iterator pos_end ) & {
 	size_t ind = rew->gets_rel_ind(rel).value_or_throw(Error("\"Unregistered rewrite relation\"")(rel));
-	if( log > 12 ) {
+	if( log > 6 ) {
 		_log() << "- rewriting ";
 		if( pos_it != pos_end ) {
 			cerr << "[at ";
@@ -391,7 +391,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 	auto apply = [&]( Rewrite::Rule const& rule, Subst const& matcher, Intp const& intp )->Opt<Thm> {
 		if( auto const& ret = _apply_rewrite_rule(thy,rule,matcher,intp,simp,pos_it,pos_end) ) {
 			indent--;
-			if( log > 19 ) _log() << "* rewritten: " << thy.pretty(*ret) << endl;
+			if( log > 9 ) _log() << "* rewritten: " << thy.pretty(*ret) << endl;
 			return ret;
 		}
 		return {};
@@ -403,7 +403,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 					return {{*ret,ret->capp()->second}};
 				}
 			} else {
-				if( log > 15 ) _log() << "! explicit rule didn't match: " << thy.pretty(rule) << endl;
+				if( log > 12 ) _log() << "! explicit rule didn't match: " << thy.pretty(rule) << endl;
 			}
 		}
 		if( simp )
@@ -413,7 +413,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 			if( auto const& m = match(rule->pat,source,is_patvar,{import}) ) {
 				return apply(*rule,*m,import);
 			} else {
-				if( log > 15 ) _log() << "! simp rule didn't match: " << thy.pretty(thm) << endl;
+				if( log > 13 ) _log() << "! simp rule didn't match: " << thy.pretty(thm) << endl;
 			}
 			return {};
 		}) ) {
@@ -426,7 +426,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 				return {{*ret,ret->capp()->second}};
 			}
 		} else {
-			if( log > 15 ) _log() << "! cong rule didn't match: " << thy.pretty(rule) << endl;
+			if( log > 14 ) _log() << "! cong rule didn't match: " << thy.pretty(rule) << endl;
 		}
 	}
 	if( auto const& rule = rew->_fallbacks.finds_value(ind) ) {
@@ -435,7 +435,7 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 				return {{*ret,ret->capp()->second}};
 			}
 		} else {
-			if( log > 15 ) _log() << "- testing fall-back rule: " << thy.pretty(*rule) << endl;
+			if( log > 7 ) _log() << "- testing fall-back rule: " << thy.pretty(*rule) << endl;
 		}
 	}
 	indent--;
@@ -472,7 +472,7 @@ Opt<Thm> Resolver::_steps(
 	auto trans = thy.trans(rel,rel);
 	// ltrans: ∀y. s = y ⟹ ∀z. y = z ⟹ guards... ⟹ s = z
 	Thm ltrans = trans.allE(s);
-	if( log > 13 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
+	if( log > 8 ) _log() << "- applying transitivity: " << thy.pretty(ltrans) << endl;
 	for( unsigned int i = 1;; ) {
 		auto const& step = _step(thy,t,simp,rel,begin,end);
 		if( !step ) {

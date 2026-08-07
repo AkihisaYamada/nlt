@@ -274,7 +274,7 @@ bool Resolver::_discharge(
 			assert(rule);
 			auto const& m = rule->matches(g,{import});
 			if( !m ) {
-				if( log > 5 ) _log() << "! intro didn't match: " << subthy.pretty(thm) << endl;
+				if( log > 10 ) _log() << "! intro didn't match: " << subthy.pretty(thm) << endl;
 				return {};
 			}
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));

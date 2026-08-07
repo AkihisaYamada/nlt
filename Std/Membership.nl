@@ -20,21 +20,6 @@ theory Unary :=
 	assume closed: if x ∈ A then f x ∈ B.
 end
 
-theory To :=
-	fix (→).
-	assume to_elim1#intro[after 1] if f : A → B, x : A then f x : B.
-begin
-	---
-	Type judgment of application can be reduced to that of the function,
-	if one knows the type of the argument.
-	---
-	lemma app_in#intro[after 1] if [x : A, f : A → B] then f x : B.
-
-	lemma to_elim: if f: f : A → B, assm: (∀x. x : A ⟹ f x : B) ⟹ Q then Q;
-		use f; by assm.
-
-end
-
 theory Binary :=
 	fix f A B C.
 	assume closed: if x ∈ A, y ∈ B then f x y ∈ C.
