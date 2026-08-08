@@ -13,7 +13,7 @@ note#rewrite_imp iff_elim1[OF _ > _ _].
 note#rewrite_rev iff_elim2[OF _ > _ _].
 note! iff.closed.
 
-instance iff: Magmas (⟺).-- Magma notions wrt (⟺)
+instance iff: Magmas (⟺) (:).-- Magma notions wrt (⟺)
 
 lemma iff_elim: if PQ: P ⟺ Q, imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R, [P : Prop, Q : Prop] then R;
 	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].

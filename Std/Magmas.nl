@@ -1,11 +1,13 @@
 ----
-## Relation Symbol and Membership
+## Magma Properties
 
-Every binary symbol defines magma properties.
+Any pair of a membership and equality defines magma properties.
 ----
-fix (~).
+fix (~) (∈).
 
 begin
+
+instance Membership.
 
 theory LeftMonotone A B (*) :=
 	assume left_mono: if y ~ y', x ∈ A, y ∈ B, y' ∈ B then x * y ~ x * y'.
