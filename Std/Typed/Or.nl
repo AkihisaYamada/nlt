@@ -17,7 +17,7 @@ lemma or_intro:
 	- by or_intro1.
 	by or_intro2.
 
-interpret or: Symmetric Prop (∨);
+instance or: Symmetric Prop (∨);
 	- if PQ: P ∨ Q, ...;
 		apply or_elim[OF PQ];
 		- by or_intro2.
@@ -43,7 +43,7 @@ extend Not begin
 
 	extend MinimalNot begin
 
-		interpret .ContraPos.
+		instance .ContraPos.
 
 		lemma nor_intro: if nP: ¬P, nQ: ¬Q, [P : Prop, Q : Prop] then ¬(P ∨ Q);
 			apply imp_not_imp_not;

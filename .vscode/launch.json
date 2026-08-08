@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Std/Propositional/Or.nl"],
+"args": ["-i","Std/Eq/Classical.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [

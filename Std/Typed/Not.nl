@@ -18,7 +18,7 @@ theory ContraPos := -- @Latin modus tollens
 	assume not_imp_imp_not: if ¬Q, P ⟹ Q, P : Prop, Q : Prop then ¬P.
 begin
 
-	interpret not: Antitone (¬) Prop (⟹) (⟹);
+	instance not: Antitone (¬) Prop (⟹) (⟹);
 		- if PQ: P ⟹ Q, ...; by not_imp_imp_not[OF _ PQ].
 		.
 
@@ -68,7 +68,7 @@ begin
 	-- And if it is not inconsistent, explosive statements are negated.
 	extend NotInconsistent begin
 
-		interpret NotExplosive;
+		instance NotExplosive;
 			- if P0: P ⟹ ∀Q. Q then ¬P;
 				apply not.cmono[OF P0 not_inconsistent].
 			.
@@ -88,7 +88,7 @@ begin
 	theory Order A (⊏) :=
 		import Irreflexive A (⊏), Transitive A (⊏).
 	begin
-		interpret Asymmetric A (⊏);
+		instance Asymmetric A (⊏);
 			- for x y if xy: x ⊏ y, ... then ¬ y ⊏ x;
 				apply not_imp_imp_not[OF irrefl[of x, OF !]];
 				- if yx: y ⊏ x then x ⊏ x;
@@ -154,7 +154,7 @@ theory SelfRefutation :=
 	assume imp_not_imp_not: if P ⟹ ¬P, P : Prop then ¬P.
 begin
 
-	interpret NotExplosive;
+	instance NotExplosive;
 		- for P if nP, ...;
 			apply imp_not_imp_not;
 			by #elim nP.
@@ -172,7 +172,7 @@ begin
 	lemma nnot_intro: if P: P, [P : Prop] then ¬ ¬ P;
 		apply not_intro_connect[OF P].
 
-	interpret ContraPos;
+	instance ContraPos;
 		- if nQ: ¬Q, PQ: P ⟹ Q, ... then ¬P;
 			apply not_intro_connect[OF nQ];
 			by nnot_intro PQ.
@@ -183,7 +183,7 @@ begin
 		apply not_imp_imp_not[OF nnnP];
 		by nnot_intro.
 
-	interpret SelfRefutation;
+	instance SelfRefutation;
 		- if 1: P ⟹ ¬P, ... then ¬P;
 			apply not_intro_connect[OF 1];
 			by nimp_intro nnot_intro.
@@ -243,7 +243,7 @@ theory IntuitionisticNot :=
 	import NotExplosive, ExplosiveNot.
 begin
 
-	interpret MinimalNot;
+	instance MinimalNot;
 		- if PnQ: P ⟹ ¬Q, Q: Q, ... then ¬P;
 			apply not_intro;
 			- if P, ! R : Prop;
@@ -265,12 +265,12 @@ theory ExcludedMiddle :=
 	assume cases: if P ⟹ Q, ¬P ⟹ Q, P : Prop, Q : Prop then Q.
 begin
 
-	interpret ClaviusLaw;
+	instance ClaviusLaw;
 		- if nPP: ¬P ⟹ P, ... then P;
 			by cases[OF _ nPP].
 		.
 
-	interpret SelfRefutation;
+	instance SelfRefutation;
 		- if PnP: P ⟹ ¬P, ... then ¬P;
 			by cases[OF PnP].
 		.
@@ -297,7 +297,7 @@ begin
 			by imp nP.
 		.
 
-	interpret IntuitionisticNot;
+	instance IntuitionisticNot;
 		- for P if nP: ¬P, ... for Q if ...;
 			apply not_elim_connect[OF nP].
 		.

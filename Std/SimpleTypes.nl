@@ -1,7 +1,7 @@
 ---
-# Simple (Polymorphic) Type Theory
+# Simple (Intuitionistic) Type Theory
 
-This theory formalizes Church's simple type theory[^Church1940] mostly following the original formulation.
+This theory formalizes Church's simple type theory[^Church1940] with some deviations.
 
 [^Church1940]
 	Alonzo Church. A Formulation of the Simple Theory of Types.
@@ -9,18 +9,18 @@ This theory formalizes Church's simple type theory[^Church1940] mostly following
 
 The original theory considers lambda terms with full type annotations.
 We take the convention to use type judgement `s : α` instead of annotating every term with its type,
-but essentially follow Church by explicitly assigning a type to each bound variable.
-We will use `fun` instead of historical λ.
+but explicitly assign types when variables are bound.
+We will use `fun` instead of historical "λ".
 
-A fundamental design choice is how to treat reductions. The 1940 paper does not formulate reduction relation but admit rule of inference:
+A fundamental design choice is how to treat reductions. The original paper does not formulate reduction relation but admit rule of inference:
 
 > II. To replace any part $((λx_β M_α)N_β)$ of a formula by the result of substituting 
 $N_β$ for $x_β$ throughout $M_α$, provided that the bound variables of $M_α$ are distinct both 
 from $x_β$ and from the free variables of $N_β$.
 
-While we can formalize reduction as "replacement" (see Std/Membership/Fun), Church also uses $⟶$ to represent notational equality. It is also possible to understand that his $⟶$ is something the parser must perform, but I would like such an operation to be achieved in the formalized part.
+While we can formalize reduction as "replacement" (see Std/Membership/Fun), Church also uses $⟶$ to represent notational equality. It is also possible to understand that his $⟶$ is something the parser must be able perform, but I would like such an operation to be achieved in the formalized part.
 
-Therefore, we import syntactic equality, and formalize β-reduction as a type-restricted equation.
+Therefore, we import syntactic equality, and postulate type-restricted β-reduction.
 ---
 import Eq, FunIn.
 
@@ -47,8 +47,7 @@ As we already have implication in the foundation, we just postulate its type.
 assume imp_type! (⟹) : Prop → Prop → Prop.
 
 ---
-Now we axiomatize universal quantification.
-Church introduces constant $Π_{o(oα)}$ for every $α$.
+To formalize universal quantification, Church introduces constant $Π_{o(oα)}$ for every $α$.
 We denote this constant by `all α`.
 ---
 fix all.
@@ -67,7 +66,7 @@ assume all_axiom: if f : A → Prop, x : A then all A f ⟹ f x.
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
 But it is not trivial why this reduction is safe, as parameter α is duplicated.
-Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider permit types like `TYPE → β`.
+Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `TYPE → β`.
 Formalizing this kind of reduction is in scopes of later research, so we consider that Church implicitly assumed the following notational combinator.
 ---
 fix _BINDER.
@@ -76,13 +75,16 @@ assume _BINDER#simp _BINDER op A (x. F.[x]) = op A (fun x : A. F.[x]).
 definition[as _all] (∀:) = _BINDER all.
 
 ---
-Church defines notation $=$ via type-parametric constant
+Church defines equality via type-parametric constant
 > $Q_{oαα} ⟶ λx_α λy_α [(f_{oα})[f_{oα} x_α ⊃ f_{oα} y_α]$.
 > $[A_α = B_α] ⟶ Q_{oαα} A_α B_α$.
 As we needed syntactic equality already, we just postulate that equality between terms of the same type is a proposition ($o$).
 ---
 assume eq_type! if A : TYPE then (=) : A → A → Prop.
 
+---
+Above assumptions are sufficient to develop intuitionistic fragment of the logic.
+---
 begin
 
 note! imp_type[THEN to_elim1, THEN to_elim1].
@@ -102,22 +104,23 @@ definition[as and] (∧) = fun P Q : Prop. ∀R : Prop. (P ⟹ Q ⟹ R) ⟹ R.
 definition[as iff] (⟺) = fun P Q : Prop. (P ⟹ Q) ∧ (Q ⟹ P).
 definition[as or] (∨) = fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R.
 
-
 ---
 Church's original treatment of existential quantification is a notation:
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
 Directly formalizing this requires adding another assumption or extending the parser.
-Instead, we follow the HOL family defining a (polymorphic) constant `ex`.
+Instead, we follow the HOL family for defining a (polymorphic) constant `ex`.
 This allows us to reuse the generic binder notation introduced above.
 ---
 definition ex = fun A : TYPE, P : A → Prop. (∀Q : Prop. (∀x : A. P x ⟹ Q) ⟹ Q).
 
 definition[as _ex] (∃:) = _BINDER ex.
+---
+We show that this theory is an instance of equational, typed, higher-order, impredicative, intuitionistic logic.
+---
 
-interpret Eq.Typed TYPE.
+instance Eq.Typed TYPE.
 
-
-interpret HigherOrder;
+instance HigherOrder;
 	- show!; by to_elim1[OF all_type] #simp _all_def.
 	- show all_intro: if ! ∀ x. x : a ⟹ P.[x];
 		by #simp _all_def #intro all_rule.
@@ -140,7 +143,7 @@ interpret HigherOrder;
 		.
 	.
 
-interpret Impredicative;
+instance Impredicative;
 	retain false;
 		- for P; simp false_def.
 		.
@@ -149,7 +152,7 @@ interpret Impredicative;
 		.
 	.
 
-interpret Intuitionistic;
+instance Intuitionistic;
 	note#simp not_def.
 	interpret Not, IntuitionisticNot;
 		- if nP: ¬P, P, ... for Q if ...;
@@ -174,7 +177,7 @@ interpret Intuitionistic;
 			by all_elim1[OF PQ[simp] !][OF ! ! PR QR].
 		.
 	.
-interpret Iff.FirstOrder.
+instance Iff.FirstOrder.
 
 ---
 It is also convenient to have the unique existence notation.
@@ -230,7 +233,20 @@ lemma comp_app#simp
 
 ---
 ## Additional Postulates
+---
 
+theory Classical :=
+	assume nnot_elim_axiom: ∀P : Prop. ¬ ¬P ⟹ P.
+begin
+
+	instance Typed.Classical;
+		- if nnP: ¬ ¬ P, ... then P;
+			apply nnot_elim_axiom[THEN all_elim1[of P]]; by nnP.
+		.
+
+end
+
+---
 Church introduces a family of constants $ι_{α(oα)}$, which is used to denote "the" term satisfying the given predicate, or as Hilbert's $ε$-operator. We denote `SUCH α : (α → Prop) → α` for $ι_{α(oα)}$.
 The presence of a constant of that type forces every `α` has a term `a : α`.
 ---
@@ -258,7 +274,7 @@ theory UniqueChoice :=
 		∀P : A → Prop. ∀x : A. P x ⟹ (∀y : A. P y ⟹ x = y) ⟹ P (SUCH A P).
 begin
 
-	interpret TypedThe (such_:);
+	instance TypedThe (such_:);
 		- for x if Px: P.[x], uniq: ∀y. P.[y] ⟹ y : A ⟹ x = y, ... then P.[such z : A. P.[z]];
 			define f = (fun z : A. P.[z]).
 			have fS: f (SUCH A f);
@@ -274,7 +290,7 @@ theory Choice :=
 	assume such_axiom: if A : TYPE then ∀P : A → Prop. ∀x : A. P x ⟹ P (SUCH A P).
 begin
 
-	interpret TypedSome TYPE (such_:);
+	instance TypedSome TYPE (such_:);
 		- for x if Px: P.[x] for A if ...;
 			define f = (fun z : A. P.[z]).
 			have fS: f (SUCH A f);

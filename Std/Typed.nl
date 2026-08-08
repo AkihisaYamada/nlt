@@ -36,7 +36,7 @@ theory False :=
 	assume false_elim: if false, P : Prop then P.
 begin
 
-	interpret True;
+	instance True;
 		obtain true where true_def: if P.[false ⟹ false] then P.[true];
 			- for thesis if assm;
 				apply assm[of (false ⟹ false)].
@@ -84,7 +84,7 @@ begin
 
 		definition false := ∀P : Prop. P.
 
-		interpret False;
+		instance False;
 			- apply false_def_intro[of (x. x : Prop)].
 			- if false;
 				note all: false_def_elim[of (x. x), OF false].
@@ -106,7 +106,7 @@ theory HigherOrder :=
 	assume to_type! if A : TYPE, B : TYPE then A → B : TYPE.
 begin
 
-	interpret? SecondOrder TYPE.
+	instance? SecondOrder TYPE.
 
 end
 

@@ -12,7 +12,7 @@ end
 
 extend base? MinimalNot begin
 
-	interpret .ContraPos.
+	instance .ContraPos.
 
 	lemma not_iff_imp_not: if P: P then ¬Q ⟺ (Q ⟹ ¬P);
 		apply iff_intro;
@@ -65,7 +65,7 @@ extend base? MinimalNot begin
 
 	extend Iff.AllRel begin
 
-		interpret base.AllRel.
+		instance base.AllRel.
 
 		lemma nnall_not_iff: ¬ ¬ (∀x ⊏ a. ¬ P.[x]) ⟺ (∀x ⊏ a. ¬ P.[x]);
 			apply iff_intro;
@@ -79,7 +79,7 @@ extend base? MinimalNot begin
 
 	extend Iff.ExRel begin
 
-		interpret base.ExRel.
+		instance base.ExRel.
 
 		lemma nex_nnot: ¬(∃x ⊏ a. ¬ ¬ P.[x]) ⟺ ¬(∃x ⊏ a. P.[x]);
 			by iff_intro nex_intro #elim nex_elim #simp nnnot_iff.
@@ -90,7 +90,7 @@ end
 
 extend base? ClassicalNot begin
 
-	interpret .MinimalNot.
+	instance .MinimalNot.
 
 	lemma nnot_iff#simp ¬ ¬ P ⟺ P;
 		apply iff_intro[OF nnot_elim nnot_intro].
@@ -120,7 +120,7 @@ extend base? ClassicalNot begin
 
 	extend AllRel begin
 
-		interpret base.AllRel.
+		instance base.AllRel.
 
 	end
 

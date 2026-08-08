@@ -164,9 +164,9 @@ end
 theory MetaReflexive (⊑) :=
 	assume refl: x ⊑ x.
 begin
-	interpret? MetaRelation (⊑).
+	instance? MetaRelation (⊑).
 	extend MetaCompatible begin
-		interpret MetaMonotone;
+		instance MetaMonotone;
 			by cong refl.
 	end
 end
@@ -174,9 +174,9 @@ end
 theory MetaTransitive (⊏) :=
 	assume trans#trans if x ⊏ y, y ⊏ z then x ⊏ z.
 begin
-	interpret? MetaRelation.
+	instance? MetaRelation.
 	extend MetaMonotone begin
-		interpret MetaCompatible;
+		instance MetaCompatible;
 			- if xx': x ⊏ x', yy': y ⊏ y' then x * y ⊏ x' * y';
 				.. ⊏ x' * y;
 					by right_mono xx'.
@@ -198,12 +198,12 @@ theory MetaPartialEquivalence (~) :=
 	import MetaSymmetric (~), MetaTransitive (~).
 begin
 
-	interpret? MetaRelation (~).
+	instance? MetaRelation (~).
 
 	theory MetaSemigroup (*) :=
 		import MetaLeftAssociative (*) (*).
 	begin
-		interpret MetaRightAssociative (*) (*);
+		instance MetaRightAssociative (*) (*);
 			- for x y z;
 				apply sym;
 				by left_assoc.
@@ -215,7 +215,7 @@ begin
 	end
 
 	extend MetaLeftNeutral begin
-		interpret MetaReflexive (~);
+		instance MetaReflexive (~);
 			- for x then x ~ x;
 				.. ~ 1 * x;
 					apply sym;
@@ -230,7 +230,7 @@ begin
 	end
 
 	extend MetaRightNeutral begin
-		interpret MetaReflexive (~);
+		instance MetaReflexive (~);
 			- for x then x ~ x;
 				.. ~ x * 1;
 					apply sym;
@@ -245,13 +245,13 @@ begin
 	end
 
 	extend MetaNeutral begin
-		interpret MetaLeftNeutral, MetaRightNeutral.
+		instance MetaLeftNeutral, MetaRightNeutral.
 	end
 
 	theory MetaCommNeutral :=
 		import MetaLeftNeutral, MetaCommutative.
 	begin
-		interpret MetaNeutral;
+		instance MetaNeutral;
 			by trans[OF commute left_neutral].
 	end
 
@@ -262,7 +262,7 @@ begin
 	theory MetaCommMonoid :=
 		import MetaCommNeutral, MetaCommSemigroup.
 	begin
-		interpret MetaMonoid.
+		instance MetaMonoid.
 	end
 
 	extend MetaLeftAbsorb begin
@@ -282,13 +282,13 @@ begin
 	end
 
 	extend MetaAbsorb begin
-		interpret MetaLeftAbsorb, MetaRightAbsorb.
+		instance MetaLeftAbsorb, MetaRightAbsorb.
 	end
 
 	theory MetaCommAbsorb :=
 		import MetaLeftAbsorb, MetaCommutative.
 	begin
-		interpret MetaAbsorb;
+		instance MetaAbsorb;
 			by trans[OF commute left_absorb].
 	end
 
@@ -299,20 +299,20 @@ begin
 	theory MetaCommSemigroupAbsorb :=
 		import MetaCommAbsorb, MetaCommSemigroup.
 	begin
-		interpret MetaSemigroupAbsorb.
+		instance MetaSemigroupAbsorb.
 	end
 
 	theory MetaMonoidAbsorb (*) 0 1 :=
 		import MetaAbsorb, MetaMonoid.
 	begin
-		interpret MetaSemigroupAbsorb.
+		instance MetaSemigroupAbsorb.
 	end
 
 	theory MetaCommMonoidAbsorb (*) 0 1 :=
 		import MetaCommAbsorb, MetaCommMonoid.
 	begin
-		interpret MetaMonoidAbsorb.
-		interpret MetaCommSemigroupAbsorb.
+		instance MetaMonoidAbsorb.
+		instance MetaCommSemigroupAbsorb.
 	end
 
 end
@@ -320,7 +320,7 @@ end
 theory MetaEquivalence (~) :=
 	import MetaReflexive (~), MetaSymmetric (~), MetaPreorder (~).
 begin
-	interpret MetaPartialEquivalence.
+	instance MetaPartialEquivalence.
 end
 
 theory MetaLeftBound (⊏) ⊥ :=
@@ -384,7 +384,7 @@ theory True begin
 		- for thesis if assm;
 			by assm[of (∀P. P ⟹ P)].
 		.
-	interpret imp: MetaRightBound (⟹) true.
+	instance imp: MetaRightBound (⟹) true.
 
 end
 
@@ -397,7 +397,7 @@ theory False begin
 		- for thesis if assm;
 			by assm[of (∀P. P)].
 		.
-	interpret imp: MetaLeftBound (⟹) false.
+	instance imp: MetaLeftBound (⟹) false.
 
 end
 
@@ -412,15 +412,15 @@ end
 ---
 
 -- Implication is a meta-preorder.
-interpret imp: MetaRelation (⟹).
-interpret imp: MetaPreorder (⟹);
+instance imp: MetaRelation (⟹).
+instance imp: MetaPreorder (⟹);
 	- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
 		by QR PQ.
 	.
 
 note#refl imp.refl.
 
-interpret imp: imp.MetaLeftMonotone (⟹);
+instance imp: imp.MetaLeftMonotone (⟹);
 	- for P if QR: Q ⟹ R, PQ: P ⟹ Q, P: P then R;
 		by QR PQ P.
 	.

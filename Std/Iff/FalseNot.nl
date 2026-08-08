@@ -10,16 +10,16 @@ assume not_iff_imp_false: ¬P ⟺ (P ⟹ false).
 
 begin
 
-interpret Not.
+instance Not.
 
-interpret MinimalNot;
+instance MinimalNot;
 	by #simp not_iff_imp_false.
 
 context Not.MinimalNot begin
 
-	interpret True.
+	instance True.
 
-	interpret not_true: FalseNot (¬true);
+	instance not_true: FalseNot (¬true);
 		by not_iff_imp_not.
 
 end

@@ -2,7 +2,7 @@ import! Std.Iff.
 
 begin
 
-interpret Iff.Eq;
+instance Iff.Eq;
 	- show: x = y ⟺ (∀P. P.[x] ⟹ P.[y]);
 		apply iff_intro;
 		- if eq, Px: P.[x];

@@ -13,7 +13,7 @@ lemma or_intro: if assm: ∀R. (P ⟹ R) ⟹ (Q ⟹ R) ⟹ R then P ∨ Q;
 	- by or_intro1.
 	by or_intro2.
 
-interpret or: MetaSymmetric (∨);
+instance or: MetaSymmetric (∨);
 	- if PQ: P ∨ Q;
 		apply or_elim[OF PQ];
 		- by or_intro2.
@@ -39,7 +39,7 @@ extend Not begin
 
 	extend MinimalNot begin
 
-		interpret .ContraPos.
+		instance .ContraPos.
 
 		lemma nor_intro: if nP: ¬P, nQ: ¬Q then ¬(P ∨ Q);
 			apply imp_not_imp_not;

@@ -7,7 +7,7 @@ assume not_eq_imp_false: (¬P) = (P ⟹ false).
 
 begin
 
-interpret Std.Not.
+instance Std.Not.
 
-interpret MinimalNot;
+instance MinimalNot;
 	by #simp not_eq_imp_false.

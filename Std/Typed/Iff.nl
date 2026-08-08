@@ -13,14 +13,14 @@ note#rewrite_imp iff_elim1[OF _ > _ _].
 note#rewrite_rev iff_elim2[OF _ > _ _].
 note! iff.closed.
 
-interpret iff: Magmas (⟺).-- Magma notions wrt (⟺)
+instance iff: Magmas (⟺).-- Magma notions wrt (⟺)
 
 lemma iff_elim: if PQ: P ⟺ Q, imp: (P ⟹ Q) ⟹ (Q ⟹ P) ⟹ R, [P : Prop, Q : Prop] then R;
 	by imp iff_elim1[OF PQ] iff_elim2[OF PQ].
 
 -- We can think of meta-magmas with respect to ⟺
-interpret iff: Relation Prop (⟺).
-interpret iff: Equivalence Prop (⟺);
+instance iff: Relation Prop (⟺).
+instance iff: Equivalence Prop (⟺);
 	- by iff_intro.
 	- by iff_intro #elim iff_elim.
 	- if PQ: P ⟺ Q, QR: Q ⟺ R, ... then P ⟺ R;
@@ -33,7 +33,7 @@ note#intro#refl iff.refl.
 note#trans iff.trans.
 note#dual iff.sym.
 
-interpret iff: iff.Compatible Prop (⟺);
+instance iff: iff.Compatible Prop (⟺);
 	- if PQ: P ⟺ Q, RS: R ⟺ S, ... then (P ⟺ R) ⟺ (Q ⟺ S);
 		apply iff_intro;
 		- if PR: P ⟺ R then Q ⟺ S;
@@ -68,7 +68,7 @@ lemma imp_cong#cong
 lemma imp_cong_right#rule_cong if QR: P ⟹ Q ⟺ R, [P : Prop, Q : Prop, R : Prop] then (P ⟹ Q) ⟺ (P ⟹ R);
 	unfold QR.
 
-interpret imp: iff.Compatible Prop (⟹);
+instance imp: iff.Compatible Prop (⟹);
 	- if PQ: P ⟺ Q, RS: R ⟺ S, ... then (P ⟹ R) ⟺ (Q ⟹ S);
 		simp PQ RS.
 	.
@@ -93,13 +93,13 @@ lemma imp_iff_iff1: if !P, [P : Prop, Q : Prop] then (P ⟺ Q) ⟺ Q;
 
 extend True begin
 
-	interpret imp: iff.LeftNeutral Prop (⟹) true;
+	instance imp: iff.LeftNeutral Prop (⟹) true;
 		by imp_imp_iff.
 
-	interpret imp: iff.RightAbsorb Prop (⟹) true;
+	instance imp: iff.RightAbsorb Prop (⟹) true;
 		by iff_intro.
 
-	interpret iff: iff.CommMagmaNeutral (⟺) true;
+	instance iff: iff.CommMagmaNeutral (⟺) true;
 		by iff_intro #elim iff_elim.
 
 	note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
@@ -148,8 +148,8 @@ end
 
 extend FirstOrder begin
 
-	interpret AllRelStrict TYPE (:) (∀:).
-	interpret ExRelStrict TYPE (:) (∃:).
+	instance AllRelStrict TYPE (:) (∀:).
+	instance ExRelStrict TYPE (:) (∃:).
 
 	note#cong#rule_cong all_cong ex_cong.
 

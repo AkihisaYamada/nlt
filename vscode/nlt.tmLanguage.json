@@ -7,6 +7,7 @@
     {"include": "#commands"},
     {"include": "#structures"},
 	{"include": "#tags"},
+    {"include": "#proof-commands"},
     {"include": "#proof-steps"},
     {"include": "#proof-structures"},
 	{"include": "#binders"}
@@ -26,7 +27,7 @@
     "commands": {
       "patterns": [{
         "name": "storage.type.nlt",
-        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|interpret(ation)?|note|lemma|theorem|proposition|have|show|theory|context|namespace|extend|defin(e|ition)|instantiate|retain|set|prefix|infix|syntax|term)\\b"
+        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|instance|note|lemma|theorem|proposition|theory|context|namespace|extend|definition|set|prefix|infix|syntax|term)\\b"
       }]
     },
     "structures": {
@@ -40,6 +41,12 @@
         "name": "support.type.property-name",
         "match": ":|!|\\?|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|refl|dual|trans|rewrite_(imp|rev))\\b"
       }]
+	},
+    "proof-commands": {
+	  "patterns": [{
+		"name": "storage.type.nlt",
+		"match": "\\b(have|show|interpret|instantiate|retain)\\b"
+	  }]
 	},
     "proof-steps": {
       "patterns": [{

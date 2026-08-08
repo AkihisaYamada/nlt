@@ -3,10 +3,10 @@ assume eq_iff_all: x = y ⟺ (∀P. P.[x] ⟹ P.[y]).
 
 begin
 
-interpret base? Std.Eq;
+instance base? Std.Eq;
 	by #simp eq_iff_all.
 
-interpret iff_eq: iff.MetaCommutative (=);
+instance iff_eq: iff.MetaCommutative (=);
 	by iff_intro[OF eq.sym eq.sym].
 
 lemma eq_imp_iff#cong? if eq: P = Q then P ⟺ Q;
@@ -20,7 +20,7 @@ lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
 		by Pa #simp xa.
 	.
 
-interpret True.
+instance True.
 
 lemma eq_refl_iff#simp x = x ⟺ true;
 	by iff_intro.
@@ -116,7 +116,7 @@ theory Ex1 :=
 	assume ex1_iff_all: (∃!x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ (∀y. P.[y] ⟹ y = x) ⟹ Q) ⟹ Q).
 begin
 
-	interpret base.Ex1;
+	instance base.Ex1;
 		- for x P if Px: P.[x], u: ∀y. P.[y] ⟹ y = x then ∃!x. P.[x];
 			unfold ex1_iff_all;
 			- for Q if assm;

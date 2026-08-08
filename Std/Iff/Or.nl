@@ -2,7 +2,7 @@ import base? Std.Or.
 
 begin
 
-interpret True, False.
+instance True, False.
 
 lemma or_iff_true1#simp if ! P then P ∨ Q ⟺ true;
 	by iff_intro or_intro1.
@@ -13,7 +13,7 @@ lemma or_iff_true2#simp if ! Q then P ∨ Q ⟺ true;
 ---
 Algebraic properties of `(∨)`, with respect to `(⟺)`.
 ---
-interpret or: iff.MetaCompatible (∨);
+instance or: iff.MetaCompatible (∨);
 	- if PQ: P ⟺ Q, RS: R ⟺ S then P ∨ R ⟺ Q ∨ S;
 		by iff_intro #elim or_elim #simp PQ RS.
 	.
@@ -22,14 +22,14 @@ note#cong or.cong.
 lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P then Q ∨ R;
 	by or[unfold imp_imp_iff].
 
-interpret or: iff.MetaIdempotent (∨);
+instance or: iff.MetaIdempotent (∨);
 	- show: P ∨ P ⟺ P;
 		by iff_intro #elim or_elim.
 	.
 
 note#simp or.idem.
 
-interpret or: iff.MetaCommMonoidAbsorb (∨) true false;
+instance or: iff.MetaCommMonoidAbsorb (∨) true false;
 	- by iff_intro or_intro #elim or_elim.
 	- by iff_intro or_intro #elim or_elim.
 	- by iff_intro #elim or_elim false_elim.
@@ -61,11 +61,11 @@ extend ExRel begin
 	lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
 		apply iff_intro;
 		-> if xa: x ⊏ a;
-			apply or_elim[OF _ < <]>2;
+			apply or_elim[OF > _ _]>2;
 			- by or_intro1 ex_intro1[OF _ xa].
 			- by or_intro2 ex_intro1[OF _ xa].
 			.
-		apply or_elim[OF _ < <]>2;
+		apply or_elim[OF > _ _]>2;
 		-> if xa: x ⊏ a;
 			by ex_intro1[OF _ xa].
 		-> if xa: x ⊏ a;
@@ -76,11 +76,11 @@ end
 
 extend Iff_Not? Iff.Not begin
 
-	interpret base? base.Not.
+	instance base? base.Not.
 
 	extend Iff_Not.MinimalNot begin
 
-		interpret base? base.MinimalNot.
+		instance base? base.MinimalNot.
 
 		lemma nor_iff_not_nimp_nnot: ¬ (P ∨ Q) ⟺ ¬ (¬P ⟹ ¬ ¬ Q);
 			apply iff_intro;
@@ -102,8 +102,8 @@ extend Iff_Not? Iff.Not begin
 
 		extend Iff.And begin
 
-			interpret and_not: And.Not.
-			interpret and_not.MinimalNot.
+			instance and_not: And.Not.
+			instance and_not.MinimalNot.
 
 			lemma nor_iff_and: ¬(P ∨ Q) ⟺ ¬P ∧ ¬Q;
 				unfold nor_iff_not_nimp_nnot;

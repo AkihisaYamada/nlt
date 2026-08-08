@@ -346,6 +346,7 @@ Opt<Pair<Thm,ThmInfo>> Thy::_find_term_thm( Term const& s, std::string const& pr
 	// find from imports
 	auto f = [&]( auto const& it )->Opt<Pair<Thm,ThmInfo>>{
 		auto const& [p,rec] = it->second;
+		if( p.ready() )
 		if( auto ret = p.source()._find_term_thm(s.subst(import),prop,p.compose(import),rec) ) {
 			return ret;
 		}
@@ -371,6 +372,7 @@ Opt<Pair<Thm,ThmInfo> const&> Thy::find_term_thm( Term const& s, std::string con
 	}
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto const& [p,rec] = it->second;
+		if( p.ready() )
 		if( auto ret = p.source()._find_term_thm(s,prop,p,rec) ) {
 			auto [it,fl] = pair->second.emplace(s,*ret);
 			return {it->second};

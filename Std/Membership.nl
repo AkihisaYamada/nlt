@@ -37,7 +37,7 @@ theory SubsetEq :=
 	assume subseteq_elim1: if A ⊆ B, x ∈ A then x ∈ B.
 	assume subseteq_intro: if ∀x. x ∈ A ⟹ x ∈ B then A ⊆ B.
 begin
-	interpret subseteq: MetaPreorder (⊆);
+	instance subseteq: MetaPreorder (⊆);
 		- by subseteq_intro.
 		- if AB: A ⊆ B, BC: B ⊆ C;
 			by subseteq_intro BC[THEN subseteq_elim1] AB[THEN subseteq_elim1].
@@ -69,7 +69,7 @@ end
 theory Transitive A (⊏) :=
 	assume trans#trans if x ⊏ y, y ⊏ z, x ∈ A, y ∈ A, z ∈ A then x ⊏ z.
 begin
-	interpret Attractive;
+	instance Attractive;
 		- if xy: x ⊏ y, yx: y ⊏ x, yz: y ⊏ z;
 			by trans[OF xy yz].
 		- if xy: x ⊏ y, yx: y ⊏ x, xz: x ⊏ z;
@@ -94,7 +94,7 @@ theory Equivalence A (~) :=
 	import Tolerance, PartialEquivalence.
 begin
 
-	interpret Preorder A (~).
+	instance Preorder A (~).
 
 end
 

@@ -1972,7 +1972,7 @@ public:
 				_obtain(_thy);
 			} else if( skips("definition") ) {
 				_define(_thy);
-			} else if( skips("interpret") ) {
+			} else if( skips("instance") ) {
 				import(false);
 			} else if( skips("set") ) {
 				if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {

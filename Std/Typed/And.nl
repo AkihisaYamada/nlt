@@ -14,7 +14,7 @@ lemma and_elim#elim if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R, [P : Prop, Q : Prop] the
 lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q, [P : Prop, Q : Prop] then R;
 	by and_elim[OF PQ PQR].
 
-interpret and: PartialEquivalence Prop (∧).
+instance and: PartialEquivalence Prop (∧).
 
 extend Not begin
 

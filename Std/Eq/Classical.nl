@@ -17,7 +17,7 @@ assume ex_eq_nall: (∃x. P.[x]) = (¬(∀x. ¬P.[x])).
 
 begin
 
-interpret! Std.Classical;
+instance! Std.Classical;
 	interpret IntuitionisticNot.PeirceLaw.
 	interpret ClassicalNot.
 	interpret Std.And;

@@ -44,7 +44,7 @@ theory NotExplosive :=
 		if P ⟹ ∀Q. Q then ¬P.
 begin
 
-	interpret NotInconsistent;
+	instance NotInconsistent;
 		by not_intro.
 
 end
@@ -54,7 +54,7 @@ theory SelfRefutation :=
 	assume imp_not_imp_not: if P ⟹ ¬P then ¬P.
 begin
 
-	interpret NotExplosive;
+	instance NotExplosive;
 		- if nP: P ⟹ ∀Q. Q then ¬P;
 			apply imp_not_imp_not;
 			by #elim nP.
@@ -127,7 +127,7 @@ begin
 	-- And if it is not inconsistent, explosive statements are negated.
 	extend NotInconsistent begin
 
-		interpret NotExplosive;
+		instance NotExplosive;
 			- if P0: P ⟹ ∀Q. Q then ¬P;
 				apply not.cmono[OF P0 not_inconsistent].
 			.
@@ -147,7 +147,7 @@ begin
 	theory MetaOrder (⊏) :=
 		import MetaIrreflexive (⊏), MetaTransitive (⊏).
 	begin
-		interpret MetaAsymmetric (⊏);
+		instance MetaAsymmetric (⊏);
 			- for x y if xy: x ⊏ y then ¬ y ⊏ x;
 				apply not_imp_imp_not[OF irrefl[of x]];
 				- if yx: y ⊏ x then x ⊏ x;
@@ -216,12 +216,12 @@ begin
 	lemma not_intro_connect: if P: P, QnP: Q ⟹ ¬P then ¬Q;
 		apply imp_not_sym[OF QnP P].
 
-	interpret NNotIntro;
+	instance NNotIntro;
 		- if P: P then ¬ ¬ P;
 			apply not_intro_connect[OF P].
 		.
 
-	interpret ContraPos;
+	instance ContraPos;
 		- if PQ: P ⟹ Q, nQ: ¬Q then ¬P;
 			apply not_intro_connect[OF nQ];
 			by nnot_intro PQ.
@@ -231,12 +231,12 @@ begin
 		¬ ¬ ¬ P ⟹ ¬P;
 		apply not.cmono[OF nnot_intro]>0.
 
-	interpret SelfRefutation;
+	instance SelfRefutation;
 		- if 1: P ⟹ ¬P then ¬P;
 			apply not_intro_connect[OF 1];
 			by nimp_intro nnot_intro.
 		.
-	interpret NotIntroContr;
+	instance NotIntroContr;
 		- for Q if PQ: P ⟹ Q, PnQ: P ⟹ ¬Q then ¬P;
 			apply imp_not_imp_not;
 			- if P;
@@ -283,7 +283,7 @@ end
 
 context NotIntroContr begin
 
-	interpret? MinimalNot;
+	instance? MinimalNot;
 		interpret NNotIntro;
 			- if P: P then ¬ ¬ P;
 				by not_intro_contr[of P] P.
@@ -301,7 +301,7 @@ context ContraPos begin
 
 	extend NNotIntro begin
 
-		interpret MinimalNot;
+		instance MinimalNot;
 			- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
 				apply not.cmono[OF PnQ];
 				by nnot_intro[OF Q].
@@ -311,7 +311,7 @@ context ContraPos begin
 
 	extend SelfRefutation begin
 
-		interpret NNotIntro;
+		instance NNotIntro;
 			- if P: P then ¬ ¬P;
 				apply imp_not_imp_not;
 				- if nP: ¬P;
@@ -340,7 +340,7 @@ theory IntuitionisticNot :=
 	import NotExplosive, ExplosiveNot.
 begin
 
-	interpret MinimalNot;
+	instance MinimalNot;
 		- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
 			apply not_intro;
 			- if P;
@@ -370,12 +370,12 @@ theory ExcludedMiddle :=
 	assume cases: if P ⟹ Q, ¬P ⟹ Q then Q.
 begin
 
-	interpret ClaviusLaw;
+	instance ClaviusLaw;
 		- if nPP: ¬P ⟹ P then P;
 			by cases[OF _ nPP].
 		.
 
-	interpret SelfRefutation;
+	instance SelfRefutation;
 		- if PnP: P ⟹ ¬P then ¬P;
 			by cases[OF PnP].
 		.
@@ -401,7 +401,7 @@ context ContraPos begin
 				by QR nPQ not.cmono[OF PR nR].
 			.
 
-		interpret ExcludedMiddle;
+		instance ExcludedMiddle;
 			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
 				apply not_imp_elim[OF nPQ PQ].
 			.
@@ -415,7 +415,7 @@ context ContraPos begin
 
 		extend ExplosiveNot begin
 
-			interpret IntuitionisticNot.
+			instance IntuitionisticNot.
 
 		end
 
@@ -430,7 +430,7 @@ context SelfRefutation begin
 
 	extend PeirceLaw begin
 
-		interpret ExcludedMiddle;
+		instance ExcludedMiddle;
 			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q then Q;
 				apply peirce_law[of (¬P)];
 				- if QnP: Q ⟹ ¬P then Q;
@@ -451,7 +451,7 @@ context NotExplosive begin
 
 	extend PeirceLaw begin
 
-		interpret ClaviusLaw;
+		instance ClaviusLaw;
 			- if nPP: ¬P ⟹ P then P;
 				apply peirce_law[of (∀Q. Q)];
 				- if PnnP: P ⟹ ∀Q. Q;
@@ -470,7 +470,7 @@ context ExplosiveNot begin
 	---
 	extend ClaviusLaw begin
 
-		interpret PeirceLaw;
+		instance PeirceLaw;
 			- for Q if PQP: (P ⟹ Q) ⟹ P then P;
 				apply not_imp_imp;
 				- if nP: ¬P;
@@ -480,7 +480,7 @@ context ExplosiveNot begin
 					.
 				.
 			.
-		interpret NNotElim;
+		instance NNotElim;
 			- if nnP: ¬ ¬ P then P;
 				apply not_imp_imp;
 				by not_elim[OF nnP].
@@ -499,16 +499,16 @@ theory CoMinimalNot :=
 	assume not_imp_sym: if ¬P ⟹ Q then ¬Q ⟹ P.
 begin
 
-	interpret ExplosiveNot;
+	instance ExplosiveNot;
 		- if nP: ¬P, P: P then Q;
 			apply not_imp_sym[OF _ nP];
 			by P.
 		.
 
-	interpret NNotElim;
+	instance NNotElim;
 		by not_imp_sym[OF imp.refl].
 
-	interpret ContraPos;
+	instance ContraPos;
 		- if imp: P ⟹ Q, nQ: ¬Q then ¬P;
 			apply not_imp_sym[OF _ nQ];
 			by imp #elim nnot_elim.
@@ -516,11 +516,11 @@ begin
 
 	extend NotInconsistent begin
 
-		interpret IntuitionisticNot.
+		instance IntuitionisticNot.
 		---
 		Explosivity with contraposition brings self refutation, which brings consequentia mirabilis, with which explosivity brings excluded middle.
 		---
-		interpret ClaviusLaw;
+		instance ClaviusLaw;
 			- if imp: ¬P ⟹ P then P;
 				apply nnot_elim;
 				apply imp_not_imp_not;
@@ -538,7 +538,7 @@ context ContraPos begin
 
 	extend NNotElim begin
 
-		interpret CoMinimalNot;
+		instance CoMinimalNot;
 			- if nPQ: ¬P ⟹ Q, nQ: ¬Q then P;
 				apply nnot_elim;
 				apply not.cmono[OF nPQ nQ].
@@ -557,7 +557,7 @@ theory ImplosiveNot :=
 begin
 
 	extend ClaviusLaw begin
-		interpret NNotElim;
+		instance NNotElim;
 			- if nnP: ¬ ¬ P then P;
 				apply not_imp_imp;
 				- if nP: ¬P;
@@ -570,7 +570,7 @@ end
 
 context ExplosiveNot begin
 
-	interpret ImplosiveNot;
+	instance ImplosiveNot;
 		- if nnP: ¬ ¬ P, nP: ¬P then P;
 			apply not_elim[OF nnP nP].
 		.
@@ -581,7 +581,7 @@ theory InvContraPos :=
 	import not: MetaInvAntitone (¬) (⟹) (⟹).
 begin
 
-	interpret ExplosiveNot;
+	instance ExplosiveNot;
 		- if nP: ¬P, P: P then Q;
 			apply not.inv_cmono[OF _ P];
 			by nP.
@@ -594,12 +594,12 @@ theory ClassicalNot :=
 	import MinimalNot, NNotElim.
 begin
 
-	interpret CoMinimalNot.
-	interpret NotInconsistent.-- This brings the excluded middle
+	instance CoMinimalNot.
+	instance NotInconsistent.-- This brings the excluded middle
 
-	interpret IntuitionisticNot.
+	instance IntuitionisticNot.
 
-	interpret InvContraPos;
+	instance InvContraPos;
 		- if nPnQ: ¬P ⟹ ¬Q, Q: Q then P;
 			apply not_imp_sym[OF nPnQ nnot_intro[OF Q]].
 		.
@@ -644,13 +644,13 @@ context IntuitionisticNot begin
 	In intuitionistic negation, both consequentia mirabilis and Peirce's law yield classical negation.
 	---
 	extend ExplosiveNot.ClaviusLaw begin
-		interpret ClassicalNot;
+		instance ClassicalNot;
 			interpret NotExplosive.PeirceLaw.
 			.
 	end
 
 	extend PeirceLaw begin
-		interpret ClassicalNot;
+		instance ClassicalNot;
 			interpret ClaviusLaw.
 			.
 	end

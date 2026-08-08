@@ -5,7 +5,7 @@ import Iff, Not, ClassicalNot, And, Or, Ex.
 
 begin
 
-interpret Intuitionistic;
+instance Intuitionistic;
 	interpret IntuitionisticNot.Iff.
 	.
 

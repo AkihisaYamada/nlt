@@ -7,12 +7,12 @@ import Iff, IntuitionisticNot, And, Or, Ex.
 
 begin
 
-interpret Ex.Or.
-interpret And.
+instance Ex.Or.
+instance And.
 
 extend Eq begin
 
-	interpret Ex.
-	interpret And.
+	instance Ex.
+	instance And.
 
 end

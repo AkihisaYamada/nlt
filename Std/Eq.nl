@@ -20,7 +20,7 @@ note#intro#refl eq.refl.
 ---
 Equality is an equivalence.
 ---
-interpret eq: MetaEquivalence (=);
+instance eq: MetaEquivalence (=);
 	- if xy: x = y then y = x;
 		by eq_elim[of (z. z = x), OF xy].
 	- if xy: x = y, yz: y = z then x = z;
@@ -67,7 +67,7 @@ end
 theory MetaInverse f g :=
 	assume inverse: g (f x) = x.
 begin
-	interpret MetaInjective;
+	instance MetaInjective;
 		- for x x' if eq: f x = f x' then x = x';
 			.. = g (f x); unfold inverse.
 			.. = g (f x'); unfold eq.

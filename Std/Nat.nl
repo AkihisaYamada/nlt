@@ -9,7 +9,7 @@ We use `fun` to allow for deriving addition etc.
 ---
 import Fun.
 
-fix ℕ (0) suc rec.
+fix ℕ 0 suc rec.
 
 -- Zero is a natural number (`0 ∈ ℕ`).
 import zero: Member 0 ℕ.

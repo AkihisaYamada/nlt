@@ -5,7 +5,7 @@ import base? Std.And.
 
 begin
 
-interpret and: iff.MetaCompatible (∧);
+instance and: iff.MetaCompatible (∧);
 	- if P: P ⟺ P', Q: Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
 		by iff_intro #simp P Q.
 	.
@@ -13,7 +13,7 @@ interpret and: iff.MetaCompatible (∧);
 lemma and_cong1#cong if P: P ⟺ P', Q: P' ⟹ Q ⟺ Q' then P ∧ Q ⟺ P' ∧ Q';
 	by iff_intro #simp P Q.
 
-interpret and: iff.MetaIdempotent (∧);
+instance and: iff.MetaIdempotent (∧);
 	by iff_intro.
 
 lemma and_imp_iff_imp_imp#simp#rule (P ∧ Q ⟹ R) ⟺ (P ⟹ Q ⟹ R);
@@ -56,9 +56,9 @@ lemma all_and_distrib: (∀x. P.[x] ∧ Q.[x]) ⟺ (∀x. P.[x]) ∧ (∀x. Q.[x
 	.
 
 -- At this point, we mention true and false.
-interpret True, False.
+instance True, False.
 
-interpret and: iff.MetaCommMonoidAbsorb (∧) false true;
+instance and: iff.MetaCommMonoidAbsorb (∧) false true;
 	by iff_intro.
 
 note#simp and.left_neutral and.right_neutral and.left_absorb and.right_absorb.
@@ -78,12 +78,12 @@ context FalseNot.-- just to load the context
 
 extend Iff_Not? Iff.Not begin
 
-	interpret base? base.Not.
+	instance base? base.Not.
 
 	extend MinimalNot begin
 
-		interpret base.ContraPos.
-		interpret Iff_Not.MinimalNot.
+		instance base.ContraPos.
+		instance Iff_Not.MinimalNot.
 
 		lemma nimp_not_iff_and: ¬(P ⟹ ¬Q) ⟺ ¬ ¬ P ∧ ¬ ¬ Q;
 			apply iff_intro;
