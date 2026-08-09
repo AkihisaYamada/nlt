@@ -255,7 +255,7 @@ context PartialEquivalence begin
 	theory CommMonoid :=
 		import CommMagmaNeutral, CommSemigroup.
 	begin
-		instance Monoid.
+		instance! Monoid.
 	end
 
 	theory MagmaLeftAbsorb (*) (0) :=
@@ -318,12 +318,12 @@ context PartialEquivalence begin
 	theory CommMonoidAbsorb (*) (0) (1) :=
 		import CommMonoid, CommMagmaAbsorb.
 	begin
-		instance MonoidAbsorb.
+		instance! MonoidAbsorb.
 	end
 
 	theory CommRingoid (*) (+) :=
 		import mul: CommMagma A (*).
-		import add: MonoMagma (+).
+		import add: CommMonoMagma (+).
 		import LeftDistributive A A (*) (+) (+).
 	begin
 		note! mul.closed add.closed.
@@ -341,21 +341,48 @@ context PartialEquivalence begin
 	end
 
 	theory Semiring :=
-		import Ringoid.
+		import Distributive.
 		import mul: Semigroup (*).
-		import add: CommSemigroup (+).
-	end
-
-	theory CommSemiring :=
-		import CommRingoid.
-		import mul: CommSemigroup (*).
-		import add: CommSemigroup (+).
+		import add: CommSemigroup (+), add: CommMonoMagma (+).
 	begin
-		instance Semiring.
+		instance Ringoid.
 	end
 
-	theory MagmaLeftCancel :=
-		fix (*) (\).
+	theory SemiringAbsorb (*) (+) 0 :=
+		import Semiring.
+		import add: CommMonoid (+) 0.
+		import mul: SemigroupAbsorb (*) 0.
+	end
+
+	theory SemiringNeutral (*) (+) 0 1 :=
+		import SemiringAbsorb.
+		import mul: MonoidAbsorb (*) 0 1.
+	end
+
+	theory CommSemiring (*) (+) :=
+		import LeftDistributive A A (*) (+) (+).
+		import mul: CommSemigroup (*).
+		import add: CommSemigroup (+), add: CommMonoMagma (+).
+	begin
+		instance CommRingoid, Semiring.
+	end
+
+	theory CommSemiringAbsorb (*) (+) 0 :=
+		import CommSemiring.
+		import add: CommMonoid (+) 0.
+		import mul: CommSemigroupAbsorb (*) 0.
+	begin
+		instance SemiringAbsorb.
+	end
+
+	theory CommSemiringNeutral (*) (+) 0 1 :=
+		import CommSemiringAbsorb.
+		import mul: CommMonoidAbsorb (*) 0 1.
+	begin
+		instance SemiringNeutral.
+	end
+
+	theory MagmaLeftCancel (*) (\) :=
 		import Magma.
 		import lcancel: Magma A (\).
 		import lcancel: LeftMonotone A A (\).
@@ -374,8 +401,7 @@ context PartialEquivalence begin
 			.
 	end
 
-	theory MagmaRightCancel :=
-		fix (*) (/).
+	theory MagmaRightCancel (*) (/) :=
 		import Magma.
 		import rcancel: Magma A (/).
 		import rcancel: RightMonotone A A (/).
@@ -408,8 +434,7 @@ context PartialEquivalence begin
 		import RightQuasiGroup.
 	end
 
-	theory LeftLoop :=
-		fix (*) 1 (\).
+	theory LeftLoop (*) 1 (\) :=
 		import MagmaNeutral.
 		import LeftQuasiGroup.
 	end

@@ -38,7 +38,7 @@ Thm Thy::dualize( Thm const& thm, Resolver& resolver ) & {
 		auto imp = body.cbinary(IMP);
 		if(!imp) break;
 		Thm assm = subthy.assume(imp->first);
-		add_intro(subthy,assm);
+		resolver.add_intro(subthy,assm);
 		body = body.impE(assm);
 	}
 	if( auto const& bin = strips_binary(body) ) {

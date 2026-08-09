@@ -61,6 +61,9 @@ begin
 		- for x; by all_elim1[of x, OF all].
 		.
 
+	lemma arbitrary: if s: s ⊏ a, all: ∀x ⊏ a. P.[x], [a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop] then P.[s];
+		by all_elim1[OF all _ _ s].
+
 end
 
 theory ExRelStrict A (⊏) (∃⊏) :=

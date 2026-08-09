@@ -45,7 +45,7 @@
     "proof-commands": {
 	  "patterns": [{
 		"name": "storage.type.nlt",
-		"match": "\\b(have|show|interpret|instantiate|retain)\\b"
+		"match": "\\b(have|show|interpret|define|instantiate|retain)\\b"
 	  }]
 	},
     "proof-steps": {

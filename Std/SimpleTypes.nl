@@ -22,7 +22,7 @@ While we can formalize reduction as "replacement" (see Std/Membership/Fun), Chur
 
 Therefore, we import syntactic equality, and postulate type-restricted β-reduction.
 ---
-import Eq, FunIn.
+import Eq, FunIn (fun_:) (:).
 
 ---
 Types are $ι$ for individuals, $o$ for propositions, and $αβ$ for functions returning $α$ from $β$.
@@ -82,14 +82,20 @@ As we needed syntactic equality already, we just postulate that equality between
 ---
 assume eq_type! if A : TYPE then (=) : A → A → Prop.
 
+assume neq_def: if x : A, y : A then (x ≠ y) = (¬(x = y)).--TODO
+
 ---
 Above assumptions are sufficient to develop intuitionistic fragment of the logic.
 ---
 begin
 
 note! imp_type[THEN to_elim1, THEN to_elim1].
-lemma eq_app_type#intro[after 1] if [x : A, A : TYPE, y : A] then (x = y) : Prop;
-	by eq_type[of A, THEN to_elim1, THEN to_elim1].
+
+lemma eq_app_type! if [A : TYPE, x : A] then (x =) : A → Prop;
+	by eq_type[of A, THEN to_elim1].
+
+lemma eq_prop#intro[after 1] if [A : TYPE, x : A, y : A] then (x = y) : Prop;
+	by eq_app_type[of A, THEN to_elim1].
 
 ---
 ## Defining Logical Operators
@@ -121,10 +127,10 @@ We show that this theory is an instance of equational, typed, higher-order, impr
 instance Eq.Typed TYPE.
 
 instance HigherOrder;
-	- show!; by to_elim1[OF all_type] #simp _all_def.
-	- show all_intro: if ! ∀ x. x : a ⟹ P.[x];
+	show!; by to_elim1[OF all_type] #simp _all_def.
+	show all_intro: if ! ∀ x. x : a ⟹ P.[x];
 		by #simp _all_def #intro all_rule.
-	- show all_elim1: for s if all: ∀ x : A. P.[x], ... then P.[s];
+	show all_elim1: for s if all: ∀ x : A. P.[x], ... then P.[s];
 		have 1: (fun x : A. P.[x]) s;
 			apply all_axiom[OF _ _ all[simp _all_def]].
 		use 1; simp.
@@ -144,6 +150,7 @@ instance HigherOrder;
 	.
 
 instance Impredicative;
+	note#cong eq_cong_meta.
 	retain false;
 		- for P; simp false_def.
 		.
@@ -179,6 +186,7 @@ instance Intuitionistic;
 	.
 instance Iff.FirstOrder.
 
+note#cong all_cong.
 ---
 It is also convenient to have the unique existence notation.
 ---
@@ -195,7 +203,7 @@ definition[as _ex1] (∃!:) = _BINDER ex1.
 definition id = fun A : TYPE, x : A. x.
 
 lemma id_type! if [A : TYPE] then id A : A → A;
-	simp id_def.
+	unfold id_def.
 
 lemma id_eq#simp if [A : TYPE, x : A] then id A x = x;
 	simp id_def.
@@ -275,6 +283,7 @@ theory UniqueChoice :=
 begin
 
 	instance TypedThe (such_:);
+		note#cong eq_cong_meta.
 		- for x if Px: P.[x], uniq: ∀y. P.[y] ⟹ y : A ⟹ x = y, ... then P.[such z : A. P.[z]];
 			define f = (fun z : A. P.[z]).
 			have fS: f (SUCH A f);
@@ -291,6 +300,7 @@ theory Choice :=
 begin
 
 	instance TypedSome TYPE (such_:);
+		note#cong eq_cong_meta.
 		- for x if Px: P.[x] for A if ...;
 			define f = (fun z : A. P.[z]).
 			have fS: f (SUCH A f);

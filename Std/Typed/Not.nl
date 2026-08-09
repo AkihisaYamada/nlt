@@ -147,7 +147,7 @@ begin
 end
 
 theory NotExplosive :=
-	assume not_intro: if P ⟹ ∀Q. Q : Prop ⟹ Q, P : Prop then ¬P.
+	assume not_intro_inconsistent: if P ⟹ ∀Q. Q : Prop ⟹ Q, P : Prop then ¬P.
 end
 
 theory SelfRefutation :=
@@ -245,7 +245,7 @@ begin
 
 	instance MinimalNot;
 		- if PnQ: P ⟹ ¬Q, Q: Q, ... then ¬P;
-			apply not_intro;
+			apply not_intro_inconsistent;
 			- if P, ! R : Prop;
 				apply not_elim[OF PnQ[OF P] Q].
 			.

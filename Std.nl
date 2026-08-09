@@ -454,3 +454,6 @@ lemma all_indep_imp: if all: ∀x. P ⟹ Q.[x] then P ⟹ ∀x. Q.[x];
 
 lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.[x];
 	by imp all.
+
+lemma obtain_as: for witness if Pw: P.[witness], assm: ∀x. P.[x] ⟹ thesis then thesis;
+	by assm[OF Pw].

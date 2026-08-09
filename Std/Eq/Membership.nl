@@ -46,6 +46,7 @@ theory Fun :=
 begin
 
 	instance base.Fun;
+		note#cong eq_cong_meta.
 		- for P A if P: P.[(fun x. F.[x]) s], FsA: F.[s] ∈ A then P.[F.[s]];
 			use P[unfold fun_app[OF FsA]].
 		.

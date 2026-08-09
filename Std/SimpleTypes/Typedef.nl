@@ -1,5 +1,5 @@
 ---
-## Type Definition Machanism
+## Type Definition Mechanism
 
 The type definition machineries of HOL proof assistants a la Gordon[^Gordon1988] are
 the key for Church's simple type theory to be expressive enough for daily mathematics.
@@ -26,14 +26,14 @@ Note that *local* type definitions[^KuncarP2019] are allowed.
 
 ---
 assume typedef:
-	if pred withness,
+	if pred witness,
 	   ∀ABS Abs Rep.
-		(∀V. ABS : TYPE V → TYPE V) ⟹
-		(∀X V. X : TYPE V ⟹ Abs : X → ABS X) ⟹
-		(∀X V. X : TYPE V ⟹ Rep : ABS X → X) ⟹
-		(∀X V. X : TYPE V ⟹ ∀a. a : ABS X ⟹ pred (Rep a)) ⟹
-		(∀X V. X : TYPE V ⟹ ∀a. a : ABS X ⟹ Abs (Rep a) = a) ⟹
-		(∀X V. X : TYPE V ⟹ ∀x. x : X ⟹ pred x ⟹ Rep (Abs x) = x) ⟹ thesis
+		ABS : TYPE → TYPE ⟹
+		(∀X. X : TYPE ⟹ Abs : X → ABS X) ⟹
+		(∀X. X : TYPE ⟹ Rep : ABS X → X) ⟹
+		(∀X. X : TYPE ⟹ ∀a. a : ABS X ⟹ pred (Rep a)) ⟹
+		(∀X. X : TYPE ⟹ ∀a. a : ABS X ⟹ Abs (Rep a) = a) ⟹
+		(∀X. X : TYPE ⟹ ∀x. x : X ⟹ pred x ⟹ Rep (Abs x) = x) ⟹ thesis
 	then thesis.
 
 begin
@@ -46,12 +46,12 @@ begin
 		if	ABS = tp (fun x y z. x),
 			Abs = tp (fun x y z. y),
 			Rep = tp (fun x y z. z),
-			(∀V. ABS : TYPE V → TYPE V) ⟹
-			(∀X V. X : TYPE V ⟹ Abs : X → ABS X) ⟹
-			(∀X V. X : TYPE V ⟹ Rep : ABS X → X) ⟹
-			(∀X V. X : TYPE V ⟹ ∀a. a : ABS X ⟹ pred (Rep a)) ⟹
-			(∀X V. X : TYPE V ⟹ ∀a. a : ABS X ⟹ Abs (Rep a) = a) ⟹
-			(∀X V. X : TYPE V ⟹ ∀x. x : X ⟹ pred x ⟹ Rep (Abs x) = x) ⟹ Q
+			ABS : TYPE → TYPE ⟹
+			(∀X. X : TYPE ⟹ Abs : X → ABS X) ⟹
+			(∀X. X : TYPE ⟹ Rep : ABS X → X) ⟹
+			(∀X. X : TYPE ⟹ ∀a. a : ABS X ⟹ pred (Rep a)) ⟹
+			(∀X. X : TYPE ⟹ ∀a. a : ABS X ⟹ Abs (Rep a) = a) ⟹
+			(∀X. X : TYPE ⟹ ∀x. x : X ⟹ pred x ⟹ Rep (Abs x) = x) ⟹ Q
 		then Q;
 	- for thesis if assm;
 		apply nonempty;
@@ -65,7 +65,7 @@ begin
 						unfold ABS1;
 						apply fun_app_eq[OF _ ABS_type];
 						have 1: (fun x y z. x) ABS0 = fun y z. ABS0;
-							apply ABS_type[THEN fun_indep_to[THEN fun_indep_to, THEN fun_app_eq[OF _ <]]].
+							apply ABS_type[THEN fun_indep_to[THEN fun_indep_to, THEN fun_app_eq[OF > _]]].
 						unfold 1;
 						unfold fun_indep[OF fun_indep_to[OF ABS_type], of id id];
 						unfold fun_indep[OF ABS_type, of id].
@@ -101,9 +101,9 @@ begin
 		.
 	.
 
-	define ABS = tp (fun x y z. x).
-	define Abs = tp (fun x y z. y).
-	define Rep = tp (fun x y z. z).
+	definition ABS = tp (fun x y z. x).
+	definition Abs = tp (fun x y z. y).
+	definition Rep = tp (fun x y z. z).
 
 	lemma ABS_type: ABS : TYPE V → TYPE V;
 		apply tp_spec[OF ABS_def Abs_def Rep_def].

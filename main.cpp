@@ -491,6 +491,20 @@ public:
 			return os << ' ' << flush;
 		};
 	}
+	void _get_intro_mod( IntroClaim& intro ) {
+		if( skips("[") ) {
+			do {
+				if( skips("after") ) {
+					intro.after = get_int();
+				} else if( skips("prems") ) {
+					intro.prems = get_int();
+				} else if( skips("no_expand") ) {
+					intro.strip_all = false;
+				} else break;
+			} while( skips(",") );
+			skip("]");
+		}
+	}
 	bool gets_claim_status( ClaimStatus& cs ) {
 		if( skips("!") ) {
 			cs.emplace(IntroClaim());
@@ -500,19 +514,11 @@ public:
 			do {
 				if( skips("intro") ) {
 					IntroClaim intro;
-					if( skips("[") ) {
-						do {
-							if( skips("after") ) {
-								intro.after = get_int();
-							} else if( skips("prems") ) {
-								intro.prems = get_int();
-							} else if( skips("no_expand") ) {
-								intro.strip_all = false;
-							} else break;
-						} while( skips(",") );
-						skip("]");
-					}
-					intro.weak = skips("?");
+					_get_intro_mod(intro);
+					cs.emplace(intro);
+				} else if( skips("weak") ) {
+					IntroClaim intro{.weak=true};
+					_get_intro_mod(intro);
 					cs.emplace(intro);
 				} else if( skips("cong") ) {
 					cs.emplace( skips("?") ? OtherClaim::CONG_WEAK : OtherClaim::CONG );
@@ -559,7 +565,7 @@ public:
 					loc.add_thm(INFLATOR,thm,info);
 				} else {
 					info = {Intro::imp(thm,intro->prems,intro->strip_all)};
-					add_intro(loc,thm,*info.ref<Intro>(),!intro->weak);
+					Resolver({},_out_resolver).add_intro(loc,thm,*info.ref<Intro>(),!intro->weak);
 				}
 			} else if( auto const& simp = mode.ref<SimpClaim>() ) {
 				Thm thm2 = simp->dual ? [&]{
@@ -728,7 +734,7 @@ public:
 	void _update_parent( Thy& child ) {
 		auto p = child.parent();
 		if( !p ) return;
-		auto resolver = Resolver({});
+		auto resolver = Resolver();
 		while( auto obtain = p->obtaining() ) {
 			auto const& [sym,ex,spec,name] = *obtain;
 			auto [sym_term,thm] = child.obtain(sym,ex,name,false);
@@ -974,9 +980,8 @@ public:
 		Opt<Term> concl;
 		bool proof;
 	};
-	GoalPat _get_subgoal() {
+	GoalPat _get_subgoal( bool show ) {
 		auto ret = GoalPat();
-		bool show = skips("show");
 		if( show ) {
 			ret.name = gets( Tokenizer::WORD | Tokenizer::NUMBER );
 			if( !gets_claim_status(ret.cs) ) skip(":");
@@ -990,6 +995,13 @@ public:
 				modified = true;
 			} else if( skips("if") ) {
 				do {
+					if( skips("[") ) {
+						do {
+							ret.decls.emplace_back(Assume{{},{IntroClaim{}},{get_term()}});
+						} while( skips(",") );
+						skip("]");
+						continue;
+					}
 					if( skips("...") ) {
 						ret.decls.emplace_back(Omit{});
 						break;
@@ -1064,7 +1076,7 @@ public:
 				css.emplace_back(name,cs);
 			} else if( decl.ref<Omit>() ) {
 				while( auto const& imp = loc_goal.cbinary(IMP) ) {
-					add_intro(loc,loc.assume(imp->first),true);
+					Resolver({},_out_resolver).add_intro(loc,loc.assume(imp->first),true);
 					css.emplace_back("!",ClaimStatus{});
 					loc_goal = imp->second;
 				}
@@ -1246,11 +1258,11 @@ public:
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
 					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
-			} else if( skips("-") ) {
-				auto pat = _get_subgoal();
+			} else if( int mode = skips("-") ? 1 : skips("show") ? 2 : 0 ) {
+				auto pat = _get_subgoal( mode == 2 );
 				_discharge( [&]( CTerm const& assm ){ return goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change, inst_it, inst_end );
 			} else if( skips("->") ) {
-				auto pat = _get_subgoal();
+				auto pat = _get_subgoal(false);
 				_discharge( [&]( CTerm const& assm ){ return rulify_goal_matches(pat,assm); }, intp, org_thy, thm_prefix, sym_prefix, change, inst_it, inst_end );
 			} else if( skips("obtain") ) {
 				_obtain(org_thy);
@@ -1364,7 +1376,7 @@ public:
 		if( skips("by") ) {
 			auto resolver = _thy.resolver(_out_resolver);
 			while( auto thm = gets_thm() ) {
-				add_intro(_thy,*thm,true);
+				resolver.add_intro(_thy,*thm,true);
 			}
 			for(;;) {
 				ClaimStatus cs;
@@ -1866,10 +1878,10 @@ public:
 				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
-			} else if( int mode = skips("-") ? 1 : skips("->") ? 2 : 0 ) {
-				auto pat = _get_subgoal();
+			} else if( int mode = skips("-") ? 1 : skips("show") ? 2 : skips("->") ? 3 : 0 ) {
+				auto pat = _get_subgoal( mode == 2 );
 				for(;;) {
-					if( mode == 2 ) {
+					if( mode == 3 ) {
 						auto resolver = Resolver({_thy.rewriter(RULIFY)}, _out_resolver);
 						resolver.rewrites(thesis,{RULIFY},0,255,true,false,{},{});
 					}

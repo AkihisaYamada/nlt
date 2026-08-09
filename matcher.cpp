@@ -28,8 +28,7 @@ bool is_patvar( std::string_view const& sym ) {
 	return !sym.empty() && sym[0] == '?';
 }
 
-
-pair<string, list<Term>> uncurry(Term const& t) {
+pair<string, list<Term>> uncurry( Term const& t ) {
 	Term const* cur = &t;
 	list<Term> args;
 	for(;;) {
@@ -42,6 +41,27 @@ pair<string, list<Term>> uncurry(Term const& t) {
 			throw Error(*cur);
 		}
 	}
+}
+
+/** obtain minimum `s` s.t. `s[var := val] = t` */
+static Term _abstract_subterm( Term const& t, Term const& val, string const& var ) {
+	if( t == val ) {
+		return var;
+	}
+	if( t.sym() ) return t;
+	if( auto const& app = t.app() ) {
+		return _abstract_subterm(app->first,val,var)(_abstract_subterm(app->second,val,var));
+	}
+	if( auto const& bind = t.bind() ) {
+		auto const& [x,body] = *bind;
+		assert( x != var );
+		return x /= _abstract_subterm(body,val,var);
+	}
+	if( auto const& unbind = t.unbind() ) {
+		auto const& [x,arg] = *unbind;
+		return x %= _abstract_subterm(arg,val,var);
+	}
+	assert(false);
 }
 
 Opt<std::string> virtual_var( CTerm const& t ) {
@@ -210,20 +230,24 @@ struct Matcher {
 						}
 						return false;
 					}
-					// otherwise, val must also be abstraction
-					auto vfix = val.unbind();
-					if( !vfix ) {
-						return false;
-					}
-					auto const& [y,val2] = *vfix;
-					if( x != y ) {
+					// non-pattern
+					if( auto vfix = val.unbind() ) {
+						auto const& [y,val2] = *vfix;
 						auto const& cy2 = matcher.ctxt().constant(y);
 						if( !cy2 ) {// bound variable cannot be matched
 							return false;
 						}
 						matcher.assign(x,*cy2);
+						return match(pat2,val2,subst);
 					}
-					return match(pat2,val2,subst);
+					try {// TODO: make it efficient
+						auto arg = pat2.csubst(matcher);// argument has to be concrete
+						auto z = *ASSERTED(avoider(matcher.ctxt())("#"));
+						matcher.assign( x, z /= _abstract_subterm(val,arg,z));
+						return true;
+					} catch( UnboundVariable const& e ) {
+						return false;
+					}
 				}
 			}
 			// otherwise, pat and val must have the same shape

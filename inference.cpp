@@ -79,7 +79,7 @@ std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp co
 	return {INFLATOR,{thm,Elim::rule(thm,_after-1,_mode)}};
 }
 
-void add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro ) {
+void Resolver::add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro ) {
 	if( intro.conds() > 0 ) {
 		thy.add_thm( allow_intro ? INTRO : WEAK, thm, {intro} );
 	} else {
@@ -92,7 +92,9 @@ void add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro )
 	}
 }
 
-void inflate( Thy& thy, Thm const& assm ) {
+void Resolver::inflate( Thy& thy, Thm const& assm ) {
+	if( fuel == 0 ) throw Error("\"inflate limit exceeded\"")(assm);
+	fuel--;
 	auto infs = vector<pair<string,AThm>>();// inflation results
 	// one cannot update the list while reading the list.
 	thy.find_thm( INFLATOR, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
@@ -104,13 +106,30 @@ void inflate( Thy& thy, Thm const& assm ) {
 		return {};
 	} );
 	for( auto const& [lbl,athm] : infs ) {
-//		if( log > 3 ) _log() << "- inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
+		if( log > 3 ) _log() << "- inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
 		if( auto intro = athm.info.ref<Intro>() ) {
 			add_intro( thy, athm, *intro, lbl != WEAK );
 		} else {
 			thy.add_thm(lbl,athm,athm.info);
 		}
 	}
+}
+bool Thesis::push() & {
+	if( _goals < 2 ) return false;
+	_thy = _thy.branch();
+	auto const& weaken = *_thy.parent();
+	auto assm = _thy.assume(goal().subst(weaken));
+	Resolver().add_intro(_thy,assm);
+	_thm = _thm.subst(weaken).impE(assm);
+	_goals--;
+	return true;
+}
+void Thesis::pop() & {
+	auto p = _thy.parent();
+	assert(p);
+	_thy = p->source();
+	_thm = _thm.intro();
+	_goals++;
 }
 
 void Thesis::apply( Intro const& rule, bool wide ) & {
@@ -219,7 +238,7 @@ bool Resolver::_discharge(
 	if( fuel == 0 ) {
 		if( fail ) return false;
 		if( log > 6 ) cerr_proof_thms(thesis.thy());
-		throw Error("\"resolve limit exceeded\"")(thesis.goal());
+		throw Error("\"discharge limit exceeded\"")(thesis.goal());
 	}
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
@@ -232,6 +251,8 @@ bool Resolver::_discharge(
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
 				if( log > 3 ) _log() << "- eliminating: " << subthy.pretty(assm) << endl;
+				if( fuel == 0 ) throw Error("\"elimination limit exceeded\"")(assm);
+				fuel--;
 				elim_res.emplace_back(elim->instantiate(*m,assm,import,subthy));
 				n_elim_res++;
 				return {thm};

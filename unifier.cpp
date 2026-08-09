@@ -94,6 +94,9 @@ private:
 				return;
 			}
 		}
+		if( auto const& runbind = r.unbind() ) {// c ~ F.[s]
+			//TODO implement
+		}
 		throw Mismatch();
 	}
 	// lhs is not a symbol

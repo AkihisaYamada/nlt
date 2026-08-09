@@ -36,7 +36,7 @@ lemma eq_imp#rewrite_imp if PQ: P = Q, P: P then Q;
 lemma eq_imp_rev#rewrite_rev if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
-lemma eq_cong_meta#cong for X if yz: y = z then X.[y] = X.[z];
+lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
 	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
 
 lemma unbind_cong: if XY: X = Y then X.[z] = Y.[z];

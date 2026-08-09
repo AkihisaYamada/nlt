@@ -32,14 +32,6 @@ extern std::string const SIMP;
 /** prefix for congruence rules */
 extern std::string const CONG;
 
-/** @brief Add concluder theorem to theory */
-void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
-inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
-	add_intro(thy,thm,Intro::rule(thm),allow_intro);
-}
-/** declare derivable conclusions */
-void inflate( Thy& thy, Thm const& assm );
-
 /** Class for inference */
 class Thesis {
 	Thy _thy;
@@ -124,23 +116,8 @@ public:
 	/** Automatically discharge all subgoals */
 	Thm discharge_all() &;
 	/** skip the first subgoal */
-	bool push() & {
-		if( _goals < 2 ) return false;
-		_thy = _thy.branch();
-		auto const& weaken = *_thy.parent();
-		auto assm = _thy.assume(goal().subst(weaken));
-		add_intro(_thy,assm);
-		_thm = _thm.subst(weaken).impE(assm);
-		_goals--;
-		return true;
-	}
-	void pop() & {
-		auto p = _thy.parent();
-		assert(p);
-		_thy = p->source();
-		_thm = _thm.intro();
-		_goals++;
-	}
+	bool push() &;
+	void pop() &;
 private:
 	/** goal must be in a fresh context */
 	bool _apply( Intro const& intro, CTerm const& goal, Thy const& child ) &;
@@ -171,7 +148,7 @@ class Resolver {
 public:
 	Opt<Rewrite const&> const rew;
 	Rewrite::Rules rules;
-	Resolver( Opt<Rewrite const&> const& rew, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_rels.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Resolver( Opt<Rewrite const&> const& rew = {}, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_rels.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool discharges( Thesis& thesis, Opt<std::string const&> simp ) & {
 		return _discharge(thesis,1,true,simp,elim_res.size());
 	}
@@ -228,6 +205,13 @@ public:
 			return *ret;
 		}
 		return _make_refl(thy,source,rel);
+	}
+	/** declare derivable conclusions */
+	void inflate( Thy& thy, Thm const& assm );
+	/** @brief Add concluder theorem to theory */
+	void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
+	inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
+		add_intro(thy,thm,Intro::rule(thm),allow_intro);
 	}
 private:
 	bool _apply_and_discharge(
