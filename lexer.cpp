@@ -198,10 +198,20 @@ string_view Lexer::peek_token() {
 	switch( fetched_char_type ) {
 	case Lex::Digit:
 		fetch_continue( Lex::Digit );
-		while( fetched_char_type == Lex::Dot && isdigit(pis->peek()) ) {// allow dot followed by number
-			fetch_continue( Lex::Digit );
+		switch( fetched_char_type ) {
+		case Lex::Underscore:
+			fetch_char();
+			_fetch_word_or_op();
+			_fetch_follower();
+			token_type = WORD;
+			break;			
+		case Lex::Dot:// 123.456
+			if( isdigit(pis->peek()) ) {
+				fetch_continue( Lex::Digit );
+			}
+		default:
+			token_type = NUMBER;
 		}
-		token_type = NUMBER;
 		break;
 	case Lex::DotBlank:// dot-blank is just dot.
 		rp = wp;
