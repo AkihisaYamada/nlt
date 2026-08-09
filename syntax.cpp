@@ -35,7 +35,7 @@ ostream& _pretty_num( Syntax const& syn, ostream& os, unsigned char e, unsigned 
 	// ill-formed number
 	os << '(';
 	for( unsigned char i = 0; i < e; i++ ){
-		os << ( num & 1 ? Syntax::BIT1 : Syntax::BIT1 ) << " (";
+		os << ( num & 1 ? Syntax::BIT1 : Syntax::BIT0 ) << " (";
 		num >>= 1;
 	}
 	os << syn.pretty(inner) << ')';

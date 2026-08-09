@@ -180,6 +180,8 @@ note#simp mul.left_neutral mul.right_neutral.
 
 ---
 ## Binary Representation
+
+Numeric literals are internally expressed via `_bit0` and `_bit1`.
 ---
 
 obtain _bit0 where
@@ -221,8 +223,29 @@ lemma suc_bit1#simp if [x : ℕ] then suc (_bit1 x) = _bit0 (suc x);
 lemma suc_1_eq_bit0#simp suc 1 = _bit0 1;
 	simp _bit0_eq.
 
--- Numeric literals are internally expressed via `_bit0` and `_bit1`.
-lemma: 100 + 30 = 130.
+lemma _bit0_mul: if [x : ℕ, y: ℕ] then _bit0 x * y = _bit0 (x * y);
+	simp _bit0_eq right_distrib.
+
+lemma mul_bit0: if [x : ℕ, y: ℕ] then x * _bit0 y = _bit0 (x * y);
+	simp _bit0_eq left_distrib.
+
+lemma _bit1_mul: if [x : ℕ, y: ℕ] then _bit1 x * y = _bit0 (x * y) + y;
+	simp _bit1_eq _bit0_eq right_distrib.
+
+lemma mul_bit1: if [x : ℕ, y: ℕ] then x * _bit1 y = _bit0 (x * y) + x;
+	simp _bit1_eq _bit0_eq left_distrib.
+
+lemma _bit0_mul_bit0: if [x : ℕ, y: ℕ] then _bit0 x * _bit0 y = _bit0 (_bit0 (x * y));
+	simp _bit0_mul mul_bit0.
+
+lemma _bit0_mul_bit1: if [x : ℕ, y: ℕ] then _bit0 x * _bit1 y = _bit0 (_bit0 (x * y) + x);
+	simp _bit0_mul mul_bit1.
+
+lemma _bit1_mul_bit0: if [x : ℕ, y: ℕ] then _bit1 x * _bit0 y = _bit0 (_bit0 (x * y) + y);
+	simp _bit1_mul mul_bit0.
+
+lemma _bit1_mul_bit1: if [x : ℕ, y: ℕ] then _bit1 x * _bit1 y = _bit1 (_bit0 (x * y) + x + y);
+	simp _bit1_mul mul_bit1.
 
 ---
 ### Subtraction
