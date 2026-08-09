@@ -33,11 +33,15 @@ inline std::ostream& operator<<(
 
 class Parser;
 
-class Syntax {
-public:
+struct Syntax {
+
 	struct Prefix {
-		int llevel;
+		int level;
 		int rlevel;
+		std::string actual;
+	};
+	struct Postfix {
+		int level;
 		std::string actual;
 	};
 	struct Infix {
@@ -61,6 +65,7 @@ public:
 		StrMap<std::pair<std::string,Opt<std::string>>> bcompr;// "∈" → ("{_∈_._}", ",")
 	};
 	struct Unary {
+		bool postfix;
 		std::string view;
 	};
 	struct Binary {
@@ -85,10 +90,14 @@ public:
 		std::string opener, mid, closer;
 		Opt<std::string> cons;
 	};
+	static int constexpr INVALID = INT_MIN;
+	static int constexpr PARSE_ALL = INVALID+1;
+	static std::string constexpr BIT0 = "_bit0";
+	static std::string constexpr BIT1 = "_bit1";	
 private:
 	StrMap<Opener> _openers;
-	StrSet _closers;
 	StrMap<Prefix> _prefixes;
+	StrMap<Postfix> _postfixes;
 	StrMap<Infix> _infixes;
 	StrMap<Binder> _binders;
 	StrMap<Sum<Unary,Binary,Empty,Singleton,Compr,BinderRel,ComprRel>> _pretty_of;
@@ -101,22 +110,26 @@ public:
 	void print_ctxt( bool b ) {
 		_print_ctxt = b;
 	}
-	void prefix(std::string const& view, std::string const& actual, int level, int rlevel) {
-		_prefixes.emplace(view,Prefix{level,rlevel,actual});
-		_pretty_of.emplace(actual,Unary{view});
+	void prefix( std::string const& view, std::string const& actual, int level, int rlevel ) {
+		_prefixes.emplace(view,{level,rlevel,actual});
+		_pretty_of.emplace(actual,Unary{false,view});
 	}
 	Opt<Prefix const&> finds_prefix(std::string_view const& sym) const {
 		return _prefixes.finds_value(sym);
 	}
+	void postfix( std::string const& view, std::string const& actual, int level ) {
+		_postfixes.emplace(view,{level,actual});
+		_pretty_of.emplace(actual,Unary{true,view});
+	}
+	Opt<Postfix const&> finds_postfix(std::string_view const& sym) const {
+		return _postfixes.finds_value(sym);
+	}
 	void infix( std::string const& view, std::string const& actual, int level, int llevel, int rlevel, Opt<std::string> const& cons ) {
-		_infixes.emplace(view,Infix{level,llevel,rlevel,actual,cons});
+		_infixes.emplace(view,{level,llevel,rlevel,actual,cons});
 		_pretty_of.emplace(actual,Binary{view});
 	}
 	Opt<Infix const&> finds_infix(std::string_view const& sym) const {
 		return _infixes.finds_value(sym);
-	}
-	bool has_closer(std::string_view const& sym) const {
-		return _closers.contains(sym);
 	}
 	Opt<Pair<std::string const&, Opener const&>> finds_opener( std::string_view const& sym ) const {
 		return _openers.finds_pair(sym);
@@ -139,29 +152,29 @@ public:
 		binder.bbinds.emplace(mid,std::pair{std::string(actual),cons});
 		_pretty_of.emplace(actual,BinderRel{binder.llevel,binder.rlevel,std::string(prefix),std::string(mid),cons});
 	}
-	void empty_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
-		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
+	void empty_compr( std::string const& opener, std::string const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,closer});
 		it->second.empty.emplace(actual);
-		_pretty_of.emplace(actual,Empty{std::string(opener),std::string(closer)});
-		_closers.emplace(closer);
+		_pretty_of.emplace(actual,Empty{opener,closer});
+		_postfixes.emplace(closer,{level,closer});
 	}
-	void singleton_compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
-		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
+	void singleton_compr( std::string const& opener, std::string const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,closer});
 		it->second.singleton.emplace(actual);
-		_pretty_of.emplace(actual,Singleton{std::string(opener),std::string(closer)});
-		_closers.emplace(closer);
+		_pretty_of.emplace(actual,Singleton{opener,closer});
+		_postfixes.emplace(closer,{level,closer});
 	}
-	void compr( std::string_view const& opener, std::string_view const& closer, std::string_view const& actual, int level ) & {
-		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
+	void compr( std::string const& opener, std::string const& closer, std::string_view const& actual, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,closer});
 		it->second.compr.emplace(actual);
-		_pretty_of.emplace(actual,Compr{std::string(opener),std::string(closer)});
-		_closers.emplace(closer);
+		_pretty_of.emplace(actual,Compr{opener,closer});
+		_postfixes.emplace(closer,{level,closer});
 	}
-	void bcompr( std::string_view const& opener, std::string_view const& mid, std::string_view const& closer, std::string_view const& actual, Opt<std::string> const& cons, int level ) & {
-		auto const& [it,fl] = _openers.emplace(opener,Opener{level,std::string(closer)});
+	void bcompr( std::string const& opener, std::string const& mid, std::string const& closer, std::string_view const& actual, Opt<std::string> const& cons, int level ) & {
+		auto const& [it,fl] = _openers.emplace(opener,Opener{level,closer});
 		it->second.bcompr.emplace(mid,std::pair{actual,cons});
-		_pretty_of.emplace(actual,ComprRel{std::string(opener),std::string(mid),std::string(closer),cons});
-		_closers.emplace(closer);
+		_pretty_of.emplace(actual,ComprRel{opener,mid,closer,cons});
+		_postfixes.emplace(closer,{level,closer});
 	}
 	std::ostream& pretty_sym( std::ostream& os, std::string_view const& sym ) const &;
 	std::function<std::ostream&(std::ostream&)> pretty_sym( std::string_view const& sym ) const & {

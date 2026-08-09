@@ -18,6 +18,8 @@ set symbol
 
 infix ⟹ 1 0 0.
 binder ∀ 0 0.
+syntax[invalid] _ }.
+syntax[invalid] _ ].
 
 infix ⟸ 0 1 0.
 infix ⟺ 1 1 0.

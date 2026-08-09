@@ -94,10 +94,6 @@ lemma 0_eq_1_elim: ¬ 0 = 1;
 	unfold 1_def;
 	by not_0_eq_suc.
 
-definition 2 = suc 1.
-
-lemma 2_type! 2 : ℕ; by #simp 2_def.
-
 obtain (+) where
 	add_nat! if x : ℕ, y : ℕ then x + y : ℕ,
 	add_0#simp if x : ℕ then x + 0 = x,
@@ -134,9 +130,6 @@ instance add: nat.CommMonoid (+) 0;
 		- if IH: x' + y + z = x' + (y + z), ...; simp IH.
 		.
 	.
-
-lemma add_2_eq#simp if [x : ℕ] then x + 2 = suc (suc x); simp 2_def.
-lemma 2_add_eq#simp if [x : ℕ] then 2 + x = suc (suc x); simp 2_def.
 
 obtain (*) where
 	mul_nat! if x : ℕ, y : ℕ then x * y : ℕ,
@@ -188,45 +181,52 @@ note#simp mul.left_neutral mul.right_neutral.
 ---
 ## Binary Representation
 ---
-namespace bits begin
 
-obtain bit0 where
-	bit0_nat! if x : ℕ then bit0 x : ℕ,
-	bit0_eq: if x : ℕ then bit0 x = 2 * x;
+obtain _bit0 where
+	_bit0_nat! if x : ℕ then _bit0 x : ℕ,
+	_bit0_eq: if x : ℕ then _bit0 x = suc 1 * x;
 	- for thesis if assm;
-		apply assm[of (fun x : ℕ. 2 * x)].
+		apply assm[of (fun x : ℕ. suc 1 * x)].
 	.
-obtain bit1 where
-	bit1_nat! if x : ℕ then bit1 x : ℕ,
-	bit1_eq: if x : ℕ then bit1 x = 2 * x + 1; 
+obtain _bit1 where
+	_bit1_nat! if x : ℕ then _bit1 x : ℕ,
+	_bit1_eq: if x : ℕ then _bit1 x = suc 1 * x + 1; 
 	- for thesis if assm;
-		apply assm[of (fun x : ℕ. 2 * x + 1)].
+		apply assm[of (fun x : ℕ. suc 1 * x + 1)].
 	.
 
-lemma bit0_add_bit0#simp if [x : ℕ, y : ℕ] then bit0 x + bit0 y = bit0 (x + y);
-	simp bit0_eq left_distrib.
+lemma _bit0_add_bit0#simp if [x : ℕ, y : ℕ] then _bit0 x + _bit0 y = _bit0 (x + y);
+	simp _bit0_eq left_distrib.
 
-lemma bit0_add_bit1#simp if [x : ℕ, y : ℕ] then bit0 x + bit1 y = bit1 (x + y);
-	simp bit0_eq bit1_eq left_distrib.
+lemma _bit0_add_bit1#simp if [x : ℕ, y : ℕ] then _bit0 x + _bit1 y = _bit1 (x + y);
+	simp _bit0_eq _bit1_eq left_distrib.
 
-lemma bit1_add_bit0#simp if [x : ℕ, y : ℕ] then bit1 x + bit0 y = bit1 (x + y);
-	simp bit0_eq bit1_eq left_distrib.
+lemma _bit1_add_bit0#simp if [x : ℕ, y : ℕ] then _bit1 x + _bit0 y = _bit1 (x + y);
+	simp _bit0_eq _bit1_eq left_distrib.
 
-lemma bit1_add_bit1#simp if [x : ℕ, y : ℕ] then bit1 x + bit1 y = bit0 (suc (x + y));
-	simp bit0_eq bit1_eq left_distrib;.
+lemma _bit1_add_bit1#simp if [x : ℕ, y : ℕ] then _bit1 x + _bit1 y = _bit0 (suc (x + y));
+	.. = suc (suc (x + x + (y + y))); simp _bit1_eq.
+	.. = suc (suc (x + (x + y) + y)); simp add.left_assoc.
+	.. = suc (suc (x + (y + x) + y));
+		have 1: x + y = y + x; by add.commute.
+		unfold 1.
+	simp _bit0_eq add.left_assoc.
 
-lemma suc_bit0#simp if [x : ℕ] then suc (bit0 x) = bit1 x;
-	simp bit0_eq bit1_eq.
+lemma suc_bit0#simp if [x : ℕ] then suc (_bit0 x) = _bit1 x;
+	simp _bit0_eq _bit1_eq.
 
-lemma suc_bit1#simp if [x : ℕ] then suc (bit1 x) = bit0 (suc x);
-	simp bit0_eq bit1_eq.
+lemma suc_bit1#simp if [x : ℕ] then suc (_bit1 x) = _bit0 (suc x);
+	simp _bit0_eq _bit1_eq.
 
-lemma suc_1_eq_bit0#simp suc 1 = bit0 1;
-	simp bit0_eq 2_def.
+lemma suc_1_eq_bit0#simp suc 1 = _bit0 1;
+	simp _bit0_eq.
 
-lemma: bit0 (bit1 (bit0 (bit1 1))) + bit0 (bit1 1) = bit0 (bit0 (bit0 (bit0 (bit0 1)))).
+-- Numeric literals are internally expressed via `_bit0` and `_bit1`.
+lemma: 100 + 30 = 130.
 
-end
+---
+### Subtraction
+---
 
 definition pred = case_nat ℕ 0 (fun p : ℕ. p).
 

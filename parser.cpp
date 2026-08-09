@@ -1,4 +1,6 @@
+#include<limits>
 #include "parser.hpp"
+#include "lexer.hpp"
 
 using namespace std;
 
@@ -74,13 +76,29 @@ Term Parser::_nest_abs( string const& binder, Syntax::Binder const& op, string& 
 Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 	auto& syn = syntax();
 	string_view peek = peek_token();
-	if( peek == "" || syn.has_closer(peek) ) {
-		return {};
+	if( peek == "" ) return {};
+	if( auto const& op = syn.finds_postfix(peek) ) {
+		if( op->level < level ) return {};
+		ignore_token();
+		return {op->actual};
 	}
 	Term init;
 	if( skips("(") ) {
-		init = _get_term(INT_MIN,fv);
+		init = _get_term(Syntax::PARSE_ALL,fv);
 		skip(")");
+	} else if( next_token_type() == NUMBER ) {
+		unsigned int num = get_nat();
+		if( num == 0 ) {
+			init = "0";
+		} else {
+			unsigned int bit = std::bit_floor(num);
+			init = "1";// top bit
+			for(;;) {
+				bit >>= 1;
+				if( bit == 0 ) break;
+				init = Term( num & bit ? Syntax::BIT1 : Syntax::BIT0 )(init); 
+			}
+		}
 	} else if( auto const& x = syn.finds_opener(peek) ) {
 		auto const& [opener,op] = *x;
 		if( op.level < level ) {
@@ -117,7 +135,7 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 			init = *op.empty;
 		}
 	} else if( auto op = syn.finds_prefix(peek) ) {
-		if( op->llevel < level ) {
+		if( op->level < level ) {
 			return {};
 		}
 		ignore_token();
@@ -177,8 +195,8 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 				}
 			} while( n != 0 );
 		}
-	} else if( auto x = syn.finds_infix(peek) ) {// + 1
-		if( level != INT_MIN ) {
+	} else if( auto x = syn.finds_infix(peek) ) {// + ...
+		if( level != Syntax::PARSE_ALL ) {
 			return {};
 		}
 		init = Term(x->actual);
@@ -206,7 +224,7 @@ Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) &
 	int lastlevel = INT_MAX;
 	for(;;) {
 		string_view peek = peek_token();
-		if( peek == "" || syn.has_closer(peek) ) {
+		if( peek == "" ) {
 			return ret;
 		}
 		if( peek == "." ) {
@@ -214,7 +232,12 @@ Term Parser::_get_follow( Term ret, int level, Syntax const& syn, string& fv ) &
 			ignore_token();// structured binding
 			return _bind(ret,fv)(_get_term(0,fv));
 		}
-		if( auto op = syn.finds_infix(peek) ) {
+		if( auto op = syn.finds_postfix(peek) ) {// ret!
+			if( op->level < level ) return ret;
+			if( lastlevel < op->level ) return ret;
+			ignore_token();
+			ret = Term(op->actual)(ret);
+		} else if( auto op = syn.finds_infix(peek) ) {// ret + ...
 			if( op->level < level ) return ret;
 			if( lastlevel < op->llevel ) return ret;
 			ignore_token();
@@ -245,7 +268,7 @@ Opt<string> Parser::gets_sym() & {
 		skip(")");
 		return {ret};
 	}
-	if( peek == "" || syn.has_closer(peek) || syn.finds_opener(peek) || syn.finds_binder(peek) || syn.finds_prefix(peek) || syn.finds_infix(peek) ) {
+	if( peek == "" || syn.finds_opener(peek) || syn.finds_binder(peek) || syn.finds_prefix(peek) || syn.finds_infix(peek) || syn.finds_postfix(peek) ) {
 		return {};
 	}
 	return {get()};

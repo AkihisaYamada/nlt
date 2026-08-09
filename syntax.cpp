@@ -8,8 +8,7 @@ Syntax::Syntax() {
 	infix("⟹","⟹",0,1,0,{});
 	binder("∀",0,0);
 	infix(".",".",-1,-1,-2,{});// Dot cannot be an symbol
-	_closers.emplace(")");
-	_closers.emplace("]");
+	postfix(")","#rparen",INVALID);
 }
 
 ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
@@ -23,14 +22,37 @@ ostream& Syntax::pretty_sym( ostream& os, string_view const& sym ) const & {
 	}
 	return os << sym;
 }
-
+ostream& _pretty_num( Syntax const& syn, ostream& os, unsigned char e, unsigned int num, Term const& inner ) {
+	if( auto const& app = inner.app() ) {
+		auto const& [fun,arg] = *app;
+		if( auto const& sym = fun.sym() ) {
+			if( fun == Syntax::BIT0 ) return _pretty_num( syn, os, e+1, num, arg );
+			if( fun == Syntax::BIT1 ) return _pretty_num( syn, os, e+1, num | (1<<e), arg );
+		}
+	} else if( inner.sym().contains("1") ) {
+		return os << (num | (1<<e));
+	}
+	// ill-formed number
+	os << '(';
+	for( unsigned char i = 0; i < e; i++ ){
+		os << ( num & 1 ? Syntax::BIT1 : Syntax::BIT1 ) << " (";
+		num >>= 1;
+	}
+	os << syn.pretty(inner) << ')';
+	for( ; e != 0; e-- ) os << ')';
+	return os;
+}
 ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 	if( auto const& sym = term.sym() ) {
 		return pretty_sym(os,*sym);
 	} else if( auto const& app = term.app() ) {
-		auto const& fun = app->first, arg = app->second;
+		auto const& [fun,arg] = *app;
 		if( auto const& sym = fun.sym() ) {// unary application
-			if( auto const& op = _binders.finds_value(*sym) ) {// ∀x. s
+			if( *sym == BIT0 ) {
+				return _pretty_num(*this,os,1,0,arg);
+			} else if( *sym == BIT1 ) {
+				return _pretty_num(*this,os,1,1,arg);
+			} else if( auto const& op = _binders.finds_value(*sym) ) {// ∀x. s
 				if( auto const& abs = arg.bind() ) {
 					if( level > op->llevel ) os << '(';
 					os << *sym << ' ' << pretty_sym(abs->first);
@@ -44,11 +66,19 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					return os;
 				}
 			} else if( auto const& sum = _pretty_of.finds_value(*sym) ) {
-				if( auto const& x = sum->ref<Unary>() ) {// -_ s
-					auto op = *ASSERTED(_prefixes.finds_value(x->view));
-					if( level > op.llevel ) os << '(';
-					os << x->view << ' ' << pretty(arg,op.rlevel);
-					if( level > op.llevel ) os << ')';
+				if( auto const& x = sum->ref<Unary>() ) {// f s
+					auto const& [postfix,view] = *x;
+					if( postfix ) {// s!
+						auto op = *ASSERTED(_postfixes.finds_value(view));
+						if( level > op.level ) os << '(';
+						os << pretty(arg,op.level) << ' ' << view;
+						if( level > op.level ) os << ')';
+					} else {// - s
+						auto op = *ASSERTED(_prefixes.finds_value(view));
+						if( level > op.level ) os << '(';
+						os << view << ' ' << pretty(arg,op.rlevel);
+						if( level > op.level ) os << ')';
+					}
 					return os;
 				} else if( auto const& bin = sum->ref<Binary>() ) {// _-_ (s,t)
 					auto op = *ASSERTED(_infixes.finds_value(bin->view));
@@ -91,10 +121,10 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 			auto const& fun_in = app_in->first, arg_in = app_in->second;
 			if( auto sym = fun_in.sym() ) {// f s t
 				if( auto const& op = _prefixes.finds_value(*sym) ) {
-					if( level > op->llevel ) os << '(';
+					if( level > op->level ) os << '(';
 					os << *sym << ' ';
 					os << pretty(arg,op->rlevel);
-					if( level > op->llevel ) os << ')';
+					if( level > op->level ) os << ')';
 					return os;
 				} else if( auto const& sum = _pretty_of.finds_value(*sym) ) {
 					if( auto const& bin = sum->ref<Binary>() ) {

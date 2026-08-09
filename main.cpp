@@ -2056,61 +2056,79 @@ public:
 					else cout << '(' << actual << ") x y" << endl;
 				}
 			} else if( skips("syntax") ) {
-				int level = gets_int().value_or(INT_MAX);
-				auto opener = get();
-				if( skips("_") ) {
-					if( skips(".") ) {// {_. _}
-						skip("_");
+				int level = INT_MAX;
+				if( skips("[") ) {
+					if( skips("level") ) {
+						level = get_int();
+					} else if( skips("invalid") ) {
+						level = Syntax::INVALID;
+					}
+					skip("]");
+				}
+				if( skips("_") ) {// _ !
+					auto post = get();
+					if( skips(":=") ) {
+						auto actual = get_sym();
+						_thy.modify_syntax().postfix(post,actual,level);
+					} else {
+						_thy.modify_syntax().postfix(post,post,level);
+					}
+				} else {
+					auto opener = get();
+					if( skips("_") ) {
+						if( skips(".") ) {// {_. _}
+							skip("_");
+							auto closer = get();
+							skip(":=");
+							auto actual = get_sym();
+							_thy.modify_syntax().compr(opener,closer,actual,level);
+							if MSG cout << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
+						} else {
+							auto next = get();
+							if( skips("_") ) {
+								skip(".");
+								skip("_");
+								if( skips(":=") ) {// ∀_ < _. _
+									auto actual = get_sym();
+									auto cons = _gets_cons();
+									_thy.modify_syntax().binder_mid(opener,next,actual,cons);
+									if MSG {
+										cout << "binder middle " << opener << " x " << next << " y. z := " << actual;
+										if( cons ) {
+											cout << "(y " << *cons << " (x. z))" << endl;
+										} else {
+											cout << " y (x. z)" << endl;
+										}
+									}
+								} else {// {_ < _. _}
+									auto closer = get();
+									skip(":=");
+									auto actual = get_sym();
+									auto cons = _gets_cons();
+									_thy.modify_syntax().bcompr(opener,next,closer,actual,cons,level);
+									if MSG {
+										cout << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
+										if( cons ) {
+											cout << "(y " << *cons << " (x. z))" << endl;
+										} else {
+											cout << " y (x. z)" << endl;
+										}
+									}
+								}
+							} else {// {_}
+								skip(":=");
+								auto actual = get_sym();
+								_thy.modify_syntax().singleton_compr(opener,next,actual,level);
+								if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
+							}
+						}
+					} else {// {}
 						auto closer = get();
 						skip(":=");
 						auto actual = get_sym();
-						_thy.modify_syntax().compr(opener,closer,actual,level);
-						if MSG cout << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
-					} else {
-						auto next = get();
-						if( skips("_") ) {
-							skip(".");
-							skip("_");
-							if( skips(":=") ) {// ∀_ < _. _
-								auto actual = get_sym();
-								auto cons = _gets_cons();
-								_thy.modify_syntax().binder_mid(opener,next,actual,cons);
-								if MSG {
-									cout << "binder middle " << opener << " x " << next << " y. z := " << actual;
-									if( cons ) {
-										cout << "(y " << *cons << " (x. z))" << endl;
-									} else {
-										cout << " y (x. z)" << endl;
-									}
-								}
-							} else {// {_ < _. _}
-								auto closer = get();
-								skip(":=");
-								auto actual = get_sym();
-								auto cons = _gets_cons();
-								_thy.modify_syntax().bcompr(opener,next,closer,actual,cons,level);
-								if MSG {
-									cout << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
-									if( cons ) {
-										cout << "(y " << *cons << " (x. z))" << endl;
-									} else {
-										cout << " y (x. z)" << endl;
-									}
-								}
-							}
-						} else {// {_}
-							skip(":=");
-							auto actual = get_sym();
-							_thy.modify_syntax().singleton_compr(opener,next,actual,level);
-							if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
-						}
+						_thy.modify_syntax().empty_compr(opener,closer,actual,level);
+						if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
 					}
-				} else {// {}
-					auto closer = get();
-					skip(":=");
-					auto actual = get_sym();
-					_thy.modify_syntax().empty_compr(opener,closer,actual,level);
-					if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
 				}
 				skip(".");
 			} else if( skips("binder") ) {
