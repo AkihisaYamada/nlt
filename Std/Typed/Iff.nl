@@ -146,10 +146,10 @@ extend ExRelStrict begin
 
 end
 
-extend FirstOrder begin
+extend Quantifiable begin
 
-	instance AllRelStrict TYPE (:) (∀:).
-	instance ExRelStrict TYPE (:) (∃:).
+	instance AllRelStrict QTYPE (:) (∀:).
+	instance ExRelStrict QTYPE (:) (∃:).
 
 	note#cong#rule_cong all_cong ex_cong.
 

@@ -116,15 +116,46 @@ begin
 		apply assm[OF Collect_elim0[OF x] Collect_elim1[OF x]].
 end
 
-theory Fun :=
-	fix (fun).
-	assume fun_app_elim: for P A if P.[(fun x. F.[x]) s], F.[s] ∈ A then P.[F.[s]].
+theory FunIn :=
+	fix (fun_∈).
+	assume funIn_app_elim: for P if P.[(fun x ∈ A. F.[x]) s], s ∈ A then P.[F.[s]].
 begin
 
-	lemma fun_app_intro: if P: P.[F.[s]], A: F.[s] ∈ A then P.[(fun x. F.[x]) s];
-		apply fun_app_elim[for Z, of (y. P.[y] ⟹ Z), OF _ A P].
+	lemma funIn_app_intro: for P if PFs: P.[F.[s]], sA: s ∈ A then P.[(fun x ∈ A. F.[x]) s];
+		apply funIn_app_elim[for Z, of (y. P.[y] ⟹ Z)][OF imp.refl sA PFs].
 
-	lemma fun_indep_elim: if app: P.[(fun x. s) t], A: s ∈ A then P.[s];
-		apply fun_app_elim[of P, OF app A].
+end
+
+theory To :=
+	fix (→).
+	assume to_elim1#intro[after 1] if f ∈ A → B, x ∈ A then f x ∈ B.
+begin
+	---
+	Type judgment of application can be reduced to that of the function,
+	if one knows the type of the argument.
+	---
+	lemma app_in: if [x ∈ A, f ∈ A → B] then f x ∈ B.
+
+	lemma to_elim: if f: f ∈ A → B, assm: (∀x. x ∈ A ⟹ f x ∈ B) ⟹ Q then Q;
+		use f; by assm.
+
+end
+
+theory FunTo :=
+	import FunIn, To.
+	assume funIn_to#intro if ∀x. x ∈ A ⟹ F.[x] ∈ B then (fun x ∈ A. F.[x]) ∈ A → B.
+begin
+end
+
+theory PolyFun :=
+	fix (fun).
+	assume fun_app_elim: for P A if P.[(fun x. F.[x]) s], s ∈ A then P.[F.[s]].
+begin
+
+	lemma fun_app_intro: for P A if PFs: P.[F.[s]], sA: s ∈ A then P.[(fun x. F.[x]) s];
+		apply fun_app_elim[for Z, of (y. P.[y] ⟹ Z)][OF imp.refl sA PFs].
+
+	lemma fun_indep_elim: if app: P.[(fun x. s) t], tA: t ∈ A then P.[s];
+		apply fun_app_elim[of P, OF app tA].
 
 end

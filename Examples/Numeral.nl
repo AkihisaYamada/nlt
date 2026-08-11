@@ -1,4 +1,4 @@
-import Std, SimpleTypes, Nat.
+import Std, Eq, Typed, Nat.
 
 lemma: 100 + 30 = 130.
 lemma: 1000 + 300 = 1300.

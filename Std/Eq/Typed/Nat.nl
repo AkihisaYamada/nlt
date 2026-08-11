@@ -1,30 +1,56 @@
 ---
-# Simple Type of Natural Numbers
+# First-Order Intuitionistic Natural Numbers
 
+Natural number theory requires at least first-order intuitionistic logic.
+Moreover, function abstraction is almost necessary, since otherwise recursive definitions must be always axiomatized.
+---
+import FirstOrder, Intuitionistic, FunTo (fun_:).
+---
 ## Axiomatization
 ---
 fix ℕ 0 suc rec_nat.
 
-assume nat_type! ℕ : TYPE.
+assume nat_ind! ℕ : IND.-- Quantification over ℕ is allowed.
+assume nat_eqtype! ℕ : EQTYPE.-- Equality over naturals is a proposition.
+
 assume 0_nat! 0 : ℕ.
-assume suc_type! suc : ℕ → ℕ.
+assume suc_to! suc : ℕ → ℕ.
 
 -- Successor is injective in ℕ
 assume suc_inj: if suc x = suc y, x : ℕ, y : ℕ then x = y.
 
 ---
 Induction principle restricted on propositions.
+Since we are not in a higher-order logic, this principle is an axiom schema parametric to `P`. 
 ---
-assume induction_axiom: ∀x : ℕ, p : ℕ → Prop. p 0 ⟹ (∀x' : ℕ. p x' ⟹ p (suc x')) ⟹ p x.
+assume induction_axioms:
+	if ∀x. x : ℕ ⟹ P.[x] : Prop
+	then P.[0] ⟹ (∀x : ℕ. P.[x] ⟹ P.[suc x]) ⟹ ∀x : ℕ. P.[x].
 
 ---
-Recursor is parametric to types.
+Recursor is parametric to types. Since the specification is equality, the type is restricted to `EQTYPE`.
 ---
-assume rec_nat_type! rec_nat A : A → (ℕ → A → A) → ℕ → A.
-assume rec_nat_0#simp if z : A, s : ℕ → A → A then rec_nat A z s 0 = z.
-assume rec_nat_suc#simp if z : A, s : ℕ → A → A, x : ℕ then rec_nat A z s (suc x) = s x (rec_nat A z s x).
+assume rec_nat_type!
+	if A : EQTYPE
+	then rec_nat A : A → (ℕ → A → A) → ℕ → A.
+
+assume rec_nat_0#simp
+	if A : EQTYPE, z : A, s : ℕ → A → A
+	then rec_nat A z s 0 = z.
+
+assume rec_nat_suc#simp
+	if A : EQTYPE, z : A, s : ℕ → A → A, x : ℕ
+	then rec_nat A z s (suc x) = s x (rec_nat A z s x).
 
 begin
+
+note nat_eq_prop! eq_prop[OF nat_eqtype].-- TODO don't export
+
+instance nat: Equivalence ℕ (=);
+	- .
+	- by #elim eq.sym.
+	- by #intro[after 2] eq.trans.
+	.
 
 note rec_nat_type1! rec_nat_type[THEN to_elim1].
 note rec_nat_type2! rec_nat_type1[THEN to_elim1].
@@ -33,28 +59,22 @@ note rec_nat_type3! rec_nat_type2[THEN to_elim1].
 lemma induction: for x
 	if 0: P.[0], suc: ∀x. P.[x] ⟹ x : ℕ ⟹ P.[suc x], [∀x. x : ℕ ⟹ P.[x] : Prop, x : ℕ]
 	then P.[x];
-	apply induction_axiom[THEN all_elim1[of x], THEN all_elim1[of (fun x : ℕ. P.[x])], simp];
+	apply induction_axioms[of P, THEN all_elim1[of x]];
 	by 0 all_intro suc.
 
-instance nat: Equivalence ℕ (=);
-	- .
-	- by #elim eq.sym.
-	- by #intro[after 2] eq.trans.
-	.
-
 obtain case_nat where
-	case_nat_type! if A : TYPE then case_nat A : A → (ℕ → A) → ℕ → A,
-	case_nat_0#simp if A : TYPE, z : A, s : ℕ → A then case_nat A z s 0 = z,
-	case_nat_suc#simp  if A : TYPE, z : A, s : ℕ → A, x : ℕ then case_nat A z s (suc x) = s x;
+	case_nat_type! if A : EQTYPE then case_nat A : A → (ℕ → A) → ℕ → A,
+	case_nat_0#simp if A : EQTYPE, z : A, s : ℕ → A then case_nat A z s 0 = z,
+	case_nat_suc#simp  if A : EQTYPE, z : A, s : ℕ → A, x : ℕ then case_nat A z s (suc x) = s x;
 	- for thesis if assm;
-		apply assm[of (fun A : TYPE, z : A, s : ℕ → A. rec_nat A z (fun x : ℕ, r : A. s x))].
+		apply assm[of (fun A : EQTYPE, z : A, s : ℕ → A. rec_nat A z (fun x : ℕ, r : A. s x))].
 	.
 
 note case_nat_type1! case_nat_type[THEN to_elim1].
 note case_nat_type2! case_nat_type1[THEN to_elim1].
 note case_nat_type3! case_nat_type2[THEN to_elim1].
 
-lemma not_0_eq_suc! if [x : ℕ] then ¬ 0 = suc x;
+lemma not_0_eq_suc: if [x : ℕ] then ¬ 0 = suc x;
 	apply not_intro;
 	- if 0: 0 = suc x;
 		define is0 = case_nat Prop true (fun x : ℕ. false).
@@ -63,28 +83,30 @@ lemma not_0_eq_suc! if [x : ℕ] then ¬ 0 = suc x;
 			.. = is0 0; simp 0.
 			simp is0_def.
 		unfold eq.
-	.
+	by nat_eq_prop.
+
+lemma 
 
 obtain funpow where
-	funpow_type! if A : TYPE then funpow A : (A → A) → ℕ → A → A,
-	funpow_0#simp if A : TYPE, f : A → A, a : A then funpow A f 0 a = a,
-	funpow_suc_left: if A : TYPE, f : A → A, n : ℕ, a : A then funpow A f (suc n) a = f (funpow A f n a);
+	funpow_type! if A : EQTYPE then funpow A : (A → A) → ℕ → A → A,
+	funpow_0#simp if A : EQTYPE, f : A → A, a : A then funpow A f 0 a = a,
+	funpow_suc_left: if A : EQTYPE, f : A → A, n : ℕ, a : A then funpow A f (suc n) a = f (funpow A f n a);
 	- for thesis if assm;
-		apply assm[of (fun A : TYPE, f : A → A, n : ℕ, a : A. rec_nat A a (fun x : ℕ. f) n)].
+		apply assm[of (fun A : EQTYPE, f : A → A, n : ℕ, a : A. rec_nat A a (fun x : ℕ. f) n)].
 	.
 
 note funpow_type1! funpow_type[THEN to_elim1].
 note funpow_type2! funpow_type1[THEN to_elim1].
 note funpow_type3! funpow_type2[THEN to_elim1].
 
-lemma funpow_suc_right: if [A : TYPE, f : A → A, n : ℕ, a : A] then funpow A f (suc n) a = funpow A f n (f a);
+lemma funpow_suc_right: if [A : EQTYPE, f : A → A, n : ℕ, a : A] then funpow A f (suc n) a = funpow A f n (f a);
 	apply induction[of n];
 	- simp funpow_suc_left.
 	- for n' if IH, ... then funpow A f (suc (suc n')) a = funpow A f (suc n') (f a);
 		.. = f (funpow A f (suc n') a); simp funpow_suc_left.
 		.. = f (funpow A f n' (f a)); simp IH.
 		simp funpow_suc_left.
-	.
+	by eq_prop[of A].
 
 definition 1 = suc 0.
 
@@ -110,7 +132,7 @@ lemma 0_add#simp if [x : ℕ] then 0 + x = x;
 lemma suc_add#simp if x: x : ℕ, [y : ℕ] then suc x + y = suc (x + y);
 	apply arbitrary[OF x];
 	apply induction[of y];
-	- .
+	-.
 	- for y' if IH, ...;
 		by #simp IH[THEN all_elim1].
 	.
@@ -282,7 +304,7 @@ lemma 0_diff#simp if [x : ℕ] then 0 ∸ x = 0;
 		by #simp IH diff_suc.
 	.
 
-lemma suc_diff_suc: if x: x : ℕ, [y : ℕ] then suc x ∸ suc y = x ∸ y;
+lemma suc_diff_suc#simp if x: x : ℕ, [y : ℕ] then suc x ∸ suc y = x ∸ y;
 	apply arbitrary[OF x];
 	apply induction[of y];
 	- apply all_intro;
@@ -314,3 +336,29 @@ instance add: nat.MagmaRightCancel (+) (∸);
 			.
 		.
 	.
+
+---
+### Ordering
+---
+obtain (≤) where
+	le_nat: if x : ℕ, y : ℕ then (x ≤ y) : Prop,
+	le_0: if x : ℕ then x ≤ 0 ⟺ x = 0, 
+	suc_le: if x : ℕ, y : ℕ then suc x ≤ suc y ⟺ x ≤ y;
+- for thesis if assm;
+	apply assm[of (fun x y : ℕ. x ∸ y = 0)].
+.
+
+obtain (<) where
+	lt_nat: if x : ℕ, y : ℕ then (x < y) : Prop,
+	not_lt_0: if x : ℕ then ¬ x < 0, 
+	suc_lt: if x : ℕ, y : ℕ then suc x < suc y ⟺ x < y;
+- for thesis if assm;
+	note! le_nat.
+	apply assm[of (fun x y : ℕ. suc x ≤ y)];
+	-.
+	- if [x : ℕ];
+		simp;
+		unfold[on (⟺)] le_0;
+	- if [x : ℕ, y : ℕ];
+		by  #simp le_0 suc_le.
+.

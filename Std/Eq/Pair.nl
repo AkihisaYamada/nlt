@@ -1,4 +1,6 @@
---- Syntactic Pairing ---
+---
+# Syntactic Pairing
+---
 fix (,) fst snd.
 assume fst#simp fst (x,y) = x.
 assume snd#simp snd (x,y) = y.
@@ -16,25 +18,16 @@ lemma pair_eq_pair_intro: if x: x = x', y: y = y' then (x,y) = (x',y');
 	simp x y.
 
 lemma pair_eq_pair_elim1: if eq: (x,y) = (x',y') then x = x';
-	have 1: x = fst (x,y).
-	apply eq.trans[OF 1];
-	have 2: fst (x,y) = fst (x',y');
-		unfold eq.
-	apply eq.trans[OF 2];
-	have 3: fst (x',y') = x';
-		unfold fst.
-	by eq.trans[OF 3].
+	.. = fst (x,y).
+	.. = fst (x',y'); unfold eq.
+	.. = x'; unfold fst.
+	.
 
 lemma pair_eq_pair_elim2: if eq: (x,y) = (x',y') then y = y';
-	have 1: y = snd (x,y);
-		unfold snd.
-	apply eq.trans[OF 1];
-	have 2: snd (x,y) = snd (x',y');
-		unfold eq.
-	apply eq.trans[OF 2];
-	have 3: snd (x',y') = y';
-		unfold snd.
-	by eq.trans[OF 3].
+	.. = snd (x,y); unfold snd.
+	.. = snd (x',y'); unfold eq.
+	.. = y'; unfold snd.
+	.
 
 lemma pair_eq_pair_elim: if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
 	apply assm;

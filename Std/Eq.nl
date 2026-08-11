@@ -5,7 +5,7 @@ fix (=).
 
 import eq: MetaReflexive (=).
 
-assume eq_elim: for P x y if x = y, P.[x] then P.[y].
+assume eq_elim1: for P x y if x = y, P.[x] then P.[y].
 
 begin
 
@@ -22,22 +22,26 @@ Equality is an equivalence.
 ---
 instance eq: MetaEquivalence (=);
 	- if xy: x = y then y = x;
-		by eq_elim[of (z. z = x), OF xy].
+		by eq_elim1[of (z. z = x), OF xy].
 	- if xy: x = y, yz: y = z then x = z;
-		by eq_elim[of (w. x = w), OF yz xy].
+		by eq_elim1[of (w. x = w), OF yz xy].
 	.
 
 note#dual eq.sym.
 note#trans eq.trans.
 
+lemma eq_elim2: for P if xy: x = y, Py: P.[y] then P.[x];
+	by eq.sym[OF xy, THEN eq_elim1, OF Py].
+
+
 lemma eq_imp#rewrite_imp if PQ: P = Q, P: P then Q;
-	by eq_elim[of (x. x), OF PQ P].
+	by eq_elim1[of (x. x), OF PQ P].
 
 lemma eq_imp_rev#rewrite_rev if PQ: P = Q, Q: Q then P;
 	by eq_imp[OF eq.sym[OF PQ] Q].
 
 lemma eq_cong_meta: for X if yz: y = z then X.[y] = X.[z];
-	by eq_elim[of (w. X.[y] = X.[w]), OF yz eq.refl].
+	by eq_elim1[of (w. X.[y] = X.[w]), OF yz eq.refl].
 
 lemma unbind_cong: if XY: X = Y then X.[z] = Y.[z];
 	by eq_cong_meta[of (X. X.[z]), OF XY].
@@ -54,7 +58,7 @@ lemma cong#cong? if fg: f = g, xy: x = y then f x = g y;
 	by fun_cong[OF fg].
 
 lemma eq_elim_dual: for P x y if xy: x = y, Py: P.[y] then P.[x];
-	apply eq_elim[OF eq.sym[OF xy] Py].
+	apply eq_elim1[OF eq.sym[OF xy] Py].
 
 ---
 ## Theories
@@ -102,7 +106,6 @@ begin
 	lemma comp3#simp (comp3 f g x y z = f (g x y z));
 		simp comp3_def.
 
-
 end
 
 theory Dual :=-- aka C
@@ -110,6 +113,15 @@ theory Dual :=-- aka C
 	assume dual_app#simp dual f x y = f y x.
 begin
 
+	definition[as _if] (⟸) = dual (⟹).
+	lemma _if_eq#simp (P ⟸ Q) = (Q ⟹ P);
+		simp _if_def.
+
+end
+
+theory AppBind :=
+	fix _AppBind.
+	assume _AppBind#simp _AppBind f (x. G.[x]) = (x. f G.[x]).
 end
 
 theory MetaIf :=

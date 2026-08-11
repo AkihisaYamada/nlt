@@ -17,6 +17,7 @@ lemma all_eq_imp_iff: (∀x. x = a ⟹ P.[x]) ⟺ P.[a];
 	- if all;
 		apply all.
 	- if Pa: P.[a], xa: x = a;
+		note#cong eq_cong_meta.
 		by Pa #simp xa.
 	.
 
@@ -99,6 +100,7 @@ extend Iff.Ex begin
 		lemma ex_eq_and_iff: (∃x. x = a ∧ P.[x]) ⟺ P.[a];
 			apply iff_intro;
 			-> if xa: x = a, Px: P.[x];
+				note#cong eq_cong_meta.
 				by Px #simp xa[dual].
 			- if Pa: P.[a];
 				by ex_intro1[of a] Pa.
@@ -136,6 +138,7 @@ begin
 		apply iff_intro;
 		- if Py; unfold ex1_imp_eq[OF ex1 Px Py].
 		- if eq;
+			note#cong eq_cong_meta.
 			by Px[unfold eq].
 		.
 
@@ -153,6 +156,7 @@ extend Pair begin
 	lemma all_pair: (∀(x,y). P.[x,y]) ⟺ (∀x y. P.[x,y]);
 		apply iff_intro;
 		- if pair for x y;
+			note#cong eq_cong_meta.
 			by pair[of (x,y), simp].
 		- if xy;
 			by xy.

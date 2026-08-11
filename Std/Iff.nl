@@ -215,7 +215,7 @@ theory NaiveAllRel :=
 begin
 
 	instance AllRel;
-		- show all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
+		show all_iff: (∀x ⊏ a. P.[x]) ⟺ (∀x. x ⊏ a ⟹ P.[x]);
 			apply iff_intro;
 			- by #elim all_elim.
 			by all_intro.

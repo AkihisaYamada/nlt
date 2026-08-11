@@ -39,34 +39,32 @@ theory Abbrev :=
 	assume abbrev: for F if ∀f. (∀A x. F.[x] ∈ A ⟹ f x = F.[x]) ⟹ P then P.
 end
 
-theory Fun :=
-	fix (fun).
-	assume fun_app: -- @aka β reduction
-		for A F if F.[s] ∈ A then (fun x. F.[x]) s = F.[s].
+theory FunIn :=
+	fix (fun_∈).
+	assume funIn_app#simp if s ∈ A then (fun x ∈ A. F.[x]) s = F.[s].
 begin
 
-	instance base.Fun;
+	instance base.FunIn;
 		note#cong eq_cong_meta.
-		- for P A if P: P.[(fun x. F.[x]) s], FsA: F.[s] ∈ A then P.[F.[s]];
-			use P[unfold fun_app[OF FsA]].
+		- for P A F s if P, sA; use sA P.-- the order of assumptions matters.
 		.
 
-	---
-	If the result is a member, then function application can be reduced.
-	---
-	lemma fun_app_eq: for A if eq: F.[s] = t, ! t ∈ A then (fun x. F.[x]) s = t;
-		.. = F.[s];
-			apply fun_app[of A];
-			by #simp eq.
-		by #simp eq.
+end
 
-	lemma fun_indep#simp[after 1] if ! s ∈ A then (fun x. s) t = s;
-		by fun_app[of A].
+theory FunTo :=
+	import FunIn, base.FunTo.
+end
 
-	instance Abbrev;
-		- if assm: ∀f. (∀A x. F.[x] ∈ A ⟹ f x = F.[x]) ⟹ P then P;
-			apply assm[of (fun x. F.[x])];
-			by #elim fun_app.
+theory PolyFun :=
+	fix (fun).
+	assume fun_app_poly: -- @aka β reduction
+		for A F if s ∈ A then (fun x. F.[x]) s = F.[s].
+begin
+
+	instance base.PolyFun;
+		note#cong eq_cong_meta.
+		- for P A if P: P.[(fun x. F.[x]) s], sA: s ∈ A then P.[F.[s]];
+			use P[unfold fun_app_poly[OF sA]].
 		.
 
 end

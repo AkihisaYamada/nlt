@@ -23,9 +23,7 @@ lemma imp_or_if: if or: (P ⟹ Q) ∨ (P ⟹ R), !P then Q ∨ R;
 	by or[unfold imp_imp_iff].
 
 instance or: iff.MetaIdempotent (∨);
-	- show: P ∨ P ⟺ P;
-		by iff_intro #elim or_elim.
-	.
+	by iff_intro #elim or_elim.
 
 note#simp or.idem.
 

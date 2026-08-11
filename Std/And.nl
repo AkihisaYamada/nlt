@@ -2,7 +2,7 @@
 ## Primitive Specification of Conjunction
 ---
 fix (∧).
-assume and_intro! for P Q if P, Q then P ∧ Q.
+assume and_intro! if P, Q then P ∧ Q.
 assume and_elim1: if P ∧ Q then P.
 assume and_elim2: if P ∧ Q then Q.
 

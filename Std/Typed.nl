@@ -3,13 +3,16 @@
 
 We fix a class `Prop` in which logical operators are closed.
 ---
-import Membership (:).
-
+import Membership (:), To.
 fix Prop.
-import imp: Magma Prop (⟹).
+assume imp_type! (⟹) : Prop → Prop → Prop.
 
 begin
 
+note imp_type1! imp_type[THEN to_elim1].
+note imp_type2! imp_type1[THEN to_elim1].
+
+instance imp: Magma Prop (⟹).
 note! imp.closed.
 
 theory Relation A (⊏) :=
@@ -37,12 +40,10 @@ theory False :=
 begin
 
 	instance True;
-		obtain true where true_def: if P.[false ⟹ false] then P.[true];
+		obtain true where true_prop! true : Prop, true_intro! true;
 			- for thesis if assm;
 				apply assm[of (false ⟹ false)].
 			.
-		- apply true_def[of (x. x : Prop)].
-		- apply true_def[of (x. x)].
 		.
 
 end
@@ -72,17 +73,21 @@ theory ExRelStrict A (⊏) (∃⊏) :=
 	assume ex_elim: if ∃x ⊏ a. P.[x], ∀x. P.[x] ⟹ x ⊏ a ⟹ Q, a : A, ∀x. x ⊏ a ⟹ P.[x] : Prop, Q : Prop then Q.
 end
 
-theory FirstOrder TYPE (∀:) (∃:) :=
-	import AllRelStrict TYPE (:) (∀:).
-	import ExRelStrict TYPE (:) (∃:).
+---
+*Quantifiable* theories allow quantification over certain types.
+We denote the class of types one can quantify over by `QTYPE` (for "quantifiable type").
+---
+theory Quantifiable QTYPE (∀:) (∃:) :=
+	import AllRelStrict QTYPE (:) (∀:).
+	import ExRelStrict QTYPE (:) (∃:).
 begin
 
 	---
-	A logic is called *impredicative* if quantification over propositions are allowed.
-	This property can be simply characterized by saying `Prop` is a type.
+	A theory is called *impredicative* if quantification over propositions are allowed.
+	This property can be simply characterized by saying `Prop` is a `QTYPE`.
 	---
 	theory Impredicative :=
-		assume prop_type! Prop : TYPE.
+		assume prop_quantifiable! Prop : QTYPE.
 	begin
 
 		definition false := ∀P : Prop. P.
@@ -98,29 +103,60 @@ begin
 
 end
 
-theory SecondOrder IND :=
-	import FirstOrder, To.
-	assume ind_type: if A : IND then A : TYPE.
-	assume to_type! if A : IND, B : TYPE then A → B : TYPE.
+theory FirstOrder IND :=
+	import Quantifiable IND.
 end
 
+---
+A *second-order* theory allows quantification over functions over individuals.
+This restriction requires to split individuality from quantifiability.
+Note that whether to consider predicates quantifiable or not is impredicativity, orthogonal to the order.
+---
+theory SecondOrder IND :=
+	import Quantifiable.
+	assume ind_quantifiable: if A : IND then A : QTYPE.
+	assume to_quantifiable! if A : IND, B : QTYPE then A → B : QTYPE.
+begin
+	instance FirstOrder IND;
+		note! ind_quantifiable.
+		- for x if Px: P.[x], [x : A], ... then ∃x' : A. P.[x'];
+			apply ex_intro1[of x, OF Px].
+		- if ex: ∃x : A. P.[x] for Q if assm, ... then Q;
+			apply ex_elim[OF ex];
+			- for x; by assm[of x].
+			.
+		.
+
+end
+
+---
+*Predicative higher-order* theories allow quantification over functions over quantifiable types.  
+---
 theory HigherOrder :=
-	import FirstOrder, To.
-	assume to_type! if A : TYPE, B : TYPE then A → B : TYPE.
+	import Quantifiable.
+	assume to_quantifiable! if A : QTYPE, B : QTYPE then A → B : QTYPE.
 begin
 
-	instance? SecondOrder TYPE.
+	instance? SecondOrder QTYPE.
 
 end
+
+theory FreeOrder :=
+	import AllRel (:) (∀:).
+	import ExRel (:) (∃:).
+begin
+
+end
+
 
 ---
 The presence of the choice operator requires that every type `A` is inhabited.
-We can accommodate empty types by restricting `A` to belong to a certain class `TYPE`.
+We can accommodate empty types by restricting `A` to belong to a certain class `CTYPE`.
 ---
-theory TypedSome TYPE :=
+theory TypedSome CTYPE :=
 	fix some_:.
-	assume some_type! if A : TYPE, ∀x. x : A ⟹ P.[x] : Prop then (some x : A. P.[x]) : A.
-	assume some_intro1: for x if P.[x], A : TYPE, x : A, ∀x. x : A ⟹ P.[x] : Prop then P.[some z : A. P.[z]].
+	assume some_type! if A : CTYPE, ∀x. x : A ⟹ P.[x] : Prop then (some x : A. P.[x]) : A.
+	assume some_intro1: for x if P.[x], A : CTYPE, x : A, ∀x. x : A ⟹ P.[x] : Prop then P.[some z : A. P.[z]].
 begin
 
 

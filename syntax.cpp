@@ -80,14 +80,18 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 						if( level > op.level ) os << ')';
 					}
 					return os;
-				} else if( auto const& bin = sum->ref<Binary>() ) {// _-_ (s,t)
-					auto op = *ASSERTED(_infixes.finds_value(bin->view));
-					if( auto const& cons = op.cons )
-					if( auto const& pair = arg.binary(*cons) ) {
-						if( level > op.llevel ) os << '(';
-						os << pretty(pair->first,op.llevel) << ' ' << *sym << ' ' << pretty(pair->second,op.rlevel);
-						if( level > op.llevel ) os << ')';
-						return os;
+				} else if( auto const& bin = sum->ref<Binary>() ) {// (+) s
+					auto const& view = bin->view;
+					auto op = *ASSERTED(_infixes.finds_value(view));
+					if( auto const& cons = op.cons ) {
+						if( auto const& pair = arg.binary(*cons) ) {// (+)(s,t) --> s + t
+							if( level > op.llevel ) os << '(';
+							os << pretty(pair->first,op.llevel) << ' ' << view << ' ' << pretty(pair->second,op.rlevel);
+							if( level > op.llevel ) os << ')';
+							return os;
+						}
+					} else {// (+) s --> (s +)
+						return os << '(' << pretty(arg,op.llevel) << ' ' << view << ')';
 					}
 				} else if( auto op = sum->ref<Compr>() ) {// {x. s}
 					if( auto const& abs = arg.bind() ) {
