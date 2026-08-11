@@ -5,7 +5,7 @@ This theory formalizes natural numbers in naive logic.
 
 ## Axiomatization
 
-We use `fun` to allow for deriving addition etc.
+We use domain-restricted function abstraction to allow for deriving addition etc.
 ---
 import Eq, Membership, FunIn.
 
@@ -46,6 +46,8 @@ with a notion of type-family.
 ---
 
 begin
+
+instance 
 
 note! zero.closed.
 note! suc.closed.

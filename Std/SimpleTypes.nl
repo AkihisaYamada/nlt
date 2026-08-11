@@ -22,7 +22,7 @@ While we can formalize reduction as "replacement" (see Std/Membership/Fun), Chur
 
 Therefore, we import syntactic equality, and postulate type-restricted β-reduction.
 ---
-import Eq, FunIn (fun_:) (:).
+import Eq, Membership (:), FunTo (fun_:).
 
 ---
 Types are $ι$ for individuals, $o$ for propositions, and $αβ$ for functions returning $α$ from $β$.
@@ -82,7 +82,13 @@ As we needed syntactic equality already, we just postulate that equality between
 ---
 assume eq_type! if A : TYPE then (=) : A → A → Prop.
 
-assume neq_def: if x : A, y : A then (x ≠ y) = (¬(x = y)).--TODO
+---
+Church further introduces notation
+> $[A_α ≠ B_α] ⟶ [∼(A_α = B_α)]$.
+This notation is safe, because the arguments are not duplicated.
+We can achieve this kind of notation by admitting the syntactic composition operator, also known as the combinator B.
+---
+import Comp.
 
 ---
 Above assumptions are sufficient to develop intuitionistic fragment of the logic.
@@ -113,20 +119,30 @@ definition[as or] (∨) = fun P Q : Prop. ∀R : Prop. (P ⟹ R) ⟹ (Q ⟹ R) �
 ---
 Church's original treatment of existential quantification is a notation:
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
-Directly formalizing this requires adding another assumption or extending the parser.
+Directly formalizing this requires adding another assumption (or extending the parser).
 Instead, we follow the HOL family for defining a (polymorphic) constant `ex`.
 This allows us to reuse the generic binder notation introduced above.
 ---
 definition ex = fun A : TYPE, P : A → Prop. (∀Q : Prop. (∀x : A. P x ⟹ Q) ⟹ Q).
 
 definition[as _ex] (∃:) = _BINDER ex.
+
+---
+The notation for `≠` is defined using syntactic composition as follows.
+---
+definition[as neq] (≠) = ((¬) ∘) ∘ (=).
+
+lemma neq_eq: (x ≠ y) = (¬(x = y));
+	by #simp neq_def.
+
+
 ---
 We show that this theory is an instance of equational, typed, higher-order, impredicative, intuitionistic logic.
 ---
 
 instance Eq.Typed TYPE.
 
-instance HigherOrder;
+instance HigherOrder TYPE;
 	show!; by to_elim1[OF all_type] #simp _all_def.
 	show all_intro: if ! ∀ x. x : a ⟹ P.[x];
 		by #simp _all_def #intro all_rule.
@@ -155,8 +171,7 @@ instance Impredicative;
 		- for P; simp false_def.
 		.
 	retain true;
-		- for P; simp true_def.
-		.
+		simp true_def false_def.
 	.
 
 instance Intuitionistic;
@@ -184,9 +199,8 @@ instance Intuitionistic;
 			by all_elim1[OF PQ[simp] !][OF ! ! PR QR].
 		.
 	.
-instance Iff.FirstOrder.
+instance Iff.Quantifiable TYPE.
 
-note#cong all_cong.
 ---
 It is also convenient to have the unique existence notation.
 ---
@@ -256,7 +270,7 @@ end
 
 ---
 Church introduces a family of constants $ι_{α(oα)}$, which is used to denote "the" term satisfying the given predicate, or as Hilbert's $ε$-operator. We denote `SUCH α : (α → Prop) → α` for $ι_{α(oα)}$.
-The presence of a constant of that type forces every `α` has a term `a : α`.
+The presence of a constant of that type forces that every type is nonempty.
 ---
 theory SuchType :=
 	fix SUCH.

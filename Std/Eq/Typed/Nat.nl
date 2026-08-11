@@ -85,7 +85,11 @@ lemma not_0_eq_suc: if [x : ℕ] then ¬ 0 = suc x;
 		unfold eq.
 	by nat_eq_prop.
 
-lemma 
+lemma not_suc_eq_0: if [x : ℕ] then ¬ suc x = 0;
+	apply not_intro;
+	- if assm;
+		by not_imp_false[OF _ assm] not_0_eq_suc.
+	.
 
 obtain funpow where
 	funpow_type! if A : EQTYPE then funpow A : (A → A) → ℕ → A → A,

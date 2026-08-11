@@ -93,8 +93,6 @@ void Resolver::add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool all
 }
 
 void Resolver::inflate( Thy& thy, Thm const& assm ) {
-	if( fuel == 0 ) throw Error("\"inflate limit exceeded\"")(assm);
-	fuel--;
 	auto infs = vector<pair<string,AThm>>();// inflation results
 	// one cannot update the list while reading the list.
 	thy.find_thm( INFLATOR, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
@@ -235,11 +233,6 @@ bool Resolver::_discharge(
 	Opt<std::string const&> simp,
 	size_t elim_res_ind
 ) & {
-	if( fuel == 0 ) {
-		if( fail ) return false;
-		if( log > 6 ) cerr_proof_thms(thesis.thy());
-		throw Error("\"discharge limit exceeded\"")(thesis.goal());
-	}
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
 	if( log > 4 ) _log() << "{ resolving: " << subthy.pretty(goal) << endl;
@@ -261,6 +254,11 @@ bool Resolver::_discharge(
 		};
 	};
 	for(;;) {// strip all assumptions
+		if( fuel == 0 ) {
+			if( fail ) return false;
+			if( log > 6 ) cerr_proof_thms(thesis.thy());
+			throw Error("\"discharge limit exceeded\"")(thesis.goal());
+		}
 		goal = strip_all(goal,subthy);
 		auto imp = goal.cbinary(IMP);
 		if( !imp ) break;// no more assumption

@@ -92,7 +92,7 @@ begin
 
 		definition false := ∀P : Prop. P.
 
-		instance False;
+		instance Typed.False;
 			- apply false_def_intro[of (x. x : Prop)].
 			- if false;
 				note all: false_def_elim[of (x. x), OF false].

@@ -237,6 +237,15 @@ end
 
 theory ExplosiveNot :=
 	assume not_elim: if ¬P, P, P : Prop, Q : Prop then Q.
+begin
+
+	extend False begin
+
+		lemma not_imp_false: if nP: ¬P, P: P, [P : Prop] then false;
+			apply not_elim[OF nP P].
+
+	end
+
 end
 
 theory IntuitionisticNot :=

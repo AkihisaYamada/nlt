@@ -78,6 +78,11 @@ instance IntuitionisticNot;
 	retain false; by #simp false_def.
 	by #simp not_def.
 
+definition[as neq] (≠) = ((¬) ∘) ∘ (=).
+
+lemma neq_eq: (x ≠ y) = (¬(x = y));
+	by #simp neq_def.
+
 definition[as and] (∧) =
 	(BinderApp (BinderApp (∀))) (R. dual (dual ∘ ((⟹) ∘) ∘ dual ((∘) ∘ (⟹)) (R ⟸)) R).
 
@@ -146,7 +151,8 @@ theory LinAbs :=
 	assume _ABS_ext#cong if ∀x. F.[x] = G.[x] then (x. _ABS F.[x]) = (x. _ABS G.[x]).
 begin
 
-	lemma: (x. _ABS (y. _ABS (neg (x = y)))) = (neg ∘) ∘ (=);
+	-- neq
+	lemma: (x. _ABS (y. _ABS (¬(x = y)))) = ((¬) ∘) ∘ (=);
 		simp.
 
 	lemma: (b. _ABS (x. _ABS (y. _ABS (b (foo (y |>) x))))) = dual ((∘) ∘ (∘)) (dual (foo ∘ (|>)));

@@ -140,23 +140,27 @@ Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 		ptr = &parent->source();
 	}
 }
-void Thy::_check_loop_import( Thy const& origin, bool rec ) const {
+void Thy::_check_loop_import( Thy const& origin, bool rec, bool ancestor ) const {
 	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto const& [im,rec2] = it->second;
-		im.source()._check_loop_import(origin,rec2);
+		im.source()._check_loop_import(origin,rec2,false);
 	}
 	if( rec ) {
 		for( auto [it,end] = _ref->imports.equal_range(NONREC_IMPORT); it != end; it++ ) {
 			auto const& [im,rec2] = it->second;
-			im.source()._check_loop_import(origin,rec2);
+			im.source()._check_loop_import(origin,rec2,false);
 		}
+	}
+	if( ancestor )
+	if( auto const& p = parent() ) {
+		p->source()._check_loop_import(origin,rec,ancestor);
 	}
 }
 Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override_default ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
 	if( prefix.empty() ) {
-		import.source()._check_loop_import(*this,rec);// check looping import
+		import.source()._check_loop_import(*this,rec,true);// check looping import
 		import_rewrite(import,override_default);
 	}
 	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;

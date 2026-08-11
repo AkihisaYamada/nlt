@@ -17,6 +17,9 @@ obtain (≠) where neq_def: (x ≠ y) = (¬ x = y);
 		apply assm[of (((¬) ∘) ∘ (=))].
 	.
 
+lemma neq_intro: if not: ¬ x = y then x ≠ y;
+	by not #simp neq_def.
+
 theory UniqueSuch :=
 	fix (such).
 	assume such_intro_ex1: if ∃!x. P.[x] then P.[such x. P.[x]].

@@ -96,7 +96,7 @@ private:
 		bool allow_ancestor,
 		bool allow_nonrec
 	);
-	void _check_loop_import( Thy const& origin, bool rec ) const;
+	void _check_loop_import( Thy const& origin, bool rec, bool ancestor ) const;
 	Thy _branch( std::string_view const& name, std::filesystem::path const& dir, bool is_scope, Intp const& intp ) const&;
 	Import& _add_import( Import const& im, bool prior ) &;
 	friend Import;

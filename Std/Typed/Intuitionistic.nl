@@ -9,3 +9,5 @@ lemma not_intro! if P0: P ⟹ false, [P : Prop] then ¬P;
 	- if P;
 		use P0[OF P]; by #elim false_elim.
 	.
+
+instance ExplosiveNot.False.
