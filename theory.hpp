@@ -96,7 +96,6 @@ private:
 		bool allow_ancestor,
 		bool allow_nonrec
 	);
-	void _check_loop_import( Thy const& origin, bool rec, bool ancestor ) const;
 	Thy _branch( std::string_view const& name, std::filesystem::path const& dir, bool is_scope, Intp const& intp ) const&;
 	Import& _add_import( Import const& im, bool prior ) &;
 	friend Import;
@@ -117,6 +116,7 @@ public:
 	Thy scope_temp( std::string_view const& name ) const;
 	std::string const& name() const &;
 	auto name() && = delete;
+	std::string path() const&;
 	/** Self import */
 	Import self() const &;
 	/** Import from the parent. */
@@ -153,6 +153,8 @@ public:
 	/** Gives interpretation for an ancestor context. */
 	Intp interpret_ancestor( Ctxt const& ctxt ) const &;
 	bool has_ancestor( Ctxt const& ctxt ) const &;
+	/** Before making an import, check it is not recursive */
+	void check_loop_import( Thy const& origin, bool rec ) const;
 	/** Adds an import. */
 	Import& add_import( std::string_view const& prefix, Import const& im, bool rec, bool override_default ) &;
 	/** Remove import */

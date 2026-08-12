@@ -142,7 +142,7 @@ void init_lex( Lex& lex ) {
 	lex.register_char('~',Lex::MultiOp);
 }
 void init_syntax( Syntax& syntax ) {
-	syntax.infix(":",":",50,51,50,{});
+	syntax.infix(":",":",30,31,30,{});
 	syntax.infix(",",",",-20,-19,-20,{});
 	syntax.infix(";",";",-30,-29,-30,{});
 	syntax.infix(":=",":=",-1,-1,-2,{});
@@ -204,7 +204,7 @@ public:
 		bool normalize;
 		Opt<string> rel;
 	};
-	RewriteCtrl _get_rewrite( Resolver& resolver, Thy& loc, bool rev ) {
+	RewriteCtrl _get_rewrite( Resolver& resolver, Thy& loc, bool rev, bool normalize ) {
 		RewriteCtrl ret;
 		size_t rep = 0;
 		if( skips("[") ) {
@@ -225,7 +225,7 @@ public:
 		}
 		ret.min = 1;
 		ret.max = 0;
-		ret.normalize = skips("+");
+		ret.normalize = normalize || skips("+");
 		while( auto const& arg = _gets_thm(loc,true) ) {
 			auto rule = *arg;
 			if( rev ) {
@@ -422,15 +422,16 @@ public:
 					tmp = thm.impE(arg.subst(strip2sub)).intro();
 				} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 					auto resolver = loc.resolver(_out_resolver);
-					auto ctrl = _get_rewrite(resolver,loc,mode==2);
+					auto ctrl = _get_rewrite(resolver,loc,mode==2,false);
 					tmp = resolver.rewrites(loc,tmp,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
 				} else if( skips("simp") ) {
 					auto const& rew = loc.rewriter(SIMP);
 					auto resolver = Resolver(rew,_out_resolver);
+					auto ctrl = _get_rewrite(resolver,loc,false,true);
 					while( auto thm = _gets_thm(loc,true) ) {
 						rew.add_rewrite_rule(resolver.rules,*thm,false);
 					}
-					tmp = resolver.rewrites(loc,tmp,{SIMP},1,255,true,{});
+					tmp = resolver.rewrites(loc,tmp,{SIMP},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
 				} else if( skips("rule") ) {
 					auto const& rew = loc.rewriter(RULIFY);
 					auto resolver = Resolver(rew,_out_resolver);
@@ -892,6 +893,7 @@ public:
 	void import( bool change ) {
 		ImportPrefix pref = get_import_prefix();
 		auto intp = _thy.thy(pref.name,reader());
+		if( intp.source() == _thy ) throw Error("\"self import\"");
 		vector<CTerm> insts;
 		if( change ) {
 			while( auto const& t = gets_term(1000) ) {
@@ -1847,15 +1849,16 @@ public:
 				} else {
 					max = 0; normalize = false; wide = true;
 				}
-				auto rules = set<Intro>();
-				while( auto thm = gets_thm() ) {
-					rules.emplace(make_rule(*thm));
-				}
-				min = rules.size();
-				if( max == 0 ) max = min;
-				bool more = _proof_follows();
-				thesis.apply(rules,min,max,normalize,wide);
-				if( !more ) return thesis.discharge_all();
+				do {
+					set<Intro> rules;
+					while( auto thm = gets_thm() ) {
+						rules.emplace(make_rule(*thm));
+					}
+					min = rules.size();
+					if( max == 0 ) max = min;
+					thesis.apply(rules,min,max,normalize,wide);
+				} while( skips(",") );
+				if( !_proof_follows() ) return thesis.discharge_all();
 				if MSG print_goals(thesis,"applied goals:\n\t");
 			} else if( int mode = skips("simp") ? 1 : skips("rule") ? 2 : 0 ) {
 				auto const& [rew_name,ex] = [&]()->Pair<string,string>{
@@ -1863,17 +1866,18 @@ public:
 					return {RULIFY,"rulified"};
 				}();
 				auto& rew = _thy.rewriter(rew_name);
-				auto resolver = Resolver({rew}, _out_resolver);
+				auto resolver = Resolver({rew},_out_resolver);
+				auto ctrl = _get_rewrite(resolver,_thy,false,true);
 				while( auto thm = gets_thm() ) {
 					rew.add_rewrite_rule(resolver.rules,*thm,false);
 				}
 				bool more = _proof_follows();
-				resolver.rewrites(thesis,{rew_name},1,255,true,true,{},{});
+				resolver.rewrites(thesis,{rew_name},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, ex + " goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 				auto inf = _thy.resolver(_out_resolver);
-				auto ctrl = _get_rewrite( inf, _thy, mode == 2 );
+				auto ctrl = _get_rewrite( inf, _thy, mode == 2, false );
 				bool more = _proof_follows();
 				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();

@@ -13,7 +13,7 @@ assume prop_eqtype! Prop : EQTYPE.
 
 begin
 
-instance Eq.Membership (:).
+instance Eq_Membership? Eq.Membership (:).
 
 theory Ex1Type :=
 	fix (∃!:).

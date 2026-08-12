@@ -4,14 +4,18 @@ begin
 
 note! not.closed.
 
-theory Irreflexive A (⊏) :=
-	import Relation A (⊏).
-	assume irrefl: if x : A then ¬ x ⊏ x.
-end
+extend Membership begin
 
-theory Asymmetric A (⊏) :=
-	import Relation A (⊏).
-	assume asym: if x ⊏ y, x : A, y : A then ¬ y ⊏ x.
+	theory Irreflexive A (⊏) :=
+		import Relation A (⊏).
+		assume irrefl: if x ∈ A then ¬ x ⊏ x.
+	end
+
+	theory Asymmetric A (⊏) :=
+		import Relation A (⊏).
+		assume asym: if x ⊏ y, x ∈ A, y ∈ A then ¬ y ⊏ x.
+	end
+
 end
 
 theory ContraPos := -- @Latin modus tollens
@@ -85,16 +89,20 @@ begin
 
 	end
 
-	theory Order A (⊏) :=
-		import Irreflexive A (⊏), Transitive A (⊏).
-	begin
-		instance Asymmetric A (⊏);
-			- for x y if xy: x ⊏ y, ... then ¬ y ⊏ x;
-				apply not_imp_imp_not[OF irrefl[of x, OF !]];
-				- if yx: y ⊏ x then x ⊏ x;
-					by trans[OF xy yx].
+	extend Membership begin
+
+		theory Order A (⊏) :=
+			import Irreflexive A (⊏), Transitive A (⊏).
+		begin
+			instance Asymmetric A (⊏);
+				- for x y if xy: x ⊏ y, ... then ¬ y ⊏ x;
+					apply not_imp_imp_not[OF irrefl[of x, OF !]];
+					- if yx: y ⊏ x then x ⊏ x;
+						by trans[OF xy yx].
+					.
 				.
-			.
+		end
+
 	end
 
 	extend AllRelStrict begin

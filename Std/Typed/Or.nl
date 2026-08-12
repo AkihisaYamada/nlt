@@ -24,6 +24,37 @@ instance or: Symmetric Prop (∨);
 		by or_intro1.
 	.
 
+extend Membership begin
+
+	theory Connex A (⊑) :=
+		import Relation A (⊑).
+		assume comparable: if x ∈ A, y ∈ A then x ⊑ y ∨ y ⊑ x.
+	begin
+
+		lemma comparable_cases:
+			if xy: x ⊑ y ⟹ P, yx: y ⊑ x ⟹ P, x! x ∈ A, y! y ∈ A, [P : Prop] then P;
+			apply comparable[OF x y, THEN or_elim];
+			- by xy.
+			- by yx.
+			.
+
+		instance Reflexive;
+			- if [x ∈ A] then x ⊑ x;
+				apply comparable_cases[of x x].
+			.
+
+	end
+
+	theory TotalPreorder :=
+		import Connex, Transitive A (⊑).
+	begin
+
+		instance Preorder A (⊑).
+
+	end
+
+end
+
 extend Not begin
 
 	extend ContraPos begin

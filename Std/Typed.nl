@@ -3,7 +3,7 @@
 
 We fix a class `Prop` in which logical operators are closed.
 ---
-import Membership (:), To.
+import? Membership (:), To.
 fix Prop.
 assume imp_type! (⟹) : Prop → Prop → Prop.
 
@@ -15,13 +15,15 @@ note imp_type2! imp_type1[THEN to_elim1].
 instance imp: Magma Prop (⟹).
 note! imp.closed.
 
-theory Relation A (⊏) :=
-	import Binary (⊏) A A Prop.
-begin
+extend Std.Membership begin
 
-	note! closed.
+	theory Relation A (⊏) :=
+		assume prop! if x ∈ A, y ∈ A then x ⊏ y : Prop.
+	end
 
 end
+
+instance Membership (:).
 
 theory PierceLaw :=
 	assume pierce_law: if (P ⟹ Q) ⟹ P, P : Prop, Q : Prop then P.

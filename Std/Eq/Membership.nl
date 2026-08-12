@@ -6,8 +6,8 @@ theory Antisymmetric A (⊑) :=
 	assume antisym: if x ⊑ y, y ⊑ x, x ∈ A, y ∈ A then x = y.
 begin
 	instance Attractive A (⊑);
-		- if xy: x ⊑ y, yx: y ⊑ x; by #simp antisym[OF xy yx].
-		- if xy: x ⊑ y, yx: y ⊑ x; by #simp antisym[OF yx xy].
+		- if xy: x ⊑ y, yx: y ⊑ x, ...; by #simp antisym[OF xy yx].
+		- if xy: x ⊑ y, yx: y ⊑ x, ...; by #simp antisym[OF yx xy].
 		.
 end
 

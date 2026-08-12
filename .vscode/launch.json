@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Std/Eq/Typed/Nat.nl"],
+"args": ["-i","Std/Magmas.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [

@@ -148,7 +148,7 @@ class Resolver {
 public:
 	Opt<Rewrite const&> const rew;
 	Rewrite::Rules rules;
-	Resolver( Opt<Rewrite const&> const& rew = {}, char log = 0, size_t fuel = 255 ) : rew(rew), rules( rew ? rew->_rels.size() : 0 ), log(log), indent(1), fuel(fuel) {}
+	Resolver( Opt<Rewrite const&> const& rew = {}, char log = 0, size_t fuel = 1024 ) : rew(rew), rules( rew ? rew->_rels.size() : 0 ), log(log), indent(1), fuel(fuel) {}
 	bool discharges( Thesis& thesis, Opt<std::string const&> simp ) & {
 		return _discharge(thesis,1,true,simp,elim_res.size());
 	}

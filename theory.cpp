@@ -1,4 +1,5 @@
 #include<fstream>
+#include<sstream>
 #include<ranges>
 #include"theory.hpp"
 
@@ -40,7 +41,7 @@ Thy Thy::branch() const& {
 }
 Thy Thy::branch( string_view const& name, filesystem::path const& dir ) {
 	auto const& [it,fl] = _ref->thys.emplace(name,_branch(name,dir,false,Ctxt::fork()));
-	if( !fl ) throw Error("\"duplicate theory\"")(name);
+	if( !fl ) throw Error("\"duplicate theory\"")(path())(name);
 	return it->second;
 }
 Thy Thy::scope_temp( string_view const& name ) const {
@@ -140,27 +141,23 @@ Intp Thy::interpret_ancestor( Ctxt const& ctxt ) const & {
 		ptr = &parent->source();
 	}
 }
-void Thy::_check_loop_import( Thy const& origin, bool rec, bool ancestor ) const {
-	if( *this == origin ) throw Error("\"looping import\"")(origin.name());
+void Thy::check_loop_import( Thy const& origin, bool rec ) const {
+	if( *this == origin ) throw Error("\"looping import\"")(origin.path());
 	for( auto [it,end] = _ref->imports.equal_range(""); it != end; it++ ) {
 		auto const& [im,rec2] = it->second;
-		im.source()._check_loop_import(origin,rec2,false);
+		im.source().check_loop_import(origin,rec);
 	}
 	if( rec ) {
 		for( auto [it,end] = _ref->imports.equal_range(NONREC_IMPORT); it != end; it++ ) {
 			auto const& [im,rec2] = it->second;
-			im.source()._check_loop_import(origin,rec2,false);
+			im.source().check_loop_import(origin,rec2);
 		}
-	}
-	if( ancestor )
-	if( auto const& p = parent() ) {
-		p->source()._check_loop_import(origin,rec,ancestor);
 	}
 }
 Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override_default ) & {
-	if( import.ctxt() != *this ) throw Error("\"wrong import\"");
+	if( import.ctxt() != *this ) throw Error("\"wrong import\"")(path());
 	if( prefix.empty() ) {
-		import.source()._check_loop_import(*this,rec,true);// check looping import
+		import.source().check_loop_import(*this,rec);// check looping import
 		import_rewrite(import,override_default);
 	}
 	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
@@ -553,6 +550,11 @@ function<ostream&(ostream&)> Thy::print_path( bool ancestors ) const& {
 	}
 }
 
+string Thy::path() const& {
+	std::ostringstream oss;
+	oss << print_path();
+	return oss.str();
+}
 ostream& Thy::pretty(
 	ostream& os,
 	function<ostream&(ostream&)> const& endl, size_t n, bool scope, bool path, bool print_rewrite
