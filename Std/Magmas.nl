@@ -164,19 +164,23 @@ context Transitive begin
 				.
 		end
 
-		extend Commutative begin
-			theory Monotone :=
-				import LeftMonotone A A.
-			begin
-				instance Magma.Monotone;
-					- if xx': x ⊏ x', ... for y if ... then x * y ⊏ x' * y;
-						.. ⊏ y * x;
-							apply commute.
-						.. ⊏ y * x';
-							apply left_mono[OF xx'].
+	end
+
+	theory CommMagma :=
+		import Magma, Commutative.
+	begin
+
+		theory Monotone :=
+			import LeftMonotone A A.
+		begin
+			instance Magma.Monotone;
+				- if xx': x ⊏ x', ... for y if ... then x * y ⊏ x' * y;
+					.. ⊏ y * x;
 						apply commute.
-					.
-			end
+					.. ⊏ y * x';
+						apply left_mono[OF xx'].
+					apply commute.
+				.
 		end
 
 	end
@@ -306,37 +310,38 @@ context PartialEquivalence begin
 				.
 		end
 
-		extend Commutative begin
+	end
 
-			theory Neutral :=
-				import LeftNeutral.
-			begin
-				instance Magma.Neutral;
-					- for x if [x ∈ A] then x * 1 ~ x;
-						.. ~ 1 * x;
-							apply commute.
-						apply left_neutral.
-					.
-			end
+	extend CommMagma begin
 
-			theory Absorb 0 :=
-				import LeftAbsorb.
-			begin
-				instance Magma.Absorb;
-					- for x if !x ∈ A then x * 0 ~ 0;
-						.. ~ 0 * x;
-							by commute.
-						by left_absorb.
-					.
-			end
+		instance? Magma.
 
+		theory Neutral :=
+			import LeftNeutral.
+		begin
+			instance Magma.Neutral;
+				- for x if [x ∈ A] then x * 1 ~ x;
+					.. ~ 1 * x;
+						apply commute.
+					apply left_neutral.
+				.
+		end
+
+		theory Absorb 0 :=
+			import LeftAbsorb 0.
+		begin
+			instance Magma.Absorb 0;
+				- for x if !x ∈ A then x * 0 ~ 0;
+					.. ~ 0 * x;
+						by commute.
+					by left_absorb.
+				.
 		end
 
 	end
 
 	theory Semigroup :=
-		import Magma.
-		import LeftAssociative A A (*) (*).
+		import Magma, LeftAssociative A A (*) (*).
 	begin
 		instance RightAssociative A A (*) (*);
 			- if ! x ∈ A, ! y ∈ A, ! z ∈ A;
@@ -347,7 +352,8 @@ context PartialEquivalence begin
 	end
 
 	theory CommSemigroup :=
-		import Semigroup, Commutative.
+		import Semigroup, CommMagma.-- Notions defined in CommMagma should take precedence.
+	begin
 	end
 
 	theory Monoid (*) 1 :=
@@ -357,7 +363,7 @@ context PartialEquivalence begin
 	theory CommMonoid (*) 1 :=
 		import CommSemigroup (*), Neutral 1.
 	begin
-		instance! Monoid.
+		instance? Monoid.
 	end
 
 	theory SemigroupAbsorb (*) 0 :=
@@ -381,11 +387,9 @@ context PartialEquivalence begin
 	end
 
 	theory CommRingoid (*) (+) :=
-		namespace mul begin
-			import Magma (*), Commutative.
-		end
+		import mul: CommMagma (*).
 		namespace add begin
-			import Magma (+), Commutative, Monotone.
+			import CommMagma (+), Monotone.
 		end
 		import LeftDistributive A A (*) (+) (+).
 	begin

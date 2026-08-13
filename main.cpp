@@ -822,6 +822,7 @@ public:
 		Opt<string> optional_prefix = {};
 		Opt<string> forced_prefix = {};
 		bool canonical_prefix = false;
+		bool override = true;
 		bool rec = false;
 	};
 	friend ostream& operator<<( ostream& os, ImportPrefix const& pref ) {
@@ -840,6 +841,7 @@ public:
 			ret.name = get_thm_name();
 			ret.default_prefix = {NONREC_IMPORT};
 			ret.canonical_prefix = true;
+			ret.override = false;
 		} else if( skips("!") ) {// expansive unnamed import
 			ret.name = get_thy_name();
 			ret.default_prefix = {""};
@@ -859,8 +861,9 @@ public:
 				ret.rec = true;
 			} else if( skips("?") ) {// optionally qualified
 				ret.name = get();
-				ret.default_prefix = {""};
+				ret.default_prefix = {NONREC_IMPORT};
 				ret.optional_prefix = {str1};
+				ret.override = false;
 			} else {// unqualified
 				ret.name = str1;
 				ret.default_prefix = {""};
@@ -874,20 +877,20 @@ public:
 		auto src = import.source();
 		_update_parent(src);// in case of interpreting a child.
 		if( pref.forced_prefix ) {
-			_thy.add_import(*pref.forced_prefix,import,pref.rec,false);
+			_thy.add_import(*pref.forced_prefix,import,pref.rec,pref.override);
 		}
 		if( pref.default_prefix ) {
-			_thy.add_import(*pref.default_prefix,import,pref.rec,pref.rec);
+			_thy.add_import(*pref.default_prefix,import,pref.rec,pref.override);
 			if( *pref.default_prefix == "" && _no_syntax ) {// TODO: make elegant
 				_no_syntax = false;
 				_thy.modify_syntax() = import.source().syntax();
 			}
 		}
 		if( pref.optional_prefix ) {
-			_thy.add_import(*pref.optional_prefix,import,pref.rec,false);
+			_thy.add_import(*pref.optional_prefix,import,pref.rec,pref.override);
 		}
 		if( pref.canonical_prefix ) {
-			_thy.add_import(import.source().name(),import,pref.rec,false);
+			_thy.add_import(import.source().name(),import,pref.rec,pref.override);
 		}
 	};
 	void import( bool change ) {

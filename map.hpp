@@ -120,6 +120,11 @@ public:
 		auto it = _body.lower_bound(k);
 		return _body.emplace_hint(it,std::forward<Ka>(k),std::move(v));
 	}
+	template<typename Ka>
+	iterator emplace_back( Ka&& k, T&& v ) {
+		auto it = _body.upper_bound(k);
+		return _body.emplace_hint(it,std::forward<Ka>(k),std::move(v));
+	}
 	iterator begin() & {
 		return _body.begin();
 	}

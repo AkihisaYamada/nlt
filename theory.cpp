@@ -154,13 +154,16 @@ void Thy::check_loop_import( Thy const& origin, bool rec ) const {
 		}
 	}
 }
-Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override_default ) & {
+Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"")(path());
 	if( prefix.empty() ) {
 		import.source().check_loop_import(*this,rec);// check looping import
-		import_rewrite(import,override_default);
+		import_rewrite(import,override);
 	}
-	return _ref->imports.emplace_front(prefix,{import,rec})->second.first;
+	return (override ?
+		_ref->imports.emplace_front(prefix,{import,rec}) :
+		_ref->imports.emplace_back(prefix,{import,rec})
+	)->second.first;
 }
 void Thy::erase_import( string_view const& prefix ) & {
 	_ref->imports.erase_front(prefix);
