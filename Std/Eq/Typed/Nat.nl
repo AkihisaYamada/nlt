@@ -162,14 +162,16 @@ lemma 1_add_eq#simp if [x : ℕ] then 1 + x = suc x; simp 1_def.
 lemma suc_eq_add_1: if [x : ℕ] then suc x = x + 1.
 
 instance add: nat.CommMonoid (+) 0;
-	- if [x : ℕ, y : ℕ] then x + y = y + x;
-		apply nat_induction[of x];
-		- if IH: x' + y = y + x', ...; simp IH.
-		.
 	- if [x : ℕ, y : ℕ, z : ℕ] then x + y + z = x + (y + z);
 		apply nat_induction[of x];
 		- if IH: x' + y + z = x' + (y + z), ...; simp IH.
 		.
+	- if [x : ℕ, y : ℕ] then x + y = y + x;
+		apply nat_induction[of x];
+		- if IH: x' + y = y + x', ...; simp IH.
+		.
+	- if y: y = y', [x : ℕ], ... then x + y = x + y';
+		simp y.
 	.
 
 obtain (*) where
@@ -201,19 +203,17 @@ instance nat.CommSemiringNeutral (*) (+) 0 1;
 			unfold 1;
 			simp add.left_assoc.
 		.
-	show commute: if [x : ℕ, y : ℕ] then x * y = y * x;
-		apply nat_induction[of x];
-		- if IH: x' * y = y * x', ...; simp IH; unfold[at 0] add.commute.
-		.
-
 	- if [x : ℕ, y : ℕ, z : ℕ] then x * y * z = x * (y * z);
 		apply nat_induction[of z];
 		- if IH: x * y * z' = x * (y * z'), ...;
 			simp IH distrib.
 		.
-	- if #simp y = y', [x : ℕ, y : ℕ, y' : ℕ] then x + y = x + y'.
-	- if [x : ℕ] then 1 * x = x;
-		simp 1_def.
+	- if [x : ℕ, y : ℕ] then x * y = y * x;
+		apply nat_induction[of x];
+		- if IH: x' * y = y * x', ...; simp IH; unfold[at 0] add.commute.
+		.
+	- if #simp y = y', [x : ℕ, y : ℕ, y' : ℕ] then x * y = x * y'.
+	- if [x : ℕ] then 1 * x = x; simp 1_def.
 	.
 
 note#simp mul.left_neutral mul.right_neutral.
@@ -270,7 +270,7 @@ lemma suc_diff_suc#simp if x: x : ℕ, [y : ℕ] then suc x ∸ suc y = x ∸ y;
 		.
 	.
 
-instance add: nat.MagmaRightCancel (+) (∸);
+instance add: add.RightCancel (∸);
 	- if eq: x = x'; by #simp eq.
 	- if x: x : ℕ, [y : ℕ] then x + y ∸ y = x;
 		apply arbitrary[OF x], nat_induction[of y];
@@ -305,7 +305,7 @@ note#simp 0_le_nat[THEN iff_true].
 lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟺ x ≤ y;
 	unfold[on (⟺)] le_iff_sub.
 
-lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = x + z);
+lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = z + x);
 	apply arbitrary[OF y], nat_induction[of x];
 	- apply all_intro;
 		- if [y' : ℕ]; apply iff_intro;
@@ -323,12 +323,13 @@ lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. 
 		.
 	.
 
-note nat_le_imp_ex_add: nat_le_iff_ex_add[THEN iff_elim1, OF > > _].
+lemma nat_le_imp_ex_add: if xy: x ≤ y, [x : ℕ, y : ℕ] then ∃z : ℕ. y = z + x;
+	use xy; unfold[on (⟺)] nat_le_iff_ex_add.
 
-lemma nat_le_intro_add: for z if yxz: y = x + z, [x : ℕ, y : ℕ, z : ℕ] then x ≤ y;
+lemma nat_le_intro_add: for z if yzx: y = z + x, [x : ℕ, y : ℕ, z : ℕ] then x ≤ y;
 	unfold[on (⟺)] nat_le_iff_ex_add;
 	apply ex_intro1[of z];
-	by #simp yxz.
+	by #simp yzx.
 
 instance nat_le: TotalOrder ℕ (≤);
 	- if x! x : ℕ, [y : ℕ] then x ≤ y ∨ y ≤ x;
@@ -348,11 +349,24 @@ instance nat_le: TotalOrder ℕ (≤);
 		.
 	- if xy: x ≤ y, yz: y ≤ z, ... then x ≤ z;
 		apply xy[THEN nat_le_imp_ex_add, THEN ex_elim];
-		- if yx: y = x + yx, ...;
+		- if yx: y = yx + x, ...;
 			apply yz[THEN nat_le_imp_ex_add, THEN ex_elim];
-			- if zy: z = y + zy, ...;
-				apply nat_le_intro_add[of (yx + zy)];
+			- if zy: z = zy + y, ...;
+				apply nat_le_intro_add[of (zy + yx)];
 				simp yx zy add.left_assoc.
+			.
+		.
+	- if xy: x ≤ y, yx: y ≤ x, !, y then x = y;
+		use xy yx; apply arbitrary[OF y], nat_induction[of x];
+		- apply all_intro;
+			- if [y' : ℕ]; simp[on (⟺)]; apply eq.sym>0.
+			.
+		- for x' if IH, !; apply all_intro;
+			- if [y' : ℕ]; apply nat_cases[of y'];
+				- if y'_0; simp[on (⟺)] y'_0.
+				- if y': y' = suc y'', !;
+					simp[on (⟺)] y'; apply IH[THEN all_elim1, OF ! !]>1.
+				.
 			.
 		.
 	.
@@ -367,11 +381,11 @@ obtain (<) where
 	-.
 	- if [x : ℕ];
 		simp;
-		unfold[on (⟺)] le_0;
+		unfold[on (⟺)] nat_le_0;
 		by not_suc_eq_0.
 	- if [x : ℕ, y : ℕ];
 		simp;
-		unfold[on (⟺)] le_0 suc_le.
+		simp[on (⟺)].
 	.
 .
 

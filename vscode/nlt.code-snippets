@@ -127,6 +127,18 @@
 		"prefix": ["\\dotminus","-'"],
 		"body": "∸"
 	},
+	"(⁻)": {
+		"prefix": ["^-"],
+		"body": "⁻"
+	},
+	"(¹)": {
+		"prefix": ["^1"],
+		"body": "¹"
+	},
+	"(²)": {
+		"prefix": ["^2"],
+		"body": "²"
+	},
 	// Thanks to Claude
 	// ---- blackboard bold (\bbA .. \bbZ) ----
 	// Canonical exceptions: C H N P Q R Z

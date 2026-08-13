@@ -222,6 +222,7 @@ public:
 	std::ostream& pretty(
 		std::ostream& os,
 		std::function<std::ostream&(std::ostream&)> const& endl,
+		bool thms,
 		size_t indent,
 		bool scope,
 		bool path,
@@ -229,13 +230,14 @@ public:
 	) const &;
 	auto const pretty(
 		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
+		bool thms = true,
 		size_t indent = 0,
 		bool scope = false,
 		bool path = true,
 		bool print_rewrite = false
 	) const & {
-		return [&endl,indent,scope,path,print_rewrite,this]( std::ostream& os )->std::ostream&{
-			return pretty(os,endl,indent,scope,path,print_rewrite);
+		return [&endl,thms,indent,scope,path,print_rewrite,this]( std::ostream& os )->std::ostream&{
+			return pretty(os,endl,thms,indent,scope,path,print_rewrite);
 		};
 	}
 	/** Pretty printer for rewriter */

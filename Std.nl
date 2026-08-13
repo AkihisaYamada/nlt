@@ -12,6 +12,7 @@ set symbol
 	𝒜, 𝒞-𝒟, 𝒢, 𝒥-𝒦, 𝒩-𝒬, 𝒮-𝒵, 𝔸-𝔹, 𝔻-𝔾, 𝕀-𝕄, 𝕆, 𝕊-𝕐,𝕒-𝕫, 𝟘-𝟡, -- Mathematical Alphanumeric Symbols
 	∀-⋿, -- Mathematical Operators
 	⟀-⟯, -- Miscellaneous Mathematical Symbols-A
+	⁻, ¹, ², -- Some superscripts
 	←-⇿, -- Arrows
 	⟰-⟿, -- Supplemental Arrows-A
 	⨀-⫿. -- Supplemental Mathematical Operators
@@ -96,6 +97,8 @@ infix ++ 100 101 100.
 infix ** 200 201 200.
 infix ∘ 900 901 900.
 
+syntax[level 1000] _ ⁻ .
+syntax[level 1000] _ ⁻¹ .
 
 ---
 ## Theories

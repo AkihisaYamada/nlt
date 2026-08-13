@@ -46,12 +46,20 @@ theory RightCancellative A B (*) :=
 	assume right_cancels: for y if x * y ~ x' * y, x ∈ A, x' ∈ A, y ∈ B then x ~ x'.
 end
 
-theory LeftAssociative A B (*) (⋅) :=
-	assume left_assoc: if x ∈ A, y ∈ A, z ∈ B then (x * y) ⋅ z ~ x ⋅ y ⋅ z.
+theory LeftAssociative A (*) (/) :=
+	assume left_assoc: if x ∈ A, y ∈ A, z ∈ A then (x * y) / z ~ x * (y / z).
 end
 
-theory RightAssociative A B (^) (*) :=
-	assume right_assoc: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ~ x ^ y ^ z.
+theory RightAssociative A (*) (/) :=
+	assume right_assoc: if x ∈ A, y ∈ A, z ∈ A then x * (y / z) ~ (x * y) / z.
+end
+
+theory LeftComposable A B (∘) (⋅) :=
+	assume left_comp: if x ∈ A, y ∈ A, z ∈ B then (x ∘ y) ⋅ z ~ x ⋅ (y ⋅ z).
+end
+
+theory RightComposable A B (^) (*) :=
+	assume right_comp: if x ∈ A, y ∈ B, z ∈ B then x ^ (y * z) ~ (x ^ y) ^ z.
 end
 
 theory LeftDistributive A B (⋅) (+) (++) :=
@@ -83,11 +91,11 @@ theory RightNeutral A (*) (1) :=
 	assume right_neutral: if x ∈ A then x * 1 ~ x.
 end
 
-theory LeftCancel A B (*) (\) :=
+theory LeftCancellation A B (*) (\) :=
 	assume left_cancel: if x ∈ A, y ∈ B then x \ (x * y) ~ y.
 end
 
-theory RightCancel A B (*) (/) :=
+theory RightCancellation A B (*) (/) :=
 	assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ~ x.
 end
 
@@ -99,8 +107,8 @@ theory RightInverse A (*) 1 inverse :=
 	assume right_inverse: if x ∈ A then x * inverse x ~ 1.
 end
 
-theory Action A B (∘) (⋅) :=
-	import LeftAssociative A B (∘) (⋅).
+theory LeftAction A B (∘) (⋅) :=
+	import LeftComposable A B (∘) (⋅).
 	import comp: Magma A (∘).
 	import app: Binary (⋅) A B B.
 end
@@ -158,8 +166,7 @@ context Transitive begin
 		extend Monotone begin
 			instance Compatible;
 				- if x: x ⊏ x', y: y ⊏ y', ... then x * y ⊏ x' * y';
-					.. ⊏ x' * y;
-						apply right_mono[OF x].
+					.. ⊏ x' * y; apply right_mono[OF x].
 					apply left_mono[OF y].
 				.
 		end
@@ -175,10 +182,8 @@ context Transitive begin
 		begin
 			instance Magma.Monotone;
 				- if xx': x ⊏ x', ... for y if ... then x * y ⊏ x' * y;
-					.. ⊏ y * x;
-						apply commute.
-					.. ⊏ y * x';
-						apply left_mono[OF xx'].
+					.. ⊏ y * x; apply commute.
+					.. ⊏ y * x'; apply left_mono[OF xx'].
 					apply commute.
 				.
 		end
@@ -193,27 +198,63 @@ context PartialEquivalence begin
 
 	extend Transitive.Magma begin
 
+		theory LeftCancel (\) :=
+			import lcancel: Magma (\).
+			import lcancel: LeftMonotone A A (\).
+			import Magmas.LeftCancellation A A (*) (\).
+		begin
+			note! lcancel.closed.
+			instance LeftCancellative A A;
+				- if eq: x * y ~ x * y', ... then y ~ y';
+					.. ~ x \ (x * y); apply sym, left_cancel.
+					.. ~ x \ (x * y'); apply lcancel.left_mono, eq.
+					apply left_cancel.
+				.
+		end
+
+		theory RightCancel (/) :=
+			import cancel: Magma (/).
+			import cancel: RightMonotone A A (/).
+			import Magmas.RightCancellation A A (*) (/).
+		begin
+			note! cancel.closed.
+			instance RightCancellative A A;
+				- for y if eq: x * y ~ x' * y, ... then x ~ x';
+					.. ~ x * y / y; apply sym, right_cancel.
+					.. ~ x' * y / y; apply cancel.right_mono, eq.
+					apply right_cancel.
+				.
+		end
+
 		theory LeftNeutral 1 :=
 			import neutral: Member 1 A.
 			import Magmas.LeftNeutral A (*) 1.
+			import RightMonotone A A (*).
 		begin
 			note! neutral.closed.
+
+			lemma left_neutral_intro: if e: e ~ 1, [e ∈ A, x ∈ A] then e * x ~ x;
+				.. ~ 1 * x; apply right_mono, e.
+				apply left_neutral.
+
 			lemma right_neutral_is_neutral:
 				if all: ∀x. x ∈ A ⟹ x * e ~ x, [e ∈ A] then e ~ 1;
-				.. ~ 1 * e;
-					apply sym;
-					by left_neutral.
-				by all.
+				.. ~ 1 * e; apply sym, left_neutral.
+				apply all.
 
 			theory RightCancellative :=
 				import Magmas.RightCancellative A A (*).
 			begin
 
-				lemma left_neutral_any: if ex: e * x ~ x, [e ∈ A, x ∈ A] then e ~ 1;
+				lemma left_neutral_any: for x if ex: e * x ~ x, [e ∈ A, x ∈ A] then e ~ 1;
 					apply right_cancels[of x];
-					.. ~ x; by ex.
+					.. ~ x; apply ex.
 					apply sym, left_neutral.
 
+			end
+
+			extend RightCancel begin
+				instance RightCancellative.
 			end
 
 		end
@@ -221,24 +262,32 @@ context PartialEquivalence begin
 		theory RightNeutral 1 :=
 			import neutral: Member 1 A.
 			import Magmas.RightNeutral A (*) 1.
+			import LeftMonotone A A (*).
 		begin
 			note! neutral.closed.
+
+			lemma right_neutral_intro: if e: e ~ 1, [x ∈ A, e ∈ A] then x * e ~ x;
+				.. ~ x * 1; apply left_mono, e.
+				apply right_neutral.
+
 			lemma left_neutral_is_neutral:
 				if all: ∀x. x ∈ A ⟹ e * x ~ x, [e ∈ A] then e ~ 1;
-				.. ~ e * 1;
-					apply sym;
-					by right_neutral.
-				by all.
+				.. ~ e * 1; apply sym, right_neutral.
+				apply all.
 
 			theory LeftCancellative :=
 				import Magmas.LeftCancellative A A (*).
 			begin
 
-				lemma right_neutral_any: if xe: x * e ~ x, [e ∈ A, x ∈ A] then e ~ 1;
+				lemma right_neutral_any: for x if xe: x * e ~ x, [e ∈ A, x ∈ A] then e ~ 1;
 					apply left_cancels[of x];
-					.. ~ x; by xe.
+					.. ~ x; apply xe.
 					apply sym, right_neutral.
 
+			end
+
+			extend LeftCancel begin
+				instance LeftCancellative.
 			end
 
 		end
@@ -253,10 +302,8 @@ context PartialEquivalence begin
 		begin
 			note! absorb.closed.
 			lemma right_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ x * z ~ z, !z ∈ A then z ~ 0;
-				.. ~ 0 * z;
-					apply sym;
-					by eq.
-				by left_absorb.
+				.. ~ 0 * z; apply eq[dual].
+				apply left_absorb.
 		end
 
 		theory RightAbsorb 0 :=
@@ -265,49 +312,12 @@ context PartialEquivalence begin
 		begin
 			note! absorb.closed.
 			lemma left_absorb_is_absorb: if eq: ∀x. x ∈ A ⟹ z * x ~ z, !z ∈ A then z ~ 0;
-				.. ~ z * 0;
-					apply sym;
-					by eq.
-				by right_absorb.
+				.. ~ z * 0; apply eq[dual].
+				apply right_absorb.
 		end
 
 		theory Absorb :=
 			import LeftAbsorb, RightAbsorb.
-		end
-
-		theory LeftCancel (\) :=
-			import lcancel: Magma (\).
-			import lcancel: LeftMonotone A A (\).
-			import Magmas.LeftCancel A A.
-		begin
-			note! lcancel.closed.
-			instance LeftCancellative A A;
-				- if eq: x * y ~ x * y', ... then y ~ y';
-					.. ~ x \ (x * y);
-						apply sym;
-						apply left_cancel;
-						by closed lcancel.closed.
-					.. ~ x \ (x * y');
-						by lcancel.left_mono eq.
-					by left_cancel.
-				.
-		end
-
-		theory RightCancel (/) :=
-			import rcancel: Magma (/).
-			import rcancel: RightMonotone A A (/).
-			import Magmas.RightCancel A A.
-		begin
-			note! rcancel.closed.
-			instance RightCancellative A A;
-				- for y if eq: x * y ~ x' * y, ... then x ~ x';
-					.. ~ x * y / y;
-						apply sym;
-						by right_cancel.
-					.. ~ x' * y / y;
-						by rcancel.right_mono eq.
-					by right_cancel.
-				.
 		end
 
 	end
@@ -317,12 +327,11 @@ context PartialEquivalence begin
 		instance? Magma.
 
 		theory Neutral :=
-			import LeftNeutral.
+			import Monotone, LeftNeutral.
 		begin
 			instance Magma.Neutral;
 				- for x if [x ∈ A] then x * 1 ~ x;
-					.. ~ 1 * x;
-						apply commute.
+					.. ~ 1 * x; apply commute.
 					apply left_neutral.
 				.
 		end
@@ -332,21 +341,19 @@ context PartialEquivalence begin
 		begin
 			instance Magma.Absorb 0;
 				- for x if !x ∈ A then x * 0 ~ 0;
-					.. ~ 0 * x;
-						by commute.
-					by left_absorb.
+					.. ~ 0 * x; apply commute.
+					apply left_absorb.
 				.
 		end
 
 	end
 
 	theory Semigroup :=
-		import Magma, LeftAssociative A A (*) (*).
+		import Magma, LeftAssociative A (*) (*).
 	begin
-		instance RightAssociative A A (*) (*);
+		instance RightAssociative A (*) (*);
 			- if ! x ∈ A, ! y ∈ A, ! z ∈ A;
-				apply sym;
-				apply left_assoc.
+				apply sym, left_assoc.
 			.
 
 	end
@@ -396,10 +403,8 @@ context PartialEquivalence begin
 		note! mul.closed add.closed.
 		instance Ringoid;
 			- if [x ∈ A, y ∈ A, z ∈ A] then (x + y) * z ~ x * z + y * z;
-				.. ~ z * (x + y);
-					apply mul.commute.
-				.. ~ z * x + z * y;
-					apply left_distrib.
+				.. ~ z * (x + y); apply mul.commute.
+				.. ~ z * x + z * y; apply left_distrib.
 				apply add.comp;
 				- apply mul.commute.
 				- apply mul.commute.
@@ -459,12 +464,12 @@ context PartialEquivalence begin
 
 	theory LeftQuasiGroup (*) (\) :=
 		import Magma (*), LeftCancel (\).
-		import lcancel: Magmas.LeftCancel A A (\) (*).
+		import lcancel: Magmas.LeftCancellation A A (\) (*).
 	end
 
 	theory RightQuasiGroup (*) (/) :=
 		import Magma (*), RightCancel (/).
-		import rcancel: Magmas.RightCancel A A (/) (*).
+		import cancel: Magmas.RightCancellation A A (/) (*).
 	end
 
 	theory QuasiGroup (*) (\) (/) :=
@@ -482,5 +487,137 @@ context PartialEquivalence begin
 		import RightQuasiGroup (*) (/).
 	end
 
-ctxt.
+	theory GroupInverse (*) 1 inverse :=
+		import Semigroup (*), Monotone, LeftNeutral 1.
+		import inverse: Unary inverse A A.
+		import LeftInverse A (*) 1 inverse.
+		assume inverse_mono: if x ~ x', x ∈ A, x' ∈ A then inverse x ~ inverse x'.
+	begin
+
+		note! inverse.closed.
+
+		lemma inverse_left_cancels: if [x ∈ A, y ∈ A] then inverse x * (x * y) ~ y;
+			.. ~ inverse x * x * y; apply right_assoc.
+			.. ~ 1 * y; apply right_mono left_inverse.
+			apply left_neutral.
+
+		instance Monoid;
+			- if [x ∈ A] then x * 1 ~ x;
+				.. ~ inverse (inverse x) * (inverse x * (x * 1)); apply inverse_left_cancels[dual].
+				.. ~ inverse (inverse x) * 1; apply left_mono inverse_left_cancels.
+				.. ~ inverse (inverse x) * (inverse x * x); apply left_mono left_inverse[dual].
+				apply inverse_left_cancels.
+			.
+
+		lemma inverse_neutral: inverse 1 ~ 1;
+			.. ~ inverse 1 * 1; apply right_neutral[dual].
+			apply left_inverse.
+
+		lemma inverse_inverse: if [x ∈ A] then inverse (inverse x) ~ x;			
+			.. ~ inverse (inverse x) * 1; apply right_neutral[dual].
+			.. ~ inverse (inverse x) * (inverse x * x); apply left_mono, left_inverse[dual].
+			apply inverse_left_cancels.
+
+		instance RightInverse A (*) 1 inverse;
+			- if [x ∈ A] then x * inverse x ~ 1;
+				.. ~ inverse (inverse x) * inverse x; apply right_mono, inverse_inverse[dual].
+				apply left_inverse.
+			.
+
+		lemma cancels_inverse_left: if [x ∈ A, y ∈ A] then x * (inverse x * y) ~ y;
+			.. ~ inverse (inverse x) * (inverse x * y); apply right_mono, inverse_inverse[dual].
+			apply inverse_left_cancels.
+
+		lemma inverse_compose: if [x ∈ A, y ∈ A] then inverse (x * y) ~ inverse y * inverse x;
+			.. ~ inverse y * (y * inverse (x * y)); apply inverse_left_cancels[dual].
+			apply left_mono;
+			.. ~ inverse x * (x * (y * inverse (x * y))); apply inverse_left_cancels[dual].
+			apply right_neutral_intro;
+			.. ~ (x * y) * inverse (x * y); apply right_assoc.
+			apply right_inverse.
+
+		lemma inverse_right_cancels: if [x ∈ A, y ∈ A] then x * y * inverse y ~ x;
+			.. ~ x * (y * inverse y); apply left_assoc.
+			.. ~ x * 1; apply left_mono, right_inverse.
+			apply right_neutral.
+
+		instance LeftCancellative;
+			- if eq: x * y ~ x * y', ... then y ~ y';
+				.. ~ inverse x * (x * y); apply inverse_left_cancels[dual].
+				.. ~ inverse x * (x * y'); apply left_mono, eq.
+				apply inverse_left_cancels.
+			.
+
+		instance RightCancellative;
+			- for y if eq: x * y ~ x' * y, ... then x ~ x';
+				.. ~ x * y * inverse y; apply inverse_right_cancels[dual].
+				.. ~ x' * y * inverse y; apply right_mono, eq.
+				apply inverse_right_cancels.
+			.
+
+	end
+
+	theory GroupCancel (*) 1 (/) :=
+		import Semigroup (*), Monotone, LeftNeutral 1.
+		import RightQuasiGroup (*) (/).
+		namespace cancel begin
+			import LeftMonotone A A (/).
+			import RightAssociative A (*) (/).
+		end
+	begin
+
+		lemma cancel_self: if [x ∈ A] then x / x ~ 1;
+			.. ~ 1 * x / x; apply cancel.right_mono, left_neutral[dual].
+			apply right_cancel.
+
+		instance GroupInverse (*) 1 (1 /);
+			- if [x ∈ A] then 1 / x ∈ A.
+			- if [x ∈ A] then (1 / x) * x ~ 1; apply cancel.right_cancel.
+			- if [x ~ x', x ∈ A, x' ∈ A] then 1 / x ~ 1 / x'; apply cancel.left_mono.
+			.
+
+		lemma cancel_neutral: if [x ∈ A] then x / 1 ~ x;
+			.. ~ x * 1 / 1; apply cancel.right_mono, right_neutral[dual].
+			apply right_cancel.
+
+		lemma inverse_to_cancel: if [x ∈ A, y ∈ A] then x * (1 / y) ~ x / y;
+			.. ~ x * 1 / y; apply cancel.right_assoc.
+			apply cancel.right_mono, right_neutral.
+
+		instance cancel: LeftAssociative A (*) (/);
+			- if [x ∈ A, y ∈ A, z ∈ A] then x * y / z ~ x * (y / z);
+				apply cancel.right_assoc[dual].
+			.
+
+		lemma cancel_cancel:
+			if [x ∈ A, y ∈ A, z ∈ A] then x / y / z ~ x / (z * y);
+			.. ~ (x/y) * (1/z); apply inverse_to_cancel[dual].
+			.. ~ x * (1/y) * (1/z); apply right_mono, inverse_to_cancel[dual].
+			.. ~ x * ((1/y) * (1/z)); apply left_assoc.
+			.. ~ x * (1 / (z * y)); apply left_mono, inverse_compose[dual].
+			.. ~ x * 1 / (z * y); apply cancel.right_assoc.
+			apply cancel.right_mono, right_neutral.
+
+	end
+
+	theory CommGroupCancel (*) 1 (/) :=
+		import CommMonoid (*) 1, Monotone.
+		import RightCancel (/).
+		import cancel: Magmas.RightCancellation A A (/) (*).
+		namespace cancel begin
+			import LeftMonotone A A (/).
+			import RightAssociative A (*) (/).
+		end
+	begin
+
+		instance GroupCancel.
+
+	end
+
+end
+
+context Equivalence begin
+
+	instance PartialEquivalence.
+
 end

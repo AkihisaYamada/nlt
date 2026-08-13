@@ -560,13 +560,14 @@ string Thy::path() const& {
 }
 ostream& Thy::pretty(
 	ostream& os,
-	function<ostream&(ostream&)> const& endl, size_t n, bool scope, bool path, bool print_rewrite
+	function<ostream&(ostream&)> const& endl,
+	bool thms, size_t n, bool scope, bool path, bool print_rewrite
 ) const & {
 	size_t n1 = n+1;
 	if( scope ) {
 		os << "namespace " << print_path(path) << ':' << endl;
 	} else {
-		os << "theory " << print_path(path) << ':' << endl;
+		os << ( thms ? "theory " : "context " ) << print_path(path) << ':' << endl;
 		for( size_t i = 0; i < revision(); ) {
 			if( auto str = fixed(i) ) {
 				os << mk_indent(n1) << "fix";
@@ -598,21 +599,23 @@ ostream& Thy::pretty(
 			break;
 		}
 	}
-	os << mk_indent(n) << "begin" << endl;
-	for( auto const& [name,pair] : _ref->imports ) {
-		auto const& [im,rec] = pair;
-		os << mk_indent(n1) << "interpret " << name <<
-			( rec ? "! " : name.empty() ? "" : ": " ) << im.pretty() << endl;
-	}
-	for( auto const& [name,thm] : _ref->thms ) {
-		os << mk_indent(n1) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
-	}
-	for( auto const& [name,thy] : _ref->thys ) {
-		os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
-	}
-	if( print_rewrite ) {
-		for( auto const& [name,rew] : _ref->rewriter ) {
-			os << pretty_rewrite(*rew.first,n1,[&](ostream&os)->ostream&{ return os << "rewriter " << name; },endl);
+	if( thms ) {
+		os << mk_indent(n) << "begin" << endl;
+		for( auto const& [name,pair] : _ref->imports ) {
+			auto const& [im,rec] = pair;
+			os << mk_indent(n1) << "interpret " << name <<
+				( rec ? "! " : name.empty() ? "" : ": " ) << im.pretty() << endl;
+		}
+		for( auto const& [name,thm] : _ref->thms ) {
+			os << mk_indent(n1) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
+		}
+		for( auto const& [name,thy] : _ref->thys ) {
+			os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
+		}
+		if( print_rewrite ) {
+			for( auto const& [name,rew] : _ref->rewriter ) {
+				os << pretty_rewrite(*rew.first,n1,[&](ostream&os)->ostream&{ return os << "rewriter " << name; },endl);
+			}
 		}
 	}
 	return os << mk_indent(n) << "end";

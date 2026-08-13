@@ -4,6 +4,7 @@
 #include<sanitizer/lsan_interface.h>
 #include"inference.hpp"
 #include"parser.hpp"
+#include "util.hpp"
 
 #ifdef __SANITIZE_ADDRESS__
 #define EXIT(n) do {\
@@ -1410,7 +1411,7 @@ public:
 		return FLAGS_DEFAULT;
 	}
 	bool _stats() {
-		if( skips("ctxt") ) {
+		if( int mode = skips("thy") ? 1 : skips("ctxt") ? 2 : 0 ) {
 			auto const indent_endl = [this]( ostream& os )->ostream&{ return os << endl << _indent(' '); };
 			auto thy = _thy;
 			if( !skips(".") ) {
@@ -1418,7 +1419,7 @@ public:
 				thy = thy.thy(name,reader()).source();
 				skip(".");
 			}
-			cout << thy.pretty(indent_endl) << endl;
+			cout << thy.pretty(indent_endl,mode==1) << endl;
 			return true;
 		} else if( skips("thm") ) {
 			string pref = "thm ";
@@ -1871,9 +1872,6 @@ public:
 				auto& rew = _thy.rewriter(rew_name);
 				auto resolver = Resolver({rew},_out_resolver);
 				auto ctrl = _get_rewrite(resolver,_thy,false,true);
-				while( auto thm = gets_thm() ) {
-					rew.add_rewrite_rule(resolver.rules,*thm,false);
-				}
 				bool more = _proof_follows();
 				resolver.rewrites(thesis,{rew_name},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
@@ -1885,6 +1883,18 @@ public:
 				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
+			} else if( skips("rewrite") ) {
+				auto inf = _thy.resolver(_out_resolver);
+				auto ctrl = _get_rewrite(inf,_thy,false,false);
+				bool more = _proof_follows();
+				auto const& step = strips_binary(thesis.goal());
+				if( !step ) throw Error("\"malformed rewrite step\"")(thesis.goal());
+				auto const& [rel,l,r] = *step;
+				auto steps = inf.steps(_thy,l,{SIMP},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,rel);
+				thesis.discharge(steps);
+				if( !more ) return thesis.discharge_all();
+				if MSG print_goals(thesis,"rewritten goals:\n\t");
+				
 			} else if( int mode = skips("-") ? 1 : skips("show") ? 2 : skips("->") ? 3 : 0 ) {
 				auto pat = _get_subgoal( mode == 2 );
 				for(;;) {

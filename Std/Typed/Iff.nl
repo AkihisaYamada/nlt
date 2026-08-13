@@ -4,6 +4,8 @@ assume iff_intro: if P ⟹ Q, Q ⟹ P, P : Prop, Q : Prop then P ⟺ Q.
 assume iff_elim1: if P ⟺ Q, P, P : Prop, Q : Prop then Q.
 assume iff_elim2: if P ⟺ Q, Q, P : Prop, Q : Prop then P.
 
+import True.
+
 begin
 
 set simp (⟺).
@@ -91,22 +93,23 @@ lemma imp3_iff: if [P : Prop, Q : Prop] then (((P ⟹ Q) ⟹ Q) ⟹ Q) ⟺ (P �
 lemma imp_iff_iff1: if !P, [P : Prop, Q : Prop] then (P ⟺ Q) ⟺ Q;
 	by iff_intro #elim iff_elim.
 
-extend True begin
+instance iff: iff.CommMagma (⟺);
+	by iff_intro #elim iff_elim.
 
-	instance imp: iff.LeftNeutral Prop (⟹) true;
-		by imp_imp_iff.
+instance imp: iff.LeftNeutral Prop (⟹) true;
+	by imp_imp_iff.
 
-	instance imp: iff.RightAbsorb Prop (⟹) true;
-		by iff_intro.
+instance imp: iff.RightAbsorb Prop (⟹) true;
+	by iff_intro.
 
-	instance iff: iff.CommMagmaNeutral (⟺) true;
-		by iff_intro #elim iff_elim.
+instance iff: iff.Neutral true;
+	- if Q: Q ⟺ Q', [P : Prop, Q : Prop, Q' : Prop] then (P ⟺ Q) ⟺ (P ⟺ Q');
+		simp Q.
+	by iff_intro #elim iff_elim.
 
-	note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
+note#simp imp.left_neutral imp.right_absorb iff.left_neutral iff.right_neutral.
 
-	lemma iff_true: if !P, [P : Prop] then P ⟺ true.
-
-end
+lemma iff_true: if !P, [P : Prop] then P ⟺ true.
 
 extend AllRelStrict begin
 
