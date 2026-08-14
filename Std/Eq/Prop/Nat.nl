@@ -157,8 +157,8 @@ lemma suc_add#simp if x: x : ℕ, [y : ℕ] then suc x + y = suc (x + y);
 		by #simp IH[THEN all_elim1].
 	.
 
-lemma add_1_eq#simp if [x : ℕ] then x + 1 = suc x; simp 1_def.
-lemma 1_add_eq#simp if [x : ℕ] then 1 + x = suc x; simp 1_def.
+lemma add_1_eq_suc#simp if [x : ℕ] then x + 1 = suc x; simp 1_def.
+lemma 1_add_eq_suc#simp if [x : ℕ] then 1 + x = suc x; simp 1_def.
 
 lemma suc_eq_add_1: if [x : ℕ] then suc x = x + 1.
 

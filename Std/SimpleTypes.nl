@@ -31,7 +31,6 @@ Church does not introduce a formal notation for $α$	being a type.
 We will use `α : TYPE` following Martin-Löf. This choice makes this theory stronger than the original, as type abstraction `fun α : TYPE. F.[α]` is permitted.
 ---
 fix TYPE Prop.
-import To.
 assume prop_type! Prop : TYPE.
 assume to_type! if A : TYPE, B : TYPE then A → B : TYPE.
 
@@ -66,7 +65,7 @@ assume all_axiom: if f : A → Prop, x : A then all A f ⟹ f x.
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
 But it is not trivial why this reduction is safe, as parameter α is duplicated.
-Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `TYPE → β`.
+Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `FUN α : TYPE. (α → Prop) → Prop`.
 Formalizing this kind of reduction is in scopes of later research, so we consider that Church implicitly assumed the following notational combinator.
 ---
 fix _BINDER.
@@ -140,7 +139,7 @@ lemma neq_eq: (x ≠ y) = (¬(x = y));
 We show that this theory is an instance of equational, typed, higher-order, impredicative, intuitionistic logic.
 ---
 
-instance Eq.Typed TYPE.
+instance Eq.Prop TYPE.
 
 instance HigherOrder TYPE;
 	show!; by to_elim1[OF all_type] #simp _all_def.
@@ -185,7 +184,7 @@ instance Intuitionistic;
 		- if and: P ∧ Q, ...; use and.
 		- if and: P ∧ Q, ...; use and.
 		.
-	interpret Iff;
+	interpret? Iff;
 		- by #simp iff_def.
 		- by #simp iff_def.
 		- if PQ: P ⟺ Q, ...;
@@ -209,49 +208,6 @@ definition ex1 = fun A : TYPE, P : A → Prop.
 
 definition[as _ex1] (∃!:) = _BINDER ex1.
 
----
-## Basic Combinators
-
-### Identity
----
-definition id = fun A : TYPE, x : A. x.
-
-lemma id_type! if [A : TYPE] then id A : A → A;
-	unfold id_def.
-
-lemma id_eq#simp if [A : TYPE, x : A] then id A x = x;
-	simp id_def.
-
-
----
-### Constant Function
----
-definition const = fun A B : TYPE, x : A, y : B. x.
-
-lemma const_type! if [A : TYPE, B : TYPE] then const A B : A → B → A;
-	simp const_def.
-
-lemma const_app#simp if [A : TYPE, B : TYPE, x : A, y : B] then const A B x y = x;
-	simp const_def.
-
----
-### Function Composition
----
-definition comp = fun A B C : TYPE, f : B → C, g : A → B, x : A. f (g x).
-
-lemma comp_type! if [A : TYPE, B : TYPE, C : TYPE] then comp A B C : (B → C) → (A → B) → A → C;
-	simp comp_def.
-
-lemma comp_eq:
-	if [A : TYPE, B : TYPE, C : TYPE, f : B → C, g : A → B]
-	then comp A B C f g = fun x : A. f (g x);
-	simp comp_def.
-
-lemma comp_app#simp
-	if [A : TYPE, B : TYPE, C : TYPE, f : B → C, g : A → B, x : A]
-	then comp A B C f g x = f (g x);
-	simp comp_def.
-
 
 ---
 ## Additional Postulates
@@ -261,7 +217,7 @@ theory Classical :=
 	assume nnot_elim_axiom: ∀P : Prop. ¬ ¬P ⟹ P.
 begin
 
-	instance Typed.Classical;
+	instance Prop.Classical;
 		- if nnP: ¬ ¬ P, ... then P;
 			apply nnot_elim_axiom[THEN all_elim1[of P]]; by nnP.
 		.

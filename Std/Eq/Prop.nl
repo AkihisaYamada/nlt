@@ -4,7 +4,7 @@
 When one declares what are propositions, one need not say equality between any two terms are propositions. Therefore we fix a class `EQTYPE` of types and say equality between two terms of the same `EQTYPE` is a proposition.
 ---
 fix EQTYPE.
-import Std_Typed? Std.Typed.
+import Std_Prop? Std.Prop.
 assume eq_prop: if A : EQTYPE, x : A, y : A then (x = y) : Prop.
 ---
 We allow equality between propositions, since otherwise predicates cannot be defined.

@@ -44,10 +44,8 @@ definition fst = pair_tp (const const).
 definition snd = pair_tp (const ∘ const).
 
 instance Pair;
-	- for x y;
-		apply pair_tp_spec[OF pair_def fst_def snd_def].
-	- for x y;
-		apply pair_tp_spec[OF pair_def fst_def snd_def].
+	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
+	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
 	.
 
 definition uncurry = dual ((∘) ∘ (∘)) (,).
@@ -120,7 +118,7 @@ instance Or;
 	.
 
 definition[as ex] (∃) =
-	BinderApp (∀) (R. dual ((⟹) ∘ (AppBinder (∀) (R ⟸))) R).
+	BinderApp (∀) (R. dual ((⟹) ∘ AppBinder (∀) (R ⟸)) R).
 
 instance Ex;
 	- for s if Ps: P.[s] then ∃x. P.[x];
