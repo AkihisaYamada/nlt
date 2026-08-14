@@ -175,7 +175,6 @@ static Error const ProofMismatch = Error("#proof-mismatch");
 class Prover : public Parser {
 	Thy _thy;
 	Lex& lex;
-	bool _final = false;
 	bool _through_error;
 	unsigned char _depth;
 	char _out;
@@ -866,7 +865,7 @@ public:
 				ret.rec = true;
 			} else if( skips("?") ) {// optionally qualified
 				ret.name = get();
-				ret.default_prefix = {NONREC_IMPORT};
+				ret.default_prefix = {""};
 				ret.optional_prefix = {str1};
 				ret.override = false;
 			} else {// unqualified
@@ -1057,7 +1056,7 @@ public:
 				if( stmt ) {
 					size_t prev = loc.revision();
 					auto assm = loc.assume(*stmt);
-					while( auto const& v = loc.fixed(prev) ) {
+					while( auto const& v = loc.fixed_at(prev) ) {
 						auto all = loc_goal.cunary(ALL);
 						if( !all || !all->bind() ) {
 							return {};
@@ -1094,7 +1093,7 @@ public:
 		if( pat.concl ) {
 			size_t prev = loc.revision();
 			auto concl = loc.enclose(*pat.concl);
-			while( auto const& v = loc.fixed(prev) ) {
+			while( auto const& v = loc.fixed_at(prev) ) {
 				auto all = loc_goal.cunary(ALL);
 				if( !all || !all->bind() ) return {};
 				loc_goal = all->inst(loc.cterm(*v));
@@ -1108,22 +1107,22 @@ public:
 				auto csi = css.begin();
 				if( auto n = loc.revision() ) {
 					for( size_t i = 0; i < n; ) {
-						if( auto const& v = loc.fixed(i) ) {
+						if( auto const& v = loc.fixed_at(i) ) {
 							cout << " for " << _thy.pretty(*v);
 							for(;;) {
 								i++;
-								auto const& v = loc.fixed(i);
+								auto const& v = loc.fixed_at(i);
 								if(!v) break;
 								cout << ' ' << _thy.pretty(*v);
 							}
 							continue;
 						}
-						if( auto const& assm = loc.assumed(i) ) {
+						if( auto const& assm = loc.assumed_at(i) ) {
 							cout << " if" << endl << _indent(' ') << " " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 							for(;;) {
 								i++;
 								csi++;
-								auto const assm = loc.assumed(i);
+								auto const assm = loc.assumed_at(i);
 								if( !assm ) break;
 								cout << ',' << endl << _indent(' ') << ' ' << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 							}
@@ -1640,14 +1639,12 @@ public:
 			PR_MSG << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
 		}
 	}
-	void local_thy( Thy loc, bool finalized, function<void()> const& op ) {
+	void local_thy( Thy loc, function<void()> const& op ) {
 		_depth++;
 		PROMPT;
 		swap(_thy,loc);
-		swap(_final,finalized);
 		op();
 		swap(_thy,loc);
-		swap(_final,finalized);
 		_depth--;
 	}
 	bool _proof_follows() {
@@ -1688,15 +1685,13 @@ public:
 			}
 			if( skips(".") ) {
 			} else {
-				bool finalized;
 				if( skips("begin") ) {
-					finalized = true;
+					loc.finalize();
 				} else {
 					skip(":=");
-					finalized = false;
 				}
 				if THY cout << endl;
-				local_thy(loc,finalized,[this]{ loop(); });
+				local_thy(loc,[this]{ loop(); });
 			}
 			PR_MSG << "created theory " << name << endl;
 		} else if( skips("context") ) {
@@ -1707,7 +1702,7 @@ public:
 			} else {
 				skip("begin");
 				PR_THY << "reopening theory " << loc.source().print_path() << endl;
-				local_thy( loc.source(), true, [this]{ loop(); } );
+				local_thy( loc.source(), [this]{ loop(); } );
 				PR_MSG << "left " << path << endl;
 			}
 		} else if( skips("extend") ) {
@@ -1720,15 +1715,9 @@ public:
 			while( auto const& t = gets_term(1000) ) {
 				insts.emplace_back(loc.enclose(*t));
 			}
-			bool finalized;
-			if( skips("begin") ) {
-				finalized = true;
-			} else {
-				skip(":=");
-				finalized = false;
-			}
+			skips(":=");
 			PR_THY << "extending theory " << src.print_path() << " into " << loc.print_path() << endl;
-			local_thy(loc,finalized,[&]{
+			local_thy(loc,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
 				_auto_import({},{},src2loc,true,insts);
@@ -1784,7 +1773,7 @@ public:
 			skip("begin");
 			PR_THY << "creating namespace " << name << endl;
 			auto loc = _thy.scope(name);
-			local_thy(loc,_final,[this]{ loop(); });
+			local_thy(loc,[this]{ loop(); });
 			PR_MSG << "created namespace " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
@@ -2132,7 +2121,7 @@ public:
 				skip(".");
 			} else if( skips("end") || skips("") ) {
 				return;
-			} else if( !_final ) {
+			} else if( !_thy.finalized() ) {
 				if( skips("fix") ) {
 					if CTXT cout << _indent(' ') << "fixing";
 					for(;;) {
@@ -2155,7 +2144,7 @@ public:
 				} else if( skips("import") ) {
 					import(true);
 				} else if( skips("begin") ) {
-					_final = true;
+					_thy.finalize();
 					PR_MSG << "finalized" << endl;
 				} else {
 					throw Error("\"unexpected\"")(get());

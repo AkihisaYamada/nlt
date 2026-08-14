@@ -109,11 +109,11 @@ void Thy::register_trans( Thm const& thm ) & {
 	auto rule = Intro::rule(thm);// ∀x y, x = y, ∀z, y = z, φ... ⊢ x = z
 	auto xz = rule.conclusion();
 	Ctxt ctxt = xz.ctxt();
-	if( ctxt.fixed(0) && ctxt.fixed(1) )
-	if( auto const& xy = ctxt.assumed(2) )
+	if( ctxt.fixed_at(0) && ctxt.fixed_at(1) )
+	if( auto const& xy = ctxt.assumed_at(2) )
 	if( auto const& rel1 = gets_binary_sym(*xy) )
-	if( ctxt.fixed(3) )
-	if( auto const& yz = ctxt.assumed(4) )
+	if( ctxt.fixed_at(3) )
+	if( auto const& yz = ctxt.assumed_at(4) )
 	if( auto const& rel2 = gets_binary_sym(*yz) )
 	if( auto const& rel3 = gets_binary_sym(xz) ) {
 		add_term_thm(PAIR(*rel1)(*rel3),TRANS,thm);
@@ -140,9 +140,9 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 	vector<Thm> cond_thms;
 	Ctxt tmp_ctxt = intro.conclusion().ctxt();
 	for( size_t rev = 0;; rev++ ) {
-		if( tmp_ctxt.fixed(rev) ) {
+		if( tmp_ctxt.fixed_at(rev) ) {
 			continue;
-		} else if( auto assm = tmp_ctxt.assumed(rev) ) {// condition or guard
+		} else if( auto assm = tmp_ctxt.assumed_at(rev) ) {// condition or guard
 			Intp loc2cond = rule_ctxt.fork();
 			Ctxt cond_ctxt = loc2cond.ctxt();
 			Term body = *assm;

@@ -256,9 +256,9 @@ bool Ctxt::has_constant(string_view const& sym, size_t rev) const {
 		}
 	} else {
 		for( size_t i = 0; i < rev; i++ ) {
-			if( auto c = fixed(i) ) {
+			if( auto c = fixed_at(i) ) {
 				if( *c == sym ) return true;
-			} else if( auto o = obtained(i) ) {
+			} else if( auto o = obtained_at(i) ) {
 				if( get<0>(*o) == sym ) return true;
 			}
 		}
@@ -278,16 +278,15 @@ CTerm Ctxt::enclose(Term const& t) {
 	return CTerm(*this,t);
 }
 
-CTerm Ctxt::fix(string_view const& s) {
-	if( has_constant(s) ) {
-		throw Error("#ctxt")("\"fixing fixed\"")(s);
-	}
+CTerm Ctxt::fix( string_view const& s ) {
+	if( finalized() ) throw Error("#ctxt")("\"fix after finalize\"");
+	if( has_constant(s) ) throw Error("#ctxt")("\"fixing fixed\"")(s);
 	_ref->modifiers.push_back(Fix(string(s)));
 	_ref->fvars.emplace(s);
 	return CTerm(*this,s);
 }
 
-Pair<CTerm,Thm> Ctxt::obtain(string_view const& sym, Thm const& thm) {
+Pair<CTerm,Thm> Ctxt::obtain( string_view const& sym, Thm const& thm ) {
 	if( has_constant(sym) ) throw Error("#ctxt")("\"obtaining fixed\"")(sym);
 	// thm should be ∀thesis. (∀sym'. props... ⟹ thesis) ⟹ thesis
 	try {
@@ -342,11 +341,11 @@ CTerm CTerm::intro() const {
 	Term stmt = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
-		if( auto const& assm = _ctxt.assumed(i) ) {
+		if( auto const& assm = _ctxt.assumed_at(i) ) {
 			stmt = *assm >>= stmt;
-		} else if( auto const& fix = _ctxt.fixed(i) ) {
+		} else if( auto const& fix = _ctxt.fixed_at(i) ) {
 			stmt = *fix &= stmt;
-		} else if( auto const& obtain = _ctxt.obtained(i) ) {
+		} else if( auto const& obtain = _ctxt.obtained_at(i) ) {
 			// obtain is safe
 		} else {
 			assert(false);
@@ -375,7 +374,7 @@ CTerm CTerm::lift() const {
 	Term ret = *this;
 	for( size_t i = _ctxt.revision(); i > 0; ) {
 		i--;
-		if( auto fix = _ctxt.fixed(i) ) {
+		if( auto fix = _ctxt.fixed_at(i) ) {
 			ret = *fix &= ret;
 		}
 	}
@@ -413,8 +412,8 @@ void Ctxt::_update_parent() const& {
 			if( _ref->fvars.contains(sym) || _ref->constants.contains(sym) )
 				throw Error(__func__)("\"parent fixed local constant\"")(sym);
 		};
-		if( auto v = parent.fixed(rev) ) test(*v);
-		else if( auto o = parent.obtained(rev) ) test(get<0>(*o));
+		if( auto v = parent.fixed_at(rev) ) test(*v);
+		else if( auto o = parent.obtained_at(rev) ) test(get<0>(*o));
 		rev++;
 	}
 }

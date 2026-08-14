@@ -201,21 +201,21 @@ ostream& Syntax::pretty_ctxt( ostream& os, Ctxt const& ctxt, size_t rev,
 		os << "-- ctxt @" << ctxt.id() << endl;
 	}
 	for( int i = 0; i < rev; ) {
-		if( auto sym = ctxt.fixed(i) ) {
+		if( auto sym = ctxt.fixed_at(i) ) {
 			os << "\tfixes";
 			do {
 				os << ' ';
 				pretty(os,*sym);
 				i++;
-			} while( sym = ctxt.fixed(i) );
+			} while( sym = ctxt.fixed_at(i) );
 			os << '.' << endl;
 		}
-		if( auto assume = ctxt.assumed(i) ) {
+		if( auto assume = ctxt.assumed_at(i) ) {
 			os << "\tassumes " << pretty(*assume) << '.'<< endl;
 			i++;
 			continue;
 		}
-		if( auto obtain = ctxt.obtained(i) ) {
+		if( auto obtain = ctxt.obtained_at(i) ) {
 			auto [sym,thm,spec] = *obtain;
 			os << "\tobtains " << sym << "\n\t  where " << pretty(spec) << '.' << endl;
 			i++;

@@ -32,7 +32,7 @@ inline Thm make_refl( CTerm const& t ) {
 /** Iterate over locally fixed variables. */
 inline void iter_local_vars( Ctxt const& ctxt, std::function<void(std::string const&)> f ) {
 	for( size_t i = 0; i < ctxt.revision(); i++ ) {
-		if( auto const& fix = ctxt.fixed(i) ) {
+		if( auto const& fix = ctxt.fixed_at(i) ) {
 			f(*fix);
 		}
 	}

@@ -2,6 +2,7 @@
 #define _CORE_HPP_
 
 #include<cassert>
+#include <limits>
 #include<string>
 #include<vector>
 #include<set>
@@ -350,11 +351,13 @@ public:
 		return *opt;
 	}
 	/** The variable fixed at i-th modification. */
-	Opt<std::string const&> fixed(size_t i) const&;
+	Opt<std::string const&> fixed_at(size_t i) const&;
 	/** The assumption made at the i-th modification. */
-	Opt<Thm> assumed(size_t i) const&;
+	Opt<Thm> assumed_at(size_t i) const&;
 	/** The constant name obtained at the i-th modification. */
-	Opt<std::tuple<std::string,Thm,CTerm>> obtained(size_t i) const&;
+	Opt<std::tuple<std::string,Thm,CTerm>> obtained_at(size_t i) const&;
+	/** The modification index when the context is finalized. */
+	Opt<size_t> finalized() const&;
 	/** Revision of the context, i.e., how many modifications are made. */
 	size_t revision() const;
 	/** Tests if a variable is locally fixed. */
@@ -399,6 +402,8 @@ public:
 	 * @return the fixed sym and theorem stating ∀thesis. (props... ⟹ thesis) ⟹ thesis
 	 */
 	Pair<CTerm,Thm> obtain(std::string_view const& sym, Thm const& thm);
+	/** @brief Finalize. Later on fix and assume will be rejected. */
+	void finalize() &;
 	/** @brief Returns the self interpretation. */
 	Intp self() const;
 	/** @brief Creates a child context.
@@ -425,7 +430,7 @@ inline bool operator!=( Ctxt const& l, Ctxt const& r ) {
 
 struct Ctxt::Body {
 	using _Modifier = Sum<Fix,Assume,Obtain>;
-	/** Parent context and its revision. */
+	/** Parent context and its revision when this context has forked. */
 	Opt<Pair<Ctxt,size_t>> parent;
 	/** Vector of modifiers */
 	std::vector<_Modifier> modifiers;
@@ -433,6 +438,10 @@ struct Ctxt::Body {
 	StrSet fvars;
 	/** Locally obtained constants and their specifications. */
 	StrSet constants;
+	/** Revision when this context was finalized.
+	 * The limit value means the context is not finalized.
+	 */
+	size_t finalized_at = std::numeric_limits<size_t>::max();
 };
 inline void const* Ctxt::id() const & {
 	return (void*)&*_ref;
@@ -443,8 +452,20 @@ inline Opt<Pair<Ctxt,size_t> const&> Ctxt::find_parent() const & {
 inline size_t Ctxt::revision() const {
 	return _ref->modifiers.size();
 }
+inline Opt<size_t> Ctxt::finalized() const& {
+	if( _ref->finalized_at == std::numeric_limits<size_t>::max() ) {
+		return {};
+	}
+	return {_ref->finalized_at};
+}
+inline void Ctxt::finalize() & {
+	if( _ref->finalized_at != std::numeric_limits<size_t>::max() ) {
+		throw Error("\"double finalize\"");
+	}
+	_ref->finalized_at = revision();
+}
 
-inline Opt<std::string const&> Ctxt::fixed(size_t i) const & {
+inline Opt<std::string const&> Ctxt::fixed_at(size_t i) const & {
 	if( i < revision() )
 	if( auto a = _ref->modifiers[i].ref<Fix>() ) {
 		return *a;
@@ -711,15 +732,16 @@ private:
 	friend Ctxt;
 	friend Intp;
 };
-inline Thm Ctxt::_assume(Term const& t) & {
+inline Thm Ctxt::_assume( Term const& t ) & {
+	if( finalized() ) throw Error("#ctxt")("\"assume after finalize\"");
 	_ref->modifiers.push_back(Assume(t));
 	return CTerm(*this,t);
 }
-inline Thm Ctxt::assume(CTerm const& t) {
+inline Thm Ctxt::assume( CTerm const& t ) {
 	if( t.ctxt() != *this ) throw Error(__func__)("wrong context assume");
 	return _assume(t);
 }
-inline Thm Ctxt::assume(Term const& t) {
+inline Thm Ctxt::assume( Term const& t ) {
 	return _assume(enclose(t));
 }
 inline Thm Ctxt::weaken( Thm const& thm ) const & {
@@ -900,14 +922,14 @@ inline Opt<CTerm> Ctxt::constant(std::string_view const& sym) const {
 	}
 	return {};
 }
-inline Opt<Thm> Ctxt::assumed(size_t i) const & {
+inline Opt<Thm> Ctxt::assumed_at(size_t i) const & {
 	if( i < revision() )
 	if( auto a = _ref->modifiers[i].ref<Assume>() ) {
 		return Thm(CTerm(*this,*a));
 	}
 	return {};
 }
-inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained(size_t i) const & {
+inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained_at(size_t i) const & {
 	if( i < revision() )
 	if( auto o = _ref->modifiers[i].ref<Obtain>() ) {
 		auto const& [sym,thm,spec] = *o;

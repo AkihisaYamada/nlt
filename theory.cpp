@@ -1,4 +1,5 @@
 #include<fstream>
+#include <limits>
 #include<sstream>
 #include<ranges>
 #include"theory.hpp"
@@ -26,7 +27,8 @@ struct Thy::_Body {
 	~_Body() {}
 };
 
-Thy::Thy( string_view const& name, std::filesystem::path const& dir ) : _ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
+Thy::Thy( string_view const& name, std::filesystem::path const& dir ) :
+	_ref(Ref<_Body>::make(name,dir,false,Ref<Syntax>::make())) {};
 
 Thy Thy::_branch( string_view const& name, std::filesystem::path const& dir, bool is_scope, Intp const& intp ) const& {
 	auto child = Thy( Ref<_Body>::make(name,dir,is_scope,_ref->syntax), intp.ctxt() );
@@ -101,7 +103,7 @@ void Thy::import_rewrite( Import const& import, bool override_default ) & {
 	Thy const& src = import.source();
 	for( auto& [rew_name,val] : src._ref->rewriter ) {
 		auto& rew = modify_rewriter(rew_name);
-		rew.import(*val.first,src,import,override_default);
+		rew.import(*val.first,src,import,false);
 	}
 }
 Thm Thy::thm( string_view const& name ) const {
@@ -568,16 +570,20 @@ ostream& Thy::pretty(
 		os << "namespace " << print_path(path) << ':' << endl;
 	} else {
 		os << ( thms ? "theory " : "context " ) << print_path(path) << ':' << endl;
-		for( size_t i = 0; i < revision(); ) {
-			if( auto str = fixed(i) ) {
+		size_t fini = finalized().value_or(std::numeric_limits<size_t>::max());
+		for( size_t i = 0;; ) {
+			if( i == fini ) {
+				os << mk_indent(n) << "begin" << endl;
+			}
+			if( auto str = fixed_at(i) ) {
 				os << mk_indent(n1) << "fix";
 				do {
 					os << ' ' << pretty_sym(*str);
 					i++;
-				} while( str = fixed(i) );
+				} while( str = fixed_at(i) );
 				os << '.' << endl;
 			}
-			if( auto assm = assumed(i) ) {
+			if( auto assm = assumed_at(i) ) {
 				os << mk_indent(n1) << "assume ";
 				if( auto name = find_assm_name(i) ) {
 					os << *name << ": ";
@@ -586,7 +592,7 @@ ostream& Thy::pretty(
 				i++;
 				continue;
 			}
-			if( auto obt = obtained(i) ) {
+			if( auto obt = obtained_at(i) ) {
 				auto [sym,ex,spec] = *obt;
 				os << mk_indent(n1) << "obtain ";
 				if( auto name = find_assm_name(i) ) {
@@ -600,7 +606,6 @@ ostream& Thy::pretty(
 		}
 	}
 	if( thms ) {
-		os << mk_indent(n) << "begin" << endl;
 		for( auto const& [name,pair] : _ref->imports ) {
 			auto const& [im,rec] = pair;
 			os << mk_indent(n1) << "interpret " << name <<
