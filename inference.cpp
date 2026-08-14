@@ -96,9 +96,9 @@ void Resolver::inflate( Thy& thy, Thm const& assm ) {
 		return {};
 	} );
 	for( auto const& res : infs ) {
-		if( log > 3 ) _log() << "- inferring " << thy.pretty(res.thm) << "  from  " << thy.pretty(assm) << endl;
 		if( auto const& intro = _apply_elim_result(thy,res) ) {
-			add_intro(thy,*intro);
+			if( log > 0 ) _log() << "- inferring " << thy.pretty(intro->thm()) << "  from  " << thy.pretty(assm) << endl;
+			add_intro(thy,*intro,true);
 		}
 	}
 }

@@ -14,6 +14,7 @@ assume nat_ind! ℕ : IND.-- Quantification over ℕ is allowed.
 assume nat_eqtype! ℕ : EQTYPE.-- Equality over naturals is a proposition.
 
 assume 0_nat! 0 : ℕ.
+
 assume suc_to! suc : ℕ → ℕ.
 
 -- Successor is injective in ℕ
@@ -256,13 +257,23 @@ note#simp 0_le_nat[THEN iff_true].
 lemma nat_le_0#simp if [x : ℕ] then x ≤ 0 ⟺ x = 0;
 	apply iff_intro;
 	- if x0; apply nat_le_imp_ex_add[OF x0 ! !, THEN ex_elim];
-print prover 10.
 		by #elim[guards 2] nat_0_eq_add_imp.
-
-
+	- if #simp; simp.
+	.
 
 lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟺ x ≤ y;
-	unfold[on (⟺)] le_iff_sub.
+	apply iff_intro;
+	- if suc; apply nat_le_imp_ex_add[OF suc ! !, THEN ex_elim];
+		- if 1: suc y = z + suc x, ...;
+			apply nat_le_intro_add[of z];
+			by 1[simp, THEN suc_inj].
+		.
+	- if xy; apply nat_le_imp_ex_add[OF xy ! !, THEN ex_elim];
+		- if 1: y = z + x, ...;
+			apply nat_le_intro_add[of z];
+			simp 1.
+		.
+	.
 
 lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = z + x);
 	apply arbitrary[OF y], nat_induction[of x];
@@ -333,7 +344,6 @@ obtain (<) where
 	not_lt_0: if x : ℕ then ¬ x < 0, 
 	suc_lt: if x : ℕ, y : ℕ then suc x < suc y ⟺ x < y;
 - for thesis if assm;
-	note! le_nat.
 	apply assm[of (fun x y : ℕ. suc x ≤ y)];
 	-.
 	- if [x : ℕ];

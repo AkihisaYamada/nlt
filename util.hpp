@@ -154,15 +154,15 @@ class Intro {
 	friend class Elim;
 	Thm _thm;// Γ ⊢ ∀x... φ... ⟹ ψ
 	Thm _pat;// Γ. fix x... assume φ... ⊢ ψ
-	size_t _vars, _conds;
-	explicit Intro( Thm const& thm, Thm const& conc, size_t vars, size_t conds ) :
+	unsigned short _vars, _conds;
+	explicit Intro( Thm const& thm, Thm const& conc, unsigned short vars, unsigned short conds ) :
 		_thm(thm), _pat(conc), _vars(vars), _conds(conds) {
 	}
 public:
-	size_t vars() const {
+	unsigned short vars() const {
 		return _vars;
 	}
-	size_t conds() const {
+	unsigned short conds() const {
 		return _conds;
 	}
 	static Intro just( Thm const& thm ) {
