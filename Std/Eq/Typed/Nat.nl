@@ -218,6 +218,134 @@ instance nat.CommSemiringNeutral (*) (+) 0 1;
 
 note#simp mul.left_neutral mul.right_neutral.
 
+lemma nat_add_eq_0_imp: if eq: x + y = 0, [x : ℕ, y : ℕ] then x = 0 ∧ y = 0;
+	apply and_intro;
+	- apply nat_cases[of x];
+		- if #simp x = suc x', ...; use eq; simp[on (⟺)].
+		.
+	- apply nat_cases[of y];
+		- if #simp y = suc y', ...; use eq; simp[on (⟺)].
+		.
+	.
+
+lemma nat_0_eq_add_imp: if eq: 0 = x + y, [x : ℕ, y : ℕ] then x = 0 ∧ y = 0;
+	apply nat_add_eq_0_imp[OF eq[dual]].
+
+---
+### Ordering
+---
+obtain (≤) where
+	le_nat_prop! if x : ℕ, y : ℕ then (x ≤ y) : Prop,
+	nat_le_iff_ex_add: if x : ℕ, y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = z + x);
+- for thesis if assm;
+	apply assm[of (fun x y : ℕ. ∃z : ℕ. y = z + x)].
+.
+
+lemma nat_le_imp_ex_add: if xy: x ≤ y, [x : ℕ, y : ℕ] then ∃z : ℕ. y = z + x;
+	use xy; unfold[on (⟺)] nat_le_iff_ex_add.
+
+lemma nat_le_intro_add: for z if eq: y = z + x, [x : ℕ, y : ℕ, z : ℕ] then x ≤ y;
+	unfold[on (⟺)] nat_le_iff_ex_add;
+	apply ex_intro1[of z], eq.
+
+lemma 0_le_nat! if [y : ℕ] then 0 ≤ y;
+	apply nat_le_intro_add[of y].
+
+note#simp 0_le_nat[THEN iff_true].
+
+lemma nat_le_0#simp if [x : ℕ] then x ≤ 0 ⟺ x = 0;
+	apply iff_intro;
+	- if x0; apply nat_le_imp_ex_add[OF x0 ! !, THEN ex_elim];
+print prover 10.
+		by #elim[guards 2] nat_0_eq_add_imp.
+
+
+
+lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟺ x ≤ y;
+	unfold[on (⟺)] le_iff_sub.
+
+lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = z + x);
+	apply arbitrary[OF y], nat_induction[of x];
+	- apply all_intro;
+		- if [y' : ℕ]; apply iff_intro;
+			- by ex_intro1[of y'].
+			- by 0_le_nat.
+			.
+		.
+	- for x' if IH, ...; apply all_intro;
+		- if [y' : ℕ]; apply nat_cases[of y'];
+			- if y0: y' = 0;
+				simp[on (⟺)] y0.
+			- if y1: y' = suc y'', ...;
+				simp[on (⟺)] y1 IH[THEN all_elim1].
+			.
+		.
+	.
+
+
+lemma nat_le_intro_add: for z if yzx: y = z + x, [x : ℕ, y : ℕ, z : ℕ] then x ≤ y;
+	unfold[on (⟺)] nat_le_iff_ex_add;
+	apply ex_intro1[of z];
+	by #simp yzx.
+
+instance nat_le: TotalOrder ℕ (≤);
+	- if x! x : ℕ, [y : ℕ] then x ≤ y ∨ y ≤ x;
+		apply arbitrary[OF x], nat_induction[of y];
+		- by or_intro2 0_le_nat.
+		- if IH: ∀x : ℕ. x ≤ y' ∨ y' ≤ x, ...;
+			apply all_intro;
+			- if [x' : ℕ] then x' ≤ suc y' ∨ suc y' ≤ x';
+				apply nat_cases[of x'];
+				- if #simp; by or_intro1 0_le_nat.
+				- if x': x' = suc x'', ...;
+					unfold x';
+					unfold[on (⟺)] suc_le_suc;
+					by IH[THEN all_elim1].
+				.
+			.
+		.
+	- if xy: x ≤ y, yz: y ≤ z, ... then x ≤ z;
+		apply xy[THEN nat_le_imp_ex_add, THEN ex_elim];
+		- if yx: y = yx + x, ...;
+			apply yz[THEN nat_le_imp_ex_add, THEN ex_elim];
+			- if zy: z = zy + y, ...;
+				apply nat_le_intro_add[of (zy + yx)];
+				simp yx zy add.left_assoc.
+			.
+		.
+	- if xy: x ≤ y, yx: y ≤ x, !, y then x = y;
+		use xy yx; apply arbitrary[OF y], nat_induction[of x];
+		- apply all_intro;
+			- if [y' : ℕ]; simp[on (⟺)]; apply eq.sym>0.
+			.
+		- for x' if IH, !; apply all_intro;
+			- if [y' : ℕ]; apply nat_cases[of y'];
+				- if y'_0; simp[on (⟺)] y'_0.
+				- if y': y' = suc y'', !;
+					simp[on (⟺)] y'; apply IH[THEN all_elim1, OF ! !]>1.
+				.
+			.
+		.
+	.
+
+obtain (<) where
+	lt_nat: if x : ℕ, y : ℕ then (x < y) : Prop,
+	not_lt_0: if x : ℕ then ¬ x < 0, 
+	suc_lt: if x : ℕ, y : ℕ then suc x < suc y ⟺ x < y;
+- for thesis if assm;
+	note! le_nat.
+	apply assm[of (fun x y : ℕ. suc x ≤ y)];
+	-.
+	- if [x : ℕ];
+		simp;
+		unfold[on (⟺)] nat_le_0;
+		by not_suc_eq_0.
+	- if [x : ℕ, y : ℕ];
+		simp;
+		simp[on (⟺)].
+	.
+.
+
 ---
 ### Subtraction
 ---
@@ -283,111 +411,6 @@ instance add: add.RightCancel (∸);
 			.
 		.
 	.
-
----
-### Ordering
----
-obtain (≤) where
-	le_nat! if x : ℕ, y : ℕ then (x ≤ y) : Prop,
-	le_iff_sub: if x : ℕ, y : ℕ then x ≤ y ⟺ x ∸ y = 0;
-- for thesis if assm;
-	apply assm[of (fun x y : ℕ. x ∸ y = 0)].
-.
-
-lemma nat_le_0#simp if [x : ℕ] then x ≤ 0 ⟺ x = 0;
-	unfold[on (⟺)] le_iff_sub.
-
-lemma 0_le_nat: if [y : ℕ] then 0 ≤ y;
-	unfold[on (⟺)] le_iff_sub.
-
-note#simp 0_le_nat[THEN iff_true].
-
-lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟺ x ≤ y;
-	unfold[on (⟺)] le_iff_sub.
-
-lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟺ (∃z : ℕ. y = z + x);
-	apply arbitrary[OF y], nat_induction[of x];
-	- apply all_intro;
-		- if [y' : ℕ]; apply iff_intro;
-			- by ex_intro1[of y'].
-			- by 0_le_nat.
-			.
-		.
-	- for x' if IH, ...; apply all_intro;
-		- if [y' : ℕ]; apply nat_cases[of y'];
-			- if y0: y' = 0;
-				simp[on (⟺)] y0.
-			- if y1: y' = suc y'', ...;
-				simp[on (⟺)] y1 IH[THEN all_elim1].
-			.
-		.
-	.
-
-lemma nat_le_imp_ex_add: if xy: x ≤ y, [x : ℕ, y : ℕ] then ∃z : ℕ. y = z + x;
-	use xy; unfold[on (⟺)] nat_le_iff_ex_add.
-
-lemma nat_le_intro_add: for z if yzx: y = z + x, [x : ℕ, y : ℕ, z : ℕ] then x ≤ y;
-	unfold[on (⟺)] nat_le_iff_ex_add;
-	apply ex_intro1[of z];
-	by #simp yzx.
-
-instance nat_le: TotalOrder ℕ (≤);
-	- if x! x : ℕ, [y : ℕ] then x ≤ y ∨ y ≤ x;
-		apply arbitrary[OF x], nat_induction[of y];
-		- by or_intro2 0_le_nat.
-		- if IH: ∀x : ℕ. x ≤ y' ∨ y' ≤ x, ...;
-			apply all_intro;
-			- if [x' : ℕ] then x' ≤ suc y' ∨ suc y' ≤ x';
-				apply nat_cases[of x'];
-				- if #simp; by or_intro1 0_le_nat.
-				- if x': x' = suc x'', ...;
-					unfold x';
-					unfold[on (⟺)] suc_le_suc;
-					by IH[THEN all_elim1].
-				.
-			.
-		.
-	- if xy: x ≤ y, yz: y ≤ z, ... then x ≤ z;
-		apply xy[THEN nat_le_imp_ex_add, THEN ex_elim];
-		- if yx: y = yx + x, ...;
-			apply yz[THEN nat_le_imp_ex_add, THEN ex_elim];
-			- if zy: z = zy + y, ...;
-				apply nat_le_intro_add[of (zy + yx)];
-				simp yx zy add.left_assoc.
-			.
-		.
-	- if xy: x ≤ y, yx: y ≤ x, !, y then x = y;
-		use xy yx; apply arbitrary[OF y], nat_induction[of x];
-		- apply all_intro;
-			- if [y' : ℕ]; simp[on (⟺)]; apply eq.sym>0.
-			.
-		- for x' if IH, !; apply all_intro;
-			- if [y' : ℕ]; apply nat_cases[of y'];
-				- if y'_0; simp[on (⟺)] y'_0.
-				- if y': y' = suc y'', !;
-					simp[on (⟺)] y'; apply IH[THEN all_elim1, OF ! !]>1.
-				.
-			.
-		.
-	.
-
-obtain (<) where
-	lt_nat: if x : ℕ, y : ℕ then (x < y) : Prop,
-	not_lt_0: if x : ℕ then ¬ x < 0, 
-	suc_lt: if x : ℕ, y : ℕ then suc x < suc y ⟺ x < y;
-- for thesis if assm;
-	note! le_nat.
-	apply assm[of (fun x y : ℕ. suc x ≤ y)];
-	-.
-	- if [x : ℕ];
-		simp;
-		unfold[on (⟺)] nat_le_0;
-		by not_suc_eq_0.
-	- if [x : ℕ, y : ℕ];
-		simp;
-		simp[on (⟺)].
-	.
-.
 
 
 ---

@@ -3,6 +3,7 @@
 #include<filesystem>
 #include"map.hpp"
 #include"rewrite.hpp"
+#include"elim.hpp"
 
 class AThm;
 class Import;

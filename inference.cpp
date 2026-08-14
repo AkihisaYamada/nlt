@@ -50,65 +50,55 @@ Intro Intro::imp( Thm const& thm, size_t n, bool all ) {
 Intro Intro::rule( Thm const& thm ) {
 	return imp(thm,255,true);
 }
-Elim Elim::rule( Thm const& thm, short after, char mode ) {
+Elim Elim::rule( Thm const& thm, short guards, short after, char mode ) {
 	auto child = thm.ctxt().fork().ctxt();
 	Thm body = strip_all(child.weaken(thm),child,patvar_maker()).first;
 	auto imp = body.cbinary(IMP);
 	if( !imp ) throw Error("\"malformed elimination rule\"")(thm);
 	Thm premise = child.assume(imp->first);
 	body = body.impE(premise);
-	return Elim(thm,premise,body,after,mode);
+	return Elim(thm,premise,body,guards,after,mode);
 }
-std::pair<std::string,AThm> Elim::instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const {
+
+ElimRes Elim::instantiate( Resolver& sol, Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const {
 	auto pat_ctxt = _premise.ctxt();
 	auto thm_ctxt = _thm.ctxt();
 	auto pat2loc = Intp::make(pat_ctxt,thm_ctxt).compose(intp);
 	subst_intp(pat2loc,m);
 	pat2loc.discharge(arg);
 	auto thm = _rule.subst(pat2loc);// ∀thesis. ψθ... ⟹ thesis
-	if( _after == 0 ) {
-		if( _mode == '=' ) {
-			auto [ind,rel,rule] = thy.rewriter(SIMP).make_rule(thm,false);
-			return {SIMP+rel,{thm,rule}};
-		} else if( _mode == '?' ) {
-			return {WEAK,{thm,Intro::rule(thm)}};
-		} else {
-			return {INTRO,{thm,Intro::rule(thm)}};
-		}
-	}
-	return {INFLATOR,{thm,Elim::rule(thm,_after-1,_mode)}};
+	unsigned short after = _after > 0 ? _after-1 : 0;
+	return {thm,_guards,after,_mode};
 }
 
-void Resolver::add_intro( Thy& thy, Thm const& thm, Intro const& intro, bool allow_intro ) {
+void Resolver::add_intro( Thy& thy, Intro const& intro, bool allow_intro ) {
 	if( intro.conds() > 0 ) {
-		thy.add_thm( allow_intro ? INTRO : WEAK, thm, {intro} );
+		thy.add_thm( allow_intro ? INTRO : WEAK, intro.thm(), {intro} );
 	} else {
 		if( intro.vars() > 0 ) {
-		thy.add_thm(CONCL,thm,{intro});
+		thy.add_thm(CONCL,intro.thm(),{intro});
 		} else {
-			thy.add_thm(EXACT,thm);
+			thy.add_thm(EXACT,intro.thm());
 		}
-		inflate(thy,thm);
+		inflate(thy,intro.thm());
 	}
 }
 
 void Resolver::inflate( Thy& thy, Thm const& assm ) {
-	auto infs = vector<pair<string,AThm>>();// inflation results
+	vector<ElimRes> infs;// inflation results
 	// one cannot update the list while reading the list.
 	thy.find_thm( INFLATOR, [&]( Import const& import, string_view const& name, Thm const& thm, ThmInfo const& info )->Opt<Thm>{// add inferred rules
 		auto elim = info.ref<Elim>();
 		assert(elim);
 		if( auto m = elim->matches(assm,{import}) ) {
-			infs.push_back(elim->instantiate(*m,assm,import,thy));
+			infs.push_back(elim->instantiate(*this,*m,assm,import,thy));
 		}
 		return {};
 	} );
-	for( auto const& [lbl,athm] : infs ) {
-		if( log > 3 ) _log() << "- inferring " << lbl << ": " << thy.pretty(athm) << "  from  " << thy.pretty(assm) << endl;
-		if( auto intro = athm.info.ref<Intro>() ) {
-			add_intro( thy, athm, *intro, lbl != WEAK );
-		} else {
-			thy.add_thm(lbl,athm,athm.info);
+	for( auto const& res : infs ) {
+		if( log > 3 ) _log() << "- inferring " << thy.pretty(res.thm) << "  from  " << thy.pretty(assm) << endl;
+		if( auto const& intro = _apply_elim_result(thy,res) ) {
+			add_intro(thy,*intro);
 		}
 	}
 }
@@ -117,7 +107,7 @@ bool Thesis::push() & {
 	_thy = _thy.branch();
 	auto const& weaken = *_thy.parent();
 	auto assm = _thy.assume(goal().subst(weaken));
-	Resolver().add_intro(_thy,assm);
+	Resolver().add_intro(_thy,Intro::rule(assm));
 	_thm = _thm.subst(weaken).impE(assm);
 	_goals--;
 	return true;
@@ -240,13 +230,13 @@ bool Resolver::_discharge(
 	size_t n_elim_res = 0;
 	auto elim_test = [&]( Thm const& assm ) {
 		return [&]( Import const& import, string_view const&, Thm const& thm, ThmInfo const& info )->Opt<Thm>{
-			auto elim = info.ref<Elim>();
+			auto const& elim = info.ref<Elim>();
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
 				if( log > 3 ) _log() << "- eliminating: " << subthy.pretty(assm) << endl;
 				if( fuel == 0 ) throw Error("\"elimination limit exceeded\"")(assm);
 				fuel--;
-				elim_res.emplace_back(elim->instantiate(*m,assm,import,subthy));
+				elim_res.emplace_back(elim->instantiate(*this,*m,assm,import,subthy));
 				n_elim_res++;
 				return {thm};
 			}
@@ -270,7 +260,7 @@ bool Resolver::_discharge(
 		// checks if an elimination rule matches
 		if( subthy.find_thm( ELIM, elim_test(assm) ) ) continue;
 		// no elimination matches, declare as a weak introduction
-		add_intro(subthy,assm);
+		add_intro(subthy,Intro::rule(assm));
 		if( log > 3 ) _log() << "- declared assumption: " << subthy.pretty(assm) << endl;
 	}
 	// try exact conclusions
@@ -318,19 +308,21 @@ bool Resolver::_discharge(
 		if( !subthy.find_thm(INTRO,intro_tester) )
 		for(;;) {
 			if( elim_res_ind < elim_res.size() ) {// process elimination result
-				auto const& [label,athm] = elim_res[elim_res_ind];
-				auto const& intro = *athm.info.ref<Intro>();
-				if( subthesis._apply(intro,g,subgoal_child) ) {
-					if( log > 3 ) _log() << "- applied elimination result: " << subthy.pretty(athm) << endl;
-					elim_res_ind++;
-					break;// move on to the new thesis
+				auto const& intro = _apply_elim_result(subthy,elim_res[elim_res_ind]);
+				if( intro ) {
+					Thm thm = intro->thm();
+					if( subthesis._apply(*intro,g,subgoal_child) ) {
+						if( log > 3 ) _log() << "- applied elimination result: " << subthy.pretty(thm) << endl;
+						elim_res_ind++;
+						break;// move on to the new thesis
+					}
+					if( subthy.find_thm( ELIM, elim_test(thm) ) ) {// elimination result is further eliminated
+						elim_res_ind++;
+						continue;
+					}
+					if( log > 5 ) _log() << "- declaring elimination result: " << subthy.pretty(thm) << endl;
+					add_intro(subthy,*intro);
 				}
-				if( subthy.find_thm( ELIM, elim_test(athm) ) ) {// elimination result is further eliminated
-					elim_res_ind++;
-					continue;
-				}
-				if( log > 5 ) _log() << "- declaring elimination result: " << subthy.pretty(athm) << endl;
-				add_intro(subthy,athm);
 				elim_res_ind++;
 				continue;
 			}// no elimination result matched

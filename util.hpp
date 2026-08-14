@@ -5,6 +5,9 @@
 #include"syntax.hpp"
 
 class AThm;
+class Resolver;
+class Elim;
+class ElimRes;
 
 inline std::string operator+( std::string x, std::string_view const& y ) {
 	x+=y;
@@ -203,38 +206,6 @@ public:
 	}
 	bool operator<( Intro const& y ) const {
 		return _pat < y._pat;
-	}
-};
-
-class Elim {
-	Thm _thm;//  Γ ⊢ ∀x... φ ⟹ ψ
-	Thm _rule;// Γ. fix x... assume φ ⊢ ψ
-	Thm _premise;// Γ. fix x... assume φ ⊢ φ
-	short _after;// how many premises are remaining
-	char _mode;// intro or rewrite
-	explicit Elim( Thm const& thm, Thm const& premise, Thm const& rule, short const& after, char mode ) : _thm(thm), _premise(premise), _rule(rule), _after(after), _mode(mode) {}
-public:
-	static Elim rule( Thm const& thm, short after, char mode );
-	/** matches a theorem against the premise of elimination.
-	 * @param arg the theorem to eliminate
-	 * @param thy the theory arg belongs
-	 */
-	Opt<Subst> matches(Thm const& arg, Opt<Subst const&> subst ) const {
-		return match(_premise,arg,is_patvar,subst);
-	}
-	std::pair<std::string,AThm> instantiate( Subst& m, Thm const& arg, Intp const& intp, Thy const& thy ) const;
-	Ctxt ctxt() && = delete;
-	Ctxt const& ctxt() const& {
-		return _premise.ctxt();
-	}
-	Thm thm() const {
-		return _thm;
-	}
-	Thm premise() const {
-		return _premise;
-	}
-	bool operator<( Elim const& y ) const {
-		return _premise < y._premise;
 	}
 };
 

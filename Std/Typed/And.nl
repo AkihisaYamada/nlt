@@ -8,8 +8,12 @@ begin
 
 note! and.closed.
 
-lemma and_elim#elim if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R, [P : Prop, Q : Prop] then R;
+lemma and_elim: if PQ: P ∧ Q, PQR: P ⟹ Q ⟹ R, [P : Prop, Q : Prop] then R;
 	by PQR and_elim1[OF PQ] and_elim2[OF PQ].
+
+lemma and_elim_rule#elim[guards 2]
+	if PQ: P ∧ Q, [P : Prop, Q : Prop], PQR: P ⟹ Q ⟹ R then R;
+	apply and_elim[OF PQ PQR].
 
 lemma and_imp_intro: if PQR: P ⟹ Q ⟹ R, PQ: P ∧ Q, [P : Prop, Q : Prop] then R;
 	by and_elim[OF PQ PQR].

@@ -402,6 +402,7 @@ theory False begin
 		- for thesis if assm;
 			by assm[of (∀P. P)].
 		.
+
 	instance imp: MetaLeftBound (⟹) false.
 
 end

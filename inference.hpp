@@ -3,8 +3,6 @@
 
 #include "theory.hpp"
 
-class Resolver;
-
 /** name for exact concluder */
 extern std::string const EXACT;
 /** name for introduction rules */
@@ -31,6 +29,15 @@ extern std::string const TRANS;
 extern std::string const SIMP;
 /** prefix for congruence rules */
 extern std::string const CONG;
+
+struct ElimRes {
+	Thm thm;
+	unsigned short guards;
+	unsigned short after;
+	char mode;
+	ElimRes( Thm const& thm, unsigned short guards, unsigned short after, char mode )
+	: thm{thm}, guards{guards}, after{after}, mode{mode} {}
+};
 
 /** Class for inference */
 class Thesis {
@@ -136,7 +143,7 @@ class Resolver {
 	size_t fuel;
 	char log;
 	unsigned short int indent;
-	std::vector<std::pair<std::string,AThm>> elim_res;
+	std::vector<ElimRes> elim_res;
 	friend Rewrite;
 	std::ostream& _log() const& {
 		int n = indent < 16 ? indent : 16;
@@ -190,6 +197,11 @@ public:
 		if( !imp ) throw Error("nothing to resolve")(thesis);
 		return thesis.impE(prove(thy,imp->first,simp));
 	}
+	void discharge( Thy const& thy, Intp& intp ) {
+		auto assm = intp.assuming();
+		if( !assm ) throw Error("no assumption to resolve");
+		intp.discharge(prove(thy,*assm,{}));
+	}
 	/** @brief applies rewriting */
 	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string const&> rel ) &;
 	/** @brief Rewrites a theorem */
@@ -209,9 +221,9 @@ public:
 	/** declare derivable conclusions */
 	void inflate( Thy& thy, Thm const& assm );
 	/** @brief Add concluder theorem to theory */
-	void add_intro( Thy& thy, Thm const& thm, Intro const& rule, bool allow_intro = false );
+	void add_intro( Thy& thy, Intro const& rule, bool allow_intro = false );
 	inline void add_intro( Thy& thy, Thm const& thm, bool allow_intro = false ) {
-		add_intro(thy,thm,Intro::rule(thm),allow_intro);
+		add_intro(thy,Intro::rule(thm),allow_intro);
 	}
 private:
 	bool _apply_and_discharge(
@@ -221,6 +233,26 @@ private:
 		size_t trial,
 		Intro const& intro
 	) &;
+	Opt<Intro> _apply_elim_result( Thy& thy, ElimRes const& res ) {
+		Thm thm = thy.weaken(res.thm);
+		if( log > 14 ) _log() << "applying elimination result: " << thy.pretty(thm) << std::endl;
+		for( unsigned short i = 0; i < res.guards; i++ ) {
+			thm = discharge(thy,thm,{});
+		}
+		if( res.after == 0 ) {
+			if( res.mode == '=' ) {
+				if( log > 4 ) _log() << "declaring simp elimination result: " << thy.pretty(thm) << std::endl;
+				auto [ind,rel,rule] = thy.rewriter(SIMP).make_rule(thm,false);
+				thy.add_thm(SIMP+rel,thm,{rule});
+			} else if( res.mode == '?' ) {
+				if( log > 4 ) _log() << "declaring weak elimination result: " << thy.pretty(thm) << std::endl;
+				add_intro(thy,thm,false);
+			} else {
+				return {Intro::rule(thm)};
+			}
+		}
+		return {};
+	}
 	Opt<Thm> _apply_rewrite_rule(
 		Thy const& thy,
 		Rewrite::Rule const& rule,

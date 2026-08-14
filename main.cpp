@@ -79,14 +79,25 @@ ostream& operator<<( ostream& os, SimpClaim const& cs ) {
 	return os;
 }
 
+struct ElimClaim {
+	unsigned char guards = 0;
+};
+bool operator<( ElimClaim const& x, ElimClaim const& y ) {
+	return x.guards < y.guards;
+}
+ostream& operator<<( ostream& os, ElimClaim const& cs ) {
+	os << "#elim";
+	if( cs.guards > 0 ) os << "[guards " << (int)cs.guards << ']';
+	return os;
+}
+
 enum class OtherClaim {
-	ELIM, REFL, DUAL, TRANS,
+	REFL, DUAL, TRANS,
 	CONG, CONG_WEAK, REWRITE_IMP, REWRITE_REV,
 	RULE, RULE_CONG
 };
 ostream& operator<<( ostream& os, OtherClaim const& cs ) {
 	switch( cs ) {
-		case OtherClaim::ELIM: return os << "#elim";
 		case OtherClaim::REFL: return os << "#refl";
 		case OtherClaim::TRANS: return os << "#trans";
 		case OtherClaim::DUAL: return os << "#dual";
@@ -100,7 +111,7 @@ ostream& operator<<( ostream& os, OtherClaim const& cs ) {
 	}
 }
 
-using ClaimStatus = set<Sum<IntroClaim,SimpClaim,OtherClaim>>;
+using ClaimStatus = set<Sum<IntroClaim,SimpClaim,ElimClaim,OtherClaim>>;
 
 ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 	if( cs.empty() ) return os << ':';
@@ -109,6 +120,8 @@ ostream& operator<<( ostream& os, ClaimStatus const& cs ) {
 			os << *intro;
 		} else if( auto const& simp = c.ref<SimpClaim>() ) {
 			os << *simp;
+		} else if( auto const& elim = c.ref<ElimClaim>() ) {
+			os << *elim;
 		} else if( auto const& other = c.ref<OtherClaim>() ) {
 			os << *other;
 		} else {
@@ -522,20 +535,6 @@ public:
 					IntroClaim intro{.weak=true};
 					_get_intro_mod(intro);
 					cs.emplace(intro);
-				} else if( skips("cong") ) {
-					cs.emplace( skips("?") ? OtherClaim::CONG_WEAK : OtherClaim::CONG );
-				} else if( skips("rule" ) ) {
-					cs.emplace( OtherClaim::RULE );
-				} else if( skips("rule_cong") ) {
-					cs.emplace( OtherClaim::RULE_CONG );
-				} else if( skips("elim") ) {
-					cs.emplace( OtherClaim::ELIM );
-				} else if( skips("refl") ) {
-					cs.emplace( OtherClaim::REFL );
-				} else if( skips("dual") ) {
-					cs.emplace( OtherClaim::DUAL );
-				} else if( skips("trans") ) {
-					cs.emplace( OtherClaim::TRANS );
 				} else if( skips("simp") ) {
 					unsigned char after = 0;
 					if( skips("[") ) {
@@ -545,6 +544,27 @@ public:
 						skip("]");
 					}
 					cs.emplace( SimpClaim{.after=after} );
+				} else if( skips("elim") ) {
+					unsigned char guards = 0;
+					if( skips("[") ) {
+						if( skips("guards") ) {
+							guards = get_nat([]( size_t n ){ return n < 128; });
+						}
+						skip("]");
+					}
+					cs.emplace( ElimClaim{.guards=guards} );
+				} else if( skips("cong") ) {
+					cs.emplace( skips("?") ? OtherClaim::CONG_WEAK : OtherClaim::CONG );
+				} else if( skips("rule" ) ) {
+					cs.emplace( OtherClaim::RULE );
+				} else if( skips("rule_cong") ) {
+					cs.emplace( OtherClaim::RULE_CONG );
+				} else if( skips("refl") ) {
+					cs.emplace( OtherClaim::REFL );
+				} else if( skips("dual") ) {
+					cs.emplace( OtherClaim::DUAL );
+				} else if( skips("trans") ) {
+					cs.emplace( OtherClaim::TRANS );
 				} else if( skips("rewrite_imp") ) {
 					cs.emplace( OtherClaim::REWRITE_IMP );
 				} else if( skips("rewrite_rev") ) {
@@ -563,11 +583,11 @@ public:
 		for( auto mode : cs ) {
 			if( auto const& intro = mode.ref<IntroClaim>() ) {
 				if( intro->after > 0 ) {
-					info = {Elim::rule( thm, intro->after-1, intro->weak ? '?' : '!' )};
+					info = {Elim::rule( thm, 0, intro->after-1, intro->weak ? '?' : '!' )};
 					loc.add_thm(INFLATOR,thm,info);
 				} else {
 					info = {Intro::imp(thm,intro->prems,intro->strip_all)};
-					Resolver({},_out_resolver).add_intro(loc,thm,*info.ref<Intro>(),!intro->weak);
+					Resolver({},_out_resolver).add_intro(loc,*info.ref<Intro>(),!intro->weak);
 				}
 			} else if( auto const& simp = mode.ref<SimpClaim>() ) {
 				Thm thm2 = simp->dual ? [&]{
@@ -575,19 +595,18 @@ public:
 					return loc.dualize(thm,resolver);
 				}() : thm;
 				if( simp->after > 0 ) {
-					info = {Elim::rule(thm2,simp->after-1,'=')};
+					info = {Elim::rule(thm2,0,simp->after-1,'=')};
 					loc.add_thm(INFLATOR,thm2,info);
 				} else {
 					auto [ind,rel,rule] = loc.rewriter(SIMP).make_rule(thm2,false);
 					info = {rule};
 					loc.add_thm(SIMP+rel,thm2,info);
 				}
+			} else if( auto const& elim = mode.ref<ElimClaim>() ) {
+				info = {Elim::rule(thm,elim->guards,0,'!')};
+				loc.add_thm(ELIM,thm,info);
 			} else if( auto const& other = mode.ref<OtherClaim>() ) {
 				switch( *other ) {
-				case OtherClaim::ELIM:
-					info = {Elim::rule(thm,0,'?')};
-					loc.add_thm(ELIM,thm,info);
-					break;
 				case OtherClaim::DUAL:
 					loc.register_dual(thm);
 					break;
