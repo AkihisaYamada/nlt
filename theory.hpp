@@ -224,7 +224,7 @@ public:
 		std::ostream& os,
 		std::function<std::ostream&(std::ostream&)> const& endl,
 		bool thms,
-		size_t indent,
+		unsigned short indent,
 		bool scope,
 		bool path,
 		bool print_rewrite
@@ -232,7 +232,7 @@ public:
 	auto const pretty(
 		std::function<std::ostream&(std::ostream&)> const& endl = ENDL,
 		bool thms = true,
-		size_t indent = 0,
+		unsigned short indent = 0,
 		bool scope = false,
 		bool path = true,
 		bool print_rewrite = false

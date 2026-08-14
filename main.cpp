@@ -1104,12 +1104,12 @@ public:
 		}
 		if( pat.proof ) {
 			if MSG {
-				cout << _indent(' ') << "showing ";
+				cout << _indent(' ') << "showing";
 				auto csi = css.begin();
 				if( auto n = loc.revision() ) {
 					for( size_t i = 0; i < n; ) {
 						if( auto const& v = loc.fixed(i) ) {
-							cout << "for " << _thy.pretty(*v);
+							cout << " for " << _thy.pretty(*v);
 							for(;;) {
 								i++;
 								auto const& v = loc.fixed(i);
@@ -1131,9 +1131,9 @@ public:
 						}
 						assert(false);
 					}
-					cout << endl << _indent(' ') << "then ";
+					cout << endl << _indent(' ') << "then";
 				}
-				cout << _thy.pretty(loc_goal) << endl;
+				cout << ' ' << _thy.pretty(loc_goal) << endl;
 			}
 			auto thesis = Thesis::claim_exact(loc,loc_goal);
 			_depth++;
@@ -1218,10 +1218,7 @@ public:
 			intp.instantiate(*inst_it);
 			inst_it++;
 		}
-		if MSG {
-			cout << _indent(' ');
-			_print_import_goals(intp);
-		}
+		if MSG _print_import_goals(intp);
 		for(;;) try {
 			PROMPT;
 			if( _stats() ) {

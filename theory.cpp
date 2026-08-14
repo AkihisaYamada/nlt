@@ -561,9 +561,9 @@ string Thy::path() const& {
 ostream& Thy::pretty(
 	ostream& os,
 	function<ostream&(ostream&)> const& endl,
-	bool thms, size_t n, bool scope, bool path, bool print_rewrite
+	bool thms, unsigned short n, bool scope, bool path, bool print_rewrite
 ) const & {
-	size_t n1 = n+1;
+	unsigned short n1 = n+1;
 	if( scope ) {
 		os << "namespace " << print_path(path) << ':' << endl;
 	} else {
@@ -610,7 +610,7 @@ ostream& Thy::pretty(
 			os << mk_indent(n1) << "thm " << name << ": " << pretty(thm.first) << '.' << endl;
 		}
 		for( auto const& [name,thy] : _ref->thys ) {
-			os << mk_indent(n1) << thy.pretty( endl, n1, (Ctxt const&)thy == *this, false ) << endl;
+			os << mk_indent(n1) << thy.pretty( endl, true, n1, (Ctxt const&)thy == *this, false ) << endl;
 		}
 		if( print_rewrite ) {
 			for( auto const& [name,rew] : _ref->rewriter ) {
