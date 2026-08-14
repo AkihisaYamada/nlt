@@ -21,7 +21,7 @@
 #define FLAG_THY (1 << 4)
 #define FLAG_MSG (1 << 5)
 #define FLAG_LOG (1 << 6)
-#define FLAG_PRF (1 << 7)
+#define FLAG_PROMPT (1 << 7)
 
 #define FLAGS_MIN ( FLAG_SYS | FLAG_STA )
 #define FLAGS_CTXT ( FLAGS_MIN | FLAG_CTXT )
@@ -34,7 +34,9 @@
 #define THY ( _out & FLAG_THY )
 #define MSG ( _out & FLAG_MSG )
 #define LOG ( _out & FLAG_LOG )
-#define PRF ( _out & FLAG_PRF )
+#define PROMPT if( _out & FLAG_PROMPT ) cout << _indent('>')
+#define PR_THY if( THY ) cout << _indent(' ')
+#define PR_MSG if( MSG ) cout << _indent(' ')
 
 using namespace std;
 
@@ -195,7 +197,7 @@ public:
 		_through_error(through_error),
 		_out(out),
 		_out_load(out_load) {
-		if MSG cout << _indent();
+		PROMPT;
 	}
 	Syntax const& syntax() const {
 		return _thy.syntax();
@@ -498,7 +500,7 @@ public:
 		}
 		throw Error("\"expected a term\"")(get());
 	}
-	function<ostream&(ostream&)> _indent( char c = '>' ) const & {
+	function<ostream&(ostream&)> _indent( char c ) const & {
 		return [c,this]( ostream& os )->ostream& {
 			for( int i = 0; i <= _depth; i++ ) {
 				os << c;
@@ -646,6 +648,7 @@ public:
 	void print_goals( Thesis const& thesis, string pre = "goals:\n\t" ) {
 		Term acc = thesis.thm();
 		size_t i = 0;
+		cout << _indent(' ');
 		while( i < thesis.goal_count() ) {
 			auto const& imp = acc.binary(IMP);
 			i++;
@@ -677,14 +680,7 @@ public:
 			} else if( change ) {
 				auto const& c = _thy.fix(sym);
 				intp.instantiate(c);
-				if CTXT {
-					auto disp = [&]( ostream& os )->ostream&{ return os << "fixed " << _thy.pretty_sym(sym) << endl; };
-					if( MSG ) {
-						cout << disp << _indent(' ');
-					} else {
-						cout << _indent(' ') << disp;
-					}
-				}
+				if CTXT cout << _indent(' ') << "fixed " << _thy.pretty_sym(sym) << endl;
 			} else throw Error("\"auto instantiate failed\"")(sym);
 		}
 	}
@@ -705,30 +701,24 @@ public:
 		};
 		if( auto const& o = _thy.find_thm(assm_name,exact(assm)) ) {
 			intp.discharge(*o);
-			if MSG cout << "transferred " << disp << _indent(' ');
+			PR_MSG << "transferred " << disp;
 			return;
 		}
 		if( prefix ) {
 			assm_name = *prefix + '.' + assm_name;
 			if( auto const& o = _thy.find_thm(assm_name,exact(assm)) ) {
 				intp.discharge(*o);
-				if MSG cout << "transferred " << disp << _indent(' ');
+				PR_MSG << "transferred " << disp;
 				return;
 			}
 		}
 		if( change ) {
 			Thm ret = org_thy.add_assm(assm_name,assm);
 			intp.discharge(ret);
-			if CTXT {
-				if( MSG ) {
-					cout << "admitted " << disp << _indent(' ');
-				} else {
-					cout << _indent(' ') << "admitted " << disp;
-				}
-			}
+			if CTXT cout << _indent(' ') << "admitted " << disp;
 			return;
 		}
-		if MSG cout << "blasting " << disp << _indent(' ');
+		PR_MSG << "blasting " << disp;
 		Thm ret = infer.prove(_thy,assm,{SIMP});
 		intp.discharge(ret);
 	}
@@ -741,9 +731,7 @@ public:
 			if( auto const& o = _thy.find_thm(name,exact(stmt)) ) {
 				intp.retain(*csym,*o);
 			} else {
-				if MSG {
-					cout << "blasting " << name << ": " << _thy.pretty(stmt) << endl << _indent(' ');
-				}
+				PR_MSG << "blasting " << name << ": " << _thy.pretty(stmt) << endl;
 				Thm thm = infer.prove(_thy,stmt,{SIMP});
 				intp.retain(*csym,thm);
 			}
@@ -765,14 +753,11 @@ public:
 	auto reader() const& {
 		return [&]( Thy& thy, istream& fis, std::filesystem::path const& filepath ){
 			if SYS {
-				if( !MSG ) cout << _indent(' ');
-				cout << "loading " << filepath << endl;
+				cout << _indent(' ') << "loading " << filepath << endl;
 			}
 			Prover(thy,fis,filepath,lex,true,_out_load,_out_load,_depth+1).loop();
 			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
-				auto pr = [&](ostream&os)->ostream&{ return os << "loaded " << filepath << endl; };
-				if( !MSG ) cout << _indent(' ') << pr;
-				else cout << pr << _indent(' ');
+				cout << _indent(' ') << "loaded " << filepath << endl;
 			}
 		};
 	}
@@ -930,33 +915,30 @@ public:
 		bool success = true;
 		if( skips(";") ) {
 			auto const& path = intp.source().print_path();
-			if MSG cout << (change ? "importing " : "interpreting ") << pref << path << endl;
+			PR_MSG << (change ? "importing " : "interpreting ") << pref << path << endl;
 			_depth++;
 			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			_depth--;
 			if( success ) {
 				add_import(pref,intp);
-				if THY {
-					if( !MSG ) cout << _indent(' ');
-					cout << ( change ? "imported " : "interpreted " ) << pref << path << endl;
-				}
+				PR_THY << ( change ? "imported " : "interpreted " ) << pref << path << endl;
 			}
 		} else if( skips(",") ) {
 			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			add_import(pref,intp);
-			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
+			PR_THY << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			return import(change);
 		} else {
 			skip(".");
 			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
-			if THY cout << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
+			PR_THY << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			add_import(pref,intp);
 		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
 		auto mod = intp.modification(i);
 		if( auto const& fix = mod.ref<Import::Fix>() ) {
-			cout << pre << "instantiate " << *fix;
+			cout << _indent(' ') << pre << "instantiate " << *fix;
 			size_t n = 1;
 			while( auto const& fix = intp.modification(n).ref<Import::Fix>() ) {
 				cout << ", " << *fix;
@@ -965,10 +947,10 @@ public:
 			cout << endl;
 			return n;
 		} else if( auto const& assume = mod.ref<Import::Assume>() ) {
-			cout << pre << "show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
+			cout << _indent(' ') << pre << "show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
 			return 1;
 		} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-			cout << pre << "retain ";
+			cout << _indent(' ') << pre << "retain ";
 			if( auto const& o = obtain->spec_name ) {
 				cout << *o << ": ";
 			}
@@ -980,14 +962,14 @@ public:
 	}
 	void _print_import_goals( Import const& intp ) {
 		size_t i = 0;
-		size_t n = _print_import_goal(intp,i,"\t");
+		size_t n = _print_import_goal(intp,i,"");
 		if( n == 0 ) {
 			cout << "no instantiation goals" << endl;
 			return;
 		}
 		for(;;) {
 			i += n;
-			n = _print_import_goal(intp,i,"\t");
+			n = _print_import_goal(intp,i,"");
 			if( n == 0 ) return;
 		}
 	}
@@ -1122,7 +1104,7 @@ public:
 		}
 		if( pat.proof ) {
 			if MSG {
-				cout << "showing ";
+				cout << _indent(' ') << "showing ";
 				auto csi = css.begin();
 				if( auto n = loc.revision() ) {
 					for( size_t i = 0; i < n; ) {
@@ -1134,30 +1116,28 @@ public:
 								if(!v) break;
 								cout << ' ' << _thy.pretty(*v);
 							}
-							cout << endl << _indent(' ');
 							continue;
 						}
 						if( auto const& assm = loc.assumed(i) ) {
-							cout << "if " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+							cout << " if" << endl << _indent(' ') << " " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 							for(;;) {
 								i++;
 								csi++;
 								auto const assm = loc.assumed(i);
 								if( !assm ) break;
-								cout << ',' << endl << _indent(' ') << "   " << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
+								cout << ',' << endl << _indent(' ') << ' ' << _print_name_status(csi->first,csi->second) << _thy.pretty(*assm);
 							}
-							cout << endl << _indent(' ');
 							continue;
 						}
 						assert(false);
 					}
-					cout << "then ";
+					cout << endl << _indent(' ') << "then ";
 				}
 				cout << _thy.pretty(loc_goal) << endl;
 			}
 			auto thesis = Thesis::claim_exact(loc,loc_goal);
 			_depth++;
-			if MSG cout << _indent();
+			PROMPT;
 			auto thm = _prove(thesis);
 			_depth--;
 			if( !thm ) return {{}};
@@ -1200,11 +1180,11 @@ public:
 						intp.discharge(**opt);
 						if MSG {
 							if( _print_import_goal(intp,0,"next ") == 0 ) {
-								cout << "QED" << endl;
+								cout << _indent(' ') << "QED" << endl;
 							}
 						}
 					} else {
-						if MSG cout << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
+						PR_MSG << "aborted " << assume->second << ": " << _thy.pretty(assume->first) << endl;
 					}
 					return *opt;
 				} else {
@@ -1243,13 +1223,13 @@ public:
 			_print_import_goals(intp);
 		}
 		for(;;) try {
-			if MSG cout << _indent();
+			PROMPT;
 			if( _stats() ) {
 			} else if( skips("note") ) {
 				_note();
 			} else if( skips("goal") ) {
 				skip(".");
-				_print_import_goal(intp,0,"\t");
+				_print_import_goal(intp,0,"");
 			} else if( skips("goals") ) {
 				skip(".");
 				_print_import_goals(intp);
@@ -1281,7 +1261,7 @@ public:
 						}
 					}
 					intp.instantiate( change ? org_thy.cterm(t) : org_thy.enclose(t) );
-					if MSG cout << "instantiated " << x << " := " << _thy.pretty(t) << endl;
+					PR_MSG << "instantiated " << x << " := " << _thy.pretty(t) << endl;
 				}
 			} else if( int mode = skips("-") ? 1 : skips("show") ? 2 : 0 ) {
 				auto pat = _get_subgoal( mode == 2 );
@@ -1319,7 +1299,7 @@ public:
 		} catch( Term const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
-			if MSG cout << _indent();
+			PROMPT;
 		}
 		if( inst_it != inst_end ) throw Error("\"unexpected instantiate\"")(*inst_it);
 		_thy = org_thy;
@@ -1360,8 +1340,8 @@ public:
 						_depth++;
 						if MSG {
 							print_goals(thesis);
-							_indent();
 						}
+						PROMPT;
 						auto prf = _prove(thesis);
 						_depth--;
 						if( prf ) {
@@ -1375,7 +1355,7 @@ public:
 						skip(".");
 						intp.retain(term,thesis.discharge_all().intro());
 					}
-					if MSG cout << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
+					PR_MSG << "retained " << _thy.pretty_sym(sym) << " := " << _thy.pretty(term) << endl;
 					break;
 				}
 				auto infer = _thy.resolver(_out_resolver);
@@ -1425,7 +1405,6 @@ public:
 		if( skips("ctxt") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT;
 		if( skips("thy") ) return FLAG_STA | FLAG_SYS | FLAG_CTXT | FLAG_THY;
 		if( skips("log") ) return FLAGS_DEFAULT | FLAG_LOG;
-		if( skips("proof") ) return FLAGS_DEFAULT | FLAG_PRF;
 		skips("default");
 		return FLAGS_DEFAULT;
 	}
@@ -1438,7 +1417,7 @@ public:
 				thy = thy.thy(name,reader()).source();
 				skip(".");
 			}
-			cout << thy.pretty(indent_endl,mode==1) << endl;
+			cout << _indent(' ') << thy.pretty(indent_endl,mode==1) << endl;
 			return true;
 		} else if( skips("thm") ) {
 			string pref = "thm ";
@@ -1464,16 +1443,16 @@ public:
 			if( skips("ctxt_id") ) {
 				auto b = gets_bool().value_or(true);
 				_thy.modify_syntax().print_ctxt(b);
-				if MSG cout << "set print ctxt_id" << endl;
+				PR_MSG << "set print ctxt_id" << endl;
 			} else if( skips("load") ) {
 				_out_load = get_print_level();
-				if MSG cout << "set print load level " << _out_load << endl;
+				PR_MSG << "set print load level " << _out_load << endl;
 			} else if( skips("prover") ) {
 				_out_resolver = gets_int().value_or(5);
-				if MSG cout << "set print prover level " << endl;
+				PR_MSG << "set print prover level " << endl;
 			} else {
 				_out = get_print_level();
-				if MSG cout << "set print level " << endl;
+				PR_MSG << "set print level " << endl;
 			}
 			skip(".");
 			return true;
@@ -1484,7 +1463,7 @@ public:
 		auto [name,cs] = _get_name_status();
 		auto thm = get_thm();
 		add_claim(_thy,name,cs,thm);
-		if MSG cout << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
+		PR_MSG << "note " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 		if( !name && !cs.empty() ) {
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
@@ -1523,9 +1502,7 @@ public:
 	}
 	Opt<tuple<Opt<string>,Opt<ClaimStatus>,Thm>> _state() {
 		auto [name,cs] = _get_name_status();
-		if MSG {
-			cout << "showing " << _print_name_status(name,cs);
-		}
+		PR_MSG << "showing " << _print_name_status(name,cs);
 		auto assm_thy = _thy.branch();
 		bool needthen = false;
 		bool vars = false;
@@ -1533,23 +1510,17 @@ public:
 			if( skips("for") ) {
 				needthen = true;
 				vars = true;
-				if MSG cout << "for" << flush;
+				if MSG cout << "for " << flush;
 				while( auto const& sym = gets_sym() ) {
-					if MSG cout << ' ' << *sym << flush;
+					if MSG cout << *sym << ' ' << flush;
 					assm_thy.fix(*sym);
 				}
-				if MSG cout << endl << _indent(' ');
 			} else if( skips("if") ) {
 				needthen = true;
-				if MSG {
-					if( vars ) {
-						cout << ' ';
-					}
-					cout << "if " << flush;
-				}
+				if MSG cout << "if" << endl;
 				for(;;) {
 					if( skips("[") ) {
-						if MSG cout << "[ ";
+						PR_MSG << " [ ";
 						for(;;) {
 							auto t = get_term();
 							if MSG cout << _thy.pretty(t);
@@ -1562,20 +1533,20 @@ public:
 					} else {
 						auto [name,cs] = _get_name_status();
 						auto t = get_term();
-						if MSG cout << _print_name_status(name,cs) << _thy.pretty(t) << ", ";
+						PR_MSG << ' ' << _print_name_status(name,cs) << _thy.pretty(t);
 						auto assm = assm_thy.assume(t);
 						add_claim(assm_thy,name,cs,assm);
 					}
 					if( !skips(",") ) break;
+					if MSG cout << ',' << endl;
 				};
-				if MSG cout << endl << _indent(' ');
 			} else {
 				break;
 			}
 		}
 		if( needthen ) {
 			skip("then");
-			if MSG cout << "then ";
+			if MSG cout << endl << _indent(' ') << "then ";
 		}
 		Term t = get_term(0);
 		CTerm goal = assm_thy.enclose(t);
@@ -1583,7 +1554,7 @@ public:
 		if( skips(";") ) {
 			auto thesis = Thesis::claim_exact(assm_thy,goal);
 			_depth++;
-			if MSG cout << _indent();
+			PROMPT;
 			auto o = _prove(thesis);
 			_depth--;
 			if( o ) {
@@ -1661,7 +1632,7 @@ public:
 			org_thy.add_thm(intro_name,intro_thm);
 			auto elim_name = name + "_def_elim";
 			org_thy.add_thm(elim_name,elim_thm);
-			if MSG cout << "defined " << _thy.pretty(sym) << " where" << endl <<
+			PR_MSG << "defined " << _thy.pretty(sym) << " where" << endl <<
 				_indent(' ') << "  " << intro_name << ": " << _thy.pretty(intro_thm) << endl <<
 				_indent(' ') << "  " << elim_name << ": " << _thy.pretty(elim_thm) << endl;
 		} else {
@@ -1669,12 +1640,12 @@ public:
 			Term r = get_term();
 			skip(".");
 			auto [def_name,def_thm] = org_thy.define(Term(rel)(l)(r),name_op);
-			if MSG cout << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
+			PR_MSG << "defined " << def_name << ": " << _thy.pretty(def_thm) << endl;
 		}
 	}
 	void local_thy( Thy loc, bool finalized, function<void()> const& op ) {
 		_depth++;
-		if MSG cout << _indent();
+		PROMPT;
 		swap(_thy,loc);
 		swap(_final,finalized);
 		op();
@@ -1713,10 +1684,7 @@ public:
 		if( skips("theory") ) {
 			string name = get(Lexer::WORD);
 			auto loc = _thy.branch(name,"");
-			if THY {
-				if( !MSG ) cout << _indent(' ');
-				cout << "creating theory " << name;
-			}
+			PR_THY << "creating theory " << name;
 			while( auto sym = gets_sym() ) {
 				loc.fix(*sym);
 				if THY cout << ' ' << loc.pretty_sym(*sym);
@@ -1733,20 +1701,17 @@ public:
 				if THY cout << endl;
 				local_thy(loc,finalized,[this]{ loop(); });
 			}
-			if MSG cout << "created theory " << name << endl;
+			PR_MSG << "created theory " << name << endl;
 		} else if( skips("context") ) {
 			string path = get(Lexer::WORD);
 			auto loc = _thy.find_thy(path,reader()).value_or_throw(Error("bad context")(path));
 			if( skips(".") ) {
-				if MSG cout << "touched " << path << endl;
+				PR_MSG << "touched " << path << endl;
 			} else {
 				skip("begin");
-				if THY {
-					if( !MSG ) cout << _indent(' ');
-					cout << "reopening theory " << loc.source().print_path() << endl;
-				}
+				PR_THY << "reopening theory " << loc.source().print_path() << endl;
 				local_thy( loc.source(), true, [this]{ loop(); } );
-				if MSG cout << "left " << path << endl;
+				PR_MSG << "left " << path << endl;
 			}
 		} else if( skips("extend") ) {
 			auto pref = get_import_prefix();
@@ -1765,11 +1730,7 @@ public:
 				skip(":=");
 				finalized = false;
 			}
-			if THY {
-				if( !MSG ) cout << _indent(' ');
-				cout << "extending theory " << src.print_path()
-					<< " into " << loc.print_path() << endl;
-			}
+			PR_THY << "extending theory " << src.print_path() << " into " << loc.print_path() << endl;
 			local_thy(loc,finalized,[&]{
 				auto const& parent2loc = *loc.parent();
 				auto src2loc = src2parent.compose(parent2loc);
@@ -1820,22 +1781,19 @@ public:
 */
 				loop();
 			});
-			if MSG cout << "left " << loc.print_path() << endl;
+			PR_MSG << "left " << loc.print_path() << endl;
 		} else if( skips("namespace") ) {
 			auto name = get(Lexer::WORD);
 			skip("begin");
-			if THY {
-				if( !MSG ) cout << _indent(' ');
-				cout << "creating namespace " << name << endl;
-			}
+			PR_THY << "creating namespace " << name << endl;
 			auto loc = _thy.scope(name);
 			local_thy(loc,_final,[this]{ loop(); });
-			if MSG cout << "created namespace " << name << endl;
+			PR_MSG << "created namespace " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
 			if MSG if( o ) {
 				auto const& [name,cs,thm] = *o;
-				cout << "proved " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
+				cout << _indent(' ') << "proved " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 			}
 		} else if( skips("note") ) {
 			_note();
@@ -1927,7 +1885,7 @@ public:
 				 		if( *opt ) {
 							thesis.discharge(**opt);
 						} else {
-							if MSG cout << "proof aborted: " << _thy.pretty(*goal) << endl;
+							PR_MSG << "proof aborted: " << _thy.pretty(*goal) << endl;
 						}
 						break;
 					} else {
@@ -1973,12 +1931,12 @@ public:
 				if( skips(";") ) {
 					auto subthesis = Thesis::claim_exact(_thy,claim);
 					if MSG {
-						cout << "chaining: " << _thy.pretty(claim) << endl;
+						cout << _indent(' ') << "chaining: " << _thy.pretty(claim) << endl;
 						_depth++;
-						cout << _indent();
 					} else {
 						_depth++;
 					}
+					PROMPT;
 					auto o = _prove(subthesis);
 					_depth--;
 					if( o ) {
@@ -1997,11 +1955,11 @@ public:
 			} else {
 				throw Error("\"Unexpected\"")(get());
 			}
-			if MSG cout << _indent();
+			PROMPT;
 		} catch ( Term const& e ) {
 			if( _through_error ) throw e;
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
-			if MSG cout << _indent();
+			PROMPT;
 		}
 	}
 	Opt<string> _gets_cons() & {
@@ -2029,13 +1987,13 @@ public:
 					auto rel = get_sym();
 					rew.register_rel(rel,def);
 					if MSG {
-						cout << "registered ";
+						cout << _indent(' ') << "registered ";
 						if( def ) cout << "default ";
 						cout << ( mode == 1 ? "simplifier" : "rulifier" ) << " on " << _thy.pretty(rel) << endl;
 					}
 				} else if( skips("to_true") ) {
 					auto thm = get_thm();
-					if MSG cout << "registering to_true: " << _thy.pretty(thm) << endl;
+					PR_MSG << "registering to_true: " << _thy.pretty(thm) << endl;
 					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
 				} else if( int mode = skips("letter") ? 1 : skips("symbol") ? 2 : skips("solo") ? 3 : 0 ) {
@@ -2044,7 +2002,7 @@ public:
 						if( mode == 2 ) return {"symbols",Lex::MultiOp};
 						return {"solo symbols",Lex::SingleOp};
 					}();
-					if MSG cout << "registering " << msg << ": ";
+					PR_MSG << "registering " << msg << ": ";
 					for(;;) {
 						string const& lsym = get(SPECIAL);
 						unsigned int l = uint_of_chars(lsym.data());
@@ -2070,7 +2028,7 @@ public:
 				string actual = skips(":=") ? get() : view;
 				_make_own_parser();
 				_thy.modify_syntax().prefix(view,actual,level,rlevel);
-				if MSG cout << "new prefix: " << view << " x := (" << actual << ") x" << endl;
+				PR_MSG << "new prefix: " << view << " x := (" << actual << ") x" << endl;
 				skip(".");
 			} else if( skips("infix") ) {
 				string view = get();
@@ -2087,7 +2045,7 @@ public:
 				_thy.modify_syntax().infix(view,actual,level,llevel,rlevel,cons);
 				skip(".");
 				if MSG {
-					cout << "new infix: x " << view << " y := ";
+					cout << _indent(' ') << "new infix: x " << view << " y := ";
 					if( cons ) cout << actual << "(x, y)" << endl;
 					else cout << '(' << actual << ") x y" << endl;
 				}
@@ -2118,7 +2076,7 @@ public:
 							skip(":=");
 							auto actual = get_sym();
 							_thy.modify_syntax().compr(opener,closer,actual,level);
-							if MSG cout << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
+							PR_MSG << "comprehension: " << opener << "x. y" << closer << " := " << _thy.pretty(actual) << " (x. y)" << endl;
 						} else {
 							auto next = get();
 							if( skips("_") ) {
@@ -2129,7 +2087,7 @@ public:
 									auto cons = _gets_cons();
 									_thy.modify_syntax().binder_mid(opener,next,actual,cons);
 									if MSG {
-										cout << "binder middle " << opener << " x " << next << " y. z := " << actual;
+										cout << _indent(' ') << "binder middle " << opener << " x " << next << " y. z := " << actual;
 										if( cons ) {
 											cout << "(y " << *cons << " (x. z))" << endl;
 										} else {
@@ -2143,7 +2101,7 @@ public:
 									auto cons = _gets_cons();
 									_thy.modify_syntax().bcompr(opener,next,closer,actual,cons,level);
 									if MSG {
-										cout << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
+										cout << _indent(' ') << "bounded comprehension: " << opener << "x " << next << " y. z" << closer << " := " << _thy.pretty(actual);
 										if( cons ) {
 											cout << "(y " << *cons << " (x. z))" << endl;
 										} else {
@@ -2155,7 +2113,7 @@ public:
 								skip(":=");
 								auto actual = get_sym();
 								_thy.modify_syntax().singleton_compr(opener,next,actual,level);
-								if MSG cout << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
+								PR_MSG << "singleton comprehension: " << opener << " x " << next << " := " << _thy.pretty(actual) << " x" << endl;
 							}
 						}
 					} else {// {}
@@ -2163,7 +2121,7 @@ public:
 						skip(":=");
 						auto actual = get_sym();
 						_thy.modify_syntax().empty_compr(opener,closer,actual,level);
-						if MSG cout << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
+						PR_MSG << "empty comprehension: " << opener << ' ' << closer << " := " << _thy.pretty(actual) << endl;
 					}
 				}
 				skip(".");
@@ -2173,16 +2131,13 @@ public:
 				int rlevel = get_int();
 				_make_own_parser();
 				_thy.modify_syntax().binder(sym,llevel,rlevel);
-				if MSG cout << "new binder: " << sym << endl;
+				PR_MSG << "new binder: " << sym << endl;
 				skip(".");
 			} else if( skips("end") || skips("") ) {
 				return;
 			} else if( !_final ) {
 				if( skips("fix") ) {
-					if CTXT {
-						if(!MSG) cout << _indent(' ');
-						cout << "fixing";
-					}
+					if CTXT cout << _indent(' ') << "fixing";
 					for(;;) {
 						if ( auto sym = gets_sym() ) {
 							_thy.fix(*sym);
@@ -2198,27 +2153,24 @@ public:
 					auto assm = _get_assm(_thy);
 					Thm thm = name ? _thy.add_assm(*name,assm) : _thy.assume(assm);
 					add_claim(_thy,name,cs,thm);
-					if CTXT {
-						if( !MSG ) cout << _indent(' ');
-						cout << "assumed " << _print_name_status(name,cs) << _thy.pretty(assm) << ". " << endl;
-					}
+					if CTXT cout << _indent(' ') << "assumed " << _print_name_status(name,cs) << _thy.pretty(assm) << ". " << endl;
 					skip(".");
 				} else if( skips("import") ) {
 					import(true);
 				} else if( skips("begin") ) {
 					_final = true;
-					if MSG cout << "finalized" << endl;
+					PR_MSG << "finalized" << endl;
 				} else {
 					throw Error("\"unexpected\"")(get());
 				}
 			} else {
 				throw Error("\"unexpected\"")(get());
 			}
-			if MSG cout << _indent();
+			PROMPT;
 		} catch ( Term const& e ) {
 			cerr << "ERROR: " << location() << ": " << _thy.pretty(e) << endl;
 			if( _through_error ) throw THROUGH;
-			if MSG cout << _indent();
+			PROMPT;
 		}
 	}
 	void _obtain( Thy& org_thy ) {
@@ -2233,7 +2185,7 @@ public:
 		goal_thy.fix(*sym);
 		auto props_thy = org_thy.branch();
 		props_thy.fix(*sym);
-		if MSG cout << "obtaining " << *sym;
+		PR_MSG << "obtaining " << *sym;
 		if( skips("where") ) {
 			if MSG cout << " where" << endl;
 			for(;;) {
@@ -2243,7 +2195,7 @@ public:
 				add_claim(props_thy,name,cs,thm);
 				prop_thms.emplace_back(name,cs,thm);
 				props.push_back(goal_thy.cterm(assm));
-				if MSG cout << '\t' << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
+				PR_MSG << "  " << _print_name_status(name,cs) << _thy.pretty(thm) << endl;
 				if( !skips(",") ) break;
 			}
 		}
@@ -2256,7 +2208,7 @@ public:
 		auto thesis = Thesis::claim_exact(_thy,goal);
 		_depth++;
 		skip(";");
-		if MSG cout << _indent();
+		PROMPT;
 		auto const& thm = _prove(thesis);
 		_depth--;
 		if( thm ) {
@@ -2267,7 +2219,7 @@ public:
 				Thm prop = deriver << arg;// prop_i
 				add_claim(_thy,name,cs,prop);
 			}
-			if MSG cout << "obtained " << *sym << endl;
+			PR_MSG << "obtained " << *sym << endl;
 		} else {
 			if ERR cout << "failed to obtain " << *sym << endl;
 		}
@@ -2289,7 +2241,7 @@ struct ParentInfo {
 	filesystem::path filepath;
 	filesystem::path dirpath;
 };
-void run( istream& is, string const& name, string const& filepath, bool exit_on_error, char out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
+void run( istream& is, string const& name, string const& filepath, bool exit_on_error, unsigned short out, filesystem::path const& cmddir, filesystem::path locdir, bool print_on_end ) try {
 	auto rootdir = string(cmddir);
 	auto root = Thy("",rootdir);// the empty root theory, linked to the root directory of NLT
 	auto lex = Lex();
@@ -2331,7 +2283,7 @@ int main(int argc, char* argv[]) {
 	int i = 1;
 	for(;;) {
 		if( i == argc ) {
-			run( cin, "#stdin", "#stdin", false, FLAGS_DEFAULT, cmddir, filesystem::current_path(), false );
+			run( cin, "#stdin", "#stdin", false, FLAGS_DEFAULT | FLAG_PROMPT, cmddir, filesystem::current_path(), false );
 			return 0;
 		}
 		string arg = argv[i];
