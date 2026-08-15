@@ -935,23 +935,26 @@ public:
 		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
+		if( auto const& fin = intp.source().finalized() ) {
+			if( *fin <= intp.revision() + i ) return 0;
+		}
 		auto mod = intp.modification(i);
 		if( auto const& fix = mod.ref<Import::Fix>() ) {
-			cout << _indent(' ') << pre << "instantiate " << *fix;
+			cout << _indent(' ') << pre << i+1 << ". instantiate " << _thy.pretty_sym(*fix);
 			size_t n = 1;
 			while( auto const& fix = intp.modification(n).ref<Import::Fix>() ) {
-				cout << ", " << *fix;
+				cout << ", " << _thy.pretty_sym(*fix);
 				n++;
 			}
 			cout << endl;
 			return n;
 		} else if( auto const& assume = mod.ref<Import::Assume>() ) {
-			cout << _indent(' ') << pre << "show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
+			cout << _indent(' ') << pre << i+1 << ". show " << assume->name << ": " << _thy.pretty(assume->assm) << endl;
 			return 1;
 		} else if( auto const& obtain = mod.ref<Import::Obtain>() ) {
-			cout << _indent(' ') << pre << "retain ";
+			cout << _indent(' ') << pre << i+1 << ". retain ";
 			if( auto const& o = obtain->spec_name ) {
-				cout << *o << ": ";
+				cout << _thy.pretty_sym(*o) << ": ";
 			}
 			cout << _thy.pretty(obtain->spec) << endl;
 			return 1;
@@ -961,14 +964,14 @@ public:
 	}
 	void _print_import_goals( Import const& intp ) {
 		size_t i = 0;
-		size_t n = _print_import_goal(intp,i,"");
+		size_t n = _print_import_goal(intp,i,"  ");
 		if( n == 0 ) {
-			cout << "no instantiation goals" << endl;
+			cout << "no interpretation goals" << endl;
 			return;
 		}
 		for(;;) {
 			i += n;
-			n = _print_import_goal(intp,i,"");
+			n = _print_import_goal(intp,i,"  ");
 			if( n == 0 ) return;
 		}
 	}
@@ -1178,7 +1181,7 @@ public:
 					if( *opt ) {
 						intp.discharge(**opt);
 						if MSG {
-							if( _print_import_goal(intp,0,"next ") == 0 ) {
+							if( _print_import_goal(intp,0,"  ") == 0 ) {
 								cout << _indent(' ') << "QED" << endl;
 							}
 						}
@@ -1225,7 +1228,7 @@ public:
 				_note();
 			} else if( skips("goal") ) {
 				skip(".");
-				_print_import_goal(intp,0,"");
+				_print_import_goal(intp,0,"  ");
 			} else if( skips("goals") ) {
 				skip(".");
 				_print_import_goals(intp);
@@ -1433,7 +1436,8 @@ public:
 		} else if( skips("term") ) {
 			Term term = get_term();
 			skip(".");
-			cout << "term " << _thy.pretty(term) << endl;
+			auto cterm = _thy.fork().ctxt().enclose(term).lift();
+			cout << "term " << _thy.pretty(cterm) << endl;
 			return true;
 		} else if( skips("print") ) {
 			if( skips("ctxt_id") ) {
@@ -1463,9 +1467,7 @@ public:
 		if( !name && !cs.empty() ) {
 			while( auto o = gets_thm() ) {
 				add_claim(_thy,name,cs,*o);
-				if MSG {
-					cout << "\t" << cs << _thy.pretty(*o) << endl;
-				}
+				PR_MSG << "     " << cs << _thy.pretty(*o) << endl;
 			}
 		}
 		skip(".");

@@ -30,9 +30,10 @@ theory Inverse f A g :=
 end
 
 theory Prod :=
-	fix (,) fst snd.
-	assume fst_pair: if x ∈ A, y ∈ B then fst (x,y) = x.
-	assume snd_pair: if x ∈ A, y ∈ B then snd (x,y) = y.
+	import Pair.
+	fix (×).
+	assume pair_intro1! if x ∈ A, y ∈ B then (x,y) ∈ A × B.
+	assume pair_elim: if xy ∈ A × B, ∀x y. xy = (x,y) ⟹ x ∈ A ⟹ y ∈ B ⟹ thesis then thesis.
 end
 
 theory Abbrev :=

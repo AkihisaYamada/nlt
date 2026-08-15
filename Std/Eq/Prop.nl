@@ -13,6 +13,15 @@ assume prop_eqtype! Prop : EQTYPE.
 
 begin
 
+---
+If one side of an equation is typed, then one should try to type check the other.
+---
+lemma eq_prop1#intro[after 1] if [x : A, A : EQTYPE, y : A] then x = y : Prop;
+	apply eq_prop[of A].
+
+lemma eq_prop2#intro[after 1] if [y : A, A : EQTYPE, x : A] then x = y : Prop;
+	apply eq_prop[of A].
+
 instance Eq_Membership? Eq.Membership (:).
 
 theory Ex1Type :=
@@ -35,11 +44,9 @@ theory TypedThe :=
 		then P.[the z : A. P.[z]].
 begin
 
-	lemma the_eq:
+	lemma the_eq_intro:
 		if Px: P.[x], uniq: ∀y. P.[y] ⟹ y : A ⟹ x = y, [A : EQTYPE, x : A, ∀z. z : A ⟹ P.[z] : Prop]
 		then (the z : A. P.[z]) = x;
-		apply eq.sym;
-		apply uniq;
-		apply the_intro1[OF Px uniq].
+		apply eq.sym, uniq, the_intro1[OF Px uniq].
 
 end

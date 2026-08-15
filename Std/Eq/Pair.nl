@@ -29,7 +29,7 @@ lemma pair_eq_pair_elim2: if eq: (x,y) = (x',y') then y = y';
 	.. = y'; unfold snd.
 	.
 
-lemma pair_eq_pair_elim: if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
+lemma pair_eq_pair_elim#elim if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
 	apply assm;
 	by pair_eq_pair_elim1[OF eq] pair_eq_pair_elim2[OF eq].
 
@@ -42,16 +42,20 @@ lemma eq_pair_snd#simp[after 1] if p: p = (x,y) then snd p = y;
 ---
 One can obtain a pair `(Abs,Rep)`, such that `Rep (Abs x) = x`.
 ---
-obtain AbsRep where AbsRep_spec: snd AbsRep (fst AbsRep x) = x;
-	- for thesis if assm;
-		apply assm[of ((,) fst, snd)];
-		- for x; simp.
+theory AbsRep begin
+
+	obtain AbsRep where AbsRep_spec: snd AbsRep (fst AbsRep x) = x;
+		- for thesis if assm;
+			apply assm[of ((,) fst, snd)];
+			- for x; simp.
+			.
 		.
-	.
-definition Abs = fst AbsRep.
-definition Rep = snd AbsRep.
+	definition Abs = fst AbsRep.
+	definition Rep = snd AbsRep.
 
-instance AbsRep: MetaInverse Abs Rep;
-	by #simp Abs_def Rep_def AbsRep_spec.
+	instance AbsRep: MetaInverse Abs Rep;
+		by #simp Abs_def Rep_def AbsRep_spec.
 
-note#simp AbsRep.inverse.
+	note#simp AbsRep.inverse.
+
+end

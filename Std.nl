@@ -24,9 +24,11 @@ syntax[invalid] _ ].
 
 infix ⟸ 0 1 0.
 infix ⟺ 1 1 0.
-infix ∨ 10 11 10.
-infix ∧ 20 21 20.
-prefix ¬ 30 30.
+infix ⟶ 11 10 10.
+infix ⟷ 11 11 10.
+infix ∨ 20 21 20.
+infix ∧ 30 31 30.
+prefix ¬ 40 40.
 binder ∃ 0 0.
 binder ∃! 0 0.
 binder fun 51 0.

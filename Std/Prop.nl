@@ -5,12 +5,9 @@ We fix a class `Prop` in which logical operators are closed.
 ---
 import? Membership (:), To.
 fix Prop.
-assume imp_type! (⟹) : Prop → Prop → Prop.
+assume imp_prop! if p : Prop, q : Prop then (p ⟹ q) : Prop.
 
 begin
-
-note imp_type1! imp_type[THEN to_elim1].
-note imp_type2! imp_type1[THEN to_elim1].
 
 instance imp: Magma Prop (⟹).
 note! imp.closed.

@@ -122,7 +122,7 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 			}
 		} else if( auto app_in = fun.app() ) {
 			auto const& fun_in = app_in->first, arg_in = app_in->second;
-			if( auto sym = fun_in.sym() ) {// f s t
+			if( auto sym = fun_in.sym() ) {// binary application
 				if( auto const& op = _prefixes.finds_value(*sym) ) {
 					if( level > op->level ) os << '(';
 					os << *sym << ' ';
@@ -141,9 +141,9 @@ ostream& Syntax::pretty( ostream& os, Term const& term, int level ) const & {
 					} else if( auto const& op = sum->ref<BinderRel>() ) {
 						if( !op->cons )
 						if( auto abs = arg.bind() ) {
-							if( level > op->llevel ) os << '(';
+							if( level > op->rlevel ) os << '(';
 							os << op->binder << ' ' << abs->first << ' ' << op->mid << ' ' << pretty(arg_in,op->rlevel) << ". " << pretty(abs->second,op->rlevel);
-							if( level > op->llevel ) os << ')';
+							if( level > op->rlevel ) os << ')';
 							return os;
 						}
 					} else if( auto const& op = sum->ref<ComprRel>() ) {// {_ ∈ _. _}

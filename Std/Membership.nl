@@ -147,6 +147,13 @@ theory FunTo :=
 begin
 end
 
+theory FUNin :=
+	fix (FUN_∈).
+	assume FUN_elim1#intro[after 1] if f ∈ FUN x ∈ A. B.[x], x ∈ A then f x ∈ B.[x].
+begin
+
+end
+
 theory PolyFun :=
 	fix (fun).
 	assume fun_app_elim: for P A if P.[(fun x. F.[x]) s], s ∈ A then P.[F.[s]].
