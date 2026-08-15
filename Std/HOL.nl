@@ -7,7 +7,7 @@ begin
 ---
 ### Encoding of Pairs
 
-Gordon represents a pair of `x : A` and `y : B` as the predicate `fun a : A, b : B. a = x ∧ b = y`.
+Gordon represents a pair of `x : A` and `y : B` by the predicate `fun a : A, b : B. a = x ∧ b = y`.
 ---
 
 definition MK_PAIR = fun A B : TYPE, x : A, y : B, a : A, b : B. a = x ∧ b = y.

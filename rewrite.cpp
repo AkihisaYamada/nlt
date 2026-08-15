@@ -142,14 +142,18 @@ tuple<char,std::string,Rewrite::Rule> Rewrite::make_rule( Thm const& thm, bool c
 	for( size_t rev = 0;; rev++ ) {
 		if( tmp_ctxt.fixed_at(rev) ) {
 			continue;
-		} else if( auto assm = tmp_ctxt.assumed_at(rev) ) {// condition or guard
+		} else if( auto const& assm = tmp_ctxt.assumed_at(rev) ) {// condition or guard
 			Intp loc2cond = rule_ctxt.fork();
 			Ctxt cond_ctxt = loc2cond.ctxt();
 			Term body = *assm;
 			bool abs;
-			if( auto all = body.binder(ALL) ) {// TODO: improve?
-				cond_ctxt.fix(all->first);
-				body = all->second;
+			if( auto const& all = body.binder(ALL) ) {// TODO: improve?
+				if( auto const& x = avoider(cond_ctxt)(all->first) ) {
+					body = all->second.subst(all->first,cond_ctxt.fix(*x));
+				} else {
+					cond_ctxt.fix(all->first);
+					body = all->second;
+				}
 				abs = true;
 			} else {
 				abs = false;
