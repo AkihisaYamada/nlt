@@ -49,25 +49,28 @@ theory LinAbs :=-- For computing combinator representation
 	assume _ABS_const#simp (⟨ x. ⟩ c) = _RET (const c).
 	assume _ABS_RET#simp (⟨ x. _RET F.[x]) = (⟨x. ⟩ F.[x]).
 	assume _ABS_left#simp (⟨ x. ⟩ F.[x] s) = _LREC (⟨ x. ⟩ F.[x]) s.
-	assume _LREC_RET#simp _LREC (_RET s) t = _RET (dual s t).
+	assume _LREC_RET#simp _LREC (_RET f) s = _RET (dual f s).
 	assume _ABS_right#simp (⟨ x. ⟩ s F.[x]) = _RREC s (⟨ x. ⟩ F.[x]).
 	assume _RREC_RET#simp _RREC f (_RET g) = _RET (f ∘ g).
 	assume _RREC_RET'#simp _RREC s (_RET' (y. F.[y])) = _RET (_BinderApp s (y. F.[y])).
-	assume _RREC_RET''#simp _RREC f (_RET'' g) = _RET (f ∘ g).
 	assume _ABS_eta#simp (⟨ x. ⟩ s x) = _RET s.
 	assume _ABS_bind#simp (⟩ (y. F.[y])) = (⟩' y. F.[y]).
 	assume _ABS'_const#simp (⟨ x. ⟩' y. F.[y]) = _RET' (y. const F.[y]).
 	assume _ABS'_id#simp (⟨ x. ⟩' y. x) = _RET' (y. id).
-	assume _ABS'_BIND#simp (⟨ P. ⟩' y. P.[y]) = _RET'' id.
+	assume _ABS'_BIND#simp (⟨ P. ⟩' y. P.[y]) = _RET id.
 	assume _ABS'_app#simp (⟩' y. F.[y] G.[y]) = (⟩'' (y. F.[y]) (y. G.[y])).
-	assume _ABS'2_left#simp (⟨ x. ⟩'' (F.[x]) s) = _LREC' (⟨ x. ⟩' F.[x]) s.
+	assume _ABS'2_left #simp (⟨ x. ⟩'' (F.[x]) s) = _LREC' (⟨ x. ⟩' F.[x]) s.
 	assume _ABS'2_right#simp (⟨ x. ⟩'' s (F.[x])) = _RREC' s (⟨ x. ⟩' F.[x]).
-	assume _LREC'#simp _LREC' (_RET' (y. F.[y])) (y. G.[y]) = _RET' (y. dual F.[y] G.[y]).
-	assume _RREC'#simp _RREC' (y. F.[y]) (_RET' (y. G.[y])) = _RET' (y. F.[y] ∘ G.[y]).
-	assume _RREC'_eta#simp _RREC' (y. F.[y]) (_RET' (y. id)) = _RET' (y. F.[y]).
-	assume _RREC'_BIND#simp _RREC' f (_RET'' g) = _RET'' (_BindAppBind f ∘ g).
+	assume _LREC'_RET'#simp _LREC' (_RET' (y. F.[y])) (y. G.[y]) = _RET' (y. dual F.[y] G.[y]).
+	assume _LREC'_RET #simp _LREC' (_RET f) (y. G.[y]) = _RET (dual (_BindAppBind ∘ f) (y. G.[y])).
+	assume _RREC'_RET'#simp _RREC' (y. F.[y]) (_RET' (y. G.[y])) = _RET' (y. F.[y] ∘ G.[y]).
+	assume _RREC'_RET #simp _RREC' (y. F.[y]) (_RET g) = _RET (_BindAppBind (y. F.[y]) ∘ g).
+	assume _RREC'_eta'#simp _RREC' (y. F.[y]) (_RET' (y. id)) = _RET' (y. F.[y]).
+	assume _RREC'_eta #simp _RREC' (y. F.[y]) (_RET id) = _RET (_BindAppBind (y. F.[y])).
 	assume _RIP#simp _RIP (_RET s) = s. 
 begin
+	-- for _LREC'_RET
+	lemma: _RIP (⟨ x. ⟩ _BindAppBind (f x) g) = dual (_BindAppBind ∘ f) g.
 
 	-- _BindApp
 	lemma: _RIP (⟨ x y. ⟩ _BindAppBind x ( _BindConst y)) = dual ((∘) ∘ _BindAppBind) _BindConst.
@@ -97,12 +100,12 @@ begin
 		simp[at 0].
 
 	-- ex
-	lemma: _RIP (⟨ P. ⟩ ∀ Q. (∀ x. P.[x] ⟹ Q) ⟹ Q);
-		simp[repeat 8];
+	lemma: _RIP (⟨ P. ⟩ (∀ x. P.[x] ⟹ Q) ⟹ Q) = dual ((⟹) ∘ ((∀) ∘ dual (_BindAppBind ∘ _BindAppBind (y. (⟹))) (y. Q))) Q.
 
-	-- restricted all
-	lemma: (⟨ A P. ⟩ (∀x. x : A ⟹ P.[x])) =
-		_RET (((∀) ∘) ∘ dual ((∘) ∘ _BinderApp _BindAppBind (y. (⟹) ∘ (y :))) id).
+	-- restricted quantifiers
+	lemma: _RIP (⟨ (⊏) a P. ⟩ (∀x. x ⊏ a ⟹ P.[x])) =
+		(((∀) ∘) ∘) ∘ _BinderApp (_BinderApp _BindAppBind) (y. ((⟹) ∘) ∘ dual id y).
+
 end
 
 definition paracomp = dual ((∘) ∘ dual (∘)).
@@ -201,30 +204,28 @@ instance Or;
 	.
 
 definition[as ex] (∃) =
-	_BinderApp (∀) (R. dual ((⟹) ∘ AppBinder (∀) (R ⟸)) R).
+	_BinderApp (∀) (Q. dual ((⟹) ∘ ((∀) ∘ dual (_BindAppBind ∘ _BindAppBind (y. (⟹))) (y. Q))) Q).
 
 instance Ex;
 	- for s if Ps: P.[s] then ∃x. P.[x];
 		simp ex_def;
 		- for Q; simp;
 			- if assm;
-				by assm[of s, simp] Ps.
+				by assm[of s] Ps.
 			.
 		.
 	- if ex: ∃x. P.[x], assm: ∀x. P.[x] ⟹ Q then Q;
 		apply ex[simp ex_def, of Q, simp];
-		- for x; simp;
+		- for x;
 			- if Px: P.[x];
 				by assm[OF Px].
 			.
 		.
 	.
 
-extend Membership begin
+definition all_rel = (((∀) ∘) ∘) ∘ _BinderApp (_BinderApp _BindAppBind) (y. ((⟹) ∘) ∘ dual id y).
 
-	definition[as ball] (∀∈) = ((∀) ∘) ∘ dual ((∘) ∘ _BinderApp _BindAppBind (y. (⟹) ∘ (y ∈))) id.
-
-	instance AllIn;
-
+lemma all_rel_elim1: if all: all_rel (⊏) a (x. P.[x]) then (∀x. x ⊏ a ⟹ P.[x]);
+	by #simp all_rel_def.
 
 end
