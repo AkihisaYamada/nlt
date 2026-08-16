@@ -11,11 +11,13 @@ set symbol
 	ℂ, ℋ, ℍ, ℐ-ℓ, ℕ, ℘-ℝ, ℤ, ℬ-ℭ, ℰ-ℱ, ℵ-ℸ, ℼ-⅀, ⅅ-ⅉ, -- Letterlike Symbols
 	𝒜, 𝒞-𝒟, 𝒢, 𝒥-𝒦, 𝒩-𝒬, 𝒮-𝒵, 𝔸-𝔹, 𝔻-𝔾, 𝕀-𝕄, 𝕆, 𝕊-𝕐,𝕒-𝕫, 𝟘-𝟡, -- Mathematical Alphanumeric Symbols
 	∀-⋿, -- Mathematical Operators
-	⟀-⟯, -- Miscellaneous Mathematical Symbols-A
 	⁻, ¹, ², -- Some superscripts
 	←-⇿, -- Arrows
 	⟰-⟿, -- Supplemental Arrows-A
 	⨀-⫿. -- Supplemental Mathematical Operators
+
+set solo
+	⟦-⟫. -- some brackets from Miscellaneous Mathematical Symbols-A
 
 infix ⟹ 1 0 0.
 binder ∀ 0 0.

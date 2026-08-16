@@ -122,6 +122,14 @@ end
 theory AppBind :=
 	fix _AppBind.
 	assume _AppBind#simp _AppBind f (x. G.[x]) = (x. f G.[x]).
+begin
+
+end
+
+theory BindComb :=
+	fix _BindApp _BindConst.
+	assume _BindApp#simp _BindApp (x. F.[x]) (x. G.[x]) = (x. F.[x] G.[x]).
+	assume _BindConst#simp _BindConst s = (x. s).
 end
 
 theory MetaIf :=

@@ -240,7 +240,7 @@ public:
 		}
 		ret.min = 1;
 		ret.max = 0;
-		ret.normalize = normalize || skips("+");
+		ret.normalize = rep == 0 && normalize || skips("+");
 		while( auto const& arg = _gets_thm(loc,true) ) {
 			auto rule = *arg;
 			if( rev ) {
@@ -1434,10 +1434,29 @@ public:
 			skip(".");
 			return true;
 		} else if( skips("term") ) {
+			int mode = 0;
+			if( skips("[") ) {
+				if( skips("raw") ) {
+					mode = 1;
+				} else if( skips("close") ) {
+					mode = 2;
+				}
+				skip("]");
+			}
 			Term term = get_term();
 			skip(".");
-			auto cterm = _thy.fork().ctxt().enclose(term).lift();
-			cout << "term " << _thy.pretty(cterm) << endl;
+			switch( mode ) {
+			case 1:
+				cout << "term[raw] " << term << endl;
+				break;
+			case 2: {
+				auto cterm = _thy.fork().ctxt().enclose(term).lift();
+				cout << "term[close] " << _thy.pretty(cterm) << endl;
+			} break;
+			default:
+				cout << "term " << _thy.pretty(term) << endl;
+				break;
+			}
 			return true;
 		} else if( skips("print") ) {
 			if( skips("ctxt_id") ) {

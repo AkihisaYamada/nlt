@@ -127,6 +127,30 @@
 		"prefix": ["\\dotminus","-'"],
 		"body": "∸"
 	},
+	"⟦": {
+		"prefix": ["\\llbracket","[["],
+		"body": "⟦"
+	},
+	"⟧": {
+		"prefix": ["\\rrbracket","]]"],
+		"body": "⟧"
+	},
+	"⟨": {
+		"prefix": ["\\langle"],
+		"body": "⟨"
+	},
+	"⟩": {
+		"prefix": ["\\rangle"],
+		"body": "⟩"
+	},
+	"⟨⟨": {
+		"prefix": ["\\llangle"],
+		"body": "⟪"
+	},
+	"⟩⟩": {
+		"prefix": ["\\rrangle"],
+		"body": "⟫"
+	},
 	"(⁻)": {
 		"prefix": ["^-"],
 		"body": "⁻"

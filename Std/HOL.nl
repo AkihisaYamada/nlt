@@ -103,6 +103,3 @@ lemma SND_PROD: if [A : TYPE, B : TYPE, x : A, y : B] then SND A B (COMMA A B x 
 		.
 	.
 
-end
-
-thm Prod.FST_PROD.

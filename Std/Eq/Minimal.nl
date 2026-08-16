@@ -2,23 +2,16 @@
 # Type-Free Minimal Logic via Equality
 ---
 
-import And, Or, Not, MinimalNot, !IffViaAnd, Ex, Ex1.
-import Syntactic.-- allow linear abbreviations
+import And, Or, Not, MinimalNot, IffViaAnd, Ex, Ex1.
 
 begin
+
+set simp (⟺).
 
 instance base? Std.Minimal.
 
 instance Ex1.And.
 instance Ex1.Ex.
-
-obtain (≠) where neq_def: (x ≠ y) = (¬ x = y);
-	- for thesis if assm;
-		apply assm[of (((¬) ∘) ∘ (=))].
-	.
-
-lemma neq_intro: if not: ¬ x = y then x ≠ y;
-	by not #simp neq_def.
 
 theory UniqueSuch :=
 	fix (such).
