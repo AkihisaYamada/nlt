@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Tests/DoubleFix.nl"],
+"args": ["-i","Std/Eq/Syntactic.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [

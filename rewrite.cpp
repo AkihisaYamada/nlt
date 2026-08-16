@@ -435,6 +435,8 @@ Opt<pair<Thm,CTerm>> Resolver::_step( Thy const& thy, CTerm const& source, Opt<s
 	}
 	if( auto const& rule = rew->_fallbacks.finds_value(ind) ) {
 		if( auto const& m = match(rule->pat,source,is_patvar) ) {
+			if( fuel == 0 ) throw Error("\"rewrite fallback exceeded limit\"");
+			fuel--;
 			if( auto const& ret = apply(*rule,*m,thy.interpret_ancestor(rule->thm.ctxt())) ) {
 				return {{*ret,ret->capp()->second}};
 			}

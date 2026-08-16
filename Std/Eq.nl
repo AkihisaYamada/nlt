@@ -127,9 +127,11 @@ begin
 end
 
 theory BindComb :=
-	fix _BindApp _BindConst.
-	assume _BindApp#simp _BindApp (x. F.[x]) (x. G.[x]) = (x. F.[x] G.[x]).
+	fix _BindAppBind _BindConst.
+	assume _BindAppBind#simp _BindAppBind (x. F.[x]) (x. G.[x]) = (x. F.[x] G.[x]).
 	assume _BindConst#simp _BindConst s = (x. s).
+begin
+
 end
 
 theory MetaIf :=
