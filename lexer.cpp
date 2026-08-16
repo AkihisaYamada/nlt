@@ -57,7 +57,6 @@ Lex::Lex() :
 	_char_ranges({
 		{std::char_traits<char>::eof(),{std::char_traits<char>::eof(),Control}},
 		{'.',{'.',Dot}},
-		{'_',{'_',Underscore}},
 		{'9',{'0',Digit}},
 		{' ',{' ',Blank}},
 		{'\t',{'\t',Blank}},
@@ -163,7 +162,14 @@ unsigned int Lexer::fetch_char() {
 	fetched_char_type = plex->char_type(ch);
 	return ch;
 }
-void Lexer::fetch_continue( Lex::CharType t ) {
+bool Lexer::_fetch_while( Lex::CharType t ) {
+	if( fetched_char_type & t ) {
+		_fetch_continue(t);
+		return true;
+	}
+	return false;
+}
+void Lexer::_fetch_continue( Lex::CharType t ) {
 	for(;;) {
 		rp = wp;// this character is considered read
 		fetch_char();
@@ -197,17 +203,18 @@ string_view Lexer::peek_token() {
 	read_column = peeked_column;
 	switch( fetched_char_type ) {
 	case Lex::Digit:
-		fetch_continue( Lex::Digit );
+		_fetch_continue( Lex::Digit );
 		switch( fetched_char_type ) {
-		case Lex::Underscore:
+		case Lex::Underscore:// 123_
 			fetch_char();
-			_fetch_word_or_op();
-			_fetch_follower();
+			if( _fetch_while( Lex::Letter | Lex::Digit ) ) {
+				_fetch_follower(Lex::Letter);
+			}
 			token_type = WORD;
 			break;			
 		case Lex::Dot:// 123.456
 			if( isdigit(pis->peek()) ) {
-				fetch_continue( Lex::Digit );
+				_fetch_continue( Lex::Digit );
 			}
 		default:
 			token_type = NUMBER;
@@ -222,16 +229,16 @@ string_view Lexer::peek_token() {
 		fetch_char();
 		switch( fetched_char_type ) {
 		case Lex::Dot:// ..
-			fetch_continue( Lex::Dot );
-			if( _fetch_word_or_op() ) {
-				_fetch_follower();
+			_fetch_continue( Lex::Dot );
+			if( _fetch_while( Lex::Letter | Lex::Digit ) ) {// ..a
+				_fetch_follower(Lex::Letter);
 				token_type = WORD;
 			} else {
 				token_type = DOTS;
 			}
 			break;
 		case Lex::Digit: // dot followed by digits
-			fetch_continue( Lex::Digit );
+			_fetch_continue( Lex::Digit );
 			token_type = NUMBER;
 			break;
 		case Lex::SingleOp:// dot followed by a single operator is another operator
@@ -240,13 +247,13 @@ string_view Lexer::peek_token() {
 			token_type = OPERATOR;
 			break;
 		case Lex::MultiOp:
-			fetch_continue( Lex::MultiOp );
-			_fetch_follower();
+			_fetch_continue(Lex::MultiOp);
+			_fetch_follower(Lex::MultiOp);
 			token_type = OPERATOR;
 			break;
 		case Lex::Letter:
-			fetch_continue( Lex::Digit | Lex::Letter );
-			_fetch_follower();
+			_fetch_continue( Lex::Digit | Lex::Letter );
+			_fetch_follower(Lex::Letter);
 			token_type = WORD;
 			break;
 		default:
@@ -255,23 +262,31 @@ string_view Lexer::peek_token() {
 		}
 		break;
 	case Lex::SingleOp:
+		rp = wp;
+		fetch_char();
+		_fetch_follower(Lex::SingleOp);
 		token_type = OPERATOR;
-		fetched_char_type = Lex::Blank;
 		break;
 	case Lex::MultiOp:
-		fetch_continue( Lex::MultiOp );
-		_fetch_follower();
+		_fetch_continue(Lex::MultiOp);
+		_fetch_follower(Lex::MultiOp);
 		token_type = OPERATOR;
 		break;
+	case Lex::Quote:// 'c'
+		throw Error("\"unexpected (')\"");
+		break;
 	case Lex::Letter:
-		fetch_continue( Lex::Letter | Lex::Digit );
-		_fetch_follower();
+		_fetch_continue( Lex::Letter | Lex::Digit );
+		_fetch_follower(Lex::Letter);
 		token_type = WORD;
 		break;
 	case Lex::Underscore:
 		fetch_char();
-		_fetch_word_or_op();
-		_fetch_follower();
+		if( _fetch_while( Lex::Letter | Lex::Digit ) ) {
+			_fetch_follower(Lex::Letter);
+		} else if( _fetch_while( Lex::MultiOp ) ) {
+			_fetch_follower(Lex::MultiOp);
+		}
 		token_type = WORD;
 		break;
 	default:
@@ -282,37 +297,35 @@ string_view Lexer::peek_token() {
 	peeked_token = string_view(buf,rp);
 	return peeked_token;
 }
-void Lexer::_fetch_follower() {
+void Lexer::_fetch_follower( Lex::CharType prevtype ) {
 	for(;;) {
-		if( fetched_char_type == Lex::Dot ) {
-			auto old_wp = wp;// TODO
-			fetch_char();
-			if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
-				fetched_char_type = Lex::DotBlank;
-				wp = old_wp;
-				return;
+		switch( prevtype ) {
+		case Lex::Letter: case Lex::Digit: case Lex::MultiOp: case Lex::Underscore: case Lex::Quote:
+			if( _fetch_while(Lex::Underscore) ) {
+				prevtype = fetched_char_type;
+				_fetch_word_or_op();
+				continue;
 			}
-			_fetch_word_or_op();
-			continue;
-		}
-		if( fetched_char_type == Lex::Underscore ) {
-			rp = wp;
-			fetch_char();
-			_fetch_word_or_op();
-			continue;
+		case Lex::SingleOp:
+			if( _fetch_while(Lex::Quote) ) {
+				prevtype = fetched_char_type;
+				_fetch_word_or_num();
+				continue;
+			}
+			if( fetched_char_type == Lex::Dot ) {
+				auto old_wp = wp;// TODO
+				fetch_char();
+				if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
+					fetched_char_type = Lex::DotBlank;
+					wp = old_wp;
+					return;
+				}
+				prevtype = fetched_char_type;
+				_fetch_word_or_op();
+				continue;
+			}
 		}
 		return;
-	}
-}
-bool Lexer::_fetch_word_or_op() {
-	if( fetched_char_type == Lex::MultiOp ) {
-		fetch_continue( Lex::MultiOp );
-		return true;
-	} else if( fetched_char_type & ( Lex::Letter | Lex::Digit ) ) {
-		fetch_continue( Lex::Letter | Lex::Digit );
-		return true;
-	} else {
-		return false;
 	}
 }
 

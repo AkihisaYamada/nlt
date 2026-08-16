@@ -47,7 +47,7 @@ syntax FUN _ : _. _ := FUN_:.
 syntax the _ : _. _ := the_:.
 syntax some _ : _. _ := some_:.
 syntax such _ : _. _ := such_:.
-syntax {_ : _. _} := Collect_:.
+syntax { _ : _. _ } := Collect_:.
 
 infix ∈ 51 51 50.
 syntax ∀ _ ∈ _. _ := ∀∈.
@@ -57,7 +57,7 @@ syntax fun _ ∈ _. _ := fun_∈.
 syntax FUN _ ∈ _. _ := FUN_∈.
 syntax the _ ∈ _. _ := the_∈.
 syntax some _ ∈ _. _ := some_∈.
-syntax {_ ∈ _. _} := Collect_∈.
+syntax { _ ∈ _. _ } := Collect_∈.
 
 infix ⊆ 51 51 50.
 
@@ -81,7 +81,7 @@ infix ⊏ 51 51 50.
 syntax ∀ _ ⊏ _. _ := ∀⊏.
 syntax ∃ _ ⊏ _. _ := ∃⊏.
 syntax ∃! _ ⊏ _. _ := ∃!⊏.
-syntax {_ ⊏ _. _} := Collect_⊏.
+syntax { _ ⊏ _. _ } := Collect_⊏.
 
 infix ⊐ 51 51 50.
 

@@ -33,7 +33,8 @@ public:
 		MultiOp = 1 << 6,
 		Dot = 1 << 7,// .
 		DotBlank = 1 << 8,// special treatment of dot followed by blank
-		Underscore = 1 << 9,
+		Underscore = 1 << 9,// _ may connect letters and operators
+		Quote = 1 << 10,
 	};
 private:
 	struct _CharRange {
@@ -184,7 +185,6 @@ private:
 	size_t rp = 0;
 	// writes one character into the buffer
 	unsigned int fetch_char();
-	void fetch_continue( Lex::CharType t );
 public:
 	Lexer( std::istream&, std::string_view const&, Lex&& ) = delete;
 	Lexer( std::istream& is, std::string_view const& filename, Lex const& lex ) : plex(&lex), pis(&is), filename(filename), fetched_char_type(Lex::Blank), buf() {}
@@ -214,8 +214,15 @@ public:
 		return filename + ':' + std::to_string(read_line) + ':' + std::to_string(read_column);
 	}
 private:
-	bool _fetch_word_or_op();
-	void _fetch_follower();
+	bool _fetch_while( Lex::CharType t );
+	void _fetch_continue( Lex::CharType t );
+	bool _fetch_word_or_op() {
+		return _fetch_while( Lex::MultiOp ) || _fetch_word_or_num();
+	}
+	bool _fetch_word_or_num() {
+		return _fetch_while( Lex::Letter | Lex::Digit );
+	}
+	void _fetch_follower( Lex::CharType prevtype );
 };
 
 #endif

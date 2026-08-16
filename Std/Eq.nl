@@ -113,9 +113,9 @@ theory Dual :=-- aka C
 	assume dual_app#simp dual f x y = f y x.
 begin
 
-	definition[as _if] (⟸) = dual (⟹).
-	lemma _if_eq#simp (P ⟸ Q) = (Q ⟹ P);
-		simp _if_def.
+	definition[as revimp] (⟸) = dual (⟹).
+	lemma revimp_eq#simp (P ⟸ Q) = (Q ⟹ P);
+		simp revimp_def.
 
 end
 

@@ -141,9 +141,10 @@ Pair<fstream,string> file_of_thy( string_view const& dir, string_view const& nam
 }
 
 void init_lex( Lex& lex ) {
+	lex.register_char('_',Lex::Underscore);
+	lex.register_char('\'',Lex::Quote);
 	lex.register_char('!',Lex::MultiOp);
 	lex.register_range('#','&',Lex::MultiOp);
-	lex.register_char('\'',Lex::Letter);
 	lex.register_range('*','+',Lex::MultiOp);
 	lex.register_char(',',Lex::SingleOp);
 	lex.register_char('-',Lex::MultiOp);
