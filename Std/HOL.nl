@@ -59,7 +59,7 @@ definition SND = fun A B : TYPE, p : PROD A B. such y : B. ∃x : A. prod.Rep (A
 
 lemma PROD_type: PROD : TYPE → TYPE → TYPE; by prod.ABS_type #simp PROD_def.
 
-theory ProdProof A B :=
+theory Prod A B :=
 	assume A! A : TYPE.
 	assume B! B : TYPE.
 begin
@@ -80,26 +80,26 @@ begin
 	lemma#simp if [IS_PAIR A B p, p : A → B → Prop] then prod.Rep (A,B) (prod.Abs (A,B) p) = p;
 		apply prod.Rep_Abs.
 
+
+	lemma FST_PROD: if [x : A, y : B] then FST A B (COMMA A B x y) = x;
+		simp FST_def COMMA_def PROD_def;
+		apply the_eq_intro;
+		- apply ex_intro1[of y].
+		- for x' if ex, ...; apply ex_elim[OF ex];
+			- for y' if rep, ...; unfold rep[simp MK_PAIR_def, THEN and_elim1].
+			.
+		.
+
+	lemma SND_PROD: if [x : A, y : B] then SND A B (COMMA A B x y) = y;
+		simp SND_def COMMA_def PROD_def;
+		apply the_eq_intro;
+		- apply ex_intro1[of x].
+		- for y' if ex, ...; apply ex_elim[OF ex];
+			- for x' if rep, ...; unfold rep[simp MK_PAIR_def, THEN and_elim2].
+			.
+		.
+
 end
 
-
-lemma FST_PROD: if [A : TYPE, B : TYPE, x : A, y : B] then FST A B (COMMA A B x y) = x;
-	interpret ProdProof.
-	simp FST_def COMMA_def PROD_def;
-	apply the_eq_intro;
-	- apply ex_intro1[of y].
-	- for x' if ex, ...; apply ex_elim[OF ex];
-		- for y' if rep, ...; unfold rep[simp MK_PAIR_def, THEN and_elim1].
-		.
-	.
-
-lemma SND_PROD: if [A : TYPE, B : TYPE, x : A, y : B] then SND A B (COMMA A B x y) = y;
-	interpret ProdProof.
-	simp SND_def COMMA_def PROD_def;
-	apply the_eq_intro;
-	- apply ex_intro1[of x].
-	- for y' if ex, ...; apply ex_elim[OF ex];
-		- for x' if rep, ...; unfold rep[simp MK_PAIR_def, THEN and_elim2].
-		.
-	.
+thm Prod::FST_PROD.
 

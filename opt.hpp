@@ -66,6 +66,11 @@ public:
 		if(_opt) return *_opt;
 		return def;
 	}
+	/** @brief Copies the value or computes default. */
+	T operator||( std::function<T()> const& def ) const& {
+		if(_opt) return *_opt;
+		return def();
+	}
 	template<typename E>
 	T value_or_throw( E const& err ) {
 		if(_opt) return *_opt;
@@ -173,6 +178,11 @@ public:
 	T const& value_or( T const& def ) {
 		if(_ptr) return *_ptr;
 		return def;
+	}
+	/** @brief Copies the value or computes default. */
+	T operator||( std::function<T()> const& def ) const& {
+		if(_ptr) return *_ptr;
+		return def();
 	}
 	template<typename E>
 	T& value_or_throw( E const& err )& {

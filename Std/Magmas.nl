@@ -395,9 +395,7 @@ context PartialEquivalence begin
 
 	theory CommRingoid (*) (+) :=
 		import mul: CommMagma (*).
-		namespace add begin
-			import CommMagma (+), Monotone.
-		end
+		import add: CommMagma (+), add.Monotone.
 		import LeftDistributive A A (*) (+) (+).
 	begin
 		note! mul.closed add.closed.
@@ -415,9 +413,7 @@ context PartialEquivalence begin
 	theory Semiring :=
 		import Distributive.
 		import mul: Semigroup (*).
-		namespace add begin
-			import CommSemigroup (+), Monotone.
-		end
+		import add: CommSemigroup (+), add.Monotone.
 	begin
 		instance Ringoid.
 	end
@@ -425,9 +421,7 @@ context PartialEquivalence begin
 	theory SemiringAbsorb (*) (+) 0 :=
 		import Distributive.
 		import mul: SemigroupAbsorb (*) 0.
-		namespace add begin
-			import CommMonoid (+) 0, Monotone.
-		end
+		import add: CommMonoid (+) 0, add.Monotone.
 	begin
 		instance? Semiring.
 	end
@@ -440,9 +434,7 @@ context PartialEquivalence begin
 	theory CommSemiring (*) (+) :=
 		import LeftDistributive A A (*) (+) (+).
 		import mul: CommSemigroup (*).
-		namespace add begin
-			import CommSemigroup (+), Monotone.
-		end
+		import add: CommSemigroup (+), add.Monotone.
 	begin
 		instance CommRingoid, Semiring.
 	end
@@ -558,12 +550,8 @@ context PartialEquivalence begin
 	end
 
 	theory GroupCancel (*) 1 (/) :=
-		import Semigroup (*), Monotone, LeftNeutral 1.
-		import RightQuasiGroup (*) (/).
-		namespace cancel begin
-			import LeftMonotone A A (/).
-			import RightAssociative A (*) (/).
-		end
+		import Semigroup (*), Monotone, LeftNeutral 1, RightQuasiGroup (*) (/).
+		import cancel: LeftMonotone A A (/), RightAssociative A (*) (/).
 	begin
 
 		lemma cancel_self: if [x ∈ A] then x / x ~ 1;
@@ -603,11 +591,10 @@ context PartialEquivalence begin
 	theory CommGroupCancel (*) 1 (/) :=
 		import CommMonoid (*) 1, Monotone.
 		import RightCancel (/).
-		import cancel: Magmas.RightCancellation A A (/) (*).
-		namespace cancel begin
-			import LeftMonotone A A (/).
-			import RightAssociative A (*) (/).
-		end
+		import cancel:
+			Magmas.RightCancellation A A (/) (*),
+			LeftMonotone A A (/),
+			RightAssociative A (*) (/).
 	begin
 
 		instance GroupCancel.

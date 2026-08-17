@@ -257,12 +257,35 @@ public:
 		}
 		return ret;
 	}
+	auto reader() const& {
+		return [&]( Thy& thy, istream& fis, std::filesystem::path const& filepath ){
+			if SYS {
+				cout << _indent(' ') << "loading " << filepath << endl;
+			}
+			Prover(thy,fis,filepath,lex,true,_out_load,_out_load,_depth+1).loop();
+			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
+				cout << _indent(' ') << "loaded " << filepath << endl;
+			}
+		};
+	}
 	Opt<Thm> _gets_thm( Thy& thy, bool root ) {
 		auto const& opt = gets_thm_name();
 		if( !opt ) {
 			return {};
 		}
-		Thm ret = thy.thm(*opt);
+		Thm ret = skips("::") ? [&]{// name is a theory name
+			auto loc = thy.thy(*opt,reader()).source();
+			auto name = get_thm_name();
+			while( skips("::") ) {
+				loc = loc.thy(name,reader()).source();
+				name = get_thm_name();
+			}
+			Thm ret = loc.thm(name);
+			while( ret.ctxt() != thy ) {
+				ret = ret.intro();
+			}
+			return ret;
+		}() : thy.thm(*opt);
 		while( skips("[") ) {
 			auto loc = thy.branch();
 			auto tmp = loc.weaken(ret);
@@ -750,17 +773,6 @@ public:
 			p->retain(sym_term,thm);
 		}
 	}
-	auto reader() const& {
-		return [&]( Thy& thy, istream& fis, std::filesystem::path const& filepath ){
-			if SYS {
-				cout << _indent(' ') << "loading " << filepath << endl;
-			}
-			Prover(thy,fis,filepath,lex,true,_out_load,_out_load,_depth+1).loop();
-			if ( SYS && _out_load & (FLAG_CTXT|FLAG_THY) ) {
-				cout << _indent(' ') << "loaded " << filepath << endl;
-			}
-		};
-	}
 	static auto _mkpath( Opt<string const&> prefix ) {
 		return prefix ?
 			(function<string(string const&)>)[&]( string const& name ){ return *prefix + '.' + name; } :
@@ -822,7 +834,6 @@ public:
 	}
 */
 	struct ImportPrefix {
-		string name;
 		Opt<string> default_prefix = {};
 		Opt<string> optional_prefix = {};
 		Opt<string> forced_prefix = {};
@@ -840,43 +851,34 @@ public:
 		}
 		return os;
 	}
-	ImportPrefix get_import_prefix() {
-		ImportPrefix ret;
-		if( skips("?") ) {// weak unnamed import
-			ret.name = get_thm_name();
-			ret.default_prefix = {NONREC_IMPORT};
-			ret.canonical_prefix = true;
-			ret.override = false;
-		} else if( skips("!") ) {// expansive unnamed import
-			ret.name = get_thy_name();
-			ret.default_prefix = {""};
-			ret.canonical_prefix = true;
-			ret.rec = true;
-		} else if( skips(":") ) {// canonically qualified import
-			ret.name = get_thy_name();
-			ret.canonical_prefix = true;
-		} else {
-			string str1 = get_thy_name();
-			if( skips(":") ) {// qualified import
-				ret.name = get();
-				ret.forced_prefix = {str1};
-			} else if( skips("!") ) {// qualified recursive
-				ret.name = get();
-				ret.forced_prefix = {str1};
-				ret.rec = true;
-			} else if( skips("?") ) {// optionally qualified
-				ret.name = get();
-				ret.default_prefix = {""};
-				ret.optional_prefix = {str1};
-				ret.override = false;
-			} else {// unqualified
-				ret.name = str1;
-				ret.default_prefix = {""};
-				ret.canonical_prefix = true;
-				ret.rec = false;
-			}
-		}
-		return std::move(ret);
+	Sum<ImportPrefix,string> get_import_prefix() {
+		if( skips("?") ) return ImportPrefix{// weak unnamed import
+			.default_prefix = {NONREC_IMPORT},
+			.canonical_prefix = true,
+			.override = false,
+		};
+		if( skips("!") ) return ImportPrefix{// expansive unnamed import
+			.default_prefix = {""},
+			.canonical_prefix = true,
+			.rec = true,
+		};
+		if( skips(":") ) return ImportPrefix{// canonically qualified import
+			.canonical_prefix = true,
+		};
+		string str1 = get_thy_name();
+		if( skips(":") ) return ImportPrefix{// qualified import
+			 .forced_prefix = {str1},
+		};
+		if( skips("!") ) return ImportPrefix{// qualified recursive
+			.forced_prefix = {str1},
+			.rec = true,
+		};
+		if( skips("?") ) return ImportPrefix{// optionally qualified
+			.default_prefix = {""},
+			.optional_prefix = {str1},
+			.override = false,
+		};
+		return str1;// unqualified
 	};
 	void add_import( ImportPrefix const& pref, Import const& import ) {
 		auto src = import.source();
@@ -899,40 +901,47 @@ public:
 		}
 	};
 	void import( bool change ) {
-		ImportPrefix pref = get_import_prefix();
-		auto intp = _thy.thy(pref.name,reader());
-		if( intp.source() == _thy ) throw Error("\"self import\"");
-		vector<CTerm> insts;
-		if( change ) {
-			while( auto const& t = gets_term(1000) ) {
-				insts.emplace_back(_thy.enclose(*t));
+		auto o = get_import_prefix();
+		string name = o.ref<string>() || [this]{ return get_thy_name(); };
+		ImportPrefix pref = o.ref<ImportPrefix>() || []{ return ImportPrefix{ .default_prefix = {""} }; };
+		for(;;) {
+			auto intp = _thy.thy(name,reader());
+			if( intp.source() == _thy ) throw Error("\"self import\"");
+			vector<CTerm> insts;
+			if( change ) {
+				while( auto const& t = gets_term(1000) ) {
+					insts.emplace_back(_thy.enclose(*t));
+				}
+			} else {
+				while( auto const& t = gets_term(1000) ) {
+					insts.emplace_back(_thy.cterm(*t));
+				}
 			}
-		} else {
-			while( auto const& t = gets_term(1000) ) {
-				insts.emplace_back(_thy.cterm(*t));
+			bool success = true;
+			if( skips(";") ) {
+				auto const& path = intp.source().print_path();
+				PR_MSG << (change ? "importing " : "interpreting ") << pref << path << endl;
+				_depth++;
+				success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
+				_depth--;
+				if( success ) {
+					add_import(pref,intp);
+					PR_THY << ( change ? "imported " : "interpreted " ) << pref << path << endl;
+				}
+				return;
 			}
-		}
-		bool success = true;
-		if( skips(";") ) {
-			auto const& path = intp.source().print_path();
-			PR_MSG << (change ? "importing " : "interpreting ") << pref << path << endl;
-			_depth++;
-			success = _import_loop(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
-			_depth--;
-			if( success ) {
+			if( skips(",") ) {
+				_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 				add_import(pref,intp);
-				PR_THY << ( change ? "imported " : "interpreted " ) << pref << path << endl;
-			}
-		} else if( skips(",") ) {
-			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
-			add_import(pref,intp);
-			PR_THY << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
-			return import(change);
-		} else {
+				PR_THY << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
+				name = get_thy_name();
+				continue;
+			} 
 			skip(".");
 			_auto_import(pref.forced_prefix,pref.forced_prefix,intp,change,insts);
 			PR_THY << ( change ? "imported " : "interpreted " ) << pref << intp.source().print_path() << endl;
 			add_import(pref,intp);
+			return;
 		}
 	}
 	size_t _print_import_goal( Import const& intp, size_t i, string const& pre ) {
@@ -1728,9 +1737,11 @@ public:
 				PR_MSG << "left " << path << endl;
 			}
 		} else if( skips("extend") ) {
-			auto pref = get_import_prefix();
+			auto o = get_import_prefix();
+			string name = o.ref<string>() || [this]{ return get_thy_name(); };
+			ImportPrefix pref = o.ref<ImportPrefix>() || []{ return ImportPrefix{ .default_prefix = {""} }; };
 			Thy parent = _thy;
-			auto src2parent = parent.thy(pref.name,reader());
+			auto src2parent = parent.thy(name,reader());
 			auto src = src2parent.source();
 			auto loc = parent.branch(src.name(),"");
 			vector<CTerm> insts;
@@ -1790,13 +1801,6 @@ public:
 				loop();
 			});
 			PR_MSG << "left " << loc.print_path() << endl;
-		} else if( skips("namespace") ) {
-			auto name = get(Lexer::WORD);
-			skip("begin");
-			PR_THY << "creating namespace " << name << endl;
-			auto loc = _thy.scope(name);
-			local_thy(loc,[this]{ loop(); });
-			PR_MSG << "created namespace " << name << endl;
 		} else if ( skips("lemma") || skips("theorem") || skips("proposition") ) {
 			auto o = _state();
 			if MSG if( o ) {

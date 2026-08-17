@@ -5,10 +5,26 @@ import Id, Const, Comp, Dual, BindComb.
 
 begin
 
+---
+## Helper Combinators
+---
+
 definition app = (id ∘).
 
-lemma app#simp app f x = f x;
-	simp app_def.
+lemma app#simp app f x = f x; by #simp app_def.
+
+-- Reverse application yields Church encoding of pairs.
+
+definition[as revapp] (|>) = dual id.
+
+lemma revapp#simp x |> f = f x; by #simp revapp_def.
+
+lemma : ((z |>) ∘ (y |>) ∘ (x |>)) f = f x y z.
+
+definition paracomp = dual ((∘) ∘ dual (∘)).
+
+lemma paracomp_app#simp paracomp f g x y = f x (g y); by #simp paracomp_def.
+
 
 definition _BindApp = (dual ((∘) ∘ _BindAppBind) _BindConst).
 
@@ -108,53 +124,11 @@ begin
 
 end
 
-definition paracomp = dual ((∘) ∘ dual (∘)).
+---
+## Defining Type-Free Logical Operators
 
-lemma paracomp_app#simp paracomp f g x y = f x (g y); by #simp paracomp_def.
-
-definition[as revapp] (|>) = dual id.
-
-lemma revapp#simp x |> f = f x; by #simp revapp_def.
-
-lemma : ((z |>) ∘ (y |>) ∘ (x |>)) f = f x y z.
-
-obtain pair_tp where pair_tp_spec:
-	if	pair = pair_tp (const ∘ dual const),
-		fst = pair_tp (const const),
-		snd = pair_tp (const ∘ const),
-		(∀x y. fst (pair x y) = x) ⟹
-		(∀x y. snd (pair x y) = y) ⟹ P
-	then P;
-	- for thesis if assm;
-		apply assm[of ((dual ((∘) ∘ dual ∘ dual id) id |>) ∘ ((const |>) |>) ∘ ((dual const |>) |>))];
-		- for pair if pair0 for fst if fst0 for snd if snd0 for P if assm2;
-			apply assm2;
-			- for x y; simp fst0 pair0.
-			- for x y; simp snd0 pair0.
-			.
-		.
-	.
-
-definition[as pair] (,) = pair_tp (const ∘ dual const).
-definition fst = pair_tp (const const).
-definition snd = pair_tp (const ∘ const).
-
-instance Pair;
-	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
-	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
-	.
-
-definition uncurry = dual ((∘) ∘ (∘)) (,).
-
-lemma uncurry#simp uncurry f x y = f (x,y);
-	simp uncurry_def.
-
-definition pair_assoc = dual ((∘) ∘ (∘) ∘ (,)) (,).
-
-lemma pair_assoc#simp pair_assoc x y z = (x,y,z);
-	simp pair_assoc_def.
-
-
+We can derive intuitionistic logic operators, except for `(⟺)`.
+---
 definition false = (∀P. P).
 
 definition[as not] (¬) = (false ⟸).
@@ -223,9 +197,75 @@ instance Ex;
 		.
 	.
 
+---
+## Restricted Quantifiers
+---
+
 definition all_rel = (((∀) ∘) ∘) ∘ _BinderApp (_BinderApp _BindAppBind) (y. ((⟹) ∘) ∘ dual id y).
 
-lemma all_rel_elim1: if all: all_rel (⊏) a (x. P.[x]) then (∀x. x ⊏ a ⟹ P.[x]);
-	by #simp all_rel_def.
+lemma all_rel_intro: if assm: ∀x. x ⊏ a ⟹ P.[x] then all_rel (⊏) a (x. P.[x]);
+	simp all_rel_def;
+	- for x; simp; by assm.
+	.
 
-end
+lemma all_rel_elim1: if all: all_rel (⊏) a (x. P.[x]), x: x ⊏ a then P.[x];
+	by all[simp all_rel_def, of x, simp, OF x].
+
+definition ex_rel = (((∃) ∘) ∘) ∘ _BinderApp (_BinderApp _BindAppBind) (y. ((∧) ∘) ∘ dual id y).
+
+lemma ex_rel_intro1: if x: x ⊏ a, Px: P.[x] then ex_rel (⊏) a (x. P.[x]);
+	simp ex_rel_def;
+	apply ex_intro1[of x]; by x Px.
+
+lemma ex_rel_elim: if ex: ex_rel (⊏) a (x. P.[x]), assm: ∀x. x ⊏ a ⟹ P.[x] ⟹ Q then Q;
+	apply ex[simp ex_rel_def, THEN ex_elim];
+	- for x if assm2;
+		use assm2[simp]; by assm[of x].
+	.
+
+---
+## Instantiating Pairs
+
+We can already encode pairs by combinators, but letting pairs behave as functions can be confusing.
+So we abstract the encoding by obtaining the three operators just with the specifications
+`fst (pair x y) = x` and `snd (pair x y) = y`.
+Since NLT kernel does not support simultaneous specification of multiple constants, we actually use
+a combinator encoding to represent the tuple `(pair,fst,snd)`.
+---
+
+obtain pair_tp where pair_tp_spec:
+	if	pair = pair_tp (const ∘ dual const),
+		fst = pair_tp (const const),
+		snd = pair_tp (const ∘ const),
+		(∀x y. fst (pair x y) = x) ⟹
+		(∀x y. snd (pair x y) = y) ⟹ P
+	then P;
+	- for thesis if assm;
+		apply assm[of ((dual ((∘) ∘ dual ∘ dual id) id |>) ∘ ((const |>) |>) ∘ ((dual const |>) |>))];
+		- for pair if pair0 for fst if fst0 for snd if snd0 for P if assm2;
+			apply assm2;
+			- for x y; simp fst0 pair0.
+			- for x y; simp snd0 pair0.
+			.
+		.
+	.
+
+definition[as pair] (,) = pair_tp (const ∘ dual const).
+definition fst = pair_tp (const const).
+definition snd = pair_tp (const ∘ const).
+
+instance Pair;
+	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
+	- for x y; apply pair_tp_spec[OF pair_def fst_def snd_def].
+	.
+
+definition uncurry = dual ((∘) ∘ (∘)) (,).
+
+lemma uncurry#simp uncurry f x y = f (x,y);
+	simp uncurry_def.
+
+definition pair_assoc = dual ((∘) ∘ (∘) ∘ (,)) (,).
+
+lemma pair_assoc#simp pair_assoc x y z = (x,y,z);
+	simp pair_assoc_def.
+
