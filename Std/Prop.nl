@@ -152,10 +152,10 @@ end
 The presence of the choice operator requires that every type `A` is inhabited.
 We can accommodate empty types by restricting `A` to belong to a certain class `CTYPE`.
 ---
-theory TypedSome CTYPE :=
-	fix some_:.
-	assume some_type! if A : CTYPE, ∀x. x : A ⟹ P.[x] : Prop then (some x : A. P.[x]) : A.
-	assume some_intro1: for x if P.[x], A : CTYPE, x : A, ∀x. x : A ⟹ P.[x] : Prop then P.[some z : A. P.[z]].
+theory AnySuchTyped CTYPE :=
+	fix such_:.
+	assume such_type! if A : CTYPE, ∀x. x : A ⟹ P.[x] : Prop then (such x : A. P.[x]) : A.
+	assume such_intro1: for x if P.[x], A : CTYPE, x : A, ∀x. x : A ⟹ P.[x] : Prop then P.[such z : A. P.[z]].
 begin
 
 

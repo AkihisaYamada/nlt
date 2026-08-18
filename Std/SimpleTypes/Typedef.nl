@@ -105,7 +105,7 @@ begin
 	lemma tp_eq: tp = (ABS,Abs,Rep);
 		apply tp_is_tuple;
 		- if eq: tp = (ABS',Abs',Rep');
-			unfold eq ABS_def Abs_def Rep_def.
+			unfold! eq ABS_def Abs_def Rep_def.
 		.
 
 	lemma ABS_type: ABS : ARG → TYPE;
@@ -116,14 +116,16 @@ begin
 		- if 1, 2, 3, 4, 5, 6;
 			by 2[OF X].
 		.
+	note Abs_type1: Abs_type[THEN to_elim1].
 
 	lemma Rep_type: if X: X : ARG then Rep X : ABS X → REP.[X];
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
 			by 3[OF X].
 		.
+	note Rep_type1: Rep_type[THEN to_elim1].
 
-	lemma Abs: if X: X : ARG, a: a : ABS X then pred X (Rep X a);
+	lemma Rep: if X: X : ARG, a: a : ABS X then pred X (Rep X a);
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
 			by 4[OF X a].
@@ -140,5 +142,7 @@ begin
 		- if 1, 2, 3, 4, 5, 6;
 			by 6[OF X x px].
 		.
+	lemma Rep_eq_imp_Abs_eq: if [X : ARG, a : ABS X], Rep: Rep X a = x then Abs X x = a;
+		fold Rep; apply Abs_Rep.
 
 end

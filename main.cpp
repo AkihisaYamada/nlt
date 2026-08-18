@@ -241,14 +241,13 @@ public:
 		}
 		ret.min = 1;
 		ret.max = 0;
-		ret.normalize = rep == 0 && normalize || skips("+");
+		ret.normalize = rep == 0 && normalize || skips("!");
 		while( auto const& arg = _gets_thm(loc,true) ) {
 			auto rule = *arg;
 			if( rev ) {
 				rule = loc.dualize(rule,resolver);
 			}
 			resolver.rew->add_rewrite_rule(resolver.rules,rule,false);
-			ret.max++;
 		}
 		if( rep > 0 ) {
 			ret.min = ret.max = rep;
@@ -1866,12 +1865,16 @@ public:
 				if( !more ) return thesis.discharge_all();
 				if MSG print_goals( thesis, ex + " goals:\n\t" );
 			} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
-				auto inf = _thy.resolver(_out_resolver);
-				auto ctrl = _get_rewrite( inf, _thy, mode == 2, false );
-				bool more = _proof_follows();
-				inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
-				if( !more ) return thesis.discharge_all();
-				if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
+				for(;;) {
+					auto inf = _thy.resolver(_out_resolver);
+					auto ctrl = _get_rewrite( inf, _thy, mode == 2, false );
+					inf.rewrites(thesis,{},ctrl.min,ctrl.max,ctrl.normalize,true,ctrl.pos,ctrl.rel);
+					if( skips(",") ) continue;
+					if( skips(".") ) return thesis.discharge_all();
+					skip(";");
+					if MSG print_goals( thesis, mode == 2 ? "folded goals:\n\t" : "unfolded goals:\n\t" );
+					break;
+				}
 			} else if( skips("rewrite") ) {
 				auto inf = _thy.resolver(_out_resolver);
 				auto ctrl = _get_rewrite(inf,_thy,false,false);
@@ -1941,9 +1944,10 @@ public:
 				auto claim = _thy.cterm(rel1)(s)(t);
 				auto thm = _thy.trans(rel1,rel3).allE(s).allE(t);// s = t ⟹ ∀u. t = u ⟹ s = u
 				if( skips(";") ) {
-					auto subthesis = Thesis::claim_exact(_thy,claim);
+					auto subthy = _thy.scope_temp("#by");
+					auto subthesis = Thesis::claim_exact(subthy,claim);
 					if MSG {
-						cout << _indent(' ') << "chaining: " << _thy.pretty(claim) << endl;
+						cout << _indent(' ') << "chaining: " << subthy.pretty(claim) << endl;
 						_depth++;
 					} else {
 						_depth++;

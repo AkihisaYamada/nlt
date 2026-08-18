@@ -15,7 +15,6 @@ lemma not_false: ¬false.
 lemma not_false_iff#simp ¬false ⟺ true;
 	apply iff_true.
 
-
 lemma not_imp_false: if nP: ¬P, P: P, [P : Prop] then false;
 	by not_elim[OF nP P].
 
@@ -42,6 +41,8 @@ lemma false_iff_iff_not#simp if [P : Prop] then (false ⟺ P) ⟺ ¬P;
 	by iff_false_iff_not.
 
 instance ExplosiveNot.False.
+
+
 
 extend Membership begin
 

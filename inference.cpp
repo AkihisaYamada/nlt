@@ -223,6 +223,12 @@ bool Resolver::_discharge(
 	Opt<std::string const&> simp,
 	size_t elim_res_ind
 ) & {
+	if( fuel == 0 ) {
+		if( fail ) return false;
+		if( log > 6 ) cerr_proof_thms(thesis.thy());
+		throw Error("\"discharge limit exceeded\"")(thesis.goal());
+	}
+	fuel--;
 	auto subthy = thesis.thy().branch();
 	auto goal = subthy.weaken(thesis.goal());
 	if( log > 4 ) _log() << "{ resolving: " << subthy.pretty(goal) << endl;
@@ -244,11 +250,6 @@ bool Resolver::_discharge(
 		};
 	};
 	for(;;) {// strip all assumptions
-		if( fuel == 0 ) {
-			if( fail ) return false;
-			if( log > 6 ) cerr_proof_thms(thesis.thy());
-			throw Error("\"discharge limit exceeded\"")(thesis.goal());
-		}
 		goal = strip_all(goal,subthy);
 		auto imp = goal.cbinary(IMP);
 		if( !imp ) break;// no more assumption
@@ -273,7 +274,6 @@ bool Resolver::_discharge(
 		}
 		return {};
 	} ) ) {
-		fuel--;
 		auto subthesis = Thesis::claim_exact(subthy,goal);
 		auto const& subgoal_child = subthy.branch();
 		auto const& sub2subsub = *subgoal_child.parent();

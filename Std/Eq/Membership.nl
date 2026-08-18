@@ -22,22 +22,62 @@ begin
 end
 
 theory Injective f A :=
-	assume injective: if x ∈ A, x' ∈ A, f x = f x' then x = x'.
+	assume injective: if f x = f x', x ∈ A, x' ∈ A then x = x'.
 end
 
-theory Inverse f A g :=
+theory Inversive f A g :=
 	assume inverse: if x ∈ A then g (f x) = x.
+begin
+
+	instance Injective f A;
+		- if eq: f x = f x', ... then x = x';
+			.. = g (f x); by #simp inverse.
+			.. = g (f x'); by #simp eq.
+			by #simp inverse.
+		.
+
+end
+
+---
+## Additional Postulates
+---
+
+theory Image :=
+	fix (`).
+	assume app_in_image: if x ∈ A then f x ∈ f ` A.
+	assume image_elim: if y ∈ f ` A, ∀x. y = f x ⟹ x ∈ A ⟹ P then P.
+begin
+
+	lemma image_intro1: for x if y: y = f x, x: x ∈ A then y ∈ f ` A;
+		unfold y; apply app_in_image, x.
+
+	lemma image_intro: if assm: ∀P. (∀x. y = f x ⟹ x ∈ A ⟹ P) ⟹ P then y ∈ f ` A;
+		apply assm;
+		- for x; by image_intro1[of x].
+		.
+		
+
 end
 
 theory Prod :=
 	import Pair.
 	fix (×).
-	assume pair_intro1! if x ∈ A, y ∈ B then (x,y) ∈ A × B.
-	assume pair_elim: if xy ∈ A × B, ∀x y. xy = (x,y) ⟹ x ∈ A ⟹ y ∈ B ⟹ thesis then thesis.
-end
+	assume prod_intro1! if x ∈ A, y ∈ B then (x,y) ∈ A × B.
+	assume prod_pair_elim: for P if p ∈ A × B, ∀x. x ∈ A ⟹ ∀y. y ∈ B ⟹ P.[(x,y)] then P.[p].
+begin
 
-theory Abbrev :=
-	assume abbrev: for F if ∀f. (∀A x. F.[x] ∈ A ⟹ f x = F.[x]) ⟹ P then P.
+	lemma prod_cases: if p: p ∈ A × B, assm: ∀x y. p = (x,y) ⟹ x ∈ A ⟹ y ∈ B ⟹ P then P;
+		use eq.refl[of p];
+		apply prod_pair_elim[of (q. p = q ⟹ P), OF p]>1;
+		- if [x ∈ A, y ∈ B], p: p = (x,y);
+			by assm[OF p].
+		.
+
+	lemma prod_exhaust: if p: p ∈ A × B then (fst p, snd p) = p;
+		apply prod_cases[OF p];
+		- if p: p = (x,y), ...;
+			simp p.
+		.
 end
 
 theory FunIn :=
@@ -54,6 +94,12 @@ end
 
 theory FunTo :=
 	import FunIn, base.FunTo.
+begin
+
+	theory Ext :=
+		assume ext: if ∀x. x ∈ A ⟹ f x = g x, f ∈ A → B, g ∈ A → B then f = g.
+	end
+
 end
 
 theory PolyFun :=

@@ -24,7 +24,7 @@ lemma eq_prop2#intro[after 1] if [y : A, A : EQTYPE, x : A] then x = y : Prop;
 
 instance Eq_Membership? Eq.Membership (:).
 
-theory Ex1Type :=
+theory Ex1Typed :=
 	fix (∃!:).
 	assume EX1_prop! if A : EQTYPE, ∀x. x : A ⟹ P.[x] : Prop then (∃!x : A. P.[x]) : Prop.
 	assume EX1_intro1: for x A P
@@ -36,17 +36,24 @@ theory Ex1Type :=
 		then Q.
 end
 
-theory TypedThe :=
-	fix the_:.
-	assume the_type! if A : EQTYPE, ∀x. x : A ⟹ P.[x] : Prop then (the x : A. P.[x]) : A.
-	assume the_intro1: for x
+theory IfTyped :=
+	fix IF.
+	assume IF_then: if P, A : EQTYPE, P : Prop, t : A, e : A then IF A P t e = t.
+	assume IF_else: if P ⟹ t = e, A : EQTYPE, P : Prop, t : A, e : A then IF A P t e = e.
+end
+
+theory UniqueSuchTyped :=
+	fix such_:.
+	assume such_type! if A : EQTYPE, ∀x. x : A ⟹ P.[x] : Prop then (such x : A. P.[x]) : A.
+	assume unique_such_intro1: for x
 		if P.[x], ∀y. P.[y] ⟹ y : A ⟹ x = y, A : EQTYPE, x : A, ∀z. z : A ⟹ P.[z] : Prop
-		then P.[the z : A. P.[z]].
+		then P.[such z : A. P.[z]].
 begin
 
-	lemma the_eq_intro:
+	lemma such_eq_intro:
 		if Px: P.[x], uniq: ∀y. P.[y] ⟹ y : A ⟹ x = y, [A : EQTYPE, x : A, ∀z. z : A ⟹ P.[z] : Prop]
-		then (the z : A. P.[z]) = x;
-		apply eq.sym, uniq, the_intro1[OF Px uniq].
+		then (such z : A. P.[z]) = x;
+		apply eq.sym, uniq, unique_such_intro1[OF Px uniq].
+
 
 end

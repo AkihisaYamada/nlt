@@ -1,26 +1,64 @@
 ---
 ## Propositional Minimal Logic
 ---
-import True, And, Or, Not, MinimalNot, Iff.
+import True, False, And, Or, Not, MinimalNot, Iff.
 
 begin
 
 lemma not_cong#cong if PQ: P ⟺ Q, [P : Prop, Q : Prop] then ¬ P ⟺ ¬ Q;
 	by iff_intro #elim not_imp_imp_not #simp PQ.
 
-lemma or_cong#cong
-	if P: P ⟺ P', Q: Q ⟺ Q', [P : Prop, Q : Prop, P' : Prop, Q' : Prop]
-	then P ∨ Q ⟺ P' ∨ Q';
-	apply iff_intro;
-	- if PQ; apply or_elim[OF PQ];
-		- by or_intro1 #simp P.
-		- by or_intro2 #simp Q.
+instance and: iff.CommMonoidAbsorb (∧) false true;
+	by iff_intro #elim iff_elim false_elim.
+
+note#cong and.cong.
+note#simp and.left_neutral and.right_neutral and.left_absorb and.right_absorb.
+
+instance or: iff.CommMonoidAbsorb (∨) true false;
+	- if [P : Prop, Q : Prop, R : Prop] then P ∨ Q ∨ R ⟺ P ∨ (Q ∨ R);
+		apply iff_intro;
+		- if PQR; apply or_elim[OF PQR];
+			- if PQ; apply or_elim[OF PQ];
+				- if P; apply or_intro1, P.
+				- if Q; apply or_intro2, or_intro1, Q.
+				.
+			- if R; apply or_intro2, or_intro2, R.
+			.
+		- if PQR; apply or_elim[OF PQR];
+			- if P; apply or_intro1, or_intro1, P.
+			- if QR; apply or_elim[OF QR];
+				- if Q; apply or_intro1, or_intro2, Q.
+				- if R; apply or_intro2, R.
+				.
+			.
 		.
-	- if PQ'; apply or_elim[OF PQ'];
-		- by or_intro1 #simp P[dual].
-		- by or_intro2 #simp Q[dual].
+	- if [P : Prop, Q : Prop] then P ∨ Q ⟺ Q ∨ P;
+		apply iff_intro;
+		- if PQ; apply or.sym[OF PQ].
+		- if QP; apply or.sym[OF QP].
 		.
+	- if QQ': Q ⟺ Q', [P : Prop, Q : Prop, Q' : Prop] then P ∨ Q ⟺ P ∨ Q';
+		apply iff_intro;
+		- if PQ; apply or_elim[OF PQ];
+			- if P; apply or_intro1[OF P].
+			- if Q; apply or_intro2[OF Q[unfold QQ']].
+			.
+		- if PQ'; apply or_elim[OF PQ'];
+			- if P; apply or_intro1[OF P].
+			- if Q'; apply or_intro2[OF Q'[fold QQ']].
+			.
+		.
+	- if [P : Prop] then false ∨ P ⟺ P;
+		apply iff_intro;
+		- if fP; apply or_elim[OF fP]; by #elim false_elim.
+		- if P; apply or_intro2[OF P].
+		.
+	- if [P : Prop] then true ∨ P ⟺ true;
+		by iff_intro or_intro1.
 	.
+
+note#cong or.cong.
+note#simp or.left_neutral or.right_neutral or.left_absorb or.right_absorb.
 
 lemma not_iff_imp_not_true: if [P : Prop] then ¬P ⟺ (P ⟹ ¬true);
 	apply iff_intro;

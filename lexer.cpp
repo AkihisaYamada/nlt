@@ -272,9 +272,26 @@ string_view Lexer::peek_token() {
 		_fetch_follower(Lex::MultiOp);
 		token_type = OPERATOR;
 		break;
-	case Lex::Quote:// 'c'
-		throw Error("\"unexpected (')\"");
-		break;
+	case Lex::Quote: {
+		fetch_char();
+		rp = wp;// anything following quote is read
+		auto first_quote_type = fetched_char_type;
+		fetch_char();
+		if( fetched_char_type == Lex::Quote ) {// 'a'
+			rp = wp;
+			fetched_char_type = Lex::None;
+			token_type = WORD;
+			break;
+		}
+		if( first_quote_type & ( Lex::Letter | Lex::Digit ) ) {
+			if( _fetch_while( Lex::Letter | Lex::Digit ) ) {
+				_fetch_follower(Lex::Letter);
+			}
+			token_type = WORD;
+			break;
+		}
+		throw SyntaxError("\"unsupported token\"");
+	} break;
 	case Lex::Letter:
 		_fetch_continue( Lex::Letter | Lex::Digit );
 		_fetch_follower(Lex::Letter);
@@ -306,12 +323,12 @@ void Lexer::_fetch_follower( Lex::CharType prevtype ) {
 				_fetch_word_or_op();
 				continue;
 			}
-		case Lex::SingleOp:
 			if( _fetch_while(Lex::Quote) ) {
 				prevtype = fetched_char_type;
 				_fetch_word_or_num();
 				continue;
 			}
+		case Lex::SingleOp:
 			if( fetched_char_type == Lex::Dot ) {
 				auto old_wp = wp;// TODO
 				fetch_char();

@@ -27,9 +27,8 @@ import Eq, Membership (:), FunTo (fun_:).
 
 ---
 Church does not introduce a formal notation for $α$	being a type. We will use `α : TYPE` following Martin-Löf.
-This choice makes this theory stronger than the original, as type abstraction `fun α : TYPE. F.[α]` is permitted.
-It also allows type synonyms. 
-
+This design choice allows type abstraction `fun α : TYPE. F.[α]` and thus type synonyms,
+which Church informally uses for the notation `α'` to denote `(αα)(αα)`, or `(α → α) → α → α` in modern notation.
 ---
 fix TYPE.
 
