@@ -14,7 +14,8 @@ assume prop_eqtype! Prop : EQTYPE.
 begin
 
 ---
-If one side of an equation is typed, then one should try to type check the other.
+If one side of an equation is typed, then one should type check the other.
+However, it is not the case e.g. subtypes are considered.
 ---
 lemma eq_prop1#intro[after 1] if [x : A, A : EQTYPE, y : A] then x = y : Prop;
 	apply eq_prop[of A].

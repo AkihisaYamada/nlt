@@ -330,8 +330,6 @@ public:
 					auto auto_prems = vector<CTerm>();// number of heads to be automatically discharged
 					for(;;) {
 						strip_thm = strip_all(strip_thm,var_ctxt).first;
-						auto imp = strip_thm.cbinary(IMP);
-						if( !imp ) break;
 						char mode;
 						if( skips("_") ) {// assume the premise
 							mode = 1;
@@ -351,6 +349,8 @@ public:
 						} else {
 							break;
 						}
+						auto imp = strip_thm.cbinary(IMP);
+						if( !imp ) throw Error("\"no premise\"")(strip_thm);
 						strip_thm = strip_thm.impE(strip_ctxt.assume(imp->first));
 						auto reorder_prem = reorder_ctxt.weaken(imp->first.lift());
 						switch( mode ) {
@@ -839,6 +839,7 @@ public:
 		bool canonical_prefix = false;
 		bool override = true;
 		bool rec = false;
+		bool rewrite = true;
 	};
 	friend ostream& operator<<( ostream& os, ImportPrefix const& pref ) {
 		if( pref.forced_prefix ) {
@@ -850,59 +851,68 @@ public:
 		}
 		return os;
 	}
-	Sum<ImportPrefix,string> get_import_prefix() {
-		if( skips("?") ) return ImportPrefix{// weak unnamed import
-			.default_prefix = {NONREC_IMPORT},
-			.canonical_prefix = true,
-			.override = false,
-		};
-		if( skips("!") ) return ImportPrefix{// expansive unnamed import
-			.default_prefix = {""},
-			.canonical_prefix = true,
-			.rec = true,
-		};
-		if( skips(":") ) return ImportPrefix{// canonically qualified import
-			.canonical_prefix = true,
-		};
-		string str1 = get_thy_name();
-		if( skips(":") ) return ImportPrefix{// qualified import
-			 .forced_prefix = {str1},
-		};
-		if( skips("!") ) return ImportPrefix{// qualified recursive
-			.forced_prefix = {str1},
-			.rec = true,
-		};
-		if( skips("?") ) return ImportPrefix{// optionally qualified
-			.default_prefix = {""},
-			.optional_prefix = {str1},
-			.override = false,
-		};
-		return str1;// unqualified
+	Pair<ImportPrefix,string> get_import_prefix() {
+		Pair<ImportPrefix,string> ret;
+		auto& [pref,name] = ret;
+		if( skips("[") ) {
+			if( skips("no_rewrite") ) {
+				pref.rewrite = false;
+			}
+			skip("]");
+		}
+		if( skips("?") ) {// weak unnamed import
+			pref.default_prefix = {NONREC_IMPORT};
+			pref.canonical_prefix = true;
+			pref.override = false;
+		} else if( skips("!") ) {// expansive unnamed import
+			pref.default_prefix = {""};
+			pref.canonical_prefix = true;
+			pref.rec = true;
+		} else if( skips(":") ) {// canonically qualified import
+			pref.canonical_prefix = true;
+		} else {
+			string str1 = get_thy_name();
+			if( skips(":") ) {// qualified import
+				pref.forced_prefix = {str1};
+			} else if( skips("!") ) {// qualified recursive
+				pref.forced_prefix = {str1};
+				pref.rec = true;
+			} else if( skips("?") ) {// optionally qualified
+				pref.default_prefix = {""};
+				pref.optional_prefix = {str1};
+				pref.override = false;
+			} else {// no prefix
+				pref.default_prefix = {""};
+				pref.canonical_prefix = true;
+				name = str1;
+				return ret;// unqualified
+			}
+		}
+		name = get_thy_name();
+		return ret;
 	};
 	void add_import( ImportPrefix const& pref, Import const& import ) {
 		auto src = import.source();
 		_update_parent(src);// in case of interpreting a child.
 		if( pref.forced_prefix ) {
-			_thy.add_import(*pref.forced_prefix,import,pref.rec,pref.override);
+			_thy.add_import(*pref.forced_prefix,import,pref.rec,pref.override,pref.rewrite);
 		}
 		if( pref.default_prefix ) {
-			_thy.add_import(*pref.default_prefix,import,pref.rec,pref.override);
+			_thy.add_import(*pref.default_prefix,import,pref.rec,pref.override,pref.rewrite);
 			if( *pref.default_prefix == "" && _no_syntax ) {// TODO: make elegant
 				_no_syntax = false;
 				_thy.modify_syntax() = import.source().syntax();
 			}
 		}
 		if( pref.optional_prefix ) {
-			_thy.add_import(*pref.optional_prefix,import,pref.rec,pref.override);
+			_thy.add_import(*pref.optional_prefix,import,pref.rec,pref.override,pref.rewrite);
 		}
 		if( pref.canonical_prefix ) {
-			_thy.add_import(import.source().name(),import,pref.rec,pref.override);
+			_thy.add_import(import.source().name(),import,pref.rec,pref.override,pref.rewrite);
 		}
 	};
 	void import( bool change ) {
-		auto o = get_import_prefix();
-		string name = o.ref<string>() || [this]{ return get_thy_name(); };
-		ImportPrefix pref = o.ref<ImportPrefix>() || []{ return ImportPrefix{ .default_prefix = {""} }; };
+		auto [pref,name] = get_import_prefix();
 		for(;;) {
 			auto intp = _thy.thy(name,reader());
 			if( intp.source() == _thy ) throw Error("\"self import\"");
@@ -951,7 +961,7 @@ public:
 		if( auto const& fix = mod.ref<Import::Fix>() ) {
 			cout << _indent(' ') << pre << i+1 << ". instantiate " << _thy.pretty_sym(*fix);
 			size_t n = 1;
-			while( auto const& fix = intp.modification(n).ref<Import::Fix>() ) {
+			while( auto const& fix = intp.modification(i+n).ref<Import::Fix>() ) {
 				cout << ", " << _thy.pretty_sym(*fix);
 				n++;
 			}
@@ -1736,9 +1746,7 @@ public:
 				PR_MSG << "left " << path << endl;
 			}
 		} else if( skips("extend") ) {
-			auto o = get_import_prefix();
-			string name = o.ref<string>() || [this]{ return get_thy_name(); };
-			ImportPrefix pref = o.ref<ImportPrefix>() || []{ return ImportPrefix{ .default_prefix = {""} }; };
+			auto [pref,name] = get_import_prefix();
 			Thy parent = _thy;
 			auto src2parent = parent.thy(name,reader());
 			auto src = src2parent.source();
@@ -2274,7 +2282,7 @@ void run( istream& is, string const& name, string const& filepath, bool exit_on_
 	auto prover = Prover(thy,is,filepath,lex,exit_on_error,out,FLAG_SYS,0);
 	for( auto& parent : views::reverse(parents) ) {
 		thy = thy.branch((string)parent.name,parent.dirpath);
-		thy.add_import(parent.name,thy.self(),true,false);
+		thy.add_import(parent.name,thy.self(),true,false,true);
 		auto fis = ifstream(parent.filepath);
 		prover.reader()(thy,fis,parent.filepath);
 	}

@@ -1,5 +1,6 @@
 fix (¬).
 import not: Unary (¬) Prop Prop.
+import Imp.
 begin
 
 note! not.closed.
@@ -29,24 +30,23 @@ begin
 	lemma not_elim_not: if nP: ¬P, P: P, [P : Prop, Q : Prop] then ¬Q;
 		by not_imp_imp_not[OF nP] P.
 
-	lemma nimp_intro: if P: P, nQ: ¬Q, [P : Prop, Q : Prop] then ¬(P ⟹ Q);
+	lemma nimp_intro: if P: P, nQ: ¬Q, [P : Prop, Q : Prop] then ¬(P ⟶ Q);
 		apply not_imp_imp_not[OF nQ];
-		- if PQ: P ⟹ Q then Q;
-			by PQ P.
+		- if PQ then Q;
+			by PQ[THEN imp_elim1] P.
 		.
-	lemma nimp_imp_imp: if imp: ¬(P ⟹ Q) ⟹ R, [P : Prop, Q : Prop] then P ⟹ ¬Q ⟹ R;
+	lemma nimp_imp_imp: if imp: ¬(P ⟶ Q) ⟹ R, [P : Prop, Q : Prop] then P ⟹ ¬Q ⟹ R;
 		by imp nimp_intro.
 
-	lemma nimp_elim2: if nimp: ¬(P ⟹ Q), [P : Prop, Q : Prop] then ¬Q;
+	lemma nimp_elim2: if nimp: ¬(P ⟶ Q), [P : Prop, Q : Prop] then ¬Q;
 		apply not_imp_imp_not[OF nimp].
 
-	lemma nimp_not_elim1: if nimpn: ¬(P ⟹ ¬Q), [P : Prop, Q : Prop] then ¬ ¬ P;
+	lemma nimp_not_elim1: if nimpn: ¬(P ⟶ ¬Q), [P : Prop, Q : Prop] then ¬ ¬ P;
 		apply not_imp_imp_not[OF nimpn];
-		- if nP, P;
-			apply not_elim_not[OF nP P].
+		- if nP; apply imp_intro; by not_elim_not[OF nP].
 		.
 
-	lemma nimp_not_elim: if nimp: ¬(P ⟹ ¬Q), imp: ¬ ¬ P ⟹ ¬ ¬ Q ⟹ R, [P : Prop, Q : Prop] then R;
+	lemma nimp_not_elim: if nimp: ¬(P ⟶ ¬Q), imp: ¬ ¬ P ⟹ ¬ ¬ Q ⟹ R, [P : Prop, Q : Prop] then R;
 		apply imp;
 		by nimp_elim2[OF nimp] nimp_not_elim1[OF nimp].
 
@@ -79,15 +79,12 @@ begin
 
 	end
 ---
-	extend True begin
 
-		lemma not_imp_not_true: if nP: ¬P, P: P, [P : Prop] then ¬true;
-			by not_elim_not[OF nP P].
+	lemma not_imp_not_true: if nP: ¬P, P: P, [P : Prop] then ¬true;
+		by not_elim_not[OF nP P].
 
-		lemma not_true_imp_not: if nt: ¬true, [P : Prop] then ¬P;
-			apply not_elim_not[OF nt].
-
-	end
+	lemma not_true_imp_not: if nt: ¬true, [P : Prop] then ¬P;
+		apply not_elim_not[OF nt].
 
 	extend Membership begin
 
@@ -156,6 +153,15 @@ end
 
 theory NotExplosive :=
 	assume not_intro_inconsistent: if P ⟹ ∀Q. Q : Prop ⟹ Q, P : Prop then ¬P.
+begin
+
+	lemma not_false! ¬false;
+		apply not_intro_inconsistent; by #elim false_elim.
+
+	lemma not_intro: if P0: P ⟹ false, [P : Prop] then ¬P;
+		apply not_intro_inconsistent; by #elim P0 false_elim.
+
+
 end
 
 theory SelfRefutation :=
@@ -193,7 +199,8 @@ begin
 
 	instance SelfRefutation;
 		- if 1: P ⟹ ¬P, ... then ¬P;
-			apply not_intro_connect[OF 1];
+			have 2: P ⟶ ¬P; apply imp_intro, 1>0.
+			apply not_intro_connect[OF 2];
 			by nimp_intro nnot_intro.
 		.
 
@@ -214,16 +221,16 @@ begin
 		apply imp_not_sym[OF _ nnP];
 		by nnot_intro imp_not_sym[OF PnQ].
 
-	lemma nimp_not_intro: if nnP: ¬ ¬ P, nnQ: ¬ ¬ Q, [P : Prop, Q : Prop] then ¬(P ⟹ ¬Q);
+	lemma nimp_not_intro: if nnP: ¬ ¬ P, nnQ: ¬ ¬ Q, [P : Prop, Q : Prop] then ¬(P ⟶ ¬Q);
 		apply nnot_elim_not[OF nnP];
 		by nimp_intro nnQ.
 
 	-- Double negated implication works as implication of double negation. 
-	lemma nnimp_elim_nnot: if nnPQ: ¬ ¬ (P ⟹ Q), nnP: ¬ ¬ P, [P : Prop, Q : Prop] then ¬ ¬ Q;
+	lemma nnimp_elim_nnot: if nnPQ: ¬ ¬ (P ⟶ Q), nnP: ¬ ¬ P, [P : Prop, Q : Prop] then ¬ ¬ Q;
 		apply nnot_elim_not[OF nnPQ];
 		- if PQ;
 			apply nnot_elim_not[OF nnP];
-			by nnot_intro PQ.
+			by nnot_intro PQ[THEN imp_elim1].
 		.
 
 	extend ExRelStrict begin
@@ -247,12 +254,8 @@ theory ExplosiveNot :=
 	assume not_elim: if ¬P, P, P : Prop, Q : Prop then Q.
 begin
 
-	extend False begin
-
-		lemma not_imp_false: if nP: ¬P, P: P, [P : Prop] then false;
-			apply not_elim[OF nP P].
-
-	end
+	lemma not_imp_false: if nP: ¬P, P: P, [P : Prop] then false;
+		apply not_elim[OF nP P].
 
 end
 
@@ -268,6 +271,11 @@ begin
 			.
 		.
 
+end
+
+theory NNotElim :=
+	assume nnot_elim:-- @English Double Negation Elimination
+		if ¬ ¬ P, P : Prop then P.
 end
 
 theory ClaviusLaw :=
@@ -301,6 +309,40 @@ begin
 		
 end
 
+context IntuitionisticNot begin
+
+	extend ClaviusLaw begin
+
+		instance PeirceLaw;
+			- for Q if PQP: (P ⟶ Q) ⟶ P, ... then P;
+				apply not_imp_imp;
+				- if nP: ¬P;
+					apply PQP[THEN imp_elim1], imp_intro;
+					- if P: P then Q;
+						by not_elim[OF nP P].
+					.
+				.
+			.
+		instance NNotElim;
+			- if nnP: ¬ ¬ P, ... then P;
+				apply not_imp_imp;
+				by #elim not_elim[OF nnP].
+			.
+
+		instance ExcludedMiddle;
+			- if PQ: P ⟹ Q, nPQ: ¬P ⟹ Q, ... then Q;
+				apply peirce_law[of (¬P)], imp_intro;
+				- if QnP: Q ⟶ ¬P then Q;
+					apply nPQ;
+					apply imp_not_imp_not;
+					by QnP[THEN imp_elim1] PQ.
+				.
+			.
+
+	end
+
+end
+
 theory ClassicalNot :=
 	import MinimalNot.
 	assume nnot_elim: if ¬ ¬ P, P : Prop then P.
@@ -319,15 +361,24 @@ begin
 			apply not_elim_connect[OF nP].
 		.
 
-	lemma nimp_elim1: if nimp: ¬(P ⟹ Q), [P : Prop, Q : Prop] then P;
-		have nimp_nn: ¬(P ⟹ ¬ ¬ Q);
+	instance ClaviusLaw;
+		- if imp: ¬P ⟹ P, ... then P;
+			apply nnot_elim;
+			apply imp_not_imp_not;
+			- if nP: ¬P, ...;
+				apply not.cmono[OF imp]; by nP.
+			.
+		.
+
+	lemma nimp_elim1: if nimp: ¬(P ⟶ Q), [P : Prop, Q : Prop] then P;
+		have nimp_nn: ¬(P ⟶ ¬ ¬ Q);
 			apply not_imp_imp_not[OF nimp];
-			apply imp.left_mono>1;
+			apply imp_IMP.left_mono>4;
 			by #elim nnot_elim.
 		apply nimp_not_elim[OF nimp_nn];
 		by #elim nnot_elim.
 
-	lemma nimp_elim: if nimp: ¬(P ⟹ Q), assm: P ⟹ ¬Q ⟹ R, [P : Prop, Q : Prop] then R;
+	lemma nimp_elim: if nimp: ¬(P ⟶ Q), assm: P ⟹ ¬Q ⟹ R, [P : Prop, Q : Prop] then R;
 		by assm nimp_elim1[OF nimp] nimp_elim2[OF nimp].
 
 end

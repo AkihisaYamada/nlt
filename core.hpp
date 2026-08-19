@@ -671,6 +671,7 @@ public:
 	Subst& assign(std::string_view const& var, Term const& val) & {
 		return _assign(var,_ctxt.cterm(val));// val should be closed wrt ctxt
 	}
+	/** @brief returns the value of the variable if assigned */
 	Opt<CTerm> get(std::string_view const& var) const {
 		if( auto o = _map.finds_value(var) ) {
 			return {CTerm( _ctxt, o->value_or(var) )};

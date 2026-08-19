@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Std/HOL.nl"],
+"args": ["-i","Std/Eq/Prop/TwoValued.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [

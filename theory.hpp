@@ -157,7 +157,7 @@ public:
 	/** Before making an import, check it is not recursive */
 	void check_loop_import( Thy const& origin, bool rec ) const;
 	/** Adds an import. */
-	Import& add_import( std::string_view const& prefix, Import const& im, bool rec, bool override ) &;
+	Import& add_import( std::string_view const& prefix, Import const& im, bool rec, bool override, bool rewrite ) &;
 	/** Remove import */
 	void erase_import( std::string_view const& prefix ) &;
 	/** multimap of qualified imports */

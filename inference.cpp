@@ -150,7 +150,13 @@ void Thesis::_apply( std::set<Intro> const& rules, size_t& suc, size_t min, size
 		_apply(rules,suc,min,max,normalize,wide);
 		pop();
 	}
-	if( suc < min ) throw Error("\"apply failed\"");
+	if( suc < min ) {
+		auto err = Error("\"apply failed\"");
+		for( auto const& rule : rules ) {
+			err = err(rule.thm());
+		}
+		throw err;
+	}
 }
 
 bool Thesis::_apply( Intro const& rule, CTerm const& goal, Thy const& child ) & {
@@ -286,6 +292,8 @@ bool Resolver::_discharge(
 				if( log > 10 ) _log() << "! intro didn't match: " << subthy.pretty(thm) << endl;
 				return {};
 			}
+			if( fuel < 16 ) throw Error("\"intro limit exceeded\"")(rule->thm())(thesis.goal());
+			fuel -= 16;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
 			if( log > 3 ) _log() << "- applied: " << subthy.pretty(thm) << endl;
 			return {thm};

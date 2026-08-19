@@ -51,7 +51,7 @@ Thy Thy::scope_temp( string_view const& name ) const {
 }
 Thy Thy::scope( string_view const& name ) {
 	auto const& intp = Ctxt::self();
-	return add_import(name,Import(intp,_branch(name,"",true,intp)),true,false).source();
+	return add_import(name,Import(intp,_branch(name,"",true,intp)),true,false,false).source();
 }
 
 string const& Thy::name() const & {
@@ -156,11 +156,13 @@ void Thy::check_loop_import( Thy const& origin, bool rec ) const {
 		}
 	}
 }
-Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override ) & {
+Import& Thy::add_import( string_view const& prefix, Import const& import, bool rec, bool override, bool rewrite ) & {
 	if( import.ctxt() != *this ) throw Error("\"wrong import\"")(path());
 	if( prefix.empty() ) {
 		import.source().check_loop_import(*this,rec);// check looping import
-		import_rewrite(import,override);
+		if( rewrite ) {
+			import_rewrite(import,override);
+		}
 	}
 	return (override ?
 		_ref->imports.emplace_front(prefix,{import,rec}) :

@@ -175,8 +175,7 @@ theory MetaReflexive (⊑) :=
 begin
 	instance? MetaRelation (⊑).
 	extend MetaCompatible begin
-		instance MetaMonotone;
-			by cong refl.
+		instance MetaMonotone; by cong refl.
 	end
 end
 
@@ -187,8 +186,7 @@ begin
 	extend MetaMonotone begin
 		instance MetaCompatible;
 			- if xx': x ⊏ x', yy': y ⊏ y' then x * y ⊏ x' * y';
-				.. ⊏ x' * y;
-					by right_mono xx'.
+				.. ⊏ x' * y; by right_mono xx'.
 				by left_mono yy'.
 			.
 	end
@@ -226,31 +224,23 @@ begin
 	extend MetaLeftNeutral begin
 		instance MetaReflexive (~);
 			- for x then x ~ x;
-				.. ~ 1 * x;
-					apply sym;
-					by left_neutral.
-				by left_neutral.
+				.. ~ 1 * x; apply sym, left_neutral.
+				apply left_neutral.
 			.
 		lemma right_neutral_is_neutral: if all: ∀x. x * e ~ x then e ~ 1;
-			.. ~ 1 * e;
-				apply sym;
-				by left_neutral.
-			by all.
+			.. ~ 1 * e; apply sym, left_neutral.
+			apply all.
 	end
 
 	extend MetaRightNeutral begin
 		instance MetaReflexive (~);
 			- for x then x ~ x;
-				.. ~ x * 1;
-					apply sym;
-					by right_neutral.
-				by right_neutral.
+				.. ~ x * 1; apply sym, right_neutral.
+				apply right_neutral.
 			.
 		lemma left_neutral_is_neutral: if all: ∀x. e * x ~ x then e ~ 1;
-			.. ~ e * 1;
-				apply sym;
-				by right_neutral.
-			by all.
+			.. ~ e * 1; apply sym, right_neutral.
+			apply all.
 	end
 
 	extend MetaNeutral begin
@@ -276,18 +266,14 @@ begin
 
 	extend MetaLeftAbsorb begin
 		lemma right_absorb_is_absorb: if all: ∀x. x * e ~ e then e ~ 0;
-			.. ~ 0 * e;
-				apply sym;
-				by all.
-			by left_absorb.
+			.. ~ 0 * e; apply sym, all.
+			apply left_absorb.
 	end
 
 	extend MetaRightAbsorb begin
 		lemma left_absorb_is_absorb: if all: ∀x. e * x ~ e then e ~ 0;
-			.. ~ e * 0;
-				apply sym;
-				by all.
-			by right_absorb.
+			.. ~ e * 0; apply sym, all.
+			apply right_absorb.
 	end
 
 	extend MetaAbsorb begin
@@ -320,8 +306,7 @@ begin
 	theory MetaCommMonoidAbsorb (*) 0 1 :=
 		import MetaCommAbsorb, MetaCommMonoid.
 	begin
-		instance MetaMonoidAbsorb.
-		instance MetaCommSemigroupAbsorb.
+		instance MetaMonoidAbsorb, MetaCommSemigroupAbsorb.
 	end
 
 end
@@ -375,8 +360,7 @@ begin
 
 	lemma ex_intro: if assm: ∀Q. (∀x. P.[x] ⟹ x ⊏ a ⟹ Q) ⟹ Q then ∃x ⊏ a. P.[x];
 		apply assm;
-		- if Px: P.[x], xa: x ⊏ a;
-			by ex_intro1[OF Px xa].
+		- if Px: P.[x], xa: x ⊏ a; by ex_intro1[OF Px xa].
 		.
 
 end
@@ -390,8 +374,7 @@ e.g. `true ∈ Prop`. So here we encapsulate them in theories with no assumption
 theory True begin
 
 	obtain true where true_intro! true;
-		- for thesis if assm;
-			by assm[of (∀P. P ⟹ P)].
+		- for thesis if assm; by assm[of (∀P. P ⟹ P)].
 		.
 	instance imp: MetaRightBound (⟹) true.
 
@@ -403,8 +386,7 @@ theory False begin
 		-- @English Law of Explosion
 		-- @Latin ex falso quodlibet
 		if false then P;
-		- for thesis if assm;
-			by assm[of (∀P. P)].
+		- for thesis if assm; by assm[of (∀P. P)].
 		.
 
 	instance imp: MetaLeftBound (⟹) false.
@@ -424,36 +406,28 @@ end
 -- Implication is a meta-preorder.
 instance imp: MetaRelation (⟹).
 instance imp: MetaPreorder (⟹);
-	- if PQ: P ⟹ Q, QR: Q ⟹ R then P ⟹ R;
-		by QR PQ.
+	- if PQ: P ⟹ Q, QR: Q ⟹ R, P: P then R; apply QR, PQ, P.
 	.
 
 note#refl imp.refl.
 
 instance imp: imp.MetaLeftMonotone (⟹);
-	- for P if QR: Q ⟹ R, PQ: P ⟹ Q, P: P then R;
-		by QR PQ P.
+	- for P if QR: Q ⟹ R, PQ: P ⟹ Q, P: P then R; apply QR PQ P.
 	.
 
-lemma mp: if P: P, PQ: P ⟹ Q then Q;
-	by PQ[OF P].
+lemma mp: if P: P, PQ: P ⟹ Q then Q; apply PQ[OF P].
 
-lemma weaken: if P: P, Q: Q then P;
-	by P.
+lemma weaken: if P: P, Q: Q then P; apply P.
 
-lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R;
-	by PQR Q.
+lemma ignore: if PQR: (P ⟹ Q) ⟹ R, Q: Q then R; by PQR Q.
 
-lemma imp_imp_sym: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R;
-	by PQR.
+lemma imp_imp_sym: if PQR: P ⟹ Q ⟹ R then Q ⟹ P ⟹ R; by PQR.
 
-lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q;
-	by PQ RP.
+lemma insert: if PQ: P ⟹ Q, RP: R ⟹ P then R ⟹ Q; by PQ RP.
 
 lemma imp2_imp_imp: if PQQR: ((P ⟹ Q) ⟹ Q) ⟹ R, P! P then R;
 	apply PQQR;
-	- if PQ: P ⟹ Q then Q;
-		by PQ.
+	- if PQ: P ⟹ Q then Q; by PQ.
 	.
 
 lemma imp_all: if imp: P ⟹ ∀x. Q.[x] then ∀x. P ⟹ Q.[x];

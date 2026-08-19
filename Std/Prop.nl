@@ -3,14 +3,12 @@
 
 We fix a class `Prop` in which logical operators are closed.
 ---
-import? Membership (:), To.
 fix Prop.
-assume imp_prop! if p : Prop, q : Prop then (p ⟹ q) : Prop.
+import? Membership (:), To.
 
 begin
 
-instance imp: Magma Prop (⟹).
-note! imp.closed.
+instance imp: Magmas (⟹) (:).
 
 extend Std.Membership begin
 
@@ -21,10 +19,6 @@ extend Std.Membership begin
 end
 
 instance Membership (:).
-
-theory PierceLaw :=
-	assume pierce_law: if (P ⟹ Q) ⟹ P, P : Prop, Q : Prop then P.
-end
 
 theory True :=
 	fix true.
@@ -37,13 +31,6 @@ theory False :=
 	assume false_prop! false : Prop.
 	assume false_elim: if false, P : Prop then P.
 begin
-
-	instance True;
-		obtain true where true_prop! true : Prop, true_intro! true;
-			- for thesis if assm;
-				apply assm[of (false ⟹ false)].
-			.
-		.
 
 end
 
@@ -116,6 +103,7 @@ theory SecondOrder IND :=
 	assume ind_quantifiable: if A : IND then A : QTYPE.
 	assume to_quantifiable! if A : IND, B : QTYPE then A → B : QTYPE.
 begin
+
 	instance FirstOrder IND;
 		note! ind_quantifiable.
 		- for x if Px: P.[x], [x : A], ... then ∃x' : A. P.[x'];

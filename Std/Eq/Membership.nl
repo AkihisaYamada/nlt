@@ -97,7 +97,7 @@ theory FunTo :=
 begin
 
 	theory Ext :=
-		assume ext: if ∀x. x ∈ A ⟹ f x = g x, f ∈ A → B, g ∈ A → B then f = g.
+		assume ext: for A B if ∀x. x ∈ A ⟹ f x = g x, f ∈ A → B, g ∈ A → B then f = g.
 	end
 
 end

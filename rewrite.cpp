@@ -469,7 +469,13 @@ Opt<Thm> Resolver::_steps(
 		if( min == 0 ) {
 			return {};
 		}
-		throw Error("\"rewrite failed\"")(s);
+		auto err = Error("\"rewrite failed\"")(s);
+		for( auto const& rulev : rules ) {
+			for( auto const& rule : rulev ) {
+				err = err(rule.thm);
+			}
+		}
+		throw err;
 	}
 	auto [eq,t] = *init;
 	if( max <= 1 && !normalize ) {
@@ -546,6 +552,11 @@ Thm Resolver::rewrites( Thy& thy, Thm const& source, Opt<std::string const&> sim
 void Rewrite::import( Rewrite const& src, Thy const& thy, Intp const& intp, bool override_default ) & {
 	override_default = override_default || !_default_rel;
 	for( auto const& rel : src._rels ) {
+		if( auto const& o = intp.subst().get(rel) ) {
+			if( !o.contains(rel) ) {
+				throw Error("\"unsupported: cannot instantiate rewrite relation\"")(rel);
+			}
+		}
 		register_rel( rel, override_default && src._default_rel.contains(rel) );
 	}
 	for( auto const& congs : src._congs ) {

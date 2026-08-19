@@ -483,7 +483,7 @@ context ExplosiveNot begin
 		instance NNotElim;
 			- if nnP: ¬ ¬ P then P;
 				apply not_imp_imp;
-				by not_elim[OF nnP].
+				apply not_elim[OF nnP].
 			.
 
 	end
