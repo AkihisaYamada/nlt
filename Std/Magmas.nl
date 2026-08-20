@@ -99,6 +99,14 @@ theory RightCancellation A B (*) (/) :=
 	assume right_cancel: if x ∈ A, y ∈ B then (x * y) / y ~ x.
 end
 
+theory LeftAbsorptive A B (⊓) (⊔) :=
+	assume left_absorptive: if x ∈ A, y ∈ B then x ⊓ (x ⊔ y) ~ x.
+end
+
+theory RightAbsorptive A B (⊓) (⊔) :=
+	assume right_absorptive: if x ∈ A, y ∈ B then (x ⊓ y) ⊔ y ~ y.
+end
+
 theory LeftInverse A (*) 1 inverse :=
 	assume left_inverse: if x ∈ A then inverse x * x ~ 1.
 end
@@ -108,36 +116,35 @@ theory RightInverse A (*) 1 inverse :=
 end
 
 theory LeftAction A B (∘) (⋅) :=
-	import LeftComposable A B (∘) (⋅).
-	import comp: Magma A (∘).
+	import Magma A (∘).
 	import app: Binary (⋅) A B B.
+	import LeftComposable A B (∘) (⋅).
 end
 
 theory LeftModuloid A B (⋅) (+) (++) :=
-	import LeftDistributive A B (⋅) (++) (++).
-	import RightDistributive A B (⋅) (+) (++).
-	import mul: Binary (⋅) A B B.
+	import Binary (⋅) A B B.
 	import sadd: Magma A (+).
 	import add: Magma B (++).
+	import LeftDistributive A B (⋅) (++) (++).
+	import RightDistributive A B (⋅) (+) (++).
 end
 
 theory RightModuloid A B (⋅) (+) (++) :=
-	import RightDistributive A B (⋅) (++) (++).
-	import LeftDistributive A B (⋅) (+) (++).
-	import mul: Binary (⋅) B A B.
+	import Binary (⋅) B A B.
 	import sadd: Magma A (+).
 	import add: Magma B (++).
+	import RightDistributive A B (⋅) (++) (++).
+	import LeftDistributive A B (⋅) (+) (++).
 end
 
 theory Ringoid A (*) (+) :=
-	import mul: Magma A (*).
+	import Magma A (*).
 	import add: Magma A (+).
 	import Distributive A (*) (+).
 begin
-	instance LeftModuloid A A (*) (+) (+);
-		interpret sadd: Magma A (+);
-			by add.closed.
-		.
+
+	instance LeftModuloid A A (*) (+) (+); by closed add.closed.
+
 	instance RightModuloid A A (*) (+) (+).
 end
 
@@ -394,64 +401,84 @@ context PartialEquivalence begin
 	end
 
 	theory CommRingoid (*) (+) :=
-		import mul: CommMagma (*).
+		import CommMagma (*).
 		import add: CommMagma (+), add.Monotone.
 		import LeftDistributive A A (*) (+) (+).
 	begin
-		note! mul.closed add.closed.
+		note! closed add.closed.
 		instance Ringoid;
 			- if [x ∈ A, y ∈ A, z ∈ A] then (x + y) * z ~ x * z + y * z;
-				.. ~ z * (x + y); apply mul.commute.
+				.. ~ z * (x + y); apply commute.
 				.. ~ z * x + z * y; apply left_distrib.
 				apply add.comp;
-				- apply mul.commute.
-				- apply mul.commute.
+				- apply commute.
+				- apply commute.
 				.
 			.
 	end
 
-	theory Semiring :=
-		import Distributive.
-		import mul: Semigroup (*).
+	theory Semiring (*) (+) :=
+		import Semigroup (*).
 		import add: CommSemigroup (+), add.Monotone.
+		import Distributive.
 	begin
 		instance Ringoid.
 	end
 
-	theory SemiringAbsorb (*) (+) 0 :=
-		import Distributive.
-		import mul: SemigroupAbsorb (*) 0.
-		import add: CommMonoid (+) 0, add.Monotone.
+	theory Semiring_0 (*) (+) 0 :=
+		import Semiring (*) (+).
+		import SemigroupAbsorb (*) 0.
+		import add: Magmas.LeftNeutral A (+) 0.
 	begin
-		instance? Semiring.
+		instance add: CommMonoid (+) 0.
 	end
 
-	theory SemiringNeutral (*) (+) 0 1 :=
-		import SemiringAbsorb.
-		import mul: MonoidAbsorb (*) 0 1.
+	theory Semiring_1 (*) (+) 0 1 :=
+		import Semiring_0 (*) (+) 0.
+		import MonoidAbsorb (*) 0 1.
+	begin
 	end
 
 	theory CommSemiring (*) (+) :=
-		import LeftDistributive A A (*) (+) (+).
-		import mul: CommSemigroup (*).
+		import CommSemigroup (*).
 		import add: CommSemigroup (+), add.Monotone.
+		import LeftDistributive A A (*) (+) (+).
 	begin
 		instance CommRingoid, Semiring.
 	end
 
-	theory CommSemiringAbsorb (*) (+) 0 :=
-		import CommSemiring.
-		import mul: CommSemigroupAbsorb (*) 0.
-		import add: CommMonoid (+) 0.
+	theory CommSemiring_0 (*) (+) 0 :=
+		import CommSemiring (*) (+).
+		import CommSemigroupAbsorb (*) 0.
+		import add: Magmas.LeftNeutral A (+) 0.
 	begin
-		instance SemiringAbsorb.
+		instance Semiring_0.
 	end
 
-	theory CommSemiringNeutral (*) (+) 0 1 :=
-		import CommSemiringAbsorb.
-		import mul: CommMonoidAbsorb (*) 0 1.
+	theory CommSemiring_1 (*) (+) 0 1 :=
+		import CommSemiring_0 (*) (+) 0.
+		import CommMonoidAbsorb (*) 0 1.
 	begin
-		instance SemiringNeutral.
+		instance Semiring_1.
+	end
+
+	theory BooleanAlgebra (&) (|) 0 1 :=
+		import CommMonoidAbsorb (&) 0 1, Idempotent A (&).
+		import dual: CommMonoidAbsorb (|) 1 0, Idempotent A (|).
+		import LeftDistributive A A (&) (|) (|), LeftAbsorptive A A (&) (|).
+		import dual: LeftDistributive A A (|) (&) (&), LeftAbsorptive A A (|) (&).
+	begin
+
+		instance CommSemiring_1 (&) (|) 0 1;
+			by closed left_assoc left_mono left_neutral left_absorb commute
+			   neutral.closed absorb.closed
+			   dual.closed dual.left_assoc dual.commute dual.left_mono dual.left_neutral.
+
+		instance dual: CommSemiring_1 (|) (&) 1 0;
+			by dual.closed dual.left_assoc dual.commute dual.left_mono dual.left_neutral
+			   neutral.closed absorb.closed dual.left_absorb
+				left_assoc commute left_mono left_neutral.
+
 	end
 
 	theory LeftQuasiGroup (*) (\) :=

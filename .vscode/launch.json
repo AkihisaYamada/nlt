@@ -9,7 +9,7 @@
 "type": "cppdbg",
 "request": "launch",
 "program": "${workspaceFolder}/debug",
-"args": ["-i","Std/HOL/Bool.nl"],
+"args": ["-i","Std/Prop/Intuitionistic.nl"],
 "stopAtEntry": true,
 "cwd": "${workspaceFolder}",
 "environment": [

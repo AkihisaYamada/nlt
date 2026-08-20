@@ -127,6 +127,22 @@
 		"prefix": ["\\dotminus","-'"],
 		"body": "∸"
 	},
+	"(∪)": {
+		"prefix": ["\\cup"],
+		"body": "∪"
+	},
+	"(∩)": {
+		"prefix": ["\\cap"],
+		"body": "∪"
+	},
+	"(⊔)": {
+		"prefix": ["\\sqcup"],
+		"body": "⊔"
+	},
+	"(⊓)": {
+		"prefix": ["\\sqcap"],
+		"body": "⊓"
+	},
 	"⟦": {
 		"prefix": ["\\llbracket","[["],
 		"body": "⟦"

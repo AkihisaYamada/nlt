@@ -29,7 +29,9 @@ infix ⟺ 1 1 0.
 infix ⟶ 11 10 10.
 infix ⟷ 11 11 10.
 infix ∨ 20 21 20.
+infix || 20 21 20.
 infix ∧ 30 31 30.
+infix && 30 31 30.
 prefix ¬ 40 40.
 binder ∃ 0 0.
 binder ∃! 0 0.
@@ -88,6 +90,13 @@ infix ⊐ 51 51 50.
 infix |> 60 61 60.-- reverse application
 
 infix → 61 60 60.
+
+infix ∪ 70 71 70.
+infix ⊔ 70 71 70.
+infix | 70 71 70.
+infix ∩ 80 81 80.
+infix ⊓ 80 81 80.
+infix & 80 81 80.
 
 infix + 100 101 100.
 infix - 100 101 100 := _-_.

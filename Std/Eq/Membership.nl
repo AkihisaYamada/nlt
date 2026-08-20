@@ -2,6 +2,8 @@ import base? Std.Membership.
 
 begin
 
+instance Magmas (=).
+
 theory Antisymmetric A (⊑) :=
 	assume antisym: if x ⊑ y, y ⊑ x, x ∈ A, y ∈ A then x = y.
 begin
@@ -19,6 +21,16 @@ theory Order :=
 	import Preorder, Antisymmetric.
 begin
 	instance PseudoOrder.
+end
+
+theory Equality A begin
+
+	instance Equivalence A (=);
+		-.
+		- if xy: x = y, ... then y = x; apply eq.sym[OF xy].
+		- if xy: x = y, yz: y = z, ... then x = z; unfold xy; apply yz.
+		.
+
 end
 
 theory Injective f A :=
