@@ -571,7 +571,7 @@ ostream& Thy::pretty(
 	if( scope ) {
 		os << "namespace " << print_path(path) << ':' << endl;
 	} else {
-		os << ( thms ? "theory " : "context " ) << print_path(path) << ':' << endl;
+		os << ( thms ? "theory " : "context " ) << print_path(path) << " :=" << endl;
 		size_t fini = finalized().value_or(std::numeric_limits<size_t>::max());
 		for( size_t i = 0;; ) {
 			if( i == fini ) {

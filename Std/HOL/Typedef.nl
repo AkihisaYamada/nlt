@@ -17,18 +17,12 @@ such that
 - if `a : σ` and `t a` then `Rep_τ (Abs_τ a) = a`; and
 - if `x : (α_1,...,α_n)τ` then `t (Rep_τ x)` and `Abs_τ (Rep_τ x) = x`.
 
----
-fix Prop.
-
----
 The main question in formalizing this in NLT is how to handle multiple type parameters `α_1`, ..., `α_n`.
-As naive logic supports `σ.[α]` for one parameter, by admitting *syntactic* paring `,` one can formalize the multi-variate parametricity by `σ.[α_1,...,α_n]`.
+As naive logic supports `σ.[α]` for one parameter, by admitting *syntactic* paring `,` one can formalize the multiple parameters by `σ.[α_1,...,α_n]`. As suggested by the HOL notation `(α_1,...,α_n)τ` (for which we will use `τ (α_1,...,α_n)`), kernels of HOL systems must have a similar machinery at least for types.
 ---
-import Prod.
+import type.Prod.
 
 ---
-As suggested by the HOL notation `(α_1,...,α_n)τ` (for which we will use `τ (α_1,...,α_n)`), kernels of HOL systems must have a similar machinery at least for types.
-
 For typed terms, HOL family derive pairs (product types) by type definition. I think this is just moving the assumption of the presence of pairs of terms into the presence of pairs of types.
 
 Type definition machinery assumes that all types are inhabited, and allows to turn a polymorphic predicate into a parametric type, if a polymorphic witness that satisfies the predicate is provided.
@@ -110,6 +104,7 @@ begin
 
 	lemma ABS_type: ABS : ARG → TYPE;
 		apply tp_spec[OF tp_eq].
+	note ABS_type1: ABS_type[THEN to_elim1].
 
 	lemma Abs_type: if X: X : ARG then Abs X : REP.[X] → ABS X;
 		apply tp_spec[OF tp_eq];
@@ -125,7 +120,7 @@ begin
 		.
 	note Rep_type1: Rep_type[THEN to_elim1].
 
-	lemma Rep: if X: X : ARG, a: a : ABS X then pred X (Rep X a);
+	lemma Rep: if a: a : ABS X, X: X : ARG then pred X (Rep X a);
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
 			by 4[OF X a].

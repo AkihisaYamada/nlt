@@ -205,13 +205,15 @@ string_view Lexer::peek_token() {
 	case Lex::Digit:
 		_fetch_continue( Lex::Digit );
 		switch( fetched_char_type ) {
+		case Lex::Quote:// 123'
 		case Lex::Underscore:// 123_
+			rp = wp;
 			fetch_char();
 			if( _fetch_while( Lex::Letter | Lex::Digit ) ) {
 				_fetch_follower(Lex::Letter);
 			}
 			token_type = WORD;
-			break;			
+			break;
 		case Lex::Dot:// 123.456
 			if( isdigit(pis->peek()) ) {
 				_fetch_continue( Lex::Digit );

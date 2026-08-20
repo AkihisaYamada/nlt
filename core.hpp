@@ -347,7 +347,7 @@ public:
 	 */
 	Pair<Ctxt,size_t> const& parent() const & {
 		auto opt = find_parent();
-		if( !opt ) throw Error(__func__)("\"parent of root\"");
+		if( !opt ) throw Error("\"parent of root\"");
 		return *opt;
 	}
 	/** The variable fixed at i-th modification. */
@@ -557,7 +557,7 @@ public:
 	/** @brief Application of closed terms. Both terms should belong to the same context.
 	 */
 	CTerm operator()(CTerm const& arg) const {
-		if( _ctxt != arg._ctxt ) throw Error(__func__)("\"wrong context application\"");
+		if( _ctxt != arg._ctxt ) throw Error("\"wrong context application\"")(*this)(arg);
 		return CTerm(_ctxt,Term::operator()(arg));
 	}
 	/** @brief closed substitution */
@@ -568,7 +568,7 @@ public:
 	 * @return CTerm 
 	 */
 	CTerm inst(CTerm const& arg) const {
-		if( arg._ctxt != _ctxt ) throw Error("#core")("\"wrong context inst\"");
+		if( arg._ctxt != _ctxt ) throw Error("\"wrong context inst\"")(*this)(arg);
 		return CTerm(arg._ctxt,Term::inst(arg));
 	}
 	/** @brief Lifts a closed term to one with respect to the parent context.
@@ -861,7 +861,7 @@ public:
 	 */
 	void instantiate(CTerm const& term) {
 		auto fix = fixing();
-		if( !fix ) throw Error(__func__)("\"unexpected\"");
+		if( !fix ) throw Error("\"unexpected instantiate\"")(term);
 		_subst.assign(*fix,term);
 		_rev++;
 	}
@@ -872,9 +872,9 @@ public:
 	 */
 	void discharge(Thm const& thm) {
 		auto assm = assuming();
-		if( !assm ) throw Error(__func__)("\"unexpected\"");
-		if( assm->ctxt() != thm.ctxt() ) throw Error("\"context mismatch\"");
-		if( (Term)*assm != thm ) throw Error(__func__)("\"malformed\"")(*assm)(thm);
+		if( !assm ) throw Error("\"unexpected discharge\"")(thm);
+		if( assm->ctxt() != thm.ctxt() ) throw Error("\"discharge context mismatch\"");
+		if( (Term)*assm != thm ) throw Error("\"malformed discharge\"")(*assm)(thm);
 		_rev++;
 	}
 	/** @brief If the interpreted context is modified by obtaining a constant,
@@ -884,11 +884,11 @@ public:
 	 * where the obtained constant is replaced by the term.
 	 */
 	void retain(CTerm const& term, Thm const& thm) {
-		if( thm.ctxt() != _subst.ctxt() ) throw Error(__func__)("\"wrong context retain\"");
+		if( thm.ctxt() != _subst.ctxt() ) throw Error("\"wrong context retain\"")(term);
 		auto obtain = obtaining();
-		if( !obtain ) throw Error(__func__)("\"unexpected retain\"");
+		if( !obtain ) throw Error("\"unexpected retain\"")(term);
 		auto const& [sym,ex,spec] = *obtain;
-		if( spec.inst(term) != thm ) throw Error(__func__)("\"malformed retain\"")(thm);
+		if( spec.inst(term) != thm ) throw Error("\"malformed retain\"")(thm);
 		_subst.assign(sym,term);
 		_rev++;
 	}
@@ -940,8 +940,8 @@ inline Opt<std::tuple<std::string,Thm,CTerm>> Ctxt::obtained_at(size_t i) const 
 }
 
 inline CTerm CTerm::subst(Intp const& intp) const {
-	if( _ctxt != intp._src ) throw Error(__func__)("\"wrong context subst\"")(*this);
-	if( !intp.ready() ) throw Error(__func__)("\"interpretation not ready\"")(*this);
+	if( _ctxt != intp._src ) throw Error("\"wrong context subst\"")(*this);
+	if( !intp.ready() ) throw Error("\"interpretation not ready\"")(*this);
 	return CTerm(intp.ctxt(),this->Term::subst(intp));
 }
 

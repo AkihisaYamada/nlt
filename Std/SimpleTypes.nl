@@ -23,7 +23,8 @@ While we can formalize reduction as "replacement" (see Std/Membership/Fun), Chur
 Therefore, we import syntactic equality, and postulate type-restricted β-reduction.
 ---
 
-import Eq, Membership (:), FunTo (fun_:).
+import Eq.
+import type? Membership (:), FunTo (fun_:).
 
 ---
 Church does not introduce a formal notation for $α$	being a type. We will use `α : TYPE` following Martin-Löf.

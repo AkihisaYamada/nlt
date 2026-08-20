@@ -244,18 +244,6 @@ definition[as _ex1] (∃!:) = _BINDER ex1.
 ## Additional Postulates
 ---
 
-theory Classical :=
-	assume nnot_elim_axiom: ∀P : Prop. ¬ ¬ P ⟶ P.
-begin
-
-	instance Prop.Classical;
-		- if nnP: ¬ ¬ P, ... then P;
-			apply nnot_elim_axiom[THEN all_elim1[of P], THEN imp_elim1]; by nnP.
-		.
-
-end
-
-
 ---
 Church introduces a family of constants $ι_{α(oα)}$, which is used to denote both
 the unique choice operator and Hilbert's choice operator $ε$.
@@ -302,6 +290,7 @@ begin
 		such r : 'a. (i ⟶ r = t) ∧ ((i ⟶ t = e) ⟶ r = e).
 
 	instance IfTyped IF;
+		- by #simp IF_def.
 		- if i: i, ['a : TYPE, i : Prop, t : 'a, e : 'a] then IF 'a i t e = t;
 			note! eq_prop[of 'a, OF !].
 			simp IF_def;
@@ -323,6 +312,8 @@ begin
 				.
 			.
 		.
+
+	instance IfTyped.IntuitionisticNot.
 
 	lemma IF_not: if i0: ¬i, ['a : TYPE, i : Prop, t : 'a, e : 'a] then IF 'a i t e = e;
 		apply IF_else;

@@ -147,7 +147,7 @@ end
 ---
 Extensionality
 ---
-theory Ext :=
+theory MetaExt :=
 	assume bind_eq#cong if ∀x. F.[x] = G.[x] then (x. F.[x]) = (x. G.[x]).
 end
 

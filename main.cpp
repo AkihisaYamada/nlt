@@ -272,10 +272,10 @@ public:
 		if( !opt ) {
 			return {};
 		}
-		Thm ret = skips("::") ? [&]{// name is a theory name
+		Thm ret = skips("/") ? [&]{// name is a theory name
 			auto loc = thy.thy(*opt,reader()).source();
 			auto name = get_thm_name();
-			while( skips("::") ) {
+			while( skips("/") ) {
 				loc = loc.thy(name,reader()).source();
 				name = get_thm_name();
 			}
