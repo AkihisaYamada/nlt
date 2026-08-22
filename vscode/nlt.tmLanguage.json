@@ -39,7 +39,7 @@
     "tags": {
       "patterns": [{
         "name": "support.type.property-name",
-        "match": ":|!|\\?|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|refl|dual|trans|rewrite_(imp|rev))\\b"
+        "match": "(?<!_)([:!?]|#(intro|weak|elim|simp|cong|fallback|rule(_cong)?|refl|dual|trans|rewrite_(imp|rev))\\b)"
       }]
 	},
     "proof-commands": {

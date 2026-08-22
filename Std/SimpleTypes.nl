@@ -24,16 +24,16 @@ Therefore, we import syntactic equality, and postulate type-restricted β-reduct
 ---
 
 import Eq.
-import type? Membership (:), FunTo (fun_:).
+import type? Membership (:), FunTo (fun_:) (⇒).
 
 ---
 Church does not introduce a formal notation for $α$	being a type. We will use `α : TYPE` following Martin-Löf.
 This design choice allows type abstraction `fun α : TYPE. F.[α]` and thus type synonyms,
-which Church informally uses for the notation `α'` to denote `(αα)(αα)`, or `(α → α) → α → α` in modern notation.
+which Church informally uses for the notation `α'` to denote `(αα)(αα)`, or `(α ⇒ α) ⇒ α ⇒ α` in modern notation.
 ---
 fix TYPE.
 
-assume to_type! if A : TYPE, B : TYPE then A → B : TYPE.
+assume to_type! if A : TYPE, B : TYPE then A ⇒ B : TYPE.
 
 begin
 
@@ -45,3 +45,13 @@ theory Inhabited :=
 	assume inhabitant_type! if A : TYPE then inhabitant A : A.
 end
 
+---
+Type-theory-based proof assistants implement functionalities to infer type parameters from type of arguments.
+---
+binder _implicit 51 0.
+syntax[level 51] _implicit _ : _. _ := _implicit_:.
+
+theory ImplicitArg :=
+	fix _implicit_:.
+	assume _implicit: for 'A Arg if a : Arg.['A], 'A : ARG then (_implicit 'X : ARG. Arg.['X]) f a = f 'A a.
+end

@@ -1,36 +1,42 @@
 ---
 # HOL Set
 
-Sets are encoded as predicates, but to ensure extensionality of sets, it is necessary that predicates are extensional, and propositions are two valued.
+Sets are encoded as predicates, but to ensure extensionality of sets, it is necessary that predicates are extensional, and propositions are identified by `⟺`.
 ---
-import Typedef, Ext, Bool.
+import Typedef, IfTyped, Ext.
 
 begin
 
-instance Set: TypeDefinition TYPE ('a. 'a → Bool) (fun 'a : TYPE, f : 'a → Bool. true);
+instance Set: TypeDefinition TYPE ('a. 'a → Prop) is_set_ ;
+	- by is_set__type.
 	- for thesis if assm then thesis;
-		apply assm[of (fun 'a : TYPE, x : 'a. bool false)].
+		apply assm[of (fun 'a : TYPE, x : 'a. false)]; by #simp is_set__def.
 	.
 
-definition Set = Set.ABS.
+definition Set = Set.Abs.
 
-definition IN = fun 'a : TYPE, x : 'a, A : Set 'a. Set.Rep 'a A x.
+definition[as _in] (∈) =
+	(_implicit 'a : TYPE. 'a) (fun 'a : TYPE, x : 'a, A : Set 'a. Set.rep A x).
 
-lemma IN_type: if ['a : TYPE] then IN 'a : 'a → Set 'a → Bool;
-	by #simp IN_def Set_def[dual] #intro Set.Rep_type1[THEN to_elim1].
+lemma in_def: if ['a : TYPE, x : 'a, A : Set 'a] then (x ∈ A) = Set.rep A x;
+	simp _in_def _implicit[of 'a].
 
-lemma IN_eq_Set_Rep: if ['a : TYPE, x : 'a, A : Set 'a] then IN 'a x A = Set.Rep 'a A x;
-	simp IN_def.
+lemma in_type! if ['a : TYPE, x : 'a, A : Set 'a] then x ∈ A : Prop;
+	by #simp in_def[of 'a] Set_def[dual] #intro Set.rep_type[of 'a, THEN to_elim1].
 
-lemma IN_Set_Abs:
-	if 'a! 'a : TYPE, [x : 'a], f! f : 'a → Bool
-	then IN 'a x (Set.Abs 'a f) = f x;
-	by Set.Abs_type[OF 'a, THEN to_elim1, OF f] #simp IN_def Set.Rep_Abs[OF 'a f, simp] Set_def.
+definition make_bool = (fun p : Prop. if p then true else false).
 
-definition Collect_: = _BINDER Set.Abs.
+lemma make_bool_type! make_bool : Prop → Prop; by #simp make_bool_def #intro if_type[of Prop].
 
-lemma Collect_eq: {x : 'a. F.[x]} = Set.Abs 'a (fun x : 'a. F.[x]);
-	simp Collect_:_def.
+definition (Collect_:) =
+	(fun 'a : TYPE. Set.abs ∘ (make_bool ∘) ∘ (fun_:) 'a).
+
+lemma Collect_type: if ['a : TYPE, ∀
+
+lemma in_Collect_intro:
+	if Px: P.[x], ['a : TYPE, x : 'a, ∀x. x : 'a ⟹ P.[x] : Prop]
+	then x ∈ {x : 'a. P.[x]};
+	simp Collect_:_def _implicit[of 'a]; 
 
 lemma IN_Collect#simp
 	if ['a : TYPE, x : 'a, ∀y. y : 'a ⟹ F.[y] : Bool]
@@ -61,3 +67,15 @@ lemma IN_SINGLETON:
 	if ['a : TYPE, x : 'a, y : 'a]
 	then IN 'a x (SINGLETON 'a y) = bool (y = x);
 	simp SINGLETON_def.
+
+definition CUP = fun 'a : TYPE, X : Set 'a, Y : Set 'a. {x : 'a. IN 'a x X || IN 'a x Y}.
+
+lemma IN_CUP: if ['a : TYPE, x : 'a, X : Set 'a, Y : Set 'a]
+	then IN 'a x (CUP 'a X Y) = (IN 'a x X || IN 'a x Y);
+	simp CUP_def.
+
+definition CAP = fun 'a : TYPE, X : Set 'a, Y : Set 'a. {x : 'a. IN 'a x X && IN 'a x Y}.
+
+lemma IN_CAP: if ['a : TYPE, x : 'a, X : Set 'a, Y : Set 'a]
+	then IN 'a x (CAP 'a X Y) = (IN 'a x X && IN 'a x Y);
+	simp CAP_def.

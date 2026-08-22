@@ -35,11 +35,11 @@ infix && 30 31 30.
 prefix ¬ 40 40.
 binder ∃ 0 0.
 binder ∃! 0 0.
-binder fun 51 0.
-binder FUN 51 0.
-binder some 50 0.
-binder the 50 0.
-binder such 50 0.
+binder fun 51 -10.
+binder FUN 51 -10.
+binder some 50 -10.
+binder the 50 -10.
+binder such 50 -10.
 
 syntax ∀ _ : _. _ := ∀:.
 syntax ∃ _ : _. _ := ∃:.
@@ -90,6 +90,7 @@ infix ⊐ 51 51 50.
 infix |> 60 61 60.-- reverse application
 
 infix → 61 60 60.
+infix ⇒ 61 60 60.
 
 infix ∪ 70 71 70.
 infix ⊔ 70 71 70.

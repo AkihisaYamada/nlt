@@ -4,7 +4,7 @@
 Gordon's HOL uses type `bool` for propositions and assumes that true and false are the only inhabitants.
 We do not have to assume this on `Prop`, and one can define a two-valued type.
 ---
-import UniqueSuchTyped, Typedef.
+import UniqueSuch, Typedef.
 
 begin
 
@@ -15,17 +15,18 @@ instance Bool: TypeDefinition TYPE (x. Prop) (fun _ : TYPE, p : Prop. p = true �
 		by or_intro1 eq_prop[of Prop].
 	.
 
-definition Bool = Bool.ABS Prop.
-definition bool = fun p : Prop. Bool.Abs Prop (IF Prop p true false).
-definition Trueprop = Bool.Rep Prop.
-definition True = bool true.
-definition False = bool false.
+definition Bool = Bool.Abs Prop.
+definition True = Bool.abs true.
+definition False = Bool.abs false.
+definition bool = fun p : Prop. if p then True else False.
 
-note! Bool.Abs_type1[of Prop, OF !]
-	  Bool.ABS_type1[of Prop, OF !]
-	  Bool.Rep_type1[for a, of Prop a, fold Bool_def, OF !].
+lemma Bool_abs_type! if [x : Prop] then Bool.abs x : Bool;
+	by Bool.abs_type[of Prop] #simp Bool_def.
 
-lemma Bool_TYPE! Bool : TYPE; unfold Bool_def.
+lemma Bool_TYPE! Bool : TYPE; by Bool.Abs_type1 #simp Bool_def.
+
+lemma Bool_rep_type! if [a : Bool] then Bool.rep a : Prop;
+	by Bool.rep_type[of Prop] #simp Bool_def[dual].
 
 lemma bool_type! if [p : Prop] then bool p : Bool;
 	simp bool_def Bool_def.
@@ -37,14 +38,14 @@ lemma False_type! False : Bool; simp False_def.
 lemma eq_true_imp: if p1: p = true then p; unfold p1.
 
 lemma Trueprop_type! Trueprop : Bool → Prop;
-	unfold Trueprop_def Bool_def; apply Bool.Rep_type.
+	unfold Trueprop_def Bool_def; apply Bool.rep_type.
 
 note Trueprop_type1! Trueprop_type[THEN to_elim1].
 
 lemma Trueprop_bool_decided:
 	if dec: p ∨ ¬p, [p : Prop] then Trueprop (bool p) = IF Prop p true false;
 -	simp bool_def Trueprop_def;
-	apply Bool.Rep_Abs; -. -.
+	apply Bool.rep_abs; -. -.
 	simp;
 	apply or_elim[OF dec];
 	- if p; by #simp IF_then[OF p] #intro eq_prop[of Prop] or_intro1.
@@ -75,16 +76,16 @@ instance Bool: Std.Prop Bool;
 	.
 
 lemma Bool_cases: if 1: b = True ⟹ P, 0: b = False ⟹ P, b! b : Bool, [P : Prop] then P;
-	have Abs_Rep: Bool.Abs Prop (Bool.Rep Prop b) = b;
-		apply Bool.Abs_Rep[of Prop, OF ! b[unfold Bool_def]].
-	apply Bool.Rep[OF b[unfold Bool_def], simp, THEN or_elim];
-	- if 1': Bool.Rep Prop b = true;
+	have abs_rep: Bool.abs Prop (Bool.rep Prop b) = b;
+		apply Bool.abs_rep[of Prop, OF ! b[unfold Bool_def]].
+	apply Bool.rep[OF b[unfold Bool_def], simp, THEN or_elim];
+	- if 1': Bool.rep Prop b = true;
 		apply 1;
-		fold Abs_Rep;
+		fold abs_rep;
 		simp 1' True_def bool_def.
-	- if 0': Bool.Rep Prop b = false;
+	- if 0': Bool.rep Prop b = false;
 		apply 0;
-		fold Abs_Rep;
+		fold abs_rep;
 		simp 0' False_def bool_def.
 	by eq_prop[of Prop].
 
@@ -223,3 +224,4 @@ instance AND: Bool.BooleanAlgebra (&&) (||) False True;
 		OR.left_assoc OR.commute OR.left_mono OR.left_neutral OR.left_absorb OR.idem
 		OR.dual.left_distrib OR.dual.left_absorptive
 		OR.left_distrib OR.left_absorptive.
+

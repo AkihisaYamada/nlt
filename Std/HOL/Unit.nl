@@ -9,18 +9,19 @@ instance Unit: TypeDefinition TYPE (x. Prop) (fun _ : TYPE, x : Prop. x = true);
 		.
 	.
 
-definition Unit = Unit.ABS Prop.
+definition Unit = Unit.Abs Prop.
 
-definition unit = Unit.Abs Prop true.
+definition unit = Unit.abs true.
 
 lemma unit_type! unit : Unit;
 	unfold Unit_def unit_def;
-	apply Unit.Abs_type1.
+	apply Unit.abs_type.
 
 lemma Unit_eq_unit: if a: a : Unit then a = unit;
-	note! a[unfold Unit_def].
-	note! Unit.Rep_type1[of Prop, OF ! ].
-	.. = Unit.Abs Prop (Unit.Rep Prop a);
-		apply eq.sym, Unit.Abs_Rep[of Prop, OF !].
-	have 1: Unit.Rep Prop a = true; apply Unit.Rep[OF a[unfold Unit_def], OF !, simp].
-	unfold 1, unit_def.
+	note a0! a[unfold Unit_def].
+	note! Unit.rep_type[of Prop, OF ! ].
+	.. = Unit.abs (Unit.rep a);
+		apply eq.sym, Unit.abs_rep[of Prop, OF !].
+	.. = Unit.abs true;
+		apply arg_cong, Unit.rep[of Prop, OF ! a0, simp].
+	unfold unit_def.

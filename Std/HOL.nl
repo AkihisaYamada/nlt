@@ -21,16 +21,12 @@ assume prop_type! Prop : TYPE.
 ---
 ### Equality
 
-Church defines equality via type-parametric constant:
+Church defines equality via type-parametric constant $Q$:
 > $Q_{oαα} ⟶ λx_α λy_α [(f_{oα})[f_{oα} x_α ⊃ f_{oα} y_α]$.
-and then introduces polymorphic notation:
+where $⊃$ denotes implication, and then introduces polymorphic notation:
 > $[A_α = B_α] ⟶ Q_{oαα} A_α B_α$.
-Directly following this approach would require something like
-```
-definition Q = fun α : TYPE. ...
-fix (~).
-assume eq_notation: if A : α, B : α then (A ~ B) = Q α A B.
-```
+
+It is possible to rigorously follow this approach (we will admit polymorphic notation anyway).
 However, as we needed syntactic equality already, we instead postulate that equality between terms of the same type is a proposition ($o$).
 ---
 assume eq_prop: if 'a : TYPE, x : 'a, y : 'a then (x = y) : Prop.
@@ -41,7 +37,7 @@ Church further introduces notation
 Such notations are safe, because the arguments are not duplicated.
 We can achieve this kind of notation by admitting the syntactic composition operator, also known as the combinator B.
 ---
-import Comp.
+import Id, Comp.
 
 ---
 ### Implication
@@ -57,7 +53,7 @@ While we already have implication `⟹` in the foundation,
 we follow Isabelle/HOL to introduce a new implication symbol:
 ---
 fix (⟶).
-assume imp_type! (⟶) : Prop → Prop → Prop.
+assume imp_type! (⟶) : Prop ⇒ Prop ⇒ Prop.
 assume imp_intro! if P ⟹ Q, P : Prop, Q : Prop then P ⟶ Q.
 assume imp_elim1: if P ⟶ Q, P, P : Prop, Q : Prop then Q.
 
@@ -78,42 +74,51 @@ requires implication to return either `true` or `false`, and therefore makes str
 
 ### Universal Quantification
 
-Church introduces constant $Π_{o(oα)}$ for every $α$, which we denote by `ALL α`.
+Church introduces constant $Π_{o(oα)}$ for every $α$, which we denote by `all_ α`.
 ---
-fix ALL.
+fix all_.
 
-assume ALL_type! ALL 'a : ('a → Prop) → Prop.
+assume all__type! all_ 'a : ('a ⇒ Prop) ⇒ Prop.
 ---
 Church's original formulation of ∀-introduction is the rule of inference:
 > VI. From $F_{oα} x_α$ to infer $Π_{o(oα)} F_{oα}$ provided that $x_α$ is not a free variable of $F_{oα}$.
 ---
-assume ALL_intro: if f : 'a → Prop, ∀x. x : 'a ⟹ f x then ALL 'a f.
+assume all__intro: if ∀x. x : 'a ⟹ f x, f : 'a ⇒ Prop then _all 'a f.
 ---
 The ∀-elimination is the formal axiom (family):
 > 5$^α$. $Π_{o(oα)} f_{oα} ⊃ f_{oα} x_α$
 ---
-assume ALL_elim_axiom: if f : 'a → Prop, x : 'a then ALL 'a f ⟶ f x.
+assume all__elim_axiom: if f : 'a ⇒ Prop, x : 'a then _all 'a f ⟶ f x.
 ---
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
 But it is not trivial why this reduction is safe, as parameter α is duplicated.
-Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `FUN α : TYPE. (α → Prop) → Prop`.
-Formalizing this kind of reduction is in scopes of later research, so we consider that Church implicitly assumed the following notational combinator.
+Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `FUN α : TYPE. (α ⇒ Prop) ⇒ Prop`.
+Instead, we first formalize implicit type parameters to be able to define a symbol `all` such that `all f = all_ α f` if `f : α ⇒ Prop`.
 ---
-fix _BINDER.
-assume _BINDER#simp _BINDER op 'a (x. F.[x]) = op 'a (fun x : 'a. F.[x]).
+import ImplicitArg.
 
-definition[as _all] (∀:) = _BINDER ALL.
+import Comp.
 
 ---
 Above assumptions are sufficient to develop intuitionistic fragment of Church's foundation of logic.
 ---
 begin
 
+definition[as _all] (∀:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) all_ ∘) ∘ (fun_:).
+
+lemma all_def:
+	if ['a : TYPE, ∀x. x : 'a ⟹ F.[x] : Prop]
+	then (∀x : 'a. F.[x]) = all_ 'a (fun x : 'a. F.[x]);
+	simp _all_def _implicit[of 'a].
+
 note imp_type1! imp_type[THEN to_elim1].
 note imp_type2! imp_type1[THEN to_elim1].
 
-instance Prop TYPE.
+instance Prop TYPE Prop (:) (⇒).
+
+
+
 
 ---
 ## Defining Logical Operators
@@ -123,10 +128,10 @@ Logical operators that do not require type parameters can be defined as simply t
 
 definition false = ∀x : Prop. x.
 definition true = (false ⟶ false).
-definition[as not] (¬) = fun P : Prop. P ⟶ false. 
-definition[as and] (∧) = fun P Q : Prop. ∀R : Prop. (P ⟶ Q ⟶ R) ⟶ R.
-definition[as iff] (⟷) = fun P Q : Prop. (P ⟶ Q) ∧ (Q ⟶ P).
-definition[as or] (∨) = fun P Q : Prop. ∀R : Prop. (P ⟶ R) ⟶ (Q ⟶ R) ⟶ R.
+definition[as not] (¬) = (fun P : Prop. P ⟶ false). 
+definition[as and] (∧) = (fun P Q : Prop. ∀R : Prop. (P ⟶ Q ⟶ R) ⟶ R).
+definition[as iff] (⟷) = (fun P Q : Prop. (P ⟶ Q) ∧ (Q ⟶ P)).
+definition[as or] (∨) = (fun P Q : Prop. ∀R : Prop. (P ⟶ R) ⟶ (Q ⟶ R) ⟶ R).
 
 ---
 The notation for `≠` is defined using syntactic composition as follows.
@@ -140,29 +145,32 @@ lemma neq_eq: (x ≠ y) = (¬(x = y));
 Church's original treatment of existential quantification is a notation:
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
 Directly formalizing this requires adding another assumption (or extending the parser).
-Instead, we follow the HOL family for defining a (type-parametric) constant `ex`.
+Instead, we follow the HOL family for defining a (type-parametric) constant `ex_`.
 This allows us to reuse the generic binder notation introduced above.
 ---
-definition ex = fun 'a : TYPE, P : 'a → Prop. (∀Q : Prop. (∀x : 'a. P x ⟶ Q) ⟶ Q).
+definition ex_ = (fun 'a : TYPE, P : 'a ⇒ Prop. (∀Q : Prop. (∀x : 'a. P x ⟶ Q) ⟶ Q)).
 
-definition[as _ex] (∃:) = _BINDER ex.
+definition[as _ex] (∃:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) ex_ ∘) ∘ (fun_:).
+
+lemma ex_def:
+	if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
+	then (∃x : 'a. P.[x]) = (∀Q : Prop. (∀x : 'a. (fun y : 'a. P.[y]) x ⟶ Q) ⟶ Q);
+	simp _ex_def _implicit[of 'a] ex__def.
 
 ---
 We show that this theory is an instance of equational, typed, higher-order, impredicative, intuitionistic logic.
 ---
 
-instance Eq.Prop TYPE.
-
 instance HigherOrder TYPE;
-	show!; by to_elim1[OF ALL_type] #simp _all_def.
-	show all_intro: if ! ∀ x. x : 'a ⟹ P.[x];
-		by #simp _all_def #intro ALL_intro.
-	show all_elim1: for s if all: ∀ x : 'a. P.[x], ... then P.[s];
+	show!; by to_elim1[OF all__type] #simp all_def.
+	show all_intro: if [∀ x. x : 'a ⟹ P.[x]], ...;
+		simp all_def; apply all__intro.
+	show all_elim1: for s if all: ∀x : 'a. P.[x], ... then P.[s];
 		have 1: (fun x : 'a. P.[x]) s;
-			apply ALL_elim_axiom[THEN imp_elim1, OF _ _ all[simp _all_def]];
-			by ALL_type[THEN to_elim1].
+			apply all__elim_axiom[THEN imp_elim1, OF _ _ all[simp all_def]];
+			by all__type[THEN to_elim1].
 		use 1; simp.
-	note #simp _ex_def ex_def.
+	note #simp ex_def.
 	- .
 	- for x if Px: P.[x] for 'a if ...;
 		simp;
@@ -232,12 +240,54 @@ instance Intuitionistic;
 instance Quantifiable TYPE.
 
 ---
+Church's original formulation does not assume propositions are **equal to** either true or false. Gordon's HOL assumes this on its propositional type `bool`, while Isabelle/HOL splits `prop` and two-valued `bool`.
+Here we will just define a predicate when a proposition is two valued.
+---
+definition two_valued = (fun p : Prop. p = true ∨ p = false).
+
+lemma two_valued_type! two_valued : Prop ⇒ Prop;
+	by eq_prop[of Prop] #simp two_valued_def.
+
+note two_valued_type1! two_valued_type[THEN to_elim1].
+
+lemma two_valued_true! two_valued true;
+	by or_intro1 eq_prop[of Prop] #simp two_valued_def.
+lemma two_valued_false! two_valued false;
+	by or_intro2 eq_prop[of Prop] #simp two_valued_def.
+
+---
+A predicate represents a "set" when the result is two valued for any input. With extensionality, sets are identified by its members.
+---
+definition is_set_ = (fun 'a : TYPE, p : 'a ⇒ Prop. ∀x : 'a. two_valued (p x)).
+
+definition is_set = (_implicit 'a : TYPE. 'a ⇒ Prop) is_set_ .
+
+lemma is_set__type: if ['a : TYPE] then is_set_ 'a : ('a ⇒ Prop) ⇒ Prop;
+	simp is_set__def.
+
+lemma is_set_fun_imp_two_valued:
+	if 1: is_set (fun x : 'a. P.[x]), ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop, x : 'a]
+	then two_valued P.[x];
+	apply 1[simp is_set_def _implicit[of 'a] is_set__def, THEN all_elim1[of x], simp].
+
+lemma is_set_fun_intro:
+	if 1: ∀x. x : 'a ⟹ two_valued P.[x], ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
+	then is_set (fun x : 'a. P.[x]);
+	by 1 #simp is_set_def _implicit[of 'a] is_set__def.
+
+---
 It is also convenient to have the unique existence notation.
 ---
-definition ex1 = fun 'a : TYPE, P : 'a → Prop.
-	∀Q : Prop. ∀x : 'a. P x ⟶ (∀y : 'a. P y ⟶ y = x) ⟶ Q.
+definition ex1_ = (fun 'a : TYPE, P : 'a ⇒ Prop.
+	∀Q : Prop. ∀x : 'a. P x ⟶ (∀y : 'a. P y ⟶ y = x) ⟶ Q
+).
 
-definition[as _ex1] (∃!:) = _BINDER ex1.
+definition[as _ex1] (∃!:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) ex1_ ∘) ∘ (fun_:).
+
+lemma ex1_def:
+	if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
+	then (∃!x : 'a. P.[x]) = ex1_ 'a (fun x : 'a. P.[x]);
+	simp _ex1_def _implicit[of 'a].
 
 
 ---
@@ -247,93 +297,27 @@ definition[as _ex1] (∃!:) = _BINDER ex1.
 ---
 Church introduces a family of constants $ι_{α(oα)}$, which is used to denote both
 the unique choice operator and Hilbert's choice operator $ε$.
-We denote `SUCH α : (α → Prop) → α` instead of $ι_{α(oα)}$.
+We denote `SUCH α : (α ⇒ Prop) ⇒ α` instead of $ι_{α(oα)}$.
 The presence of a constant of that type enforces that every type is inhabited. So we should restrict `α` to be a type.
 ---
 theory SuchSignature :=
 	fix SUCH.
-	assume SUCH_type: if 'a : TYPE then SUCH 'a : ('a → Prop) → 'a.
+	assume SUCH_type: if 'a : TYPE then SUCH 'a : ('a ⇒ Prop) ⇒ 'a.
 begin
 
-	definition (such_:) = _BINDER SUCH.
+	definition (such_:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) SUCH ∘) ∘ (fun_:).
 
-	lemma such_def: (such x : 'a. P.[x]) = SUCH 'a (fun x : 'a. P.[x]);
-		simp such_:_def.
+	lemma such_def:
+		if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
+		then (such x : 'a. P.[x]) = SUCH 'a (fun x : 'a. P.[x]);
+		simp such_:_def _implicit[of 'a].
 
-	lemma SUCH_app_type! if ['a : TYPE, f : 'a → Prop] then SUCH 'a f : 'a;
+	lemma SUCH_app_type! if ['a : TYPE, f : 'a ⇒ Prop] then SUCH 'a f : 'a;
 		by SUCH_type[THEN to_elim1].
 
 	lemma such_type! if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop] then (such x : 'a. P.[x]) : 'a;
 		unfold such_def.
 
 	instance Inhabited (fun 'a : TYPE. such x : 'a. true).
-
-end
-
-theory UniqueSuchTyped :=
-	import SuchSignature.
-	assume unique_such_axiom: if 'a : TYPE then
-		∀P : 'a → Prop. ∀x : 'a. P x ⟶ (∀y : 'a. P y ⟶ x = y) ⟶ P (SUCH 'a P).
-begin
-
-	instance Prop.UniqueSuchTyped;
-		note#cong eq_cong_meta.
-		- for x if Px: P.[x], uniq: ∀y. P.[y] ⟹ y : 'a ⟹ x = y, ... then P.[such z : 'a. P.[z]];
-			define f = (fun z : 'a. P.[z]).
-			have fS: f (SUCH 'a f);
-				apply unique_such_axiom[of 'a, THEN all_elim1[of f], THEN all_elim1[of x], THEN imp_elim1, THEN imp_elim1];
-				by Px uniq #simp f_def.
-			by fS[simp f_def] #simp such_def.
-		.
-
-	definition IF = fun 'a : TYPE, i : Prop, t e : 'a.
-		such r : 'a. (i ⟶ r = t) ∧ ((i ⟶ t = e) ⟶ r = e).
-
-	instance IfTyped IF;
-		- by #simp IF_def.
-		- if i: i, ['a : TYPE, i : Prop, t : 'a, e : 'a] then IF 'a i t e = t;
-			note! eq_prop[of 'a, OF !].
-			simp IF_def;
-			apply such_eq_intro;
-			- simp[on (⟷)] i[THEN iff_true].
-			- for r if r, ... then t = r;
-				apply r[THEN and_elim];
-				- if t, e; apply eq.sym, t[THEN imp_elim1], i.
-				.
-			.
-		- if i0: i ⟹ t = e, ['a : TYPE, i : Prop, t : 'a, e : 'a] then IF 'a i t e = e;
-			note! eq_prop[of 'a, OF !].
-			simp IF_def;
-			apply such_eq_intro;
-			- by i0[dual].
-			- for r if r, ... then e = r;
-				apply r[THEN and_elim];
-				- if t, e; apply eq.sym, e[THEN imp_elim1], imp_intro[OF i0].
-				.
-			.
-		.
-
-	instance IfTyped.IntuitionisticNot.
-
-	lemma IF_not: if i0: ¬i, ['a : TYPE, i : Prop, t : 'a, e : 'a] then IF 'a i t e = e;
-		apply IF_else;
-		by #elim not_elim[OF i0].
-
-end
-
-theory AnySuchTyped :=
-	import SuchSignature.
-	assume any_such_axiom: if 'a : TYPE then ∀P : 'a → Prop. ∀x : 'a. P x ⟶ P (SUCH 'a P).
-begin
-
-	instance Prop.AnySuchTyped TYPE;
-		note#cong eq_cong_meta.
-		- for x if Px: P.[x] for 'a if ...;
-			define f = (fun z : 'a. P.[z]).
-			have fS: f (SUCH 'a f);
-				apply any_such_axiom[of 'a, THEN all_elim1[of f], THEN all_elim1[of x], THEN imp_elim1];
-				by Px #simp f_def.
-			by fS[simp f_def] #simp such_def.
-		.
 
 end
