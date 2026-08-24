@@ -95,10 +95,10 @@ begin
 	definition abs_ = fst (snd tp).
 	definition rep_ = snd (snd tp).
 
-	definition abs = (_implicit X : ARG. Rep.[X]) abs_.
-	definition rep = (_implicit X : ARG. Abs X) rep_.
+	definition abs = (IMPLICIT X : ARG. Rep.[X]) abs_.
+	definition rep = (IMPLICIT X : ARG. Abs X) rep_.
 
-	lemma tp_eq: tp = (Abs,abs_,rep_);
+	lemma tp_eq: tp = (Abs, abs_ , rep_ );
 		apply tp_is_tuple;
 		- if eq: tp = (Abs',abs',rep');
 			unfold! eq Abs_def abs__def rep__def.
@@ -114,10 +114,10 @@ begin
 			by 2[OF X].
 		.
 	lemma abs_ : for X if X: X : ARG, x: x : Rep.[X] then abs x = abs_ X x;
-		simp abs_def _implicit[OF x X].
+		simp abs_def IMPLICIT[OF x X].
  
 	lemma abs_type: for X if X: X : ARG, x! x : Rep.[X] then abs x : Abs X;
-		simp abs_[OF X x]; apply abs__type[OF X, THEN to_elim1].
+		simp abs_ [OF X x]; apply abs__type[OF X, THEN to_elim1].
 
 	lemma rep__type: if X: X : ARG then rep_ X : Abs X ⇒ Rep.[X];
 		apply tp_spec[OF tp_eq];
@@ -125,27 +125,27 @@ begin
 			by 3[OF X].
 		.
 	lemma rep_ : for X if X: X : ARG, a! a : Abs X then rep a = rep_ X a;
-		simp rep_def _implicit[of X a (X. Abs X), OF a X].
+		simp rep_def IMPLICIT[of X (X. Abs X), OF a X].
 
 	lemma rep_type: for X if X! X : ARG, a! a : Abs X then rep a : Rep.[X];
-		simp rep_[OF X a]; apply rep__type[THEN to_elim1].
+		simp rep_ [OF X a]; apply rep__type[THEN to_elim1].
 
 	lemma rep: for X if X: X : ARG, a: a : Abs X then pred X (rep a);
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
-			simp rep_[OF X a]; by 4[OF X a].
+			simp rep_ [OF X a]; by 4[OF X a].
 		.
 
 	lemma abs_rep: for X if X: X : ARG, a: a : Abs X then abs (rep a) = a;
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
-			unfold abs_[OF X rep_type[OF X a]], rep_[OF X a]; by 5[OF X a].
+			unfold abs_ [OF X rep_type[OF X a]], rep_ [OF X a]; by 5[OF X a].
 		.
 
 	lemma rep_abs: for X if X: X : ARG, px: pred X x, x: x : Rep.[X] then rep (abs x) = x;
 		apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5, 6;
-			unfold rep_[OF X abs_type[OF X x]], abs_[OF X x]; by 6[OF X x px].
+			unfold rep_ [OF X abs_type[OF X x]], abs_ [OF X x]; by 6[OF X x px].
 		.
 	lemma rep_eq_imp_abs_eq: for X if X! X : ARG, rep: rep a = x, [a : Abs X] then abs x = a;
 		fold rep; apply abs_rep[OF X].

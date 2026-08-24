@@ -5,6 +5,9 @@ begin
 lemma eq_imp_iff#cong? if #simp P = Q, [P : Prop, Q : Prop] then P ⟷ Q;
 	simp[on (=)].
 
+lemma eq_iff_trans#trans if PQ: P = Q, QR: Q ⟷ R then P ⟷ R;
+	apply QR[fold PQ].
+
 extend Quantifiable begin
 
 	lemma all_cong_eq#cong

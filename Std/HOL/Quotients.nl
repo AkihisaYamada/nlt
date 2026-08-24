@@ -1,5 +1,17 @@
-import Relations.
-import type.Prod.
+---
+# Quotients
+
+HOL family defines sets as predicates via the `typedef` mechanism. So defined types behave as sets, because Gordon's HOL admits both
+- functional extensionality: `f = g` if they are of type `'a -> 'b` and `∀x. x : 'a ⟹ f x = g x`; and
+- propositional extensionality: `P = Q` if they are propositions and `P ⟷ Q`.
+Church's original formulation mentions the former as an axiom necessary "in order to obtain classical real number theory", and does not mention the latter.
+
+If we admit quotient types instead of `typedef`, we can define sets as (intentional) predicates quotiented by extensional equivalence. I believe this is closer to usual mathematicians mind, who would not think `1 = 1` and `∀x y z n ∈ ℕ. x^n + y^n = z^n ⟹ n ≤ 2` are identical.
+Moreover,
+- quotient does not require witness inhabitant, which is automatic when the representation type is inhabited
+- when all types are inhabited, `typedef` is derivable.
+---
+import Relations, type.Prod.
 
 assume quotient_type: for ARG Rep eq if
 	  ∀X. X : ARG ⟹ Rep.[X] : TYPE,
@@ -54,10 +66,10 @@ begin
 	definition abs_ = fst (snd tp).
 	definition rep_ = snd (snd tp).
 
-	definition abs = (_implicit X : ARG. Rep.[X]) abs_.
-	definition rep = (_implicit X : ARG. Abs X) rep_.
+	definition abs = (IMPLICIT X : ARG. Rep.[X]) abs_.
+	definition rep = (IMPLICIT X : ARG. Abs X) rep_.
 
-	lemma tp_eq: tp = (Abs,abs_,rep_);
+	lemma tp_eq: tp = (Abs, abs_ , rep_ );
 		apply tp_is_tuple;
 		- if eq: tp = (Abs',abs',rep');
 			unfold! eq Abs_def abs__def rep__def.
@@ -73,10 +85,10 @@ begin
 			by 2[OF X].
 		.
 	lemma abs_ : for X if X: X : ARG, x: x : Rep.[X] then abs x = abs_ X x;
-		simp abs_def _implicit[OF x X].
+		simp abs_def IMPLICIT[OF x X].
  
 	lemma abs_type! for X if X: X : ARG, x! x : Rep.[X] then abs x : Abs X;
-		simp abs_[OF X x]; apply abs__type[OF X, THEN to_elim1].
+		simp abs_ [OF X x]; apply abs__type[OF X, THEN to_elim1].
 
 	lemma rep__type: if X: X : ARG then rep_ X : Abs X ⇒ Rep.[X];
 		apply tp_spec[OF tp_eq];
@@ -84,21 +96,21 @@ begin
 			by 3[OF X].
 		.
 	lemma rep_ : for X if X: X : ARG, a! a : Abs X then rep a = rep_ X a;
-		simp rep_def _implicit[of X (X. Abs X), OF a X].
+		simp rep_def IMPLICIT[of X (X. Abs X), OF a X].
 
 	lemma rep_type! for X if X! X : ARG, a! a : Abs X then rep a : Rep.[X];
-		simp rep_[OF X a]; apply rep__type[THEN to_elim1].
+		simp rep_ [OF X a]; apply rep__type[THEN to_elim1].
 
 	lemma abs_rep: for X
 		if abs: abs x = a, X: X : ARG, x: x : Rep.[X], a: a : Abs X then eq X x (rep a);
 		apply tp_spec[OF tp_eq];
-		- if 1, 2, 3, 4, 5; unfold rep_[OF X a]; apply 4[OF X x a]; fold abs_[OF X x]; apply abs.
+		- if 1, 2, 3, 4, 5; unfold rep_ [OF X a]; apply 4[OF X x a]; fold abs_ [OF X x]; apply abs.
 		.
 
 	lemma rep_abs: for X
 		if rep: eq X x (rep a), X: X : ARG, x: x : Rep.[X], a: a : Abs X then abs x = a;
 		apply tp_spec[OF tp_eq];
-		- if 1, 2, 3, 4, 5; unfold abs_[OF X x]; apply 5[OF X x a]; fold rep_[OF X a]; apply rep.
+		- if 1, 2, 3, 4, 5; unfold abs_ [OF X x]; apply 5[OF X x a]; fold rep_ [OF X a]; apply rep.
 		.
 
 	lemma abs_rep_eq: for X
@@ -122,5 +134,17 @@ begin
 		if eq: eq X (rep a) (rep b), [X : ARG, a : Abs X, b : Abs X] then a = b;
 		.. = abs (rep a); apply eq.sym, abs_rep_eq[of X].
 		apply rep_abs[of X], eq.
+
+end
+
+extend Inhabited begin
+
+	definition typedef_prj =
+		(fun 'a : TYPE, pred : 'a → Prop, x : 'a. if pred x then x else such z : 'a. false).
+	instance Typedef;
+		- for ARG Rep pred witness
+			if pred_type, witness for thesis if assm then thesis;
+			interpret QuotientType ARG Rep (fun 'X : ARG, x y : Rep.['X].
+				(  = y ∨  
 
 end

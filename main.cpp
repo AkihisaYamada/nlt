@@ -146,11 +146,11 @@ void init_lex( Lex& lex ) {
 	lex.register_char('!',Lex::MultiOp);
 	lex.register_range('#','&',Lex::MultiOp);
 	lex.register_range('*','+',Lex::MultiOp);
-	lex.register_char(',',Lex::SingleOp);
+	lex.register_char(',',Lex::LEFTOP);
 	lex.register_char('-',Lex::MultiOp);
 	lex.register_char('/',Lex::MultiOp);
 	lex.register_char(':',Lex::MultiOp);
-	lex.register_char(';',Lex::SingleOp);
+	lex.register_char(';',Lex::LEFTOP);
 	lex.register_range('<','@',Lex::MultiOp);
 	lex.register_char('\\',Lex::MultiOp);
 	lex.register_char('^',Lex::MultiOp);
@@ -2020,11 +2020,12 @@ public:
 					PR_MSG << "registering to_true: " << _thy.pretty(thm) << endl;
 					auto& rew = _thy.modify_rewriter(SIMP);
 					rew.register_to_true(thm);
-				} else if( int mode = skips("letter") ? 1 : skips("symbol") ? 2 : skips("solo") ? 3 : 0 ) {
+				} else if( int mode = skips("letter") ? 1 : skips("symbol") ? 2 : skips("left") ? 3 : skips("right") ? 4 : 0 ) {
 					auto [msg,type] = [&]()->Pair<char const*,Lex::CharType>{
 						if( mode == 1 ) return {"letters",Lex::Letter};
 						if( mode == 2 ) return {"symbols",Lex::MultiOp};
-						return {"solo symbols",Lex::SingleOp};
+						if( mode == 3 ) return {"left symbols",Lex::LEFTOP};
+						return {"right symbols",Lex::RIGHTOP};
 					}();
 					PR_MSG << "registering " << msg << ": ";
 					for(;;) {

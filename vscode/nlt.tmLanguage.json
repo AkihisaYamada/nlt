@@ -27,7 +27,7 @@
     "commands": {
       "patterns": [{
         "name": "storage.type.nlt",
-        "match": ":\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|instance|note|lemma|theorem|proposition|theory|context|namespace|extend|definition|set|prefix|infix|syntax|term)\\b"
+        "match": "(?<!_):\\=|\\b(thms?|ctxt|thy|goals?|assume|fix|obtain|import|instance|note|lemma|theorem|proposition|theory|context|namespace|extend|definition|set|prefix|infix|syntax|term)\\b"
       }]
     },
     "structures": {

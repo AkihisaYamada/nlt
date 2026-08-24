@@ -23,13 +23,13 @@ lemma map_eq__intro:
 	then map_eq_ ('a,'b) f g;
 	by eq_prop[of 'b] all_intro all #simp map_eq__def.
 
-definition map_eq = (_implicit ('a,'b) : TYPE × TYPE. 'a ⇒ 'b) map_eq_.
+definition map_eq = (IMPLICIT ('a,'b) : TYPE × TYPE. 'a ⇒ 'b) map_eq_.
 lemma map_eq_eq:
 	if ['a : TYPE, 'b : TYPE, f : 'a ⇒ 'b, g : 'a ⇒ 'b]
 	then map_eq f g = (∀x : 'a. f x = g x);
-	simp map_eq_def _implicit[of ('a,'b) (('a,'b). 'a ⇒ 'b) f, simp] map_eq__def.
+	simp map_eq_def IMPLICIT[of ('a,'b) (('a,'b). 'a ⇒ 'b) f, simp] map_eq__def.
 
-instance Map: QuotientType (TYPE × TYPE) (('a,'b). 'a ⇒ 'b) map_eq_;
+instance Map: QuotientType (TYPE × TYPE) (('a,'b). 'a ⇒ 'b) map_eq_ ;
 	- if X: X : TYPE × TYPE;
 		apply prod_cases[OF X];
 		- if #simp X = ('a,'b), ... .
@@ -71,7 +71,7 @@ lemma _lambda_app: for 'b if ['a : TYPE, 'b : TYPE, ∀x. x : 'a ⟹ F.[x] : 'b,
 		by Map.rep_type map_eq__elim1[OF 1].
 	simp.
 
-lemma fun_eq_intro:
+lemma map_eq_intro:
 	if all: ∀x. x : 'a ⟹ f ⋅ x = g ⋅ x, f: f : 'a → 'b, g: g : 'a → 'b, ['a : TYPE, 'b : TYPE]
 	then f = g;
 	apply Map.eq_intro[of ('a,'b)], map_eq__intro;

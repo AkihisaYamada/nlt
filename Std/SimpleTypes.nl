@@ -48,10 +48,10 @@ end
 ---
 Type-theory-based proof assistants implement functionalities to infer type parameters from type of arguments.
 ---
-binder _implicit 51 0.
-syntax[level 51] _implicit _ : _. _ := _implicit_:.
+binder IMPLICIT 51 0.
+syntax[level 51] IMPLICIT _ : _. _ := IMPLICIT_:.
 
 theory ImplicitArg :=
-	fix _implicit_:.
-	assume _implicit: for 'A Arg if a : Arg.['A], 'A : ARG then (_implicit 'X : ARG. Arg.['X]) f a = f 'A a.
+	fix IMPLICIT_:.
+	assume IMPLICIT: for 'A Arg if a : Arg.['A], 'A : ARG then (IMPLICIT 'X : ARG. Arg.['X]) f a = f 'A a.
 end

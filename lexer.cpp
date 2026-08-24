@@ -62,11 +62,12 @@ Lex::Lex() :
 		{'\t',{'\t',Blank}},
 		{'\n',{'\n',Blank}},
 		{'\r',{'\r',Blank}},
-		{')',{'(',SingleOp}},
-		{'[',{'[',SingleOp}},
-		{']',{']',SingleOp}},
-		{'{',{'{',SingleOp}},
-		{'}',{'}',SingleOp}},
+		{'(',{'(',LEFTOP}},
+		{')',{')',RIGHTOP}},
+		{'[',{'[',LEFTOP}},
+		{']',{']',RIGHTOP}},
+		{'{',{'{',LEFTOP}},
+		{'}',{'}',RIGHTOP}},
 		{'Z',{'A',Letter}},
 		{'z',{'a',Letter}},
 	}) {}
@@ -189,8 +190,8 @@ string_view Lexer::peek_token() {
 			fetch_char();
 		} while( fetched_char_type == Lex::Blank );
 		rp = wp;// the first non-blank character is read
-	} else {// a significant character is prefetched
-		// move it to the top of buf
+	} else {// significant characters are prefetched
+		// move them to the top of buf
 		size_t next_wp = 0;
 		for( ;rp < wp; rp++, next_wp++ ) {
 			buf[next_wp] = buf[rp];
@@ -201,6 +202,7 @@ string_view Lexer::peek_token() {
 	prev_token_line = read_line;
 	read_line = peeked_lines;
 	read_column = peeked_column;
+	auto prev_char_type = fetched_char_type;
 	switch( fetched_char_type ) {
 	case Lex::Digit:
 		_fetch_continue( Lex::Digit );
@@ -223,7 +225,7 @@ string_view Lexer::peek_token() {
 		}
 		break;
 	case Lex::DotBlank:// dot-blank is just dot.
-		rp = wp;
+		rp = 1;// TODO: dot must be one byte
 		token_type = DOTS;
 		fetched_char_type = Lex::Blank;
 		break;
@@ -243,9 +245,9 @@ string_view Lexer::peek_token() {
 			_fetch_continue( Lex::Digit );
 			token_type = NUMBER;
 			break;
-		case Lex::SingleOp:// dot followed by a single operator is another operator
+		case Lex::LEFTOP:// dot followed by a left operator is another operator
 			rp = wp;
-			fetched_char_type = Lex::Blank;// no character is prefetched
+			_fetch_follower(Lex::LEFTOP);
 			token_type = OPERATOR;
 			break;
 		case Lex::MultiOp:
@@ -263,20 +265,9 @@ string_view Lexer::peek_token() {
 			break;
 		}
 		break;
-	case Lex::SingleOp:
-		rp = wp;
-		fetch_char();
-		_fetch_follower(Lex::SingleOp);
-		token_type = OPERATOR;
-		break;
-	case Lex::MultiOp:
-		_fetch_continue(Lex::MultiOp);
-		_fetch_follower(Lex::MultiOp);
-		token_type = OPERATOR;
-		break;
 	case Lex::Quote: {
 		fetch_char();
-		rp = wp;// anything following quote is read
+		rp = wp;// anything following quote is prefetched
 		auto first_quote_type = fetched_char_type;
 		fetch_char();
 		if( fetched_char_type == Lex::Quote ) {// 'a'
@@ -295,18 +286,19 @@ string_view Lexer::peek_token() {
 		throw SyntaxError("\"unsupported token\"");
 	} break;
 	case Lex::Letter:
-		_fetch_continue( Lex::Letter | Lex::Digit );
-		_fetch_follower(Lex::Letter);
+	case Lex::Underscore:
+		rp = wp;
+		fetch_char();
+		_fetch_follower(prev_char_type);
 		token_type = WORD;
 		break;
-	case Lex::Underscore:
+	case Lex::LEFTOP:
+	case Lex::RIGHTOP:
+	case Lex::MultiOp:
+		rp = wp;
 		fetch_char();
-		if( _fetch_while( Lex::Letter | Lex::Digit ) ) {
-			_fetch_follower(Lex::Letter);
-		} else if( _fetch_while( Lex::MultiOp ) ) {
-			_fetch_follower(Lex::MultiOp);
-		}
-		token_type = WORD;
+		_fetch_follower(prev_char_type);
+		token_type = OPERATOR;
 		break;
 	default:
 		token_type = SPECIAL;
@@ -317,34 +309,39 @@ string_view Lexer::peek_token() {
 	return peeked_token;
 }
 void Lexer::_fetch_follower( Lex::CharType prevtype ) {
-	for(;;) {
-		switch( prevtype ) {
-		case Lex::Letter: case Lex::Digit: case Lex::MultiOp: case Lex::Underscore: case Lex::Quote:
-			if( _fetch_while(Lex::Underscore) ) {
-				prevtype = fetched_char_type;
-				_fetch_word_or_op();
-				continue;
+	for( ; ; prevtype = fetched_char_type, fetch_char() ) {
+		switch( fetched_char_type ) {
+		case Lex::Underscore:
+			if( !( prevtype & ( Lex::Dot | Lex::Underscore | Lex::Quote | Lex::Letter | Lex::Digit | Lex::MultiOp | Lex::LEFTOP /* {_ */ | Lex::RIGHTOP/* }_ */ ) ) ) return;
+			break;
+		case Lex::Quote:
+			if( !( prevtype & ( Lex::Dot | Lex::Underscore | Lex::Quote | Lex::Letter | Lex::Digit | Lex::MultiOp | Lex::RIGHTOP/* }' */ ) ) ) return;
+			break;
+		case Lex::Letter: case Lex::Digit:
+			if( !( prevtype & ( Lex::Dot | Lex::Underscore | Lex::Letter | Lex::Digit ) ) ) return;
+			break;
+		case Lex::MultiOp:
+			if( !( prevtype & ( Lex::Dot | Lex::Underscore | Lex::MultiOp ) ) ) return;
+			break;
+		case Lex::LEFTOP:// _,
+			if( !( prevtype & ( Lex::Underscore ) ) ) return;
+			break;
+		case Lex::RIGHTOP:// _}
+			if( !( prevtype & ( Lex::Dot | Lex::Underscore ) ) ) return;
+			break;
+		case Lex::Dot:
+			if( prevtype & ( Lex::Dot /* .. */ ) ) {
+				break;
 			}
-			if( _fetch_while(Lex::Quote) ) {
-				prevtype = fetched_char_type;
-				_fetch_word_or_num();
-				continue;
+			continue;// dot alone cannot be decided to constitute a token or not
+		case Lex::Blank:
+			if( prevtype == Lex::Dot ) {// last dot was not a part of the token
+				fetched_char_type = Lex::DotBlank;
 			}
-		case Lex::SingleOp:
-			if( fetched_char_type == Lex::Dot ) {
-				auto old_wp = wp;// TODO
-				fetch_char();
-				if( fetched_char_type == Lex::Blank ) {// forget that blank is fetched
-					fetched_char_type = Lex::DotBlank;
-					wp = old_wp;
-					return;
-				}
-				prevtype = fetched_char_type;
-				_fetch_word_or_op();
-				continue;
-			}
+		default:
+			return;
 		}
-		return;
+		rp = wp;
 	}
 }
 

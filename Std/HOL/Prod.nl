@@ -8,4 +8,3 @@ import type.Prod.
 assume prod_type: if 'a : TYPE, 'b : TYPE then 'a × 'b : TYPE.
 
 begin
-

@@ -11,8 +11,8 @@ begin
 set simp (⟷).
 set rule (⟷).
 
-note#rewrite_imp iff_elim1[OF _ > _ _].
-note#rewrite_rev iff_elim2[OF _ > _ _].
+note#rewrite_imp iff_elim1[OF _ > _ _ ].
+note#rewrite_rev iff_elim2[OF _ > _ _ ].
 note! iff.closed.
 
 instance iff: Magmas (⟷) (:).-- Magma notions wrt (⟷)

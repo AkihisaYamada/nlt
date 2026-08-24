@@ -1,4 +1,29 @@
+import Prod.
+
 begin
+
+definition rel_image =
+	(IMPLICIT ('a,'b) : TYPE × TYPE. 'a ⇒ 'b)
+	(pair_case (fun 'a 'b : TYPE, f : 'a ⇒ 'b, (⊏) : 'b ⇒ 'b ⇒ Prop, x y : 'a. f x ⊏ f y)).
+
+lemma rel_image1: if [f : 'a ⇒ 'b, 'a : TYPE, 'b : TYPE]
+	then rel_image f = (fun (⊏) : 'b ⇒ 'b ⇒ Prop, x y : 'a. f x ⊏ f y);
+	simp rel_image_def IMPLICIT[of ('a,'b) (('a,'b). 'a ⇒ 'b) f (TYPE × TYPE), simp].
+
+lemma rel_image2: if f: f : 'a ⇒ 'b, [(⊏) : 'b ⇒ 'b ⇒ Prop, 'a : TYPE, 'b : TYPE]
+	then rel_image f (⊏) = (fun x y : 'a. f x ⊏ f y);
+	simp rel_image1[OF f].
+
+lemma rel_image_type1: if f! f : 'a ⇒ 'b, ['a : TYPE, 'b : TYPE]
+	then rel_image f : ('b ⇒ 'b ⇒ Prop) ⇒ 'a ⇒ 'a ⇒ Prop;
+	simp rel_image1[OF f];
+	apply funIn_to;
+	- if rel: rel : 'b ⇒ 'b ⇒ Prop; by rel[THEN to_elim1, THEN to_elim1].
+	.
+
+lemma rel_image_type2: if f: f : 'a ⇒ 'b, rel: rel : 'b ⇒ 'b ⇒ Prop, ['a : TYPE, 'b : TYPE]
+	then rel_image f rel : 'a ⇒ 'a ⇒ Prop;
+	by f rel[THEN to_elim1, THEN to_elim1] #simp rel_image2[OF f rel].
 
 theory relation 'a (⊏) :=
 	assume TYPE! 'a : TYPE.
@@ -33,6 +58,10 @@ theory reflexive 'a (⊑) :=
 begin
 
 	instance Reflexive 'a (⊑); by reflexive[simp reflexive_eq, THEN all_elim1].
+
+	lemma image_reflexive:
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then reflexive 'b (rel_image f (⊑));
+		by reflexive_intro refl f #simp rel_image2[OF f].
 
 end
 
@@ -76,9 +105,19 @@ begin
 			apply 5[THEN imp_elim1, OF yz ! !].
 		.
 
+	lemma image_transitive:
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then transitive 'b (rel_image f (⊏));
+		apply transitive_intro;
+		- if xy: rel_image f (⊏) x y, yz: rel_image f (⊏) y z, ...;
+			simp rel_image1[OF f];
+			.. ⊏ f y; apply xy[simp rel_image1[OF f]].
+			by yz[simp rel_image1[OF f]] f.
+		by rel_image_type2[OF f].
+
 end
 
 definition symmetric = (fun 'a : TYPE, (~) : 'a ⇒ 'a ⇒ Prop. ∀x y : 'a. x ~ y ⟶ y ~ x).
+
 lemma symmetric_eq:
 	if ['a : TYPE, (~) : 'a ⇒ 'a ⇒ Prop] then symmetric 'a (~) = (∀x y : 'a. x ~ y ⟶ y ~ x);
 	simp symmetric_def.
@@ -112,6 +151,13 @@ begin
 			by 3[THEN imp_elim1, OF xy].
 		.
 
+	lemma image_symmetric:
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then symmetric 'b (rel_image f (~));
+		apply symmetric_intro;
+		- if xy: rel_image f (~) x y, ...;
+			use xy; by f[THEN to_elim1] #simp rel_image1[OF f] #weak sym.
+		by rel_image_type2[OF f].
+
 end
 
 definition preorder = (fun 'a : TYPE, (⊑) : 'a ⇒ 'a ⇒ Prop. reflexive 'a (⊑) ∧ transitive 'a (⊑)).
@@ -139,6 +185,13 @@ begin
 		show: transitive 'a (⊑); use preorder_axioms.
 		.
 	instance Preorder 'a (⊑).
+
+	lemma image_preorder: 
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then preorder 'b (rel_image f (⊑));
+		apply preorder_intro;
+		- apply image_reflexive[OF f].
+		- apply image_transitive[OF f].
+		by rel_image_type2[OF f].
 
 end
 
@@ -169,6 +222,13 @@ begin
 		show: transitive 'a (~); use partial_equivalence_axioms.
 		.
 	instance PartialEquivalence 'a (~).
+
+	lemma image_partial_equivalence:
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then partial_equivalence 'b (rel_image f (~));
+		apply partial_equivalence_intro;
+		- apply image_symmetric[OF f].
+		- apply image_transitive[OF f].
+		by rel_image_type2[OF f].
 
 end
 
@@ -208,5 +268,13 @@ begin
 		show: preorder 'a (~); by reflexive transitive #simp preorder_eq.
 		.
 	instance Equivalence 'a (~).
+
+	lemma image_equivalence:
+		if f: f : 'b ⇒ 'a, ['b : TYPE] then equivalence 'b (rel_image f (~));
+		apply equivalence_intro;
+		- apply image_symmetric[OF f].
+		- apply image_reflexive[OF f].
+		- apply image_transitive[OF f].
+		by rel_image_type2[OF f].
 
 end

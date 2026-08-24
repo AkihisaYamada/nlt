@@ -34,10 +34,10 @@ assume eq_prop: if 'a : TYPE, x : 'a, y : 'a then (x = y) : Prop.
 ---
 Church further introduces notation
 > $[A_α ≠ B_α] ⟶ [~(A_α = B_α)]$.
-Such notations are safe, because the arguments are not duplicated.
-We can achieve this kind of notation by admitting the syntactic composition operator, also known as the combinator B.
+Such notations could be considered justified because the arguments are not duplicated.
+Therefore, we admit some syntactic combinators that does not duplicate arguments.
 ---
-import Id, Comp.
+import Syntactic.
 
 ---
 ### Implication
@@ -105,12 +105,12 @@ Above assumptions are sufficient to develop intuitionistic fragment of Church's 
 ---
 begin
 
-definition[as _all] (∀:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) all_ ∘) ∘ (fun_:).
+definition[as _all] (∀:) = ((IMPLICIT 'a : TYPE. 'a ⇒ Prop) all_ ∘) ∘ (fun_:).
 
 lemma all_def:
 	if ['a : TYPE, ∀x. x : 'a ⟹ F.[x] : Prop]
 	then (∀x : 'a. F.[x]) = all_ 'a (fun x : 'a. F.[x]);
-	simp _all_def _implicit[of 'a].
+	simp _all_def IMPLICIT[of 'a].
 
 note imp_type1! imp_type[THEN to_elim1].
 note imp_type2! imp_type1[THEN to_elim1].
@@ -150,12 +150,12 @@ This allows us to reuse the generic binder notation introduced above.
 ---
 definition ex_ = (fun 'a : TYPE, P : 'a ⇒ Prop. (∀Q : Prop. (∀x : 'a. P x ⟶ Q) ⟶ Q)).
 
-definition[as _ex] (∃:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) ex_ ∘) ∘ (fun_:).
+definition[as _ex] (∃:) = ((IMPLICIT 'a : TYPE. 'a ⇒ Prop) ex_ ∘) ∘ (fun_:).
 
 lemma ex_def:
 	if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
 	then (∃x : 'a. P.[x]) = (∀Q : Prop. (∀x : 'a. (fun y : 'a. P.[y]) x ⟶ Q) ⟶ Q);
-	simp _ex_def _implicit[of 'a] ex__def.
+	simp _ex_def IMPLICIT[of 'a] ex__def.
 
 ---
 We show that this theory is an instance of equational, typed, higher-order, impredicative, intuitionistic logic.
@@ -260,7 +260,7 @@ A predicate represents a "set" when the result is two valued for any input. With
 ---
 definition is_set_ = (fun 'a : TYPE, p : 'a ⇒ Prop. ∀x : 'a. two_valued (p x)).
 
-definition is_set = (_implicit 'a : TYPE. 'a ⇒ Prop) is_set_ .
+definition is_set = (IMPLICIT 'a : TYPE. 'a ⇒ Prop) is_set_ .
 
 lemma is_set__type: if ['a : TYPE] then is_set_ 'a : ('a ⇒ Prop) ⇒ Prop;
 	simp is_set__def.
@@ -268,12 +268,12 @@ lemma is_set__type: if ['a : TYPE] then is_set_ 'a : ('a ⇒ Prop) ⇒ Prop;
 lemma is_set_fun_imp_two_valued:
 	if 1: is_set (fun x : 'a. P.[x]), ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop, x : 'a]
 	then two_valued P.[x];
-	apply 1[simp is_set_def _implicit[of 'a] is_set__def, THEN all_elim1[of x], simp].
+	apply 1[simp is_set_def IMPLICIT[of 'a] is_set__def, THEN all_elim1[of x], simp].
 
 lemma is_set_fun_intro:
 	if 1: ∀x. x : 'a ⟹ two_valued P.[x], ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
 	then is_set (fun x : 'a. P.[x]);
-	by 1 #simp is_set_def _implicit[of 'a] is_set__def.
+	by 1 #simp is_set_def IMPLICIT[of 'a] is_set__def.
 
 ---
 It is also convenient to have the unique existence notation.
@@ -282,12 +282,12 @@ definition ex1_ = (fun 'a : TYPE, P : 'a ⇒ Prop.
 	∀Q : Prop. ∀x : 'a. P x ⟶ (∀y : 'a. P y ⟶ y = x) ⟶ Q
 ).
 
-definition[as _ex1] (∃!:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) ex1_ ∘) ∘ (fun_:).
+definition[as _ex1] (∃!:) = ((IMPLICIT 'a : TYPE. 'a ⇒ Prop) ex1_ ∘) ∘ (fun_:).
 
 lemma ex1_def:
 	if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
 	then (∃!x : 'a. P.[x]) = ex1_ 'a (fun x : 'a. P.[x]);
-	simp _ex1_def _implicit[of 'a].
+	simp _ex1_def IMPLICIT[of 'a].
 
 
 ---
@@ -305,12 +305,12 @@ theory SuchSignature :=
 	assume SUCH_type: if 'a : TYPE then SUCH 'a : ('a ⇒ Prop) ⇒ 'a.
 begin
 
-	definition (such_:) = ((_implicit 'a : TYPE. 'a ⇒ Prop) SUCH ∘) ∘ (fun_:).
+	definition (such_:) = ((IMPLICIT 'a : TYPE. 'a ⇒ Prop) SUCH ∘) ∘ (fun_:).
 
 	lemma such_def:
 		if ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
 		then (such x : 'a. P.[x]) = SUCH 'a (fun x : 'a. P.[x]);
-		simp such_:_def _implicit[of 'a].
+		simp such_:_def IMPLICIT[of 'a].
 
 	lemma SUCH_app_type! if ['a : TYPE, f : 'a ⇒ Prop] then SUCH 'a f : 'a;
 		by SUCH_type[THEN to_elim1].

@@ -24,17 +24,18 @@ class Lex {
 public:
 	enum CharType {
 		None = 0,
-		Letter = 1 << 0,
-		Digit = 1 << 1,
+		End = 1 << 1,
 		Blank = 1 << 2,// space or nothing
-		Control = 1 << 3,
-		End = 1 << 4,
-		SingleOp = 1 << 5,
-		MultiOp = 1 << 6,
-		Dot = 1 << 7,// .
-		DotBlank = 1 << 8,// special treatment of dot followed by blank
-		Underscore = 1 << 9,// _ may connect letters and operators
-		Quote = 1 << 10,
+		Letter = 1 << 3,
+		Digit = 1 << 4,
+		MultiOp = 1 << 5,
+		LEFTOP = 1 << 6,
+		RIGHTOP = 1 << 7,
+		Control = 1 << 8,
+		Dot = 1 << 9,// .
+		Underscore = 1 << 10,// _ may connect letters and operators
+		Quote = 1 << 11,// '
+		DotBlank = 1 << 12,// special treatment of dot followed by blank
 	};
 private:
 	struct _CharRange {
