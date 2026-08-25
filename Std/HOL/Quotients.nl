@@ -8,10 +8,10 @@ Church's original formulation mentions the former as an axiom necessary "in orde
 
 If we admit quotient types instead of `typedef`, we can define sets as (intentional) predicates quotiented by extensional equivalence. I believe this is closer to usual mathematicians mind, who would not think `1 = 1` and `∀x y z n ∈ ℕ. x^n + y^n = z^n ⟹ n ≤ 2` are identical.
 Moreover,
-- quotient does not require witness inhabitant, which is automatic when the representation type is inhabited
-- when all types are inhabited, `typedef` is derivable.
+- quotient does not require a witness inhabitant, which is automatic when the representation type is inhabited
+- `typedef` is derivable from quotient and a (unique) choice operator.
 ---
-import Relations, type.Prod.
+import Relations.
 
 assume quotient_type: for ARG Rep eq if
 	  ∀X. X : ARG ⟹ Rep.[X] : TYPE,
@@ -103,48 +103,50 @@ begin
 
 	lemma abs_rep: for X
 		if abs: abs x = a, X: X : ARG, x: x : Rep.[X], a: a : Abs X then eq X x (rep a);
-		apply tp_spec[OF tp_eq];
+	-	apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5; unfold rep_ [OF X a]; apply 4[OF X x a]; fold abs_ [OF X x]; apply abs.
 		.
+	.
 
 	lemma rep_abs: for X
 		if rep: eq X x (rep a), X: X : ARG, x: x : Rep.[X], a: a : Abs X then abs x = a;
-		apply tp_spec[OF tp_eq];
+	-	apply tp_spec[OF tp_eq];
 		- if 1, 2, 3, 4, 5; unfold abs_ [OF X x]; apply 5[OF X x a]; fold rep_ [OF X a]; apply rep.
 		.
-
-	lemma abs_rep_eq: for X
-		if [X : ARG, a : Abs X] then abs (rep a) = a;
-	-	interpret equivalence (Rep.[X]) (eq X);
-			show: equivalence (Rep.[X]) (eq X); apply equivalence[of X].
-			.
-		apply rep_abs[of X];
-		by refl.
 	.
 
-	lemma rep_abs_sim: for X
-		if [X : ARG, x : Rep.[X]] then eq X (rep (abs x)) x;
-	-	interpret equivalence (Rep.[X]) (eq X);
+	theory Local :=
+		fix X.
+		assume X! X : ARG.
+	begin
+		instance equivalence (Rep.[X]) (eq X);
 			show: equivalence (Rep.[X]) (eq X); apply equivalence[of X].
 			.
-		apply sym, abs_rep.
-	.
+		lemma abs_rep_eq: if [a : Abs X] then abs (rep a) = a;
+			apply rep_abs[of X]; by refl.
+
+		lemma sim_rep_abs: if [x : Rep.[X]] then eq X x (rep (abs x));
+			apply abs_rep.
+
+		lemma rep_abs_sim: if [x : Rep.[X]] then eq X (rep (abs x)) x;
+			apply sym, sim_rep_abs.
+
+		lemma abs_eq_elim:
+			if eq: abs x = abs y, [x : Rep.[X], y : Rep.[X]] then eq X x y;
+			apply sim_rep_abs[THEN trans];
+			-.
+			unfold eq;
+			apply rep_abs_sim.
+
+	end
+
+	note abs_rep_eq: Local/abs_rep_eq.
+	note rep_abs_sim: Local/rep_abs_sim.
+	note abs_eq_elim: Local/abs_eq_elim[OF > _ ].
 
 	lemma eq_intro: for X
-		if eq: eq X (rep a) (rep b), [X : ARG, a : Abs X, b : Abs X] then a = b;
+		if sim: eq X (rep a) (rep b), [X : ARG, a : Abs X, b : Abs X] then a = b;
 		.. = abs (rep a); apply eq.sym, abs_rep_eq[of X].
-		apply rep_abs[of X], eq.
-
-end
-
-extend Inhabited begin
-
-	definition typedef_prj =
-		(fun 'a : TYPE, pred : 'a → Prop, x : 'a. if pred x then x else such z : 'a. false).
-	instance Typedef;
-		- for ARG Rep pred witness
-			if pred_type, witness for thesis if assm then thesis;
-			interpret QuotientType ARG Rep (fun 'X : ARG, x y : Rep.['X].
-				(  = y ∨  
+		apply rep_abs[of X], sim.
 
 end

@@ -30,8 +30,10 @@ Because the witness is required to be polymorphic, it is usually necessary to pi
 ---
 
 assume typedef: for ARG Rep pred witness if
+	  ∀X. X : ARG ⟹ Rep.[X] : TYPE,
 	  ∀X. X : ARG ⟹ pred X : Rep.[X] ⇒ Prop,-- `pred` is a polymorphic predicate over representations
-	  ∀X. X : ARG ⟹ pred X (witness X),-- `witness` is a polymorphic witness of `pred`
+	  ∀X. X : ARG ⟹ witness X : Rep.[X],-- `witness` is a polymorphic constant
+	  ∀X. X : ARG ⟹ pred X (witness X),-- which is a witness of `pred`
 	  ∀Abs abs rep.-- The existence of the three notions are postulated, such that
 		Abs : ARG ⇒ TYPE ⟹
 		(∀X. X : ARG ⟹ abs X : Rep.[X] ⇒ Abs X) ⟹
@@ -52,8 +54,13 @@ By capturing type definition of HOL kernel as a plain assumption, *local* type d
 begin
 
 theory TypeDefinition ARG Rep pred :=
+	assume Rep_type: if X : ARG then Rep.[X] : TYPE.
 	assume pred_type: if X : ARG then pred X : Rep.[X] ⇒ Prop.
-	assume nonempty: if ∀witness. (∀X. X : ARG ⟹ pred X (witness X)) ⟹ thesis then thesis.
+	assume nonempty:
+		if ∀witness.
+			(∀X. X : ARG ⟹ witness X : Rep.[X]) ⟹
+			(∀X. X : ARG ⟹ pred X (witness X)) ⟹ thesis
+		then thesis.
 begin
 
 	obtain tp where
@@ -68,8 +75,9 @@ begin
 		then thesis;
 	- for thesis' if assm;
 		apply nonempty;
-		- if witness: ∀X. X : ARG ⟹ pred X (witness X);
-			apply typedef[OF pred_type witness];
+		- if witness_type: ∀X. X : ARG ⟹ witness X : Rep.[X],
+			 witness: ∀X. X : ARG ⟹ pred X (witness X);
+			apply typedef[OF Rep_type pred_type witness_type witness];
 			- for Abs abs rep if Abs_type!, abs_type, rep_type, rep, abs_rep, rep_abs;
 				apply assm[of (Abs,abs,rep)];
 				- for thesis if assm';

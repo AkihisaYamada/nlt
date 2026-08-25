@@ -40,10 +40,10 @@ lemma false_iff_iff_not#simp if [P : Prop] then (false ⟷ P) ⟷ ¬P;
 	unfold[at 0] iff.commute;
 	by iff_false_iff_not.
 
-lemma and_simp1#simp[after 1] if P: P, [P : Prop, Q : Prop] then P ∧ Q ⟷ Q;
+lemma and_simp1: if P: P, [P : Prop, Q : Prop] then P ∧ Q ⟷ Q;
 	by iff_intro P.
 
-lemma and_simp2#simp[after 1] if Q: Q, [P : Prop, Q : Prop] then P ∧ Q ⟷ P;
+lemma and_simp2: if Q: Q, [P : Prop, Q : Prop] then P ∧ Q ⟷ P;
 	by iff_intro Q.
 
 lemma or_simp1: if P: P, [P : Prop, Q : Prop] then P ∨ Q ⟷ true;

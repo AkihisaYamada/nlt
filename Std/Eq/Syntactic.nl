@@ -139,6 +139,7 @@ begin
 	lemma: _RIP (⟨ (⊏) a P. ⟩ (∀x. x ⊏ a ⟹ P.[x])) =
 		(((∀) ∘) ∘) ∘ _BinderApp ( _BinderApp _BindAppBind) (y. ((⟹) ∘) ∘ dual id y).
 
+	lemma: _RIP (⟨ i t e. ⟩ f t e i) = dual (dual ∘ f).
 end
 
 ---
@@ -146,28 +147,33 @@ end
 
 We can already encode pairs by combinators, but letting pairs behave as functions can be confusing.
 So we abstract the encoding by obtaining the pair constructor and destructor just with the specifications
-`pair_case f (pair x y) = f x y`.
+`dest f (cons x y) = f x y`.
 Since NLT kernel does not support simultaneous specification of multiple constants, we actually use
-a combinator encoding to represent the tuple `(pair,fst,snd)`.
+a combinator encoding to represent the tuple `(cons,dest)`.
 ---
 obtain pair_tp where pair_tp_spec:
-	if pair = pair_tp (const id), case = pair_tp const
-	then case f (pair x y) = f x y;
+	if cons = pair_tp (const id), dest = pair_tp const
+	then dest f (cons x y) = f x y;
 	- for thesis if assm;
 		apply assm[of ((dual ((∘) ∘ dual ∘ dual id) id |>) ∘ ((|>) |>))];
-		- for pair if pair0 for case if case0;
-			by #simp case0 pair0.
+		- for cons if #simp for dest if #simp.
 		.
 	.
 
 definition[as pair] (,) = pair_tp (const id).
-definition pair_case = pair_tp const.
 
-lemma pair_case#simp pair_case f (x,y) = f x y;
-	by pair_tp_spec[OF pair_def pair_case_def].
+definition pair_dest = pair_tp const.
 
-definition fst = pair_case const.
-definition snd = pair_case (const id).
+lemma pair_dest#simp pair_dest f (x,y) = f x y;
+	by pair_tp_spec[OF pair_def pair_dest_def].
+
+definition pair_case = dual pair_dest.
+
+lemma pair_case#simp pair_case (x,y) f = f x y;
+	simp pair_case_def.
+
+definition fst = pair_dest const.
+definition snd = pair_dest (const id).
 
 instance Pair; by #simp fst_def snd_def.
 

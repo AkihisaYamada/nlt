@@ -2,9 +2,19 @@ import Prod.
 
 begin
 
+theory relation 'a (⊏) :=
+	assume TYPE! 'a : TYPE.
+	assume relation_type! (⊏) : 'a ⇒ 'a ⇒ Prop.
+begin
+
+	note relation_type1! relation_type[THEN to_elim1].
+	note relation_type2! relation_type1[THEN to_elim1].
+
+end
+
 definition rel_image =
 	(IMPLICIT ('a,'b) : TYPE × TYPE. 'a ⇒ 'b)
-	(pair_case (fun 'a 'b : TYPE, f : 'a ⇒ 'b, (⊏) : 'b ⇒ 'b ⇒ Prop, x y : 'a. f x ⊏ f y)).
+	(pair_dest (fun 'a 'b : TYPE, f : 'a ⇒ 'b, (⊏) : 'b ⇒ 'b ⇒ Prop, x y : 'a. f x ⊏ f y)).
 
 lemma rel_image1: if [f : 'a ⇒ 'b, 'a : TYPE, 'b : TYPE]
 	then rel_image f = (fun (⊏) : 'b ⇒ 'b ⇒ Prop, x y : 'a. f x ⊏ f y);
@@ -24,16 +34,6 @@ lemma rel_image_type1: if f! f : 'a ⇒ 'b, ['a : TYPE, 'b : TYPE]
 lemma rel_image_type2: if f: f : 'a ⇒ 'b, rel: rel : 'b ⇒ 'b ⇒ Prop, ['a : TYPE, 'b : TYPE]
 	then rel_image f rel : 'a ⇒ 'a ⇒ Prop;
 	by f rel[THEN to_elim1, THEN to_elim1] #simp rel_image2[OF f rel].
-
-theory relation 'a (⊏) :=
-	assume TYPE! 'a : TYPE.
-	assume relation_type! (⊏) : 'a ⇒ 'a ⇒ Prop.
-begin
-
-	note relation_type1! relation_type[THEN to_elim1].
-	note relation_type2! relation_type1[THEN to_elim1].
-
-end
 
 definition reflexive = (fun 'a : TYPE, (⊑) : 'a ⇒ 'a ⇒ Prop. ∀x : 'a. x ⊑ x).
 
@@ -278,3 +278,37 @@ begin
 		by rel_image_type2[OF f].
 
 end
+
+lemma eq_relation: if ['a : TYPE] then (fun x y : 'a. x = y) : 'a ⇒ 'a ⇒ Prop;
+	by eq_prop[of 'a].
+
+lemma eq_reflexive: if ['a : TYPE] then reflexive 'a (fun x y : 'a. x = y);
+	apply reflexive_intro.
+
+lemma eq_symmetric: if ['a : TYPE] then symmetric 'a (fun x y : 'a. x = y);
+	apply symmetric_intro;
+	- for x y if xy, ...; use xy; by #weak eq.sym.
+	.
+
+lemma eq_transitive: if ['a : TYPE] then transitive 'a (fun x y : 'a. x = y);
+	apply transitive_intro;
+	- for x y if xy for z if yz, ...; use xy yz; by eq.trans[of x y z].
+	.
+
+lemma eq_equivalence: if ['a : TYPE] then equivalence 'a (fun x y : 'a. x = y);
+	by equivalence_intro eq_symmetric eq_reflexive eq_transitive.
+
+
+instance iff: equivalence Prop (⟷);
+	-.
+	-.
+	- apply equivalence_intro;
+		- apply symmetric_intro;
+			- if xy: x ⟷ y, ... then y ⟷ x; by iff.sym[OF xy].
+			.
+		- apply reflexive_intro.
+		- apply transitive_intro;
+			- if xy: x ⟷ y, yz: y ⟷ z, ... then x ⟷ z; by iff.trans[OF xy yz].
+			.
+		.
+	.

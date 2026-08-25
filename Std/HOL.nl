@@ -83,12 +83,12 @@ assume all__type! all_ 'a : ('a ⇒ Prop) ⇒ Prop.
 Church's original formulation of ∀-introduction is the rule of inference:
 > VI. From $F_{oα} x_α$ to infer $Π_{o(oα)} F_{oα}$ provided that $x_α$ is not a free variable of $F_{oα}$.
 ---
-assume all__intro: if ∀x. x : 'a ⟹ f x, f : 'a ⇒ Prop then _all 'a f.
+assume all__intro: if ∀x. x : 'a ⟹ f x, f : 'a ⇒ Prop then all_ 'a f.
 ---
 The ∀-elimination is the formal axiom (family):
 > 5$^α$. $Π_{o(oα)} f_{oα} ⊃ f_{oα} x_α$
 ---
-assume all__elim_axiom: if f : 'a ⇒ Prop, x : 'a then _all 'a f ⟶ f x.
+assume all__elim_axiom: if f : 'a ⇒ Prop, x : 'a then all_ 'a f ⟶ f x.
 ---
 Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
@@ -238,6 +238,15 @@ instance Intuitionistic;
 	.
 
 instance Quantifiable TYPE.
+
+lemma and_type! (∧) : Prop ⇒ Prop ⇒ Prop;
+	by #simp and_def.
+
+lemma or_type! (∨) : Prop ⇒ Prop ⇒ Prop;
+	by #simp or_def.
+
+lemma iff_type! (⟷) : Prop ⇒ Prop ⇒ Prop;
+	by #simp iff_def.
 
 ---
 Church's original formulation does not assume propositions are **equal to** either true or false. Gordon's HOL assumes this on its propositional type `bool`, while Isabelle/HOL splits `prop` and two-valued `bool`.
