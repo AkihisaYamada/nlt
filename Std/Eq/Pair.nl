@@ -29,7 +29,7 @@ lemma pair_eq_pair_elim2: if eq: (x,y) = (x',y') then y = y';
 	.. = y'; unfold snd.
 	.
 
-lemma pair_eq_pair_elim#elim if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
+lemma pair_eq_pair_elim: if eq: (x,y) = (x',y'), assm: x = x' ⟹ y = y' ⟹ P then P;
 	apply assm;
 	by pair_eq_pair_elim1[OF eq] pair_eq_pair_elim2[OF eq].
 

@@ -2,7 +2,7 @@
 # Truth Values
 
 Gordon's HOL uses type `bool` for propositions and assumes that true and false are the only inhabitants.
-However, mathematicians do distinguish theorem statements rather than identifying them with `true`.
+This is a strong assumption as excluded middle is implied, and also does not reflect mathematicians' mind who would not think any theorem has the same value as `true`. 
 Therefore we introduce `Truth` values, which are `Prop` quotiented by `⟷`.
 In classical logic, `Truth` behave exactly as `bool` of HOL.
 ---

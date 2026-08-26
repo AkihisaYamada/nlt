@@ -79,11 +79,15 @@ begin
 		.
 end
 
+---
+### Identity Combinator
+
+The naive kernel does not even ensure the presence of a syntactic identity combinator.
+Admitting one gives a convenient way of annotating terms.
+---
 theory Id :=
 	fix id.
 	assume id#simp id x = x.
-begin
-	
 end
 
 theory Const :=-- aka K
@@ -93,7 +97,7 @@ end
 
 theory Comp :=-- aka B
 	fix (∘).
-	assume comp_app#simp (f ∘ g) x = f (g x).
+	assume o_app#simp (f ∘ g) x = f (g x).
 begin
 
 	definition comp2 = (∘) ∘ (∘).

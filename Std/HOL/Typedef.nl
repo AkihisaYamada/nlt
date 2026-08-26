@@ -83,9 +83,9 @@ begin
 				- for thesis if assm';
 					by assm'[OF eq.refl].
 				- for Abs' abs' rep' if eq for thesis if assm';
-					have#simp Abs' = Abs; use eq[dual].
-					have#simp abs' = abs; use eq[dual].
-					have#simp rep' = rep; use eq[dual].
+					have#simp Abs' = Abs; use simp[OF eq].
+					have#simp abs' = abs; use simp[OF eq].
+					have#simp rep' = rep; use simp[OF eq].
 					apply assm';
 					- by Abs_type.
 					- by #intro[after 1] abs_type.

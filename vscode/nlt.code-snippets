@@ -35,6 +35,14 @@
 		"prefix": ["\\vee","\\/"],
 		"body": "∨"
 	},
+	"(⋀)": {
+		"prefix": ["\\bigwedge","!!"],
+		"body": "⋀"
+	},
+	"(⋁)": {
+		"prefix": ["\\bigvee","??"],
+		"body": "⋁"
+	},
 	"(¬)": {
 		"prefix": ["\\neg","~"],
 		"body": "¬"
@@ -139,6 +147,14 @@
 		"prefix": ["\\cap"],
 		"body": "∩"
 	},
+	"(⋃)": {
+		"prefix": ["\\bigcup"],
+		"body": "⋃"
+	},
+	"(⋂)": {
+		"prefix": ["\\bigcap"],
+		"body": "⋂"
+	},
 	"(⊔)": {
 		"prefix": ["\\sqcup"],
 		"body": "⊔"
@@ -146,6 +162,14 @@
 	"(⊓)": {
 		"prefix": ["\\sqcap"],
 		"body": "⊓"
+	},
+	"(⨆)": {
+		"prefix": ["\\bigsqcup"],
+		"body": "⨆"
+	},
+	"(⨅)": {
+		"prefix": ["\\bigsqcap"],
+		"body": "⨅"
 	},
 	"⟦": {
 		"prefix": ["\\llbracket","[["],

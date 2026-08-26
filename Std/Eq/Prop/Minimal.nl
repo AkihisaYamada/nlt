@@ -2,7 +2,10 @@ import Std_Prop.Minimal.
 
 begin
 
-lemma eq_imp_iff#cong? if #simp P = Q, [P : Prop, Q : Prop] then P ⟷ Q;
+lemma eq_imp_iff: if #simp P = Q, [P : Prop, Q : Prop] then P ⟷ Q;
+	simp[on (=)].
+
+lemma iff_app_cong#cong? if #simp f = f', #simp x = x', [f x : Prop, f' x' : Prop] then f x ⟷ f' x';
 	simp[on (=)].
 
 lemma eq_iff_trans#trans if PQ: P = Q, QR: Q ⟷ R then P ⟷ R;
@@ -11,18 +14,18 @@ lemma eq_iff_trans#trans if PQ: P = Q, QR: Q ⟷ R then P ⟷ R;
 extend Quantifiable begin
 
 	lemma all_cong_eq#cong
-		if AB: A = B, PQ: ∀x. x : A ⟹ P.[x] ⟷ Q.[x],
+		if AB: A = B, PQ: ∀x. intro (x : A) ⟹ P.[x] ⟷ Q.[x],
 			[A : QTYPE, ∀x. x : A ⟹ P.[x] : Prop, ∀x. x : A ⟹ Q.[x] : Prop]
 		then (∀x : A. P.[x]) ⟷ (∀x : B. Q.[x]);
 		fold[on (=)] AB;
-		apply all_cong_weak[OF PQ].
+		by all_cong_weak PQ.
 
 	lemma ex_cong_eq#cong
-		if AB: A = B, PQ: ∀x. x : A ⟹ P.[x] ⟷ Q.[x],
+		if AB: A = B, PQ: ∀x. intro (x : A) ⟹ P.[x] ⟷ Q.[x],
 			[A : QTYPE, ∀x. x : A ⟹ P.[x] : Prop, ∀x. x : A ⟹ Q.[x] : Prop]
 		then (∃x : A. P.[x]) ⟷ (∃x : B. Q.[x]);
 		fold[on (=)] AB;
-		apply ex_cong_weak[OF PQ].
+		by ex_cong_weak PQ.
 
 end
 

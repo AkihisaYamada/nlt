@@ -453,3 +453,21 @@ lemma all_all_imp: if all: ∀x. P.[x], imp: ∀x. P.[x] ⟹ Q.[x] then ∀x. Q.
 
 lemma obtain_as: for witness if Pw: P.[witness], assm: ∀x. P.[x] ⟹ thesis then thesis;
 	by assm[OF Pw].
+
+
+---
+## Constants for Annotation
+
+It is convenient to annotate assumptions, without changing logical meaning.
+---
+obtain intro where
+	intro#intro if P then intro P,
+	intro_elim#intro[after 1] if intro P then P;
+	- for thesis if assm; by assm[of ((∀Q. Q ⟹ Q) ⟹)].
+	.
+
+obtain simp where
+	simp#intro if P then simp P,
+	simp_elim#simp[after 1] if simp P then P;
+	- for thesis if assm; by assm[of ((∀Q. Q ⟹ Q) ⟹)].
+	.

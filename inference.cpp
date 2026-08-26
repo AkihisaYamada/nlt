@@ -292,9 +292,10 @@ bool Resolver::_discharge(
 				if( log > 10 ) _log() << "! intro didn't match: " << subthy.pretty(thm) << endl;
 				return {};
 			}
-			if( fuel < 16 ) throw Error("\"intro limit exceeded\"")(rule->thm())(thesis.goal());
-			fuel -= 16;
+			if( fuel < 32 ) throw Error("\"intro limit exceeded\"")(rule->thm())(thesis.goal());
+			fuel -= 32;
 			subthesis._apply2(*m,*rule,subgoal_child,import.compose(sub2subsub));
+			fuel += 31;// only nested application costs a lot
 			if( log > 3 ) _log() << "- applied: " << subthy.pretty(thm) << endl;
 			return {thm};
 		};

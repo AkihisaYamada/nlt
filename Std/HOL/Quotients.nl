@@ -48,9 +48,9 @@ begin
 			apply assm[of (Abs,abs,rep)];
 			- for thesis' if assm'; apply assm'[OF eq.refl].
 			- for Abs' abs' rep' if eq for thesis' if assm';
-				have#simp Abs' = Abs; apply eq.sym; use eq.
-				have#simp abs' = abs; apply eq.sym; use eq.
-				have#simp rep' = rep; apply eq.sym; use eq.
+				have#simp Abs' = Abs; use simp[OF eq].
+				have#simp abs' = abs; use simp[OF eq].
+				have#simp rep' = rep; use simp[OF eq].
 				apply assm';
 				- by 1.
 				- for X; by #intro[after 1] 2.
