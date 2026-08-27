@@ -45,7 +45,7 @@ assume nat_rec_suc#simp
 
 begin
 
-note nat_eq_prop! eq_prop[OF nat_eqtype].-- TODO don't export
+note nat_eq_prop: eq_prop[OF nat_eqtype].
 
 instance nat: Equivalence ℕ (=);
 	- .
@@ -57,7 +57,7 @@ lemma suc_eq_suc#simp if [x : ℕ, y : ℕ] then suc x = suc y ⟷ x = y;
 	apply iff_intro;
 	- by #elim suc_inj.
 	- if #simp.
-	.
+	by nat_eq_prop.
 
 note nat_rec_type1! nat_rec_type[THEN to_elim1].
 note nat_rec_type2! nat_rec_type1[THEN to_elim1].
@@ -170,10 +170,10 @@ lemma 0_add#simp if [x : ℕ] then 0 + x = x;
 
 lemma suc_add#simp if x: x : ℕ, [y : ℕ] then suc x + y = suc (x + y);
 	apply arbitrary[OF x], nat_induction[of y];
-	-.
+	- by nat_eq_prop.
 	- for y' if IH, ...;
-		by #simp IH[THEN all_elim1].
-	.
+		by nat_eq_prop #simp IH[THEN all_elim1].
+	by nat_eq_prop.
 
 lemma add_1_eq_suc#simp if [x : ℕ] then x + 1 = suc x; simp 1_def.
 lemma 1_add_eq_suc#simp if [x : ℕ] then 1 + x = suc x; simp 1_def.
@@ -184,11 +184,11 @@ instance add: nat.CommMonoid (+) 0;
 	- if [x : ℕ, y : ℕ, z : ℕ] then x + y + z = x + (y + z);
 		apply nat_induction[of x];
 		- if IH: x' + y + z = x' + (y + z), ...; simp IH.
-		.
+		by nat_eq_prop.
 	- if [x : ℕ, y : ℕ] then x + y = y + x;
 		apply nat_induction[of x];
 		- if IH: x' + y = y + x', ...; simp IH.
-		.
+		by nat_eq_prop.
 	- if y: y = y', [x : ℕ], ... then x + y = x + y';
 		simp y.
 	.
@@ -209,8 +209,8 @@ lemma 0_mul#simp if [x : ℕ] then 0 * x = 0;
 lemma suc_mul#simp if x: x : ℕ, [y : ℕ] then suc x * y = x * y + y;
 	apply arbitrary[OF x], nat_induction[of y];
 	- for y' if IH, ...;
-		by #simp IH[THEN all_elim1] add.left_assoc.
-	.
+		by nat_eq_prop #simp IH[THEN all_elim1] add.left_assoc.
+	by nat_eq_prop.
 
 instance mul: nat.CommSemiring1 (*) (+) 0 1;
 	have left_distrib: if [x : ℕ, y : ℕ, z : ℕ] then x * (y + z) = x * y + x * z;
@@ -221,16 +221,16 @@ instance mul: nat.CommSemiring1 (*) (+) 0 1;
 			have 1: x' * z + y = y + x' * z; by add.commute.
 			unfold 1;
 			simp add.left_assoc.
-		.
+		by nat_eq_prop.
 	- if [x : ℕ, y : ℕ, z : ℕ] then x * y * z = x * (y * z);
 		apply nat_induction[of z];
 		- if IH: x * y * z' = x * (y * z'), ...;
 			simp IH left_distrib.
-		.
+		by nat_eq_prop.
 	- if [x : ℕ, y : ℕ] then x * y = y * x;
 		apply nat_induction[of x];
 		- if IH: x' * y = y * x', ...; simp IH; unfold[at 0] add.commute.
-		.
+		by nat_eq_prop.
 	- if #simp y = y', [x : ℕ, y : ℕ, y' : ℕ] then x * y = x * y'.
 	- if [x : ℕ] then 1 * x = x; simp 1_def.
 	.
@@ -289,7 +289,7 @@ lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟷ x ≤ y;
 		- if 1: suc y = z + suc x, ...;
 			apply nat_le_intro_add[of z];
 			by 1[simp, THEN suc_inj].
-		.
+		by nat_eq_prop.
 	- if xy; apply nat_le_imp_ex_add[OF xy ! !, THEN ex_elim];
 		- if 1: y = z + x, ...;
 			apply nat_le_intro_add[of z];
@@ -298,6 +298,7 @@ lemma suc_le_suc#simp if [x : ℕ, y : ℕ] then suc x ≤ suc y ⟷ x ≤ y;
 	.
 
 lemma nat_le_iff_ex_add: if [x : ℕ], y: y : ℕ then x ≤ y ⟷ (∃z : ℕ. y = z + x);
+	note! nat_eq_prop.
 	apply arbitrary[OF y], nat_induction[of x];
 	- apply all_intro;
 		- if [y' : ℕ]; apply iff_intro;
@@ -322,6 +323,7 @@ lemma nat_le_intro_add: for z if yzx: y = z + x, [x : ℕ, y : ℕ, z : ℕ] the
 	by #simp yzx.
 
 instance nat_le: TotalOrder ℕ (≤);
+	note! nat_eq_prop.
 	- if x! x : ℕ, [y : ℕ] then x ≤ y ∨ y ≤ x;
 		apply arbitrary[OF x], nat_induction[of y];
 		- by or_intro2 0_le_nat.
@@ -414,6 +416,7 @@ lemma 0_diff#simp if [x : ℕ] then 0 ∸ x = 0;
 	.
 
 lemma suc_diff_suc#simp if x: x : ℕ, [y : ℕ] then suc x ∸ suc y = x ∸ y;
+	note! nat_eq_prop.
 	apply arbitrary[OF x], nat_induction[of y];
 	- apply all_intro;
 		- if [x' : ℕ];
@@ -444,6 +447,27 @@ instance add: add.RightCancel (∸);
 		.
 	.
 
+definition 2 = suc 1.
+
+lemma 2_nat! 2 : ℕ; simp 2_def.
+
+lemma suc_1_eq_2#simp suc 1 = 2; simp 2_def.
+
+lemma 2_eq_suc: 2 = suc (suc 0); unfold 2_def, 1_def.
+
+lemma 2_add_eq_suc#simp if [x : ℕ] then 2 + x = suc (suc x);
+	simp 2_eq_suc.
+
+lemma add_2_eq_suc#simp if [x : ℕ] then x + 2 = suc (suc x);
+	simp 2_eq_suc.
+
+definition 3 = suc 2.
+
+lemma 3_nat! 3 : ℕ; simp 3_def.
+
+lemma suc_2_eq_3#simp suc 2 = 3; simp 3_def.
+
+lemma 3_eq_suc: 3 = suc (suc (suc 0)); unfold 3_def, 2_eq_suc.
 
 ---
 ## Binary Representation
@@ -453,63 +477,69 @@ Numeric literals are internally expressed via `_bit0` and `_bit1`.
 
 obtain _bit0 where
 	_bit0_nat! if x : ℕ then _bit0 x : ℕ,
-	_bit0_eq: if x : ℕ then _bit0 x = suc 1 * x;
+	_bit0_eq: if x : ℕ then _bit0 x = 2 * x;
 	- for thesis if assm;
-		apply assm[of (fun x : ℕ. suc 1 * x)].
+		apply assm[of (fun x : ℕ. 2 * x)].
 	.
 obtain _bit1 where
 	_bit1_nat! if x : ℕ then _bit1 x : ℕ,
-	_bit1_eq: if x : ℕ then _bit1 x = suc 1 * x + 1; 
+	_bit1_eq: if x : ℕ then _bit1 x = 2 * x + 1; 
 	- for thesis if assm;
-		apply assm[of (fun x : ℕ. suc 1 * x + 1)].
+		apply assm[of (fun x : ℕ. 2 * x + 1)].
 	.
+
+lemma _bit1_eq_suc_bit0: if [x : ℕ] then _bit1 x = suc ( _bit0 x); simp _bit1_eq _bit0_eq.
+
+lemma _bit0_1_eq_2#simp _bit0 1 = 2; simp _bit0_eq.
+lemma _bit1_1_eq_3#simp _bit1 1 = 3; simp _bit1_eq_suc_bit0.
 
 lemma _bit0_add_bit0#simp if [x : ℕ, y : ℕ] then _bit0 x + _bit0 y = _bit0 (x + y);
 	simp _bit0_eq mul.left_distrib.
 
 lemma _bit0_add_bit1#simp if [x : ℕ, y : ℕ] then _bit0 x + _bit1 y = _bit1 (x + y);
-	simp _bit0_eq _bit1_eq mul.left_distrib.
+	simp _bit1_eq_suc_bit0.
 
 lemma _bit1_add_bit0#simp if [x : ℕ, y : ℕ] then _bit1 x + _bit0 y = _bit1 (x + y);
-	simp _bit0_eq _bit1_eq mul.left_distrib.
+	simp _bit1_eq_suc_bit0.
 
 lemma _bit1_add_bit1#simp if [x : ℕ, y : ℕ] then _bit1 x + _bit1 y = _bit0 (suc (x + y));
-	.. = suc (suc (x + x + (y + y))); simp _bit1_eq.
-	.. = suc (suc (x + (x + y) + y)); simp add.left_assoc.
-	.. = suc (suc (x + (y + x) + y));
-		have 1: x + y = y + x; by add.commute.
-		unfold 1.
-	simp _bit0_eq add.left_assoc.
+	.. = suc (suc ( _bit0 (x + y))); unfold _bit1_eq_suc_bit0.
+	simp _bit0_eq.
 
 lemma suc_bit0#simp if [x : ℕ] then suc ( _bit0 x) = _bit1 x;
-	simp _bit0_eq _bit1_eq.
+	unfold _bit1_eq_suc_bit0.
 
 lemma suc_bit1#simp if [x : ℕ] then suc ( _bit1 x) = _bit0 (suc x);
 	simp _bit0_eq _bit1_eq.
 
-lemma suc_1_eq_bit0#simp suc 1 = _bit0 1;
-	simp _bit0_eq.
 
-lemma _bit0_mul: if [x : ℕ, y: ℕ] then _bit0 x * y = _bit0 (x * y);
-	simp _bit0_eq mul.right_distrib.
+-- The following computation rules are simple but rewrite non-numeral terms.
 
-lemma mul_bit0: if [x : ℕ, y: ℕ] then x * _bit0 y = _bit0 (x * y);
-	simp _bit0_eq mul.left_distrib.
+lemma _bit0_mul: if [x : ℕ, y : ℕ] then _bit0 x * y = _bit0 (x * y);
+	simp _bit0_eq mul.left_assoc.
 
-lemma _bit1_mul: if [x : ℕ, y: ℕ] then _bit1 x * y = _bit0 (x * y) + y;
-	simp _bit1_eq _bit0_eq mul.right_distrib.
+lemma mul_bit0: if [x : ℕ, y : ℕ] then x * _bit0 y = _bit0 (x * y);
+	.. = x * 2 * y; simp _bit0_eq mul.left_assoc.
+	.. = 2 * x * y; unfold[at 0 1 0 1] mul.commute.
+	.. = 2 * (x * y); unfold mul.left_assoc.
+	unfold _bit0_eq.
 
-lemma mul_bit1: if [x : ℕ, y: ℕ] then x * _bit1 y = _bit0 (x * y) + x;
-	simp _bit1_eq _bit0_eq mul.left_distrib.
+lemma _bit1_mul: if [x : ℕ, y : ℕ] then _bit1 x * y = _bit0 (x * y) + y;
+	simp _bit1_eq _bit0_eq mul.left_assoc.
 
-lemma _bit0_mul_bit0: if [x : ℕ, y: ℕ] then _bit0 x * _bit0 y = _bit0 ( _bit0 (x * y));
+lemma mul_bit1: if [x : ℕ, y : ℕ] then x * _bit1 y = x + _bit0 (x * y);
+	simp _bit1_eq_suc_bit0 mul_bit0.
+
+-- The following are restricted
+lemma _bit0_mul_bit0#simp if [x : ℕ, y : ℕ] then _bit0 x * _bit0 y = _bit0 ( _bit0 (x * y));
 	simp _bit0_mul mul_bit0.
 
-lemma _bit0_mul_bit1: if [x : ℕ, y: ℕ] then _bit0 x * _bit1 y = _bit0 ( _bit0 (x * y) + x);
+lemma _bit0_mul_bit1#simp if [x : ℕ, y : ℕ] then _bit0 x * _bit1 y = _bit0 (x + _bit0 (x * y));
 	simp _bit0_mul mul_bit1.
 
-lemma _bit1_mul_bit0: if [x : ℕ, y: ℕ] then _bit1 x * _bit0 y = _bit0 ( _bit0 (x * y) + y);
+lemma _bit1_mul_bit0#simp if [x : ℕ, y : ℕ] then _bit1 x * _bit0 y = _bit0 ( _bit0 (x * y) + y);
 	simp _bit1_mul mul_bit0.
 
-lemma _bit1_mul_bit1: if [x : ℕ, y: ℕ] then _bit1 x * _bit1 y = _bit1 ( _bit0 (x * y) + x + y);
+lemma _bit1_mul_bit1#simp if [x : ℕ, y : ℕ] then _bit1 x * _bit1 y = _bit1 (x + _bit0 (x * y) + y);
 	simp _bit1_mul mul_bit1.
+
