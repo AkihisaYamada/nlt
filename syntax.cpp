@@ -29,7 +29,7 @@ ostream& _pretty_num( Syntax const& syn, ostream& os, unsigned char e, unsigned 
 			if( fun == Syntax::BIT0 ) return _pretty_num( syn, os, e+1, num, arg );
 			if( fun == Syntax::BIT1 ) return _pretty_num( syn, os, e+1, num | (1<<e), arg );
 		}
-	} else if( inner.sym().contains("1") && num > 2 /* 0,1,2,3 are special */ ) {
+	} else if( inner.sym().contains("1") ) {
 		return os << (num | (1<<e));
 	}
 	// ill-formed number

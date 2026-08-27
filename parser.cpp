@@ -88,19 +88,15 @@ Opt<Term> Parser::_gets_term( int level, string& fv ) & {
 		skip(")");
 	} else if( next_token_type() == NUMBER ) {
 		unsigned int num = get_nat();
-		switch( num ) {
-			case 0: init = "0"; break;
-			case 1: init = "1"; break;
-			case 2: init = "2"; break;
-			case 3: init = "3"; break;
-			default: {
-				unsigned int bit = std::bit_floor(num);
-				init = "1";// top bit
-				for(;;) {
-					bit >>= 1;
-					if( bit == 0 ) break;
-					init = Term( num & bit ? Syntax::BIT1 : Syntax::BIT0 )(init); 
-				}
+		if( num == 0 ) {
+			init = "0";
+		} else {
+			unsigned int bit = std::bit_floor(num);
+			init = "1";// top bit
+			for(;;) {
+				bit >>= 1;
+				if( bit == 0 ) break;
+				init = Term( num & bit ? Syntax::BIT1 : Syntax::BIT0 )(init); 
 			}
 		}
 	} else if( auto const& x = syn.finds_opener(peek) ) {
