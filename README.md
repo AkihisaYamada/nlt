@@ -10,11 +10,12 @@ To build, please install `make` and `g++`, and run `make`. It will produce `nlt`
 
 An invocation of `nlt` creates an initial *theory* with no axioms and symbols, except for `∀` and `⟹`
 provided by the naive foundation.
-Typically, users start by importing library theories for the logic they want to use, e.g.,
+Typically, you start by importing library theories for the logic you want to use; e.g.,
+a (rather rigidly typed) intuitionistic natural number arithmetic (Heyting) is imported by:
 ```
 > import Std, Eq, Prop, Nat.
 ```
-where the left-most `>` symbols are prompt from the tool and not to be included in user inputs.
+The left-most `>` symbols are prompt from the tool and not to be included in user inputs.
 The main development of a theory should start with
 ```
 > begin
@@ -121,7 +122,7 @@ proof by telling `nlt` which facts should be used as *simplification rules*, e.g
 ```
 You don't have to name `mul_suc`, which is actually already declared as `#simp`.
 
-A type-dependent user might not recognize that there are remaining subgoals:
+A type-system dependent user might fail to notice that there are remaining subgoals:
 ```
         3. ∀ x'. x' : ℕ ⟹ 2 * x' = x' + x' : Prop
         4. x : ℕ
