@@ -205,7 +205,7 @@ public:
 	/** @brief applies rewriting */
 	bool rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, bool wide, std::vector<char> const& pos, Opt<std::string const&> rel ) &;
 	/** @brief Rewrites a theorem */
-	Thm rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) &;
+	Thm rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string const&> rel ) &;
 	/**
 	 * @brief returns a rewrite equation for the given source term at given position.
 	 * 
@@ -250,6 +250,9 @@ private:
 			} else {
 				return {Intro::rule(thm)};
 			}
+		} else {
+			if( log > 4 ) _log() << "declaring further elimination result: " << thy.pretty(thm) << std::endl;
+			Elim::rule(thm,0,res.after,res.mode);
 		}
 		return {};
 	}

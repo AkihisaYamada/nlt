@@ -1,6 +1,16 @@
-import Std_Prop.Minimal.
+import Std_Prop.Minimal, Comp.
 
 begin
+---
+The notation for `≠` is defined using syntactic composition as follows.
+---
+definition[as neq] (≠) = ((¬) ∘) ∘ (=).
+
+lemma neq_eq: (x ≠ y) = (¬(x = y));
+	by #simp neq_def.
+
+lemma neq_intro: for 'a if assm: x = y ⟹ false, [x : 'a, y : 'a, 'a : EQTYPE] then x ≠ y;
+	by not_intro assm #simp neq_eq.
 
 lemma eq_imp_iff: if #simp P = Q, [P : Prop, Q : Prop] then P ⟷ Q;
 	simp[on (=)].

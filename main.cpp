@@ -461,7 +461,7 @@ public:
 				} else if( int mode = skips("unfold") ? 1 : skips("fold") ? 2 : 0 ) {
 					auto resolver = loc.resolver(_out_resolver);
 					auto ctrl = _get_rewrite(resolver,loc,mode==2,false);
-					tmp = resolver.rewrites(loc,tmp,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
+					tmp = resolver.rewrites(loc,tmp,{},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				} else if( skips("simp") ) {
 					auto const& rew = loc.rewriter(SIMP);
 					auto resolver = Resolver(rew,_out_resolver);
@@ -469,11 +469,11 @@ public:
 					while( auto thm = _gets_thm(loc,true) ) {
 						rew.add_rewrite_rule(resolver.rules,*thm,false);
 					}
-					tmp = resolver.rewrites(loc,tmp,{SIMP},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos);
+					tmp = resolver.rewrites(loc,tmp,{SIMP},ctrl.min,ctrl.max,ctrl.normalize,ctrl.pos,ctrl.rel);
 				} else if( skips("rule") ) {
 					auto const& rew = loc.rewriter(RULIFY);
 					auto resolver = Resolver(rew,_out_resolver);
-					tmp = resolver.rewrites(loc,tmp,{RULIFY},1,255,true,{});
+					tmp = resolver.rewrites(loc,tmp,{RULIFY},1,255,true,{},{});
 				} else if( skips("dual") ) {
 					auto resolver = Resolver({},_out_resolver);
 					tmp = loc.dualize(tmp,resolver);

@@ -19,8 +19,6 @@ set symbol
 set left ⟦, ⟨, ⟪.
 set right ⟧, ⟩, ⟫.
 
-infix ⟹ 1 0 0.
-binder ∀ 0 0.
 syntax[invalid] _ }.
 syntax[invalid] _ ].
 

@@ -17,7 +17,12 @@ string const CONG = "#cong";
 
 void cerr_proof_thms( Thy const& thy ) {
 	for( auto const& name : { EXACT, CONCL, INTRO, WEAK, ELIM, INFLATOR } ) {
-		cerr << name << ":" << thy.print_thms(name);
+		cerr << thy.print_thms(name);
+	}
+	if( auto simp = thy.find_rewriter(SIMP) ) {
+		for( auto const& rel : simp->rels() ) {
+			cerr << thy.print_thms(SIMP+rel);
+		}
 	}
 }
 
@@ -232,7 +237,7 @@ bool Resolver::_discharge(
 	if( fuel == 0 ) {
 		if( fail ) return false;
 		if( log > 6 ) cerr_proof_thms(thesis.thy());
-		throw Error("\"discharge limit exceeded\"")(thesis.goal());
+		throw Error("\"discharge exceeded limit\"")(thesis.goal());
 	}
 	fuel--;
 	auto subthy = thesis.thy().branch();
@@ -246,7 +251,7 @@ bool Resolver::_discharge(
 			assert(elim);
 			if( auto m = elim->matches(assm,{import}) ) {
 				if( log > 3 ) _log() << "- eliminating: " << subthy.pretty(assm) << endl;
-				if( fuel == 0 ) throw Error("\"elimination limit exceeded\"")(assm);
+				if( fuel == 0 ) throw Error("\"elimination exceeded limit\"")(assm);
 				fuel--;
 				elim_res.emplace_back(elim->instantiate(*this,*m,assm,import,subthy));
 				n_elim_res++;
@@ -262,7 +267,7 @@ bool Resolver::_discharge(
 		auto assm = subthy.assume(imp->first);// make the assumption
 		goal = imp->second;
 		if( simp && rew ) {// rewrite the assumption
-			assm = rewrites(subthy,assm,simp,0,255,true,{});
+			assm = rewrites(subthy,assm,simp,0,255,true,{},{});
 		}
 		// checks if an elimination rule matches
 		if( subthy.find_thm( ELIM, elim_test(assm) ) ) continue;

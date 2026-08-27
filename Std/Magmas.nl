@@ -425,7 +425,7 @@ context PartialEquivalence begin
 		instance Ringoid.
 	end
 
-	theory Semiring_0 (*) (+) 0 :=
+	theory Semiring0 (*) (+) 0 :=
 		import Semiring (*) (+).
 		import SemigroupAbsorb (*) 0.
 		import add: Magmas.LeftNeutral A (+) 0.
@@ -433,8 +433,8 @@ context PartialEquivalence begin
 		instance add: CommMonoid (+) 0.
 	end
 
-	theory Semiring_1 (*) (+) 0 1 :=
-		import Semiring_0 (*) (+) 0.
+	theory Semiring1 (*) (+) 0 1 :=
+		import Semiring0 (*) (+) 0.
 		import MonoidAbsorb (*) 0 1.
 	begin
 	end
@@ -447,19 +447,21 @@ context PartialEquivalence begin
 		instance CommRingoid, Semiring.
 	end
 
-	theory CommSemiring_0 (*) (+) 0 :=
-		import CommSemiring (*) (+).
+	theory CommSemiring0 (*) (+) 0 :=
 		import CommSemigroupAbsorb (*) 0.
-		import add: Magmas.LeftNeutral A (+) 0.
+		import add: CommMonoid (+) 0;
+			show: 0 ∈ A.
+			.
+		import LeftDistributive A A (*) (+) (+).
 	begin
-		instance Semiring_0.
+		instance CommSemiring (*) (+), Semiring0.
 	end
 
-	theory CommSemiring_1 (*) (+) 0 1 :=
-		import CommSemiring_0 (*) (+) 0.
+	theory CommSemiring1 (*) (+) 0 1 :=
 		import CommMonoidAbsorb (*) 0 1.
+		import CommSemiring0 (*) (+) 0.
 	begin
-		instance Semiring_1.
+		instance Semiring1.
 	end
 
 	theory BooleanAlgebra (&) (|) 0 1 :=
@@ -469,12 +471,12 @@ context PartialEquivalence begin
 		import dual: LeftDistributive A A (|) (&) (&), LeftAbsorptive A A (|) (&).
 	begin
 
-		instance CommSemiring_1 (&) (|) 0 1;
+		instance CommSemiring1 (&) (|) 0 1;
 			by closed left_assoc left_mono left_neutral left_absorb commute
 			   neutral.closed absorb.closed
 			   dual.closed dual.left_assoc dual.commute dual.left_mono dual.left_neutral.
 
-		instance dual: CommSemiring_1 (|) (&) 1 0;
+		instance dual: CommSemiring1 (|) (&) 1 0;
 			by dual.closed dual.left_assoc dual.commute dual.left_mono dual.left_neutral
 			   neutral.closed absorb.closed dual.left_absorb
 				left_assoc commute left_mono left_neutral.

@@ -6,7 +6,7 @@ Syntax SYNTAX;
 
 Syntax::Syntax() {
 	infix("⟹","⟹",0,1,0,{});
-	binder("∀",0,0);
+	binder("∀",10,0);
 	infix(".",".",-1,-1,-2,{});// Dot cannot be an symbol
 	postfix(")","#rparen",INVALID);
 }

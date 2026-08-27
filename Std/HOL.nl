@@ -134,14 +134,6 @@ definition[as iff] (⟷) = (fun P Q : Prop. (P ⟶ Q) ∧ (Q ⟶ P)).
 definition[as or] (∨) = (fun P Q : Prop. ∀R : Prop. (P ⟶ R) ⟶ (Q ⟶ R) ⟶ R).
 
 ---
-The notation for `≠` is defined using syntactic composition as follows.
----
-definition[as neq] (≠) = ((¬) ∘) ∘ (=).
-
-lemma neq_eq: (x ≠ y) = (¬(x = y));
-	by #simp neq_def.
-
----
 Church's original treatment of existential quantification is a notation:
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
 Directly formalizing this requires adding another assumption (or extending the parser).

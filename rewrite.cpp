@@ -534,8 +534,8 @@ bool Resolver::rewrites( Thesis& thesis, Opt<std::string const&> simp, size_t mi
 	if( log > 1 ) _log() << "rewritten thesis to: " << thesis << endl;
 	return ret;
 }
-Thm Resolver::rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos ) & {
-	string rel = rew->_default_rel.value_or_throw(Error("\"no default rewrite relation\""));
+Thm Resolver::rewrites( Thy& thy, Thm const& source, Opt<std::string const&> simp, size_t min, size_t max, bool normalize, std::vector<char> const& pos, Opt<std::string const&> orel ) & {
+	string rel = orel || [&]{ return rew->_default_rel.value_or_throw(Error("\"no default rewrite relation\"")); };
 	auto const& [imp,info] = thy.term_thm(rel,REWRITE_IMP);
 	auto const& impinfo = *ASSERTED(info.ref<Rewrite::ImpInfo>());
 	auto tmp = imp; // ∀x y. (x ⟺ y) ⟹ conds... ⟹ x ⟹ y
