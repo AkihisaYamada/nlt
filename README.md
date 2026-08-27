@@ -152,3 +152,10 @@ obtain c where c_def: c = body;
 ```
 It is sometimes better to use `obtain` and specify only essential properties,
 since other theories can *replace* the constant by a term that satisfies the properies. 
+
+## Disclaimer
+
+This project is purely private and none of the author's past employers' resource was
+spent for it. Nevertheless, I would like to thank Hitoshi Ohsaki, for letting me work
+on term rewriting and Isabelle/HOL, which brought me important insights for this project;
+and also for supporting me in the difficult situation.
