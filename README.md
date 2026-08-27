@@ -32,12 +32,14 @@ and formally `∀x. x : ℕ ⟹ 2 * x = x + x`.
 The assumption `x : ℕ` is referred to by name `x_is_nat` in the proof.
 
 Only the following two constructions have special meaning to `nlt` kernel:
+
 - `∀x. t`, meaning that `t` holds, where `x` is instantiated to an arbitrary (closed) term;
 - `s ⟹ t` means if `s` holds, then `t` holds.
+
 Importantly, `:` or `=` have no special meaning for the kernel.
 
 Let's prove `2_mul_nat_eq`, by induction on `x`. The induction principle on `ℕ` is named `nat_induction`
-and can be shown by:
+and can be printed by:
 ```
 >> thm nat_induction.
 ```
@@ -88,7 +90,11 @@ Now looking at the left-hand side `2 * suc y` of the goal, you would like to sim
 ```
 To this to succeed, the instances `2 : ℕ` and `y : ℕ` of the premises must be known to `nlt`.
 While the former is already known, for the latter you have to declare `y_is_nat` as such a knowledge.
-You can do so by `note! y_is_nat.` command, or declare already at the goal statement:
+You can do so by command:
+```
+>>> note! y_is_nat.
+```
+or declare already at the goal statement:
 ```
 >>  - for y if IH: 2 * y = y + y, y_is_nat! y : ℕ then 2 * suc y = suc y + suc y;
 ```
@@ -113,6 +119,8 @@ proof by telling `nlt` which facts should be used as *simplification rules*, e.g
 ```
 >>  - if IH: 2 * y = y + y, ...; by #simp IH.
 ```
+You don't have to name `mul_suc`, which is actually already declared as `#simp`.
+
 A type-dependent user might not recognize that there are remaining subgoals:
 ```
         3. ∀ x'. x' : ℕ ⟹ 2 * x' = x' + x' : Prop
@@ -135,8 +143,12 @@ If your foundation admits equality `=` (or any reflexive relation), then
 ```
 > definition c = body.
 ```
-is available. Internally, it corresponds to
+is available. Internally, it corresponds to more general `obtain` command:
 ```
 obtain c where c_def: c = body;
-  - for thesis if assm: 
+  - for thesis if assm: ∀c. c = body ⟹ thesis then thesis;
+    by assm[of body].
+  .
 ```
+It is sometimes better to use `obtain` and specify only essential properties,
+since other theories can *replace* the constant by a term that satisfies the properies. 
