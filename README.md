@@ -8,7 +8,7 @@ To build, please install `make` and `g++`, and run `make`. It will produce `nlt`
 
 ## Basic Usage
 
-An invocation of `nlt` creates an initial *theory* with no axioms and symbols, except for `∀` and `⟹`
+An invocation of `nlt` creates an initial *theory* with no axioms and constants, except for `∀` and `⟹`
 provided by the naive foundation.
 Typically, you start by importing library theories for the logic you want to use; e.g.,
 a (rather rigidly typed) intuitionistic natural number arithmetic (Heyting) is imported by:
