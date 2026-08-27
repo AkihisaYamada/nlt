@@ -6,6 +6,10 @@ This is a proof assistant based on a naive foundation of logic.
 
 To build, please install `make` and `g++`, and run `make`. It will produce `nlt`.
 
+`nlt` is native to UTF-8. You will need to be able to input mathematical symbols.
+A VSCode syntax extension can be made by `make vscode`. For more information,
+please check [vscode/README.md]().
+
 ## Basic Usage
 
 An invocation of `nlt` creates an initial *theory* with no axioms and constants, except for `∀` and `⟹`
