@@ -119,12 +119,16 @@ Here you see the left-hand side of the `IH: 2 * y = y + y`, so you can proceed b
     unfolded goals:
         1. 2 + (y + y) = suc y + suc y
 ```
-This goal is now automatic and you can conclude the subgoal by `.`. You can also shorten the
-proof by telling `nlt` which facts should be used as *simplification rules*, e.g.:
+This goal is now automatic and you can conclude the subgoal by `.`. You can also
+instruct `nlt` to unfold by `IH` whenever possible by giving it a `#simp` tag:
 ```
->>  - if IH: 2 * y = y + y, ...; by #simp IH.
+>>>  by #simp IH.
 ```
-You don't have to name `mul_suc`, which is actually already declared as `#simp`.
+or already in the subgoal statement:
+```
+>>  - if #simp 2 * y = y + y, ... .
+```
+You don't have to name `mul_suc`, which is actually already declared with `#simp` tag.
 
 A type-system dependent user might fail to notice that there are remaining subgoals:
 ```
@@ -144,7 +148,7 @@ and the last one is the assumption `x_is_nat` of our main claim. You can complet
 
 ## Obtaining Constants
 
-If your foundation admits equality `=` (or any reflexive relation), then
+If your foundation admits equality `=` (or any relation with reflexivity theorem with `#refl` tag), then
 ```
 > definition c = body.
 ```
