@@ -74,8 +74,6 @@ extend MetaRelation begin
 
 end
 
-context FalseNot.-- just to load the context
-
 extend Iff_Not? Iff.Not begin
 
 	instance base? base.Not.
@@ -95,7 +93,7 @@ extend Iff_Not? Iff.Not begin
 			by nimp_intro.
 
 		lemma nand_iff_imp_not: ¬(P ∧ Q) ⟺ (P ⟹ ¬Q);
-			unfold not_true.not_iff_imp_false;
+			unfold not_iff_imp_not[OF true_intro];
 			simp.
 
 		note imp_not_iff_nand: nand_iff_imp_not[dual].

@@ -20,6 +20,8 @@ fix (¬).
 
 begin
 
+instance True, False.
+
 ---
 Some relation properties involve negation.
 ---
@@ -40,12 +42,18 @@ end
 
 -- A stronger, yet very mild assumption is that explosive terms are refuted.
 theory NotExplosive :=
-	assume not_intro:-- @English refutation by inconsistency
+	assume not_intro_inconsistency:-- @English refutation by inconsistency
 		if P ⟹ ∀Q. Q then ¬P.
 begin
 
 	instance NotInconsistent;
-		by not_intro.
+		by not_intro_inconsistency.
+
+	lemma not_intro: if P0: P ⟹ false then ¬P;
+		by not_intro_inconsistency #elim P0.
+
+	lemma not_false: ¬ false;
+		apply not_intro_inconsistency.
 
 end
 
@@ -342,7 +350,7 @@ begin
 
 	instance MinimalNot;
 		- if PnQ: P ⟹ ¬Q, Q: Q then ¬P;
-			apply not_intro;
+			apply not_intro_inconsistency;
 			- if P;
 				apply not_elim[OF PnQ[OF P] Q].
 			.
@@ -453,8 +461,8 @@ context NotExplosive begin
 
 		instance ClaviusLaw;
 			- if nPP: ¬P ⟹ P then P;
-				apply peirce_law[of (∀Q. Q)];
-				- if PnnP: P ⟹ ∀Q. Q;
+				apply peirce_law[of false];
+				- if PnnP: P ⟹ false;
 					apply nPP;
 					apply not_intro[OF PnnP].
 				.

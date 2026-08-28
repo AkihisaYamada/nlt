@@ -63,7 +63,7 @@ extend Not begin
 	extend MinimalNot begin
 
 		lemma nex_iff_all_not: ¬ (∃x. P.[x]) ⟺ (∀x. ¬ P.[x]);
-			unfold not_true.not_iff_imp_false.
+			unfold not_iff_imp_not[OF true_intro].
 
 	end
 

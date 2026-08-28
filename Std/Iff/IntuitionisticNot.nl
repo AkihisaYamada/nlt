@@ -1,10 +1,13 @@
-instance False.
-import FalseNot.
+import Not.
+assume not_iff_imp_false: ¬P ⟺ (P ⟹ false).
 
 begin
 
 instance Not.IntuitionisticNot;
-	by #simp not_iff_imp_false false_iff.
+	- by #simp not_iff_imp_false.
+	- if nP: ¬P, P: P then Q;
+		use nP[unfold not_iff_imp_false, OF P].
+	.
 
 instance MinimalNot.
 
