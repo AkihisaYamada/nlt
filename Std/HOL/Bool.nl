@@ -1,3 +1,4 @@
+begin
 
 lemma Bool_cases: if 1: b = True ⟹ P, 0: b = False ⟹ P, b! b : Bool, [P : Prop] then P;
 	have abs_rep: Bool.abs Prop (Bool.rep Prop b) = b;

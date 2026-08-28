@@ -38,7 +38,7 @@ assume to_type! if A : TYPE, B : TYPE then A ⇒ B : TYPE.
 begin
 
 ---
-Most foundations on simple type theory require every type to be inhabited, and there is a polymorphic way to denote a witness.
+Most foundations on simple type theory require every type to be inhabited, and there is a polymorphic way to denote a witness. It is `undefined` in Isabelle/HOL but here we follow a more explanatory naming following Coq.
 ---
 theory Inhabited :=
 	fix inhabitant.
@@ -46,7 +46,8 @@ theory Inhabited :=
 end
 
 ---
-Type-theory-based proof assistants implement functionalities to infer type parameters from type of arguments.
+Type-theory-based proof assistants implement functionalities to infer type parameters from
+the type of an argument.
 ---
 binder IMPLICIT 51 0.
 syntax[level 51] IMPLICIT _ : _. _ := IMPLICIT_:.
@@ -54,4 +55,15 @@ syntax[level 51] IMPLICIT _ : _. _ := IMPLICIT_:.
 theory ImplicitArg :=
 	fix IMPLICIT_:.
 	assume IMPLICIT: for 'A Arg if a : Arg.['A], 'A : ARG then (IMPLICIT 'X : ARG. Arg.['X]) f a = f 'A a.
+begin
+	---
+	This functionality allows us to denote *the* type of a term, so a term cannot have multiple types essentially.
+	---
+	obtain typeof where typeof: if x : 'a, 'a : TYPE then typeof x = 'a;
+		- for thesis if assm;
+			apply assm[of ((IMPLICIT 'a : TYPE. 'a) (fun 'a : TYPE, x : 'a. 'a))];
+			- if [x : 'a, 'a : TYPE]; simp IMPLICIT[of 'a].
+			.
+		.
+
 end

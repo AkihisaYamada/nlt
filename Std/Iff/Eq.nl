@@ -130,7 +130,7 @@ begin
 
 	lemma ex1_cong#cong
 		if iff: ∀x. P.[x] ⟺ P'.[x] then (∃!x. P.[x]) ⟺ (∃!x. P'.[x]);
-		unfold ex1_iff_all iff.
+		unfold ex1_iff_all, iff.
 
 	note#simp iff_true[OF ex1_eq1] iff_true[OF ex1_eq2].
 

@@ -1,7 +1,7 @@
 ---
 # Sets in Intuitionistic HOL
 
-Since we leave extensionality assumptions optional, Gordon's type definition is not sufficient to derive set types. Nevertheless, quotient types are sufficient to derive sets from intentional intuitionistic logic.
+Since we leave extensionality assumptions optional, Gordon's type definition is not sufficient to derive set types. On the other hand, quotient types are sufficient and more direct for deriving set types from intentional intuitionistic logic.
 ---
 import Quotients.
 
@@ -26,7 +26,7 @@ lemma set_eq__elim1: for 'a
 	apply eq[simp set_eq__def, THEN all_elim1[of x]].
 
 instance Set: QuotientType TYPE ('a. 'a ⇒ Prop) set_eq_ ;
-	- by is_set__type.
+	-.
 	- if ['a : TYPE]; by #simp set_eq__def.
 	- if ['a : TYPE]; apply equivalence_intro;
 		- apply symmetric_intro;

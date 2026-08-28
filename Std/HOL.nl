@@ -94,31 +94,33 @@ Church then introduces "notation":
 > $[(x_α)A_o] ⟶ Π_{o(oα)} (λx_α A_o)$.
 But it is not trivial why this reduction is safe, as parameter α is duplicated.
 Types are there to ensure this kind of reduction to terminate, but here α is a type and simple type theory does not consider types like `FUN α : TYPE. (α ⇒ Prop) ⇒ Prop`.
-Instead, we first formalize implicit type parameters to be able to define a symbol `all` such that `all f = all_ α f` if `f : α ⇒ Prop`.
+Instead, we first formalize implicit type parameters to be able to make `all_` polymorphic.
 ---
 import ImplicitArg.
 
-import Comp.
-
 ---
-Above assumptions are sufficient to develop intuitionistic fragment of Church's foundation of logic.
+These assumptions are sufficient to develop intuitionistic fragment of Church's foundation of logic.
 ---
 begin
-
-definition[as _all] (∀:) = ((IMPLICIT 'a : TYPE. 'a ⇒ Prop) all_ ∘) ∘ (fun_:).
+---
+Now the polymorphic version of `all_` is defined by:
+---
+definition all = (IMPLICIT 'a : TYPE. 'a ⇒ Prop) all_.
+---
+Then `∀x : 'a. P.[x]`, internally `(∀:) 'a (x. P.[x])`, is short for `all ((fun_:) 'a (x. P.[x]))`,
+which is not duplicating and expressible in terms of linear combinators:
+---
+definition[as _all] (∀:) = (all ∘) ∘ (fun_:).
 
 lemma all_def:
 	if ['a : TYPE, ∀x. x : 'a ⟹ F.[x] : Prop]
 	then (∀x : 'a. F.[x]) = all_ 'a (fun x : 'a. F.[x]);
-	simp _all_def IMPLICIT[of 'a].
+	simp _all_def all_def IMPLICIT[of 'a].
 
 note imp_type1! imp_type[THEN to_elim1].
 note imp_type2! imp_type1[THEN to_elim1].
 
 instance Prop TYPE Prop (:) (⇒).
-
-
-
 
 ---
 ## Defining Logical Operators
@@ -137,8 +139,8 @@ definition[as or] (∨) = (fun P Q : Prop. ∀R : Prop. (P ⟶ R) ⟶ (Q ⟶ R) 
 Church's original treatment of existential quantification is a notation:
 > $[(∃x_α)A_o] ⟶ [~[(x_α)[~A_o]]]$.
 Directly formalizing this requires adding another assumption (or extending the parser).
-Instead, we follow the HOL family for defining a (type-parametric) constant `ex_`.
-This allows us to reuse the generic binder notation introduced above.
+Instead, we follow the HOL family for defining a (type-parametric) constant `ex_`,
+and use the same trick as `∀x : 'a. P.[x]`.
 ---
 definition ex_ = (fun 'a : TYPE, P : 'a ⇒ Prop. (∀Q : Prop. (∀x : 'a. P x ⟶ Q) ⟶ Q)).
 
@@ -239,42 +241,6 @@ lemma or_type! (∨) : Prop ⇒ Prop ⇒ Prop;
 
 lemma iff_type! (⟷) : Prop ⇒ Prop ⇒ Prop;
 	by #simp iff_def.
-
----
-Church's original formulation does not assume propositions are **equal to** either true or false. Gordon's HOL assumes this on its propositional type `bool`, while Isabelle/HOL splits `prop` and two-valued `bool`.
-Here we will just define a predicate when a proposition is two valued.
----
-definition two_valued = (fun p : Prop. p = true ∨ p = false).
-
-lemma two_valued_type! two_valued : Prop ⇒ Prop;
-	by eq_prop[of Prop] #simp two_valued_def.
-
-note two_valued_type1! two_valued_type[THEN to_elim1].
-
-lemma two_valued_true! two_valued true;
-	by or_intro1 eq_prop[of Prop] #simp two_valued_def.
-lemma two_valued_false! two_valued false;
-	by or_intro2 eq_prop[of Prop] #simp two_valued_def.
-
----
-A predicate represents a "set" when the result is two valued for any input. With extensionality, sets are identified by its members.
----
-definition is_set_ = (fun 'a : TYPE, p : 'a ⇒ Prop. ∀x : 'a. two_valued (p x)).
-
-definition is_set = (IMPLICIT 'a : TYPE. 'a ⇒ Prop) is_set_ .
-
-lemma is_set__type: if ['a : TYPE] then is_set_ 'a : ('a ⇒ Prop) ⇒ Prop;
-	simp is_set__def.
-
-lemma is_set_fun_imp_two_valued:
-	if 1: is_set (fun x : 'a. P.[x]), ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop, x : 'a]
-	then two_valued P.[x];
-	apply 1[simp is_set_def IMPLICIT[of 'a] is_set__def, THEN all_elim1[of x], simp].
-
-lemma is_set_fun_intro:
-	if 1: ∀x. x : 'a ⟹ two_valued P.[x], ['a : TYPE, ∀x. x : 'a ⟹ P.[x] : Prop]
-	then is_set (fun x : 'a. P.[x]);
-	by 1 #simp is_set_def IMPLICIT[of 'a] is_set__def.
 
 ---
 It is also convenient to have the unique existence notation.

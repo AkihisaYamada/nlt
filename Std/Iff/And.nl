@@ -101,7 +101,7 @@ extend Iff_Not? Iff.Not begin
 		note imp_not_iff_nand: nand_iff_imp_not[dual].
 			
 		lemma nand_nnot_iff: ¬ (P ∧ ¬ ¬ Q) ⟺ ¬ (P ∧ Q);
-			unfold+ nand_iff_imp_not nnnot_iff.
+			unfold nand_iff_imp_not, nnnot_iff.
 
 		lemma nnot_nand_iff: ¬ (¬ ¬ P ∧ Q) ⟺ ¬ (P ∧ Q);
 			unfold and.commute;

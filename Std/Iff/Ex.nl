@@ -21,7 +21,7 @@ lemma ex_iff: (∃x. P.[x]) ⟺ (∀Q. (∀x. P.[x] ⟹ Q) ⟹ Q);
 	.
 
 lemma ex_cong#cong#rule_cong if eq: ∀x. P.[x] ⟺ P'.[x] then (∃x. P.[x]) ⟺ (∃x. P'.[x]);
-	unfold ex_iff eq.
+	unfold ex_iff, eq.
 
 lemma ex_indep#simp (∃x. P) ⟺ P;
 	by iff_intro ex_intro1 #elim ex_elim.

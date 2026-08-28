@@ -155,11 +155,11 @@ begin
 	lemma all_cong_strong:
 		if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
 		then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a'. P'.[x]);
-		unfold+ all_iff a P.
+		unfold all_iff, a, P.
 
 	lemma all_cong_weak:
 		if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∀x ⊏ a. P.[x]) ⟺ (∀x ⊏ a. P'.[x]);
-		unfold+ all_iff P.
+		unfold all_iff, P.
 
 	lemma imp_all_iff: (P ⟹ ∀x ⊏ a. Q.[x]) ⟺ (∀x ⊏ a. P ⟹ Q.[x]);
 		by iff_intro #simp all_iff.
@@ -181,18 +181,16 @@ begin
 				by all[OF xa Px].
 			.
 		- if ex: ∃x ⊏ a. P.[x], imp: ∀x. P.[x] ⟹ x ⊏ a ⟹ Q then Q;
-			by ex[unfold ex_iff_all, OF imp[OF > _]].
+			by ex[unfold ex_iff_all, OF imp[OF > _ ]].
 		.
 	lemma ex_cong_strong:
 		if a: ∀x. x ⊏ a ⟺ x ⊏ a', P: ∀x. x ⊏ a' ⟹ (P.[x] ⟺ P'.[x])
 		then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a'. P'.[x]);
-		unfold+ ex_iff_all;
-		unfold a;
-		unfold P.
+		unfold ex_iff_all, a, P.
 
 	lemma ex_cong_weak:
 		if P: ∀x. x ⊏ a ⟹ (P.[x] ⟺ P'.[x]) then (∃x ⊏ a. P.[x]) ⟺ (∃x ⊏ a. P'.[x]);
-		unfold+ ex_iff_all P.
+		unfold ex_iff_all, P.
 
 	lemma ex_imp_iff#simp#rule ((∃x ⊏ a. P.[x]) ⟹ Q) ⟺ (∀x. x ⊏ a ⟹ P.[x] ⟹ Q);
 		apply iff_intro;

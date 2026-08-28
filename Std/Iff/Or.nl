@@ -59,11 +59,11 @@ extend ExRel begin
 	lemma ex_or_distrib: (∃x ⊏ a. P.[x] ∨ Q.[x]) ⟺ (∃x ⊏ a. P.[x]) ∨ (∃x ⊏ a. Q.[x]);
 		apply iff_intro;
 		-> if xa: x ⊏ a;
-			apply or_elim[OF > _ _]>2;
+			apply or_elim[OF > _ _ ]>2;
 			- by or_intro1 ex_intro1[OF _ xa].
 			- by or_intro2 ex_intro1[OF _ xa].
 			.
-		apply or_elim[OF > _ _]>2;
+		apply or_elim[OF > _ _ ]>2;
 		-> if xa: x ⊏ a;
 			by ex_intro1[OF _ xa].
 		-> if xa: x ⊏ a;
@@ -93,10 +93,10 @@ extend Iff_Not? Iff.Not begin
 			.
 
 		lemma nnot_nor_iff: ¬ (¬ ¬ P ∨ Q) ⟺ ¬ (P ∨ Q);
-			unfold nor_iff_not_nimp_nnot nnnot_iff.
+			unfold nor_iff_not_nimp_nnot, nnnot_iff.
 
 		lemma nor_nnot_iff: ¬ (P ∨ ¬ ¬ Q) ⟺ ¬ (P ∨ Q);
-			unfold nor_iff_not_nimp_nnot nnnot_iff.
+			unfold nor_iff_not_nimp_nnot, nnnot_iff.
 
 		extend Iff.And begin
 
